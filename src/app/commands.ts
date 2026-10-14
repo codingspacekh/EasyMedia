@@ -3,6 +3,7 @@
 import { EditError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import { validateSettings } from '../core/model/settings.ts';
+import { validateTextStyle } from '../core/text/fonts.ts';
 import type { Seconds } from '../core/model/time.ts';
 import {
   assertFitsInTrack,
@@ -20,7 +21,11 @@ import type {
   MediaAsset,
   Project,
   ProjectSettings,
+  TextEffects,
   TextItem,
+  TextStyle,
+  TitleBackground,
+  TitleSlide,
 } from '../core/model/types.ts';
 import type { Command } from './history.ts';
 
@@ -252,6 +257,67 @@ export function addAudioItem(item: AudioItem, track: AudioTrack): Command {
   };
 }
 
+/** V4: the words of a title slide, caption, subtitle or credits. */
+export function setText(id: Id, text: string): Command {
+  return { label: 'Change text', apply: (p) => updateText(p, id, (item) => ({ ...item, text })) };
+}
+
+/** V4, V6: font, size, colour, alignment, position and readability. */
+export function setTextStyle(id: Id, change: Partial<TextStyle>): Command {
+  return {
+    label: 'Change text style',
+    apply: (p) =>
+      updateText(p, id, (item) => {
+        const style = { ...item.style, ...change };
+        validateTextStyle(style);
+        return { ...item, style };
+      }),
+  };
+}
+
+/** Fades and entrance for text; scrolling for credits (V5, V7). */
+export function setTextEffects(id: Id, change: TextEffects & { scroll?: boolean }): Command {
+  return {
+    label: 'Change text effects',
+    apply: (p) =>
+      updateText(p, id, (item) => {
+        const next = { ...item, ...change };
+        const fadeIn = next.fadeIn ?? 0;
+        const fadeOut = next.fadeOut ?? 0;
+        if (fadeIn < 0 || fadeOut < 0) throw new EditError('Fades cannot be negative.');
+        if (fadeIn + fadeOut > next.duration + 1e-9) {
+          throw new EditError('The fades are longer than the text is shown. Make them shorter.');
+        }
+        return next;
+      }),
+  };
+}
+
+/** V4, V12: a title slide's background — a colour, an imported picture or a video. */
+export function setTitleBackground(id: Id, background: TitleBackground): Command {
+  return {
+    label: 'Change title background',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        if (item.type !== 'title') throw new EditError('Only title slides have a background.');
+        if (background.kind === 'colour') {
+          if (!/^#[0-9a-f]{6}$/i.test(background.colour))
+            throw new EditError('Choose a background colour.');
+        } else {
+          const kind = requireAsset(p, background.assetId).kind;
+          if (kind !== background.kind) {
+            throw new EditError(
+              background.kind === 'image'
+                ? 'Choose a picture for the background.'
+                : 'Choose a video for the background.',
+            );
+          }
+        }
+        return { ...item, background };
+      }),
+  };
+}
+
 export function setProjectSettings(change: Partial<ProjectSettings>): Command {
   return {
     label: 'Project settings',
@@ -277,6 +343,25 @@ function backgroundAsset(item: Extract<MainItem, { type: 'title' }>): Id | undef
 
 function assertStart(start: Seconds): void {
   if (!(start >= 0)) throw new EditError('Text and audio cannot start before 0.00 s.');
+}
+
+/** Changes a title slide (main track) or a caption / subtitle / credits item (text track). */
+function updateText(
+  p: Project,
+  id: Id,
+  change: <T extends TitleSlide | TextItem>(item: T) => T,
+): Project {
+  if (p.timeline.text.some((t) => t.id === id)) {
+    return withText(
+      p,
+      p.timeline.text.map((t) => (t.id === id ? change(t) : t)),
+    );
+  }
+  return updateMain(p, id, (item) => {
+    if (item.type !== 'title')
+      throw new EditError('Only titles and text have words and text styles.');
+    return change(item);
+  });
 }
 
 function mainIndex(p: Project, id: Id): number {

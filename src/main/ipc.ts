@@ -3,6 +3,7 @@
 import { JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
+import { resizeCropFilter } from '../core/image/crop.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
 import type { AllowList } from './protocol/allowlist.ts';
@@ -76,6 +77,13 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(output);
       return null;
     },
+    'media:resizeCrop': async (input, plan) => {
+      resizeCropFilter(plan); // explains a bad crop before anything else
+      if (!s.allow.has(input)) throw new Error('Only pictures opened in EasyMedia can be cropped.');
+      const path = await s.engine.resizeCropImage(input, plan);
+      s.allow.add(path);
+      return path;
+    },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),
     'job:cancel': async (key) => {
@@ -102,6 +110,12 @@ export function registerIpc(s: MainServices): void {
       if (!s.allow.has(from)) throw new Error('Only files opened in EasyMedia can be copied.');
       await s.files.copy(from, to);
       return null;
+    },
+    'project:saveImage': async (name, png) => {
+      if (!/^[\w-]{1,100}$/.test(name)) throw new Error('A text picture needs a plain name.');
+      const path = await s.files.saveImage(name, png);
+      s.allow.add(path);
+      return path;
     },
   };
 

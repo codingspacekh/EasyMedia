@@ -1,14 +1,16 @@
 <script lang="ts">
   // Main track (V2, V3, V12): select, split, join, drag to reorder, trim handles with snapping, zoom.
+  // Text track (V4, V5): titles go on the main track; captions, subtitles and credits on their own.
   import type { App } from '../app/app.ts';
   import {
     joinWithNext,
     moveMainItem,
+    moveTimedItem,
     setDuration,
     splitAtTime,
     trimClip,
   } from '../app/commands.ts';
-  import { handleDrag } from '../app/timeline-edit.ts';
+  import { handleDrag, moveDrag } from '../app/timeline-edit.ts';
   import { formatTime } from '../core/model/time.ts';
   import {
     findMainItemAt,
@@ -16,12 +18,13 @@
     mainTrackDuration,
     type LaidOutItem,
   } from '../core/model/timeline.ts';
-  import type { MainItem } from '../core/model/types.ts';
+  import type { MainItem, TextItem } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const SNAP_PX = 8;
+  const TEXT_KINDS = { caption: 'Caption', subtitle: 'Subtitle', credits: 'Credits' };
 
   let pxPerSecond = $state(40);
   let draggingId: string | null = $state(null);
@@ -77,6 +80,41 @@
     window.addEventListener('mouseup', finish);
   }
 
+  /** Live position of a caption being dragged along the text track. */
+  let moving: { id: string; start: number } | null = $state(null);
+
+  /** Drag a caption, subtitle or credits along the text track (V5); it snaps like the trim handles. */
+  function startMove(event: MouseEvent, item: TextItem): void {
+    event.preventDefault();
+    const startX = event.clientX;
+    const targets = [
+      $store.playhead,
+      ...layout.flatMap((l) => [l.start, l.end]),
+      ...project.timeline.text
+        .filter((t) => t.id !== item.id)
+        .flatMap((t) => [t.start, t.start + t.duration]),
+    ];
+    const at = (e: MouseEvent) =>
+      moveDrag(
+        item.start,
+        item.duration,
+        (e.clientX - startX) / pxPerSecond,
+        targets,
+        SNAP_PX / pxPerSecond,
+      );
+    const move = (e: MouseEvent) => (moving = { id: item.id, start: at(e) });
+    const finish = (e: MouseEvent) => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', finish);
+      moving = null;
+      // A click without moving only selects.
+      if (Math.abs(e.clientX - startX) >= 3) error = app.edit(moveTimedItem(item.id, at(e)));
+      app.select(item.id);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', finish);
+  }
+
   function drop(targetIndex: number): void {
     if (draggingId) error = app.edit(moveMainItem(draggingId, targetIndex));
     draggingId = null;
@@ -93,6 +131,12 @@
       >Join</button
     >
     <button disabled={!$store.selection} onclick={() => app.removeSelected()}>Delete</button>
+    <span class="group" role="group" aria-label="Add text">
+      <button aria-label="Add title" onclick={() => app.addTitle()}>+ Title</button>
+      <button aria-label="Add caption" onclick={() => app.addText('caption')}>+ Caption</button>
+      <button aria-label="Add subtitle" onclick={() => app.addText('subtitle')}>+ Subtitle</button>
+      <button aria-label="Add credits" onclick={() => app.addText('credits')}>+ Credits</button>
+    </span>
     {#if error}<span class="error" role="alert">{error}</span>{/if}
     <span class="spacer"></span>
     <span class="tc"
@@ -151,13 +195,31 @@
     {/each}
     <div class="playhead" style:left="{$store.playhead * pxPerSecond}px"></div>
   </div>
+  <div class="track text-track" aria-label="Text track">
+    {#each project.timeline.text as item (item.id)}
+      {@const name = `${TEXT_KINDS[item.kind]}: ${item.text.split('\n')[0]}`}
+      <button
+        class="clip text {item.kind}"
+        aria-label="{name} {item.duration.toFixed(2)} s"
+        aria-pressed={$store.selection === item.id}
+        class:moving={moving?.id === item.id}
+        style:left="{(moving?.id === item.id ? moving.start : item.start) * pxPerSecond}px"
+        style:width="{item.duration * pxPerSecond}px"
+        onmousedown={(e) => startMove(e, item)}
+        onclick={() => app.select(item.id)}
+      >
+        <span class="name">{name}</span>
+      </button>
+    {/each}
+    <div class="playhead" style:left="{$store.playhead * pxPerSecond}px"></div>
+  </div>
 </section>
 
 <style>
   .timeline {
     border-top: 1px solid var(--line);
     background: var(--bg-1);
-    height: 190px;
+    height: 236px;
     display: flex;
     flex-direction: column;
   }
@@ -222,6 +284,31 @@
   }
   .clip.title {
     background: var(--c-title);
+  }
+  .text-track {
+    flex: 0 0 38px;
+  }
+  .clip.text {
+    top: 5px;
+    bottom: 5px;
+    padding: 0 8px;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    background: var(--c-title);
+    opacity: 0.85;
+    cursor: grab;
+  }
+  .clip.text.moving {
+    cursor: grabbing;
+    opacity: 1;
+    outline: 2px dashed #fff;
+  }
+  .group {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 8px;
   }
   .clip[aria-pressed='true'] {
     outline: 2px solid #fff;

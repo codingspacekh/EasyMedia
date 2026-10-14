@@ -2,7 +2,7 @@
 import { dialog, type BrowserWindow } from 'electron';
 import type { Dialogs, ProjectFiles } from '../core/ports.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -83,8 +83,11 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
   };
 }
 
-/** Project files are written to a temporary file and renamed, so a crash never leaves half a file (ARCHITECTURE §9). */
-export const projectFiles: ProjectFiles = {
+/**
+ * Project files are written to a temporary file and renamed, so a crash never leaves half a file
+ * (ARCHITECTURE §9). Text pictures go into `textFolder`, the app's own folder.
+ */
+export const projectFiles = (textFolder: string): ProjectFiles => ({
   read: (path) => readFile(path, 'utf8'),
   async write(path, text) {
     const temp = `${path}.saving`;
@@ -100,4 +103,10 @@ export const projectFiles: ProjectFiles = {
     await mkdir(dirname(to), { recursive: true });
     await copyFile(from, to);
   },
-};
+  async saveImage(name, png) {
+    await mkdir(textFolder, { recursive: true });
+    const path = join(textFolder, `${name}.png`);
+    await writeFile(path, png);
+    return path;
+  },
+});

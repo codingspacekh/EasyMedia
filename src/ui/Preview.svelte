@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { App } from '../app/app.ts';
-  import { previewAt } from '../app/preview.ts';
+  import { previewAt, textLayersAt } from '../app/preview.ts';
   import { formatTime } from '../core/model/time.ts';
   import { mainTrackDuration } from '../core/model/timeline.ts';
+  import { drawText } from '../core/text/draw.ts';
+  import { cssFont } from '../core/text/layout.ts';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
@@ -11,6 +13,38 @@
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
   let video: HTMLVideoElement | undefined = $state();
+  let textCanvas: HTMLCanvasElement | undefined = $state();
+  const settings = $derived($store.history.present.settings);
+  /** Bumped when a bundled font finishes loading, so the text is drawn again with it. */
+  let fontsLoaded = $state(0);
+
+  $effect(() => {
+    const fonts = document.fonts;
+    if (!fonts) return;
+    const redraw = () => fontsLoaded++;
+    fonts.addEventListener('loadingdone', redraw);
+    return () => fonts.removeEventListener('loadingdone', redraw);
+  });
+
+  // Titles, captions and credits: the same drawing as the export, scaled with the screen.
+  $effect(() => {
+    void fontsLoaded;
+    const ctx = textCanvas?.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, settings.width, settings.height);
+    const measure = (text: string, font: string) => {
+      ctx.font = font;
+      return ctx.measureText(text).width;
+    };
+    for (const layer of textLayersAt($store, $store.playhead, measure)) {
+      void document.fonts?.load(cssFont(layer.style, settings.height));
+      ctx.save();
+      ctx.globalAlpha = layer.opacity;
+      ctx.translate(layer.x, layer.y);
+      drawText(ctx, layer.text, layer.style, settings, layer.mode);
+      ctx.restore();
+    }
+  });
 
   // Keep the <video> on the right moment of the right clip.
   $effect(() => {
@@ -53,7 +87,7 @@
     <div class="screen" data-preview={frame.kind}>
       {#if frame.kind === 'video'}
         <!-- The student's own clip in a live preview: a captions track does not apply here.
-             (Captions and subtitles the student adds are drawn on top, from M6.) -->
+             The student's captions and subtitles are drawn on the canvas on top. -->
         <!-- svelte-ignore a11y_media_has_caption -->
         <video bind:this={video} src={frame.src} preload="auto"></video>
       {:else if frame.kind === 'image'}
@@ -65,6 +99,13 @@
       {:else}
         <p>Nothing to show yet.</p>
       {/if}
+      <canvas
+        class="text"
+        bind:this={textCanvas}
+        width={settings.width}
+        height={settings.height}
+        aria-hidden="true"
+      ></canvas>
     </div>
   </div>
   <div class="transport">
@@ -101,6 +142,15 @@
     justify-content: center;
     color: var(--tx-3);
     overflow: hidden;
+    position: relative;
+  }
+  .text {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
   }
   video,
   img,

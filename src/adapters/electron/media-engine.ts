@@ -56,6 +56,7 @@ export function createElectronMediaEngine(api: MveApi): MediaEngine {
     extractFrame: async (input, time, output) => {
       await unwrap(api.invoke('media:frame', input, time, output));
     },
+    resizeCropImage: (input, plan) => unwrap(api.invoke('media:resizeCrop', input, plan)),
     renderVideo: (project, output, options) =>
       startJob((k) => api.invoke('media:render', k, project, output, options)),
     onJobEvent(listener) {

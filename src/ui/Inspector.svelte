@@ -1,9 +1,17 @@
 <script lang="ts">
-  // Inspector (screen 01): change the selected clip by typing exact values (V2, V12, V13, V14).
+  // Inspector (screens 01–04): change the selected clip or text by typing exact values
+  // (V2, V4–V7, V12, V13, V14).
   import type { App } from '../app/app.ts';
-  import { setClipMuted, setClipSpeed, setDuration, trimClip } from '../app/commands.ts';
+  import {
+    moveTimedItem,
+    setClipMuted,
+    setClipSpeed,
+    setDuration,
+    trimClip,
+  } from '../app/commands.ts';
   import { itemDuration, layoutMain } from '../core/model/timeline.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import TextInspector from './TextInspector.svelte';
   import TimeField from './TimeField.svelte';
 
   let { app }: { app: App } = $props();
@@ -15,6 +23,8 @@
     layoutMain(project.timeline.main).find((l) => l.item.id === $store.selection),
   );
   const item = $derived(laid?.item);
+  const textItem = $derived(project.timeline.text.find((t) => t.id === $store.selection));
+  const TEXT_KINDS = { caption: 'Caption', subtitle: 'Subtitle', credits: 'Credits' };
   const asset = $derived(
     item && item.type !== 'title' ? project.media.find((m) => m.id === item.assetId) : undefined,
   );
@@ -45,7 +55,28 @@
 
 <aside class="inspector">
   <div class="panel-h">Inspector</div>
-  {#if !item}
+  {#if textItem}
+    <div class="head">
+      <div class="title">{textItem.text.split('\n')[0] || TEXT_KINDS[textItem.kind]}</div>
+      <div class="kind">
+        {TEXT_KINDS[textItem.kind]} · <span class="len">{textItem.duration.toFixed(2)} s</span>
+      </div>
+    </div>
+    <section>
+      <h3>Timing <span class="syl">11.4</span></h3>
+      <TimeField
+        label="Starts at"
+        value={textItem.start}
+        commit={(t) => app.edit(moveTimedItem(textItem.id, t))}
+      />
+      <TimeField
+        label="Duration"
+        value={textItem.duration}
+        commit={(t) => app.edit(setDuration(textItem.id, t))}
+      />
+    </section>
+    {#key textItem.id}<TextInspector {app} item={textItem} />{/key}
+  {:else if !item}
     <p class="empty">Select a clip on the timeline to change it.</p>
   {:else}
     <div class="head">
@@ -121,6 +152,9 @@
           commit={(t) => app.edit(setDuration(item.id, t))}
         />
       </section>
+      {#if item.type === 'title'}
+        {#key item.id}<TextInspector {app} {item} />{/key}
+      {/if}
     {/if}
   {/if}
 </aside>

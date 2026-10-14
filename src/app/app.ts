@@ -2,6 +2,7 @@
 // calls these and shows the store. Errors never escape: they become a message for the student.
 import {
   addMainItem,
+  addTextItem,
   importMedia as importMediaCommand,
   relinkMedia,
   removeItem,
@@ -19,12 +20,23 @@ import {
   assetFromProbe,
   createImageClip,
   createProject,
+  createTextItem,
+  createTitleSlide,
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
-import type { Id, MediaAsset, Project } from '../core/model/types.ts';
-import type { AppPaths, Dialogs, MediaEngine, ProbeInfo, ProjectFiles } from '../core/ports.ts';
+import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
+import type {
+  AppPaths,
+  Dialogs,
+  MediaEngine,
+  ProbeInfo,
+  ProjectFiles,
+  TextRenderer,
+} from '../core/ports.ts';
+import type { TextImage } from '../core/render/compile.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
+import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
 export interface AssetStatus {
@@ -32,6 +44,8 @@ export interface AssetStatus {
   progress: number;
   /** Small preview copy of a video, once made. */
   proxyPath?: string;
+  /** Pixel size of a picture, from the probe (V11 needs it). */
+  size?: { width: number; height: number };
   message?: string;
 }
 
@@ -58,6 +72,7 @@ export interface AppDeps {
   engine: MediaEngine;
   dialogs: Dialogs;
   files: ProjectFiles;
+  text: TextRenderer;
   paths: AppPaths;
   autosaveMs?: number;
 }
@@ -69,8 +84,13 @@ export const projectTitle = (s: AppState): string =>
 
 const DISCARD = 'You have unsaved changes. Discard them and';
 const UNEXPECTED = 'Something went wrong. Please try again.';
+const NEW_TEXT: Record<TextItem['kind'], string> = {
+  caption: 'Caption',
+  subtitle: 'Subtitle',
+  credits: 'Made by\nYour name',
+};
 
-export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }: AppDeps) {
+export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60_000 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
   const store: Store<AppState> = createStore<AppState>({
     history: createHistory(fresh),
@@ -127,7 +147,8 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
       }
     }
     if (asset.kind !== 'video') {
-      setAsset(asset.id, { state: 'ready', progress: 1 });
+      const size = info.video && { width: info.video.width, height: info.video.height };
+      setAsset(asset.id, { state: 'ready', progress: 1, ...(size ? { size } : {}) });
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
@@ -195,6 +216,31 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
 
+  /** One picture per title slide with words and per caption, subtitle or credits item. */
+  async function drawTextImages(project: Project): Promise<Record<Id, TextImage>> {
+    const frame = { width: project.settings.width, height: project.settings.height };
+    const wanted = [
+      ...project.timeline.main.flatMap((item) =>
+        item.type === 'title' && item.text.trim() !== ''
+          ? [{ ...item, mode: 'frame' as const }]
+          : [],
+      ),
+      ...project.timeline.text.map((item) => ({
+        ...item,
+        mode:
+          item.kind === 'credits' && item.scroll !== false
+            ? ('block' as const)
+            : ('frame' as const),
+      })),
+    ];
+    const images: Record<Id, TextImage> = {};
+    for (const item of wanted) {
+      const { png, width, height } = await text.draw(item.text, item.style, frame, item.mode);
+      images[item.id] = { path: await files.saveImage(`text-${item.id}`, png), width, height };
+    }
+    return images;
+  }
+
   return {
     store,
 
@@ -232,6 +278,38 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
         const before = present();
         run(importMediaCommand(asset));
         if (present() !== before) void prepare(asset, info);
+      }
+    },
+
+    /**
+     * V11: resizes a picture to cover the project frame, crops it at `keep` (one of 9 places, or
+     * where the student dragged it) and saves it as a
+     * new file beside the original (Fish_Eagle.jpg → Fish_Eagle1.jpg), which is imported.
+     */
+    async resizeCropImage(assetId: Id, keep: Anchor | CropRegion): Promise<Id | null> {
+      const asset = present().media.find((m) => m.id === assetId);
+      const size = store.get().assets[assetId]?.size;
+      if (!asset || asset.kind !== 'image' || !size) {
+        patch({
+          message: { kind: 'error', text: 'Wait until the picture is ready, then try again.' },
+        });
+        return null;
+      }
+      const { width, height } = present().settings;
+      try {
+        const plan = planResizeCrop(size, { width, height }, keep);
+        const path = await engine.resizeCropImage(asset.path, plan);
+        const info = await engine.probe(path);
+        const made = assetFromProbe(path, info);
+        run(importMediaCommand(made));
+        void prepare(made, info);
+        patch({
+          message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
+        });
+        return made.id;
+      } catch (error) {
+        showError(error);
+        return null;
       }
     },
 
@@ -273,6 +351,22 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
       } catch (error) {
         return error instanceof EditError ? error.message : UNEXPECTED;
       }
+    },
+
+    /** V4: a new title slide after the selected clip (or at the end), ready to edit. */
+    addTitle(): void {
+      const main = present().timeline.main;
+      const selected = main.findIndex((m) => m.id === store.get().selection);
+      const title = createTitleSlide('Your title');
+      run(addMainItem(title, selected >= 0 ? selected + 1 : main.length));
+      patch({ selection: title.id });
+    },
+
+    /** V4, V5: a caption, subtitle or credits at the playhead, ready to edit. */
+    addText(kind: TextItem['kind']): void {
+      const item = createTextItem(kind, NEW_TEXT[kind], store.get().playhead);
+      run(addTextItem(item));
+      patch({ selection: item.id });
     },
 
     select: (id: Id | null) => patch({ selection: id }),
@@ -336,12 +430,13 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
         projectPath ? fileNameOf(projectPath).replace(/\.mve$/i, '') : project.name,
       );
       if (!output) return;
-      const job = engine.renderVideo(project, output, {
-        projectDir: projectPath ? dirOf(projectPath) : '/',
-      });
-      exportJob = job;
       patch({ exporting: { state: 'running', progress: 0, output } });
       try {
+        const job = engine.renderVideo(project, output, {
+          projectDir: projectPath ? dirOf(projectPath) : '/',
+          textImages: await drawTextImages(project),
+        });
+        exportJob = job;
         await job.done;
         patch({ exporting: { state: 'done', output } });
       } catch (error) {

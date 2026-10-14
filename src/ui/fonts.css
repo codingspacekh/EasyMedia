@@ -1,0 +1,50 @@
+/* The bundled text fonts (X2, OFL licence): the same letters on every computer, in the preview
+   and in the exported video. Inter and Noto Serif are variable fonts (every weight in one file). */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('../../resources/fonts/Inter.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-weight: 100 900;
+  src: url('../../resources/fonts/Inter-Italic.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Noto Serif';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('../../resources/fonts/NotoSerif.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Noto Serif';
+  font-style: italic;
+  font-weight: 100 900;
+  src: url('../../resources/fonts/NotoSerif-Italic.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/CourierPrime-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../../resources/fonts/CourierPrime-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: italic;
+  font-weight: 400;
+  src: url('../../resources/fonts/CourierPrime-Italic.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: italic;
+  font-weight: 700;
+  src: url('../../resources/fonts/CourierPrime-BoldItalic.ttf') format('truetype');
+}

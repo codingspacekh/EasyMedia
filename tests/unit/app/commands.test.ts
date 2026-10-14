@@ -8,6 +8,10 @@ import {
   moveMainItem,
   moveTimedItem,
   relinkMedia,
+  setText,
+  setTextEffects,
+  setTextStyle,
+  setTitleBackground,
   removeItem,
   setClipMuted,
   setClipSpeed,
@@ -67,6 +71,10 @@ describe('P4 every command leaves the original untouched and can be undone exact
     ['setClipSpeed', setClipSpeed('v', 1.5)],
     ['setClipMuted', setClipMuted('v', true)],
     ['relinkMedia', relinkMedia('lake', { ...lake, path: 'moved/Lake_Naivasha.mp4' })],
+    ['setText', setText('x', 'Bees are important')],
+    ['setTextStyle', setTextStyle('x', { font: 'Courier Prime', size: 80 })],
+    ['setTextEffects', setTextEffects('x', { fadeIn: 0.2, entrance: 'fly-left' })],
+    ['setTitleBackground', setTitleBackground('t', { kind: 'image', assetId: 'photo' })],
     ['setDuration', setDuration('t', 3)],
     ['splitAtTime', splitAtTime(10, ['v1', 'v2'])],
     ['joinWithNext', joinWithNext('v1')],
@@ -149,6 +157,73 @@ describe('commands', () => {
     expect(() => run(trimmed, relinkMedia('lake', { ...lake, duration: 10 }))).toThrow(
       /shorter than the part used/i,
     );
+  });
+
+  describe('M6 text commands (V4–V6)', () => {
+    it('setText changes a caption or a title slide', () => {
+      expect(run(sample(), setText('x', 'Bees')).timeline.text[0]!.text).toBe('Bees');
+      expect(run(sample(), setText('t', 'Lake Naivasha, Kenya')).timeline.main[0]).toMatchObject({
+        text: 'Lake Naivasha, Kenya',
+      });
+      expect(() => run(sample(), setText('v', 'x'))).toThrow(/only titles and text/i);
+    });
+
+    it('setTextStyle changes font, size, colour, alignment, position and readability', () => {
+      const p = run(
+        sample(),
+        setTextStyle('t', {
+          font: 'Courier Prime',
+          size: 80,
+          align: 'centre',
+          colour: '#1b2a6b',
+          shadow: true,
+        }),
+      );
+      expect((p.timeline.main[0] as { style: object }).style).toMatchObject({
+        font: 'Courier Prime',
+        size: 80,
+        colour: '#1b2a6b',
+        shadow: true,
+      });
+    });
+
+    it.each([
+      [{ size: 0 }, /size/i],
+      [{ size: 500 }, /size/i],
+      [{ colour: 'blue' }, /colour/i],
+      [{ font: 'Comic Sans' }, /font/i],
+    ])('setTextStyle refuses %j', (change, message) => {
+      expect(() => run(sample(), setTextStyle('x', change))).toThrow(message);
+    });
+
+    it('setTextEffects sets fades, an entrance and credits scrolling, within the item length', () => {
+      expect(
+        run(sample(), setTextEffects('x', { fadeIn: 0.2, fadeOut: 0.2, entrance: 'fly-left' }))
+          .timeline.text[0],
+      ).toMatchObject({
+        fadeIn: 0.2,
+        fadeOut: 0.2,
+        entrance: 'fly-left',
+      });
+      expect(() => run(sample(), setTextEffects('x', { fadeIn: 3, fadeOut: 3 }))).toThrow(
+        /fades are longer than the text/i,
+      );
+    });
+
+    it('setTitleBackground uses a colour, or an imported picture or video', () => {
+      expect(
+        run(sample(), setTitleBackground('t', { kind: 'image', assetId: 'photo' })).timeline
+          .main[0],
+      ).toMatchObject({
+        background: { kind: 'image', assetId: 'photo' },
+      });
+      expect(() =>
+        run(sample(), setTitleBackground('t', { kind: 'image', assetId: 'lake' })),
+      ).toThrow(/choose a picture/i);
+      expect(() =>
+        run(sample(), setTitleBackground('t', { kind: 'colour', colour: 'red' })),
+      ).toThrow(/colour/i);
+    });
   });
 
   it('V13 setClipMuted removes and restores the sound of a video clip', () => {

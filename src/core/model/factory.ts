@@ -87,8 +87,8 @@ export function createTitleSlide(text: string, { id }: WithId = {}): TitleSlide 
 }
 
 const TEXT_DEFAULTS: Record<TextItem['kind'], Partial<TextStyle>> = {
-  caption: { size: 36, align: 'left', position: 'top-left' },
-  subtitle: { size: 32, align: 'centre', position: 'bottom' },
+  caption: { size: 36, align: 'left', position: 'top-left', shadow: true },
+  subtitle: { size: 32, align: 'centre', position: 'bottom', shadow: true },
   credits: { size: 36, align: 'centre', position: 'centre' },
 };
 
@@ -105,6 +105,7 @@ export function createTextItem(
     start,
     duration: DEFAULT_STILL_DURATION,
     style: textStyle(TEXT_DEFAULTS[kind]),
+    ...(kind === 'credits' ? { scroll: true } : {}),
   };
 }
 

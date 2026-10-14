@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EditError, JobCancelledError, MediaError } from '../../src/core/model/errors.ts';
 import { assetFromProbe, createProject, createVideoClip } from '../../src/core/model/factory.ts';
 import { trimVideo } from '../../src/core/model/timeline.ts';
+import { planResizeCrop } from '../../src/core/image/crop.ts';
 import type { MediaAsset, Project, VideoClip } from '../../src/core/model/types.ts';
 import type { JobEvent, MediaEngine } from '../../src/core/ports.ts';
 
@@ -75,6 +76,30 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
       await expect(engine.makeProxy(missing, out('none.mp4'), 10).done).rejects.toThrow(
         /could not be found/i,
       );
+    });
+
+    it('resizeCropImage makes a new picture of the crop size and never overwrites (V11)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const plan = planResizeCrop(info.video!, { width: 320, height: 180 }, 'bottom');
+      const first = await engine.resizeCropImage(image, plan);
+      expect(first).toBe(image.replace(/\.jpg$/, '1.jpg'));
+      expect(await engine.probe(first)).toMatchObject({
+        kind: 'image',
+        video: { width: 320, height: 180 },
+      });
+      // That name is taken now, so the next copy is numbered on; the original is kept.
+      expect(await engine.resizeCropImage(image, plan)).toBe(image.replace(/\.jpg$/, '2.jpg'));
+      expect((await engine.probe(image)).video).toMatchObject(info.video!);
+    });
+
+    it('resizeCropImage refuses a crop outside the resized picture', async () => {
+      const { engine, image } = setup();
+      const bad = {
+        resize: { width: 100, height: 100 },
+        crop: { x: 50, y: 0, width: 100, height: 100 },
+      };
+      await expect(engine.resizeCropImage(image, bad)).rejects.toThrow(EditError);
     });
 
     it('extractFrame saves one full-size frame as an image (V10)', async () => {

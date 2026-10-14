@@ -5,10 +5,15 @@ import { registerIpc, type MainServices } from '../../src/main/ipc.ts';
 import { createAllowList } from '../../src/main/protocol/allowlist.ts';
 import type { Events, MveApi } from '../../src/preload/api.ts';
 
+let lastAllow = createAllowList();
+/** The allow-list of the most recently made bridge. */
+export const lastAllowList = () => lastAllow;
+
 export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServices> = {}) {
   const handlers = new Map<string, (...args: unknown[]) => Promise<unknown>>();
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
   const allow = createAllowList();
+  lastAllow = allow;
   const files = new Map<string, string>();
   registerIpc({
     ipc: {
@@ -36,6 +41,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       write: async (path, text) => void files.set(path, text),
       remove: async (path) => void files.delete(path),
       copy: async () => {},
+      saveImage: async (name) => `/cache/text/${name}.png`,
     },
     ...overrides,
   });

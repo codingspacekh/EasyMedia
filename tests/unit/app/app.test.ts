@@ -1,11 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp, isDirty, projectTitle, type AppState } from '../../../src/app/app.ts';
-import { setClipSpeed, trimClip } from '../../../src/app/commands.ts';
+import {
+  addMainItem,
+  addTextItem,
+  setClipSpeed,
+  setTextEffects,
+  trimClip,
+} from '../../../src/app/commands.ts';
 import { canUndo } from '../../../src/app/history.ts';
 import { proxyPathFor } from '../../../src/app/proxy-path.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
-import { createProject } from '../../../src/core/model/factory.ts';
-import type { Dialogs, JobEvent, ProbeInfo } from '../../../src/core/ports.ts';
+import {
+  createProject,
+  createTextItem,
+  createTitleSlide,
+} from '../../../src/core/model/factory.ts';
+import type { Dialogs, JobEvent, ProbeInfo, TextRenderer } from '../../../src/core/ports.ts';
 
 const video = (sizeBytes = 7_000_000): ProbeInfo => ({
   kind: 'video',
@@ -58,11 +68,21 @@ function setup(
     write: async (path: string, text: string) => void disk.set(path, text),
     remove: async (path: string) => void disk.delete(path),
     copy: async (from: string, to: string) => void copies.push(`${from} → ${to}`),
+    saveImage: vi.fn(async (name: string) => `/cache/text/${name}.png`),
+  };
+  // Every text picture is 10 bytes; credits blocks are 300 px tall.
+  const text = {
+    draw: vi.fn<TextRenderer['draw']>(async (_t, _s, frame, mode) => ({
+      png: new Uint8Array(10),
+      width: frame.width,
+      height: mode === 'block' ? 300 : frame.height,
+    })),
   };
   const app = createApp({
     engine,
     dialogs,
     files,
+    text,
     paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
   });
   const state = () => app.store.get();
@@ -71,7 +91,7 @@ function setup(
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   }
-  return { app, engine, events, disk, dialogs, copies, state, project, importFiles };
+  return { app, engine, events, disk, dialogs, copies, files, text, state, project, importFiles };
 }
 
 const idOf = (s: AppState, path: string) =>
@@ -212,6 +232,76 @@ describe('M4 app use cases', () => {
     });
   });
 
+  describe('resize & crop a still (V11)', () => {
+    it('remembers the size of an imported picture', async () => {
+      const { state, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      expect(state().assets[idOf(state(), '/m/photo.jpg')]!.size).toEqual({
+        width: 100,
+        height: 100,
+      });
+    });
+
+    it('saves a new picture the size of the project beside the original, and imports it', async () => {
+      const { app, state, project, engine, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      const id = await app.resizeCropImage(idOf(state(), '/m/photo.jpg'), 'bottom');
+      expect(id).not.toBeNull();
+      const made = project().media.find((m) => m.id === id)!;
+      expect(made.path).toBe('/m/photo1.jpg');
+      expect((await engine.probe('/m/photo1.jpg')).video).toMatchObject({
+        width: 1920,
+        height: 1080,
+      });
+      expect(project().media.map((m) => m.path)).toEqual(['/m/photo.jpg', '/m/photo1.jpg']);
+      expect(state().message).toEqual({ kind: 'info', text: 'Saved photo1.jpg (1920 × 1080).' });
+    });
+
+    it('explains when the picture size is not known yet', async () => {
+      const { app, state } = setup();
+      expect(await app.resizeCropImage('nope', 'centre')).toBeNull();
+      expect(state().message?.kind).toBe('error');
+    });
+  });
+
+  describe('adding text (V4, V5)', () => {
+    it('adds a title slide after the selected clip and selects it, undoably', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      app.addToTimeline(idOf(state(), '/m/clip.mp4'));
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      app.select(project().timeline.main[0]!.id);
+      app.addTitle();
+      const main = project().timeline.main;
+      expect(main.map((m) => m.type)).toEqual(['video', 'title', 'image']);
+      expect(main[1]).toMatchObject({ type: 'title', text: 'Your title' });
+      expect(state().selection).toBe(main[1]!.id);
+      app.undo();
+      expect(project().timeline.main).toHaveLength(2);
+    });
+
+    it('adds a title at the end when nothing is selected', () => {
+      const { app, project } = setup();
+      app.addTitle();
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['title']);
+    });
+
+    it('adds captions, subtitles and credits at the playhead and selects them', () => {
+      const { app, state, project } = setup();
+      app.setPlayhead(2.5);
+      app.addText('caption');
+      app.addText('subtitle');
+      app.addText('credits');
+      const text = project().timeline.text;
+      expect(text.map((t) => [t.kind, t.start, t.text])).toEqual([
+        ['caption', 2.5, 'Caption'],
+        ['subtitle', 2.5, 'Subtitle'],
+        ['credits', 2.5, 'Made by\nYour name'],
+      ]);
+      expect(state().selection).toBe(text[2]!.id);
+    });
+  });
+
   describe('export (V16)', () => {
     async function withClip() {
       const s = setup();
@@ -257,6 +347,58 @@ describe('M4 app use cases', () => {
       stop();
       expect(state().exporting.state).toBe('idle');
       expect(state().message).toBeNull();
+    });
+
+    describe('text (ARCHITECTURE §7.3)', () => {
+      it('draws every title and caption as a picture and gives the pictures to the export', async () => {
+        const s = await withClip();
+        const render = vi.spyOn(s.engine, 'renderVideo');
+        s.app.edit(addMainItem(createTitleSlide('Welcome', { id: 'title' }), 0));
+        s.app.edit(addTextItem(createTextItem('caption', 'The lake', 6, { id: 'cap' })));
+        s.dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+        await s.app.exportVideo();
+
+        const frame = { width: 1920, height: 1080 };
+        expect(s.text.draw.mock.calls.map((c) => [c[0], c[2], c[3]])).toEqual([
+          ['Welcome', frame, 'frame'],
+          ['The lake', frame, 'frame'],
+        ]);
+        expect(s.files.saveImage.mock.calls.map((c) => c[0])).toEqual(['text-title', 'text-cap']);
+        expect(render.mock.calls[0]![2].textImages).toEqual({
+          title: { path: '/cache/text/text-title.png', ...frame },
+          cap: { path: '/cache/text/text-cap.png', ...frame },
+        });
+        expect(s.state().exporting.state).toBe('done');
+      });
+
+      it('draws scrolling credits as a block of rows, and still credits as a full frame', async () => {
+        const s = await withClip();
+        s.app.edit(addTextItem(createTextItem('credits', 'Made by', 0, { id: 'c1' })));
+        s.app.edit(addTextItem(createTextItem('credits', 'Thanks', 5, { id: 'c2' })));
+        s.app.edit(setTextEffects('c2', { scroll: false }));
+        s.dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+        await s.app.exportVideo();
+        expect(s.text.draw.mock.calls.map((c) => c[3])).toEqual(['block', 'frame']);
+      });
+
+      it('does not draw a title slide that has no words', async () => {
+        const s = await withClip();
+        s.app.edit(addMainItem(createTitleSlide('  ', { id: 'blank' }), 0));
+        s.dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+        await s.app.exportVideo();
+        expect(s.text.draw).not.toHaveBeenCalled();
+        expect(s.state().exporting.state).toBe('done');
+      });
+
+      it('explains when the text pictures cannot be made', async () => {
+        const s = await withClip();
+        s.app.edit(addTextItem(createTextItem('caption', 'Hi', 0)));
+        s.text.draw.mockRejectedValueOnce(new Error('canvas broke'));
+        s.dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+        await s.app.exportVideo();
+        expect(s.state().exporting.state).toBe('failed');
+        expect(s.state().message?.kind).toBe('error');
+      });
     });
   });
 

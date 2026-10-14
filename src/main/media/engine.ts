@@ -1,13 +1,14 @@
 // MediaEngine implemented with the bundled ffprobe/ffmpeg (ARCHITECTURE §8).
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFile, rm } from 'node:fs/promises';
+import { access, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Seconds } from '../../core/model/time.ts';
 import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
-import { fromProjectPath } from '../../core/project/paths.ts';
+import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
+import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
 import type { BinaryPaths } from '../ffmpeg/paths.ts';
 import { explainFfmpegError } from '../ffmpeg/errors.ts';
@@ -74,13 +75,32 @@ export function createNodeMediaEngine(
       await queue.run({ label: 'Snapshot', args: frameArgs(input, time), output }).done;
     },
 
-    renderVideo(project, output, { projectDir, quality }) {
+    async resizeCropImage(input, plan) {
+      const filter = resizeCropFilter(plan);
+      const exists = (p: string) =>
+        access(p).then(
+          () => true,
+          () => false,
+        );
+      let n = 1;
+      while (await exists(numberedPath(input, n))) n++;
+      const path = numberedPath(input, n);
+      await queue.run({
+        label: 'Resize & crop',
+        args: ['-i', input, '-vf', filter, '-frames:v', '1', '-update', '1', '-q:v', '2'],
+        output: path,
+      }).done;
+      return path;
+    },
+
+    renderVideo(project, output, { projectDir, quality, textImages }) {
       let plan;
       try {
         plan = compileProject(project, {
           mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
           videoEncoder,
           ...(quality ? { quality } : {}),
+          ...(textImages ? { textImages } : {}),
         });
       } catch (error) {
         return failedJob(error as Error);

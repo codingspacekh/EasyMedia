@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { handleDrag, snap } from '../../../src/app/timeline-edit.ts';
+import { handleDrag, moveDrag, snap } from '../../../src/app/timeline-edit.ts';
 import {
   createImageClip,
   createMediaAsset,
@@ -49,5 +49,20 @@ describe('dragging a trim handle (timeline seconds → source points)', () => {
   it('a still image: the end handle changes its duration', () => {
     const still = createImageClip(photo, { id: 'i' }); // 5 s
     expect(handleDrag(still, 'end', 0, 3, [], 0)).toEqual({ duration: 8 });
+  });
+});
+
+describe('dragging a caption along the text track', () => {
+  it('moves its start by the distance dragged', () => {
+    expect(moveDrag(2, 5, 3.456, [], 0.1)).toBe(5.46);
+  });
+
+  it('snaps its start or its end, whichever is closer, to a target', () => {
+    expect(moveDrag(2, 5, 1.95, [4], 0.1)).toBe(4); // start 3.95 → 4
+    expect(moveDrag(2, 5, 2.96, [10], 0.1)).toBe(5); // end 9.96 → 10, so start 5
+  });
+
+  it('cannot start before 0 s', () => {
+    expect(moveDrag(2, 5, -4, [], 0.1)).toBe(0);
   });
 });

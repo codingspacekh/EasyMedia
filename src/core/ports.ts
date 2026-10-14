@@ -1,8 +1,10 @@
 // Ports (ARCHITECTURE §8): what the core and app need from the outside world.
 // Interfaces only. Adapters implement them: Node/FFmpeg in src/main, a fake in src/adapters/mock.
 import type { Seconds } from './model/time.ts';
-import type { Project } from './model/types.ts';
-import type { Quality } from './render/compile.ts';
+import type { Project, TextStyle } from './model/types.ts';
+import type { Quality, TextImage } from './render/compile.ts';
+import type { Size, TextImageMode } from './text/draw.ts';
+import type { ResizeCrop } from './image/crop.ts';
 
 /** What a media file contains (T1 shows this to students). */
 export interface ProbeInfo {
@@ -36,6 +38,13 @@ export type JobEvent =
   | { type: 'progress'; jobId: string; label: string; ratio: number }
   | { type: 'error'; jobId: string; label: string; message: string };
 
+export interface RenderVideoOptions {
+  projectDir: string;
+  quality?: Quality;
+  /** The pictures of the project's text, by title / text item id (see TextRenderer). */
+  textImages?: Record<string, TextImage>;
+}
+
 export interface MediaEngine {
   probe(path: string): Promise<ProbeInfo>;
   /** 360 px tall preview copy used for smooth playback (ARCHITECTURE §10.2). `duration` is the source length. */
@@ -50,12 +59,13 @@ export interface MediaEngine {
   waveformPeaks(input: string, buckets: number): Promise<number[]>;
   /** Saves one frame as an image; the format follows the output's extension (V10). */
   extractFrame(input: string, time: Seconds, output: string): Promise<void>;
+  /**
+   * V11: saves a resized and cropped copy beside the picture, as the first free numbered name
+   * (Fish_Eagle.jpg → Fish_Eagle1.jpg, then Fish_Eagle2.jpg…). Never overwrites. Resolves with its path.
+   */
+  resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
   /** Exports the project as an MP4 (V16). Media paths are resolved against `projectDir` (X1). */
-  renderVideo(
-    project: Project,
-    output: string,
-    options: { projectDir: string; quality?: Quality },
-  ): JobHandle;
+  renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }
 
@@ -78,6 +88,19 @@ export interface ProjectFiles {
   remove(path: string): Promise<void>;
   /** Copies a media file (P2). Only files the app has opened may be copied. */
   copy(from: string, to: string): Promise<void>;
+  /** Saves a PNG in the app's own folder (not the student's) and returns its path. */
+  saveImage(name: string, png: Uint8Array): Promise<string>;
+}
+
+/** Draws text as a transparent PNG with the bundled fonts (ARCHITECTURE §7.3). */
+export interface TextRenderer {
+  draw(text: string, style: TextStyle, frame: Size, mode: TextImageMode): Promise<RenderedText>;
+}
+
+export interface RenderedText {
+  png: Uint8Array;
+  width: number;
+  height: number;
 }
 
 export interface AppPaths {
