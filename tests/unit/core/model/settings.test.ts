@@ -31,6 +31,7 @@ describe('V1 project settings', () => {
     [{ width: 1921 }, /even number/],
     [{ width: 8, height: 8, aspect: 'custom' as const }, /between 16 and 7680/],
     [{ fps: 29 as 30 }, /24, 25 or 30/],
+    [{ fit: 'zoom' as 'crop' }, /black bars, crop to fill or stretch/i],
   ])('rejects %j', (change, message) => {
     expect(() => validateSettings({ ...base, ...change })).toThrow(message);
   });

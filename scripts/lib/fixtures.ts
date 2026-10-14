@@ -40,6 +40,18 @@ export const FIXTURES: FixtureSpec[] = [
     },
   },
   {
+    // Stand-in for Lake_Naivasha.mp4 (Book B Tasks 11b, 11c): long enough to trim 8–12.5 s.
+    name: 'lake_1080p30_20s.mp4',
+    group: 'test',
+    inputs: [...testsrc(1920, 1080, 20), ...sine(20)],
+    output: [...h264, ...aacStereo],
+    expect: {
+      durationS: 20,
+      video: { codec: 'h264', width: 1920, height: 1080 },
+      audio: { codec: 'aac', channels: 2, sampleRate: 44100 },
+    },
+  },
+  {
     name: 'clip_4x3_640x480.mov',
     group: 'test',
     inputs: [...testsrc(640, 480, 5), ...sine(5)],

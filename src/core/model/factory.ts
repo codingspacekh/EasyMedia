@@ -1,5 +1,6 @@
 // Creates model objects with the defaults students expect (P12).
 import { EditError } from './errors.ts';
+import type { ProbeInfo } from '../ports.ts';
 import type { Seconds } from './time.ts';
 import type {
   AudioItem,
@@ -27,7 +28,14 @@ export function createProject({ name }: { name: string }): Project {
   return {
     schemaVersion: 1,
     name,
-    settings: { aspect: '16:9', width: 1920, height: 1080, fps: 30, background: '#000000' },
+    settings: {
+      aspect: '16:9',
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      background: '#000000',
+      fit: 'letterbox',
+    },
     media: [],
     timeline: { main: [], text: [], audio: [[], []] },
   };
@@ -35,6 +43,17 @@ export function createProject({ name }: { name: string }): Project {
 
 export function createMediaAsset(asset: Omit<MediaAsset, 'id'> & WithId): MediaAsset {
   return { ...asset, id: asset.id ?? newId() };
+}
+
+/** A media asset for an imported file, using what the probe found (T1). */
+export function assetFromProbe(path: string, info: ProbeInfo, { id }: WithId = {}): MediaAsset {
+  return {
+    id: id ?? newId(),
+    kind: info.kind,
+    path,
+    ...(info.kind !== 'image' && info.duration !== undefined ? { duration: info.duration } : {}),
+    hasAudio: info.audio !== undefined,
+  };
 }
 
 export function createVideoClip(asset: MediaAsset, { id }: WithId = {}): VideoClip {

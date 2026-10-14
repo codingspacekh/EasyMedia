@@ -2,6 +2,8 @@
 // the shared contract tests — but finishes instantly and needs no FFmpeg or real files.
 import { FILE_NOT_FOUND, JobCancelledError, MediaError } from '../../core/model/errors.ts';
 import type { JobEvent, JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
+import { fromProjectPath } from '../../core/project/paths.ts';
+import { compileProject } from '../../core/render/compile.ts';
 
 const PROXY_HEIGHT = 360;
 const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -22,13 +24,8 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
   const scaledWidth = (info: ProbeInfo, height: number) =>
     even(((info.video?.width ?? 16) * height) / (info.video?.height ?? 9));
 
-  /** Runs a fake job: events like the real queue, then `produce` writes the output file. */
-  function job(
-    label: string,
-    input: string,
-    output: string,
-    produce: (source: ProbeInfo) => ProbeInfo,
-  ): JobHandle {
+  /** Runs a fake job with the real queue's events; `produce` checks inputs and describes the output. */
+  function job(label: string, output: string, produce: () => ProbeInfo): JobHandle {
     const id = `mock-job-${nextId++}`;
     let cancelled = false;
     const base = { jobId: id, label };
@@ -40,15 +37,15 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
         throw new JobCancelledError();
       }
       emit({ type: 'started', ...base });
-      let source: ProbeInfo;
+      let result: ProbeInfo;
       try {
-        source = find(input);
+        result = produce();
       } catch (error) {
         emit({ type: 'error', ...base, message: (error as Error).message });
         throw error;
       }
       for (const ratio of [0.5, 1]) emit({ type: 'progress', ...base, ratio });
-      files.set(output, produce(source));
+      files.set(output, result);
       emit({ type: 'done', ...base });
     })();
     done.catch(() => {});
@@ -61,23 +58,26 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
     probe: async (path) => structuredClone(find(path)),
 
     makeProxy: (input, output) =>
-      job('Preparing preview', input, output, (src) => ({
-        ...src,
-        container: 'mp4',
-        video: {
-          codec: 'h264',
-          width: scaledWidth(src, PROXY_HEIGHT),
-          height: PROXY_HEIGHT,
-          fps: src.video?.fps ?? 30,
-        },
-      })),
+      job('Preparing preview', output, () => {
+        const src = find(input);
+        return {
+          ...src,
+          container: 'mp4',
+          video: {
+            codec: 'h264',
+            width: scaledWidth(src, PROXY_HEIGHT),
+            height: PROXY_HEIGHT,
+            fps: src.video?.fps ?? 30,
+          },
+        };
+      }),
 
     makeThumbnails: (input, output, { count, height }) =>
-      job('Thumbnails', input, output, (src) => ({
+      job('Thumbnails', output, () => ({
         kind: 'image',
         container: 'jpg',
         sizeBytes: 20_000,
-        video: { codec: 'mjpeg', width: count * scaledWidth(src, height), height },
+        video: { codec: 'mjpeg', width: count * scaledWidth(find(input), height), height },
       })),
 
     async waveformPeaks(input, buckets) {
@@ -97,6 +97,31 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
           width: src.video?.width ?? 0,
           height: src.video?.height ?? 0,
         },
+      });
+    },
+
+    renderVideo(project, output, { projectDir }) {
+      let plan: ReturnType<typeof compileProject>;
+      try {
+        plan = compileProject(project, {
+          mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
+        });
+      } catch (error) {
+        const done = Promise.reject(error as Error);
+        done.catch(() => {});
+        return { id: 'not-started', done, cancel: () => {} };
+      }
+      const { width, height, fps } = project.settings;
+      return job('Export', output, () => {
+        for (const asset of project.media) find(fromProjectPath(projectDir, asset.path));
+        return {
+          kind: 'video',
+          container: 'mp4',
+          duration: plan.duration,
+          sizeBytes: Math.round(plan.duration * 750_000),
+          video: { codec: 'h264', width, height, fps },
+          ...(plan.hasAudio ? { audio: { codec: 'aac', sampleRate: 48000, channels: 2 } } : {}),
+        };
       });
     },
 

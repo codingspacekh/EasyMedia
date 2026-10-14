@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assetFromProbe,
   createAudioItem,
   createImageClip,
   createMediaAsset,
@@ -29,7 +30,14 @@ describe('P12 factory defaults', () => {
     expect(p).toEqual({
       schemaVersion: 1,
       name: 'Lake Naivasha',
-      settings: { aspect: '16:9', width: 1920, height: 1080, fps: 30, background: '#000000' },
+      settings: {
+        aspect: '16:9',
+        width: 1920,
+        height: 1080,
+        fps: 30,
+        background: '#000000',
+        fit: 'letterbox',
+      },
       media: [],
       timeline: { main: [], text: [], audio: [[], []] },
     });
@@ -112,5 +120,42 @@ describe('P12 factory defaults', () => {
     expect(() => createAudioItem(createMediaAsset({ kind: 'audio', path: 'x.mp3' }), 0)).toThrow(
       /length/i,
     );
+  });
+});
+
+describe('assetFromProbe: importing a file records what the export needs', () => {
+  it('a video remembers its length and whether it has sound', () => {
+    const info = {
+      kind: 'video' as const,
+      container: 'mp4',
+      duration: 20,
+      sizeBytes: 1,
+      audio: { codec: 'aac', sampleRate: 44100, channels: 2 },
+    };
+    expect(assetFromProbe('media/a.mp4', info, { id: 'a' })).toEqual({
+      id: 'a',
+      kind: 'video',
+      path: 'media/a.mp4',
+      duration: 20,
+      hasAudio: true,
+    });
+    expect(assetFromProbe('media/b.mp4', { ...info, audio: undefined }, { id: 'b' }).hasAudio).toBe(
+      false,
+    );
+  });
+
+  it('a still image has no length and no sound', () => {
+    const info = {
+      kind: 'image' as const,
+      container: 'jpg',
+      sizeBytes: 1,
+      video: { codec: 'mjpeg', width: 10, height: 10 },
+    };
+    expect(assetFromProbe('media/a.jpg', info, { id: 'i' })).toEqual({
+      id: 'i',
+      kind: 'image',
+      path: 'media/a.jpg',
+      hasAudio: false,
+    });
   });
 });

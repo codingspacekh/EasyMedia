@@ -6,7 +6,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Seconds } from '../../core/model/time.ts';
-import type { MediaEngine, ProbeInfo } from '../../core/ports.ts';
+import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
+import { fromProjectPath } from '../../core/project/paths.ts';
+import { compileProject } from '../../core/render/compile.ts';
 import type { BinaryPaths } from '../ffmpeg/paths.ts';
 import { explainFfmpegError } from '../ffmpeg/errors.ts';
 import { createJobQueue, type RunProcess } from '../jobs/queue.ts';
@@ -17,7 +19,11 @@ const execFileAsync = promisify(execFile);
 
 export function createNodeMediaEngine(
   binaries: BinaryPaths,
-  { concurrency = 1, run }: { concurrency?: number; run?: RunProcess } = {},
+  {
+    concurrency = 1,
+    run,
+    videoEncoder = 'libx264',
+  }: { concurrency?: number; run?: RunProcess; videoEncoder?: string } = {},
 ): MediaEngine {
   const queue = createJobQueue({ ffmpeg: binaries.ffmpeg, concurrency, ...(run ? { run } : {}) });
 
@@ -68,6 +74,27 @@ export function createNodeMediaEngine(
       await queue.run({ label: 'Snapshot', args: frameArgs(input, time), output }).done;
     },
 
+    renderVideo(project, output, { projectDir, quality }) {
+      let plan;
+      try {
+        plan = compileProject(project, {
+          mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
+          videoEncoder,
+          ...(quality ? { quality } : {}),
+        });
+      } catch (error) {
+        return failedJob(error as Error);
+      }
+      return queue.run({ label: 'Export', args: plan.args, output, duration: plan.duration });
+    },
+
     onJobEvent: (listener) => queue.onEvent(listener),
   };
+}
+
+/** A job that could not start (e.g. the project cannot be exported): `done` rejects at once. */
+function failedJob(error: Error): JobHandle {
+  const done = Promise.reject(error);
+  done.catch(() => {});
+  return { id: 'not-started', done, cancel: () => {} };
 }

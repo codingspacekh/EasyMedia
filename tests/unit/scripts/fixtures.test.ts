@@ -7,6 +7,7 @@ describe('test fixture definitions (MILESTONES §3.2)', () => {
     expect(FIXTURES.map((f) => f.name)).toEqual(
       expect.arrayContaining([
         'clip_1080p30_10s.mp4',
+        'lake_1080p30_20s.mp4',
         'clip_4x3_640x480.mov',
         'clip_4x3_640x480.avi',
         'clip_4x3_640x480.wmv',
