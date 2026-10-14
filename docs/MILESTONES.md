@@ -362,6 +362,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 **Exit gate — acceptance**
 - Automated: Book A **11.01, 11.03, 11.04, 11.08, 11.13**; Book B **11b, 11c**.
 - Manual on both OSes with the real coursebook clips, including **Book B Task 11b exported through the UI** (moved here from M4).
+- **Performance check on a real Windows laptop** (carried over from M0 and M4): start ≤ 5 s, preview smooth, RAM ≤ 600 MB — run `Measure performance.bat` from the `app-bundle.yml` build.
 
 ---
 
@@ -543,7 +544,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M1 Core model & commands | ✅ Done ([gate record](acceptance/M1.md)) | 2026-10-14 | `v0.1.0` |
 | M2 Media engine adapter | ✅ Done ([gate record](acceptance/M2.md)) | 2026-10-14 | `v0.2.0` |
 | M3 Render compiler v1 | ✅ Done ([gate record](acceptance/M3.md)) | 2026-10-15 | `v0.3.0` |
-| M4 Walking skeleton | 🟡 Built; awaiting CI, Windows-laptop check and merge ([gate record](acceptance/M4.md)) | | |
+| M4 Walking skeleton | ✅ Done ([gate record](acceptance/M4.md)) — Windows-laptop check not done, carried to M5 | 2026-10-14 | `v0.4.0` |
 | M5 Video editing core | ☐ Not started | | |
 | M6 Text & stills | ☐ Not started | | |
 | M7 Effects & transitions | ☐ Not started | | |
