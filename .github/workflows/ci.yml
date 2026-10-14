@@ -54,5 +54,8 @@ jobs:
       - name: Integration tests (real FFmpeg)
         run: npm run test:integration
 
+      - name: Acceptance tests (coursebook scenarios)
+        run: npm run test:acceptance
+
       - name: Production build
         run: npm run build

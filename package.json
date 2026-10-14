@@ -18,6 +18,7 @@
     "test": "vitest run --project unit --project ui",
     "test:watch": "vitest --project unit --project ui",
     "test:integration": "vitest run --project integration",
+    "test:acceptance": "vitest run --project acceptance",
     "coverage": "vitest run --project unit --project ui --coverage",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.ts",
     "fixtures": "node scripts/make-fixtures.ts",

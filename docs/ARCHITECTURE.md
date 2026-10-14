@@ -71,7 +71,7 @@ Security defaults: `contextIsolation: true`, `nodeIntegration: false`, `sandbox:
 | P1 | **Ports & adapters** | `core/ports.ts`, `adapters/electron`, `adapters/mock` | Testability, UI-first development, cross-platform isolation |
 | P2 | **Facade** | `preload.ts` → `window.mve` | One small, typed surface between UI and system |
 | P3 | **Single store, one-way data flow** | `app/store.ts` | State always lives in one place: *UI → command → store → UI re-renders*. Easy to debug. |
-| P4 | **Command** | `app/commands/*` | Every video edit (trim, move, add title…) is an object with `do()` and `undo()` → unlimited undo/redo |
+| P4 | **Command** | `app/commands.ts`, `app/history.ts` | Every edit (trim, move, add title…) is a `Command` whose `apply()` returns a **new** project. Projects are immutable, so `History` keeps the previous project and undo restores it exactly: no per-command undo code, unlimited undo/redo |
 | P5 | **Memento** | `core/audio/history.ts` | Audio effects change samples in place; undo stores a snapshot of **only the changed region** |
 | P6 | **Strategy + Registry** | `core/effects/registry.ts` | Each effect, transition, filter and export preset is one self-describing object. Adding a feature = adding one file. |
 | P7 | **Schema-driven UI** | `ui/components/EffectDialog.svelte` | Effect dialogs (Echo, Reverb, Normalise…) are **generated** from each effect's parameter schema. No hand-built dialog per effect. |
@@ -89,7 +89,8 @@ minivideoeditor/
 ├─ docs/ARCHITECTURE.md       this file
 ├─ src/
 │  ├─ core/                   ← NO imports from electron, node, svelte
-│  │  ├─ model/               types.ts, factory.ts, timeline.ts (rules), time.ts
+│  │  ├─ model/               types.ts, factory.ts, timeline.ts (rules), time.ts, settings.ts, errors.ts
+│  │  ├─ project/             serialize.ts (.mve JSON), migrate.ts (schema upgrades), paths.ts (relative paths, X1)
 │  │  ├─ effects/             registry.ts + one file per effect
 │  │  │  ├─ video/            fade.ts, panzoom.ts, colour.ts, blur.ts, speed.ts …
 │  │  │  ├─ transitions/      dissolve.ts, wipe.ts …
@@ -98,7 +99,7 @@ minivideoeditor/
 │  │  ├─ audio/               pcm.ts, dsp/*.ts, history.ts (memento)
 │  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
 │  │  └─ ports.ts             interfaces only
-│  ├─ app/                    store.ts, commands/*, usecases/*
+│  ├─ app/                    history.ts, commands.ts, store.ts, usecases/*
 │  ├─ ui/                     Svelte: App.svelte, screens/, components/, dialogs/
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
@@ -232,9 +233,9 @@ UI drop file ─► usecase importMedia
 
 ```
 User types End point = 12.5
-  ─► new TrimCommand(clipId, in, 12.5)   (validates against timeline rules)
+  ─► trimClip(clipId, { in, out: 12.5 })   (Command; validates against timeline rules)
   ─► history.execute(cmd)  →  store updated  →  timeline + preview re-render
-Ctrl/⌘+Z ─► history.undo() → cmd.undo()
+Ctrl/⌘+Z ─► undo(history) → the previous (immutable) project is restored
 ```
 
 ### 7.3 Preview ("approximate preview, exact export")

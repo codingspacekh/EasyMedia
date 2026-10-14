@@ -539,7 +539,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | Milestone | Status | Gate passed | Release tag |
 |---|---|---|---|
 | M0 Foundations & spike | ✅ Done ([gate record](acceptance/M0.md)) — Windows-laptop spike waived, deferred to M4 | 2026-10-14 | `v0.0.0` |
-| M1 Core model & commands | ☐ Not started | | |
+| M1 Core model & commands | 🟡 Built and green locally; awaiting CI and merge ([gate record](acceptance/M1.md)) | | |
 | M2 Media engine adapter | ☐ Not started | | |
 | M3 Render compiler v1 | ☐ Not started | | |
 | M4 Walking skeleton | ☐ Not started | | |
