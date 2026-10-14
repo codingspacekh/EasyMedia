@@ -65,6 +65,7 @@
   <label class="stack">
     Text
     <textarea
+      aria-label="Text"
       rows="3"
       value={item.text}
       onchange={(e) => (error = app.edit(setText(item.id, e.currentTarget.value)))}></textarea>
@@ -72,7 +73,7 @@
   <div class="grid2">
     <label class="stack">
       Font
-      <select value={item.style.font} onchange={(e) => style({ font: e.currentTarget.value })}>
+      <select aria-label="Font" value={item.style.font} onchange={(e) => style({ font: e.currentTarget.value })}>
         {#each FONTS as font (font.name)}
           <option value={font.name}>{font.label}</option>
         {/each}
@@ -81,6 +82,7 @@
     <label class="stack">
       Size
       <input
+        aria-label="Size"
         type="number"
         min="8"
         max="300"
@@ -92,6 +94,7 @@
   <div class="row">
     <label class="check">
       <input
+        aria-label="Colour"
         type="color"
         value={item.style.colour}
         onchange={(e) => style({ colour: e.currentTarget.value })}
@@ -187,6 +190,7 @@
     <label class="stack">
       Background
       <select
+        aria-label="Background"
         value={title.background.kind}
         onchange={(e) => chooseBackground(e.currentTarget.value)}
       >
@@ -198,6 +202,7 @@
     {#if title.background.kind === 'colour'}
       <label class="check">
         <input
+          aria-label="Background colour"
           type="color"
           value={title.background.colour}
           onchange={(e) =>
@@ -212,6 +217,7 @@
       <label class="stack">
         {kind === 'image' ? 'Background picture' : 'Background video'}
         <select
+          aria-label={kind === 'image' ? 'Background picture' : 'Background video'}
           value={title.background.assetId}
           onchange={(e) =>
             (error = app.edit(
@@ -234,6 +240,7 @@
   <label class="stack">
     Entrance
     <select
+      aria-label="Entrance"
       value={item.entrance ?? 'none'}
       onchange={(e) => (error = effects({ entrance: e.currentTarget.value as Entrance }))}
     >
