@@ -96,6 +96,7 @@ describe('P2 main-process IPC handlers', () => {
         write: async () => {},
         remove: async () => {},
         copy: async (from, to) => void copied.push(`${from}→${to}`),
+        saveImage: async () => '',
       },
     });
     expect(await api.invoke('project:copy', '/etc/passwd', '/usb/x')).toMatchObject({ ok: false });
@@ -105,5 +106,33 @@ describe('P2 main-process IPC handlers', () => {
       value: null,
     });
     expect(copied).toEqual(['/m/a.mp4→/usb/media/a.mp4']);
+  });
+
+  it('saves text pictures only by a plain name, into the app folder, and lets the preview show them', async () => {
+    const saved: string[] = [];
+    const { api } = inProcessBridge(createMockMediaEngine(), {
+      files: {
+        read: async () => '',
+        write: async () => {},
+        remove: async () => {},
+        copy: async () => {},
+        saveImage: async (name, png) => {
+          saved.push(`${name}:${png.length}`);
+          return `/cache/text/${name}.png`;
+        },
+      },
+    });
+    for (const bad of ['../evil', '/etc/x', 'a b', 'C:\\x', '']) {
+      expect(await api.invoke('project:saveImage', bad, new Uint8Array(3))).toMatchObject({
+        ok: false,
+      });
+    }
+    expect(await api.invoke('project:saveImage', 'text-ab_1', new Uint8Array(3))).toEqual({
+      ok: true,
+      value: '/cache/text/text-ab_1.png',
+    });
+    expect(saved).toEqual(['text-ab_1:3']);
+    const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
+    expect(allow.has('/cache/text/text-ab_1.png')).toBe(true);
   });
 });

@@ -40,6 +40,10 @@ export function testApp(
       write: async (p, t) => void disk.set(p, t),
       remove: async (p) => void disk.delete(p),
       copy: async () => {},
+      saveImage: async (name) => `/cache/text/${name}.png`,
+    },
+    text: {
+      draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
     paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
   });

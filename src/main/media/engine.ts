@@ -74,13 +74,14 @@ export function createNodeMediaEngine(
       await queue.run({ label: 'Snapshot', args: frameArgs(input, time), output }).done;
     },
 
-    renderVideo(project, output, { projectDir, quality }) {
+    renderVideo(project, output, { projectDir, quality, textImages }) {
       let plan;
       try {
         plan = compileProject(project, {
           mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
           videoEncoder,
           ...(quality ? { quality } : {}),
+          ...(textImages ? { textImages } : {}),
         });
       } catch (error) {
         return failedJob(error as Error);

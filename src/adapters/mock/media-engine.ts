@@ -100,11 +100,12 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       });
     },
 
-    renderVideo(project, output, { projectDir }) {
+    renderVideo(project, output, { projectDir, textImages }) {
       let plan: ReturnType<typeof compileProject>;
       try {
         plan = compileProject(project, {
           mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
+          ...(textImages ? { textImages } : {}),
         });
       } catch (error) {
         const done = Promise.reject(error as Error);

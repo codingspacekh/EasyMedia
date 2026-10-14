@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
 import { createApp } from '../app/app.ts';
+import { createCanvasTextRenderer } from '../adapters/canvas/text-renderer.ts';
 import { createElectronMediaEngine } from '../adapters/electron/media-engine.ts';
 import {
   createElectronDialogs,
@@ -8,6 +9,7 @@ import {
 } from '../adapters/electron/services.ts';
 import type { MenuAction } from '../preload/api.ts';
 import App from './App.svelte';
+import './fonts.css';
 import './theme.css';
 
 const target = document.getElementById('app')!;
@@ -20,6 +22,7 @@ if (!window.mve) {
     engine: createElectronMediaEngine(api),
     dialogs: createElectronDialogs(api),
     files: createElectronProjectFiles(api),
+    text: createCanvasTextRenderer(),
     paths: await getAppPaths(api),
   });
   const actions: Record<MenuAction, () => unknown> = {

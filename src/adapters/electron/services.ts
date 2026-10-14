@@ -20,6 +20,7 @@ export function createElectronProjectFiles(api: MveApi): ProjectFiles {
     write: async (path, text) => void (await unwrap(api.invoke('project:write', path, text))),
     remove: async (path) => void (await unwrap(api.invoke('project:remove', path))),
     copy: async (from, to) => void (await unwrap(api.invoke('project:copy', from, to))),
+    saveImage: (name, png) => unwrap(api.invoke('project:saveImage', name, png)),
   };
 }
 

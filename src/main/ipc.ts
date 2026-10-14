@@ -103,6 +103,12 @@ export function registerIpc(s: MainServices): void {
       await s.files.copy(from, to);
       return null;
     },
+    'project:saveImage': async (name, png) => {
+      if (!/^[\w-]{1,100}$/.test(name)) throw new Error('A text picture needs a plain name.');
+      const path = await s.files.saveImage(name, png);
+      s.allow.add(path);
+      return path;
+    },
   };
 
   for (const channel of CHANNELS) {

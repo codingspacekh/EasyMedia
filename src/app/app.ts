@@ -23,7 +23,15 @@ import {
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
 import type { Id, MediaAsset, Project } from '../core/model/types.ts';
-import type { AppPaths, Dialogs, MediaEngine, ProbeInfo, ProjectFiles } from '../core/ports.ts';
+import type {
+  AppPaths,
+  Dialogs,
+  MediaEngine,
+  ProbeInfo,
+  ProjectFiles,
+  TextRenderer,
+} from '../core/ports.ts';
+import type { TextImage } from '../core/render/compile.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
@@ -58,6 +66,7 @@ export interface AppDeps {
   engine: MediaEngine;
   dialogs: Dialogs;
   files: ProjectFiles;
+  text: TextRenderer;
   paths: AppPaths;
   autosaveMs?: number;
 }
@@ -70,7 +79,7 @@ export const projectTitle = (s: AppState): string =>
 const DISCARD = 'You have unsaved changes. Discard them and';
 const UNEXPECTED = 'Something went wrong. Please try again.';
 
-export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }: AppDeps) {
+export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60_000 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
   const store: Store<AppState> = createStore<AppState>({
     history: createHistory(fresh),
@@ -194,6 +203,31 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
     }
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
+
+  /** One picture per title slide with words and per caption, subtitle or credits item. */
+  async function drawTextImages(project: Project): Promise<Record<Id, TextImage>> {
+    const frame = { width: project.settings.width, height: project.settings.height };
+    const wanted = [
+      ...project.timeline.main.flatMap((item) =>
+        item.type === 'title' && item.text.trim() !== ''
+          ? [{ ...item, mode: 'frame' as const }]
+          : [],
+      ),
+      ...project.timeline.text.map((item) => ({
+        ...item,
+        mode:
+          item.kind === 'credits' && item.scroll !== false
+            ? ('block' as const)
+            : ('frame' as const),
+      })),
+    ];
+    const images: Record<Id, TextImage> = {};
+    for (const item of wanted) {
+      const { png, width, height } = await text.draw(item.text, item.style, frame, item.mode);
+      images[item.id] = { path: await files.saveImage(`text-${item.id}`, png), width, height };
+    }
+    return images;
+  }
 
   return {
     store,
@@ -336,12 +370,13 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
         projectPath ? fileNameOf(projectPath).replace(/\.mve$/i, '') : project.name,
       );
       if (!output) return;
-      const job = engine.renderVideo(project, output, {
-        projectDir: projectPath ? dirOf(projectPath) : '/',
-      });
-      exportJob = job;
       patch({ exporting: { state: 'running', progress: 0, output } });
       try {
+        const job = engine.renderVideo(project, output, {
+          projectDir: projectPath ? dirOf(projectPath) : '/',
+          textImages: await drawTextImages(project),
+        });
+        exportJob = job;
         await job.done;
         patch({ exporting: { state: 'done', output } });
       } catch (error) {

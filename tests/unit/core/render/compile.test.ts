@@ -4,7 +4,6 @@ import {
   createImageClip,
   createMediaAsset,
   createProject,
-  createTextItem,
   createTitleSlide,
   createVideoClip,
 } from '../../../../src/core/model/factory.ts';

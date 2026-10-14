@@ -75,7 +75,7 @@ void app.whenReady().then(async () => {
     allow,
     paths: { proxies, recovery: join(app.getPath('userData'), 'recovery.mve') },
     dialogs: electronDialogs(() => mainWindow),
-    files: projectFiles,
+    files: projectFiles(join(app.getPath('userData'), 'text')),
   });
 
   Menu.setApplicationMenu(
