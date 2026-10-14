@@ -18,12 +18,13 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
     send: (event, payload) => listeners.get(event)?.forEach((l) => l(payload)),
     engine,
     allow,
-    paths: { proxies: '/cache/proxies' },
+    paths: { proxies: '/cache/proxies', recovery: '/cache/recovery.mve' },
     dialogs: {
       openMedia: async () => [],
       openProject: async () => null,
       saveProject: async () => null,
       exportVideo: async () => null,
+      confirm: async () => false,
     },
     files: {
       read: async (path) => {
@@ -32,6 +33,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
         return text;
       },
       write: async (path, text) => void files.set(path, text),
+      remove: async (path) => void files.delete(path),
     },
     ...overrides,
   });

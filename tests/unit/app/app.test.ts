@@ -1,0 +1,373 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createApp, isDirty, projectTitle, type AppState } from '../../../src/app/app.ts';
+import { canUndo } from '../../../src/app/history.ts';
+import { proxyPathFor } from '../../../src/app/proxy-path.ts';
+import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
+import { createProject } from '../../../src/core/model/factory.ts';
+import type { Dialogs, JobEvent, ProbeInfo } from '../../../src/core/ports.ts';
+
+const video = (sizeBytes = 7_000_000): ProbeInfo => ({
+  kind: 'video',
+  container: 'mp4',
+  duration: 10,
+  sizeBytes,
+  video: { codec: 'h264', width: 1920, height: 1080, fps: 30 },
+  audio: { codec: 'aac', sampleRate: 44100, channels: 2 },
+});
+const image: ProbeInfo = {
+  kind: 'image',
+  container: 'jpg',
+  sizeBytes: 1,
+  video: { codec: 'mjpeg', width: 100, height: 100 },
+};
+const sound: ProbeInfo = {
+  kind: 'audio',
+  container: 'mp3',
+  duration: 30,
+  sizeBytes: 1,
+  audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+};
+
+function setup(
+  media: Record<string, ProbeInfo> = {
+    '/m/clip.mp4': video(),
+    '/m/photo.jpg': image,
+    '/m/music.mp3': sound,
+  },
+) {
+  const engine = createMockMediaEngine(media);
+  const events: JobEvent[] = [];
+  engine.onJobEvent((e) => events.push(e));
+  const disk = new Map<string, string>();
+  const dialogs = {
+    openMedia: vi.fn<Dialogs['openMedia']>(async () => []),
+    openProject: vi.fn<Dialogs['openProject']>(async () => null),
+    saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
+    exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
+    confirm: vi.fn<Dialogs['confirm']>(async () => true),
+  };
+  const files = {
+    read: async (path: string) => {
+      const text = disk.get(path);
+      if (text === undefined) throw new Error('ENOENT');
+      return text;
+    },
+    write: async (path: string, text: string) => void disk.set(path, text),
+    remove: async (path: string) => void disk.delete(path),
+  };
+  const app = createApp({
+    engine,
+    dialogs,
+    files,
+    paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
+  });
+  const state = () => app.store.get();
+  const project = () => state().history.present;
+  async function importFiles(...paths: string[]) {
+    dialogs.openMedia.mockResolvedValueOnce(paths);
+    await app.importMedia();
+  }
+  return { app, engine, events, disk, dialogs, state, project, importFiles };
+}
+
+const idOf = (s: AppState, path: string) =>
+  s.history.present.media.find((m) => m.path === path)!.id;
+
+describe('M4 app use cases', () => {
+  afterEach(() => vi.useRealTimers());
+
+  describe('import (A1, preview proxies)', () => {
+    it('imports a video: "preparing" with progress until its proxy is ready', async () => {
+      const { app, state, project, importFiles } = setup();
+      const progress: number[] = [];
+      app.store.subscribe((s) => {
+        const a = Object.values(s.assets)[0];
+        if (a?.state === 'preparing') progress.push(a.progress);
+      });
+      await importFiles('/m/clip.mp4');
+      expect(project().media).toMatchObject([
+        { kind: 'video', path: '/m/clip.mp4', duration: 10, hasAudio: true },
+      ]);
+      const id = idOf(state(), '/m/clip.mp4');
+      expect(state().assets[id]!.state).toBe('preparing');
+      await vi.waitFor(() =>
+        expect(state().assets[id]).toMatchObject({
+          state: 'ready',
+          proxyPath: expect.stringMatching(/^\/cache\/clip-/),
+        }),
+      );
+      expect(progress).toContain(0.5);
+    });
+
+    it('a still image or sound file is ready at once, with no proxy', async () => {
+      const { state, events, importFiles } = setup();
+      await importFiles('/m/photo.jpg', '/m/music.mp3');
+      expect(Object.values(state().assets).map((a) => a.state)).toEqual(['ready', 'ready']);
+      expect(events.filter((e) => e.type === 'queued')).toHaveLength(0);
+    });
+
+    it('reuses a proxy made earlier for the same file', async () => {
+      const { engine, events, state, importFiles } = setup();
+      const existing = proxyPathFor('/cache', '/m/clip.mp4', 7_000_000);
+      (engine as unknown as { addFile(p: string, i: ProbeInfo): void }).addFile(existing, video(1));
+      await importFiles('/m/clip.mp4');
+      await vi.waitFor(() =>
+        expect(Object.values(state().assets)[0]).toMatchObject({
+          state: 'ready',
+          proxyPath: existing,
+        }),
+      );
+      expect(events.filter((e) => e.type === 'queued')).toHaveLength(0);
+    });
+
+    it('explains a file that cannot be read and imports the others', async () => {
+      const { state, project, importFiles } = setup();
+      await importFiles('/m/gone.mp4', '/m/photo.jpg');
+      expect(project().media).toHaveLength(1);
+      expect(state().message).toMatchObject({
+        kind: 'error',
+        text: expect.stringMatching(/could not be found/i),
+      });
+    });
+
+    it('explains a file that is already imported', async () => {
+      const { state, project, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      await importFiles('/m/photo.jpg');
+      expect(project().media).toHaveLength(1);
+      expect(state().message?.text).toMatch(/already imported/i);
+    });
+
+    it('does nothing when the dialog is cancelled', async () => {
+      const { app, project } = setup();
+      await app.importMedia();
+      expect(project().media).toEqual([]);
+    });
+  });
+
+  describe('editing the main track (V3, A18)', () => {
+    it('adds videos and stills to the timeline', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      app.addToTimeline(idOf(state(), '/m/clip.mp4'));
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['video', 'image']);
+    });
+
+    it('explains that sound files go on the music track (coming later)', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/music.mp3');
+      app.addToTimeline(idOf(state(), '/m/music.mp3'));
+      expect(project().timeline.main).toEqual([]);
+      expect(state().message?.text).toMatch(/music track/i);
+    });
+
+    it('selects, deletes, and undoes / redoes', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      const clipId = project().timeline.main[0]!.id;
+      app.select(clipId);
+      app.removeSelected();
+      expect([project().timeline.main.length, state().selection]).toEqual([0, null]);
+      app.undo();
+      expect(project().timeline.main).toHaveLength(1);
+      app.redo();
+      expect(project().timeline.main).toHaveLength(0);
+    });
+
+    it('deleting with nothing selected changes nothing', async () => {
+      const { app, state } = setup();
+      const before = state().history;
+      app.removeSelected();
+      expect(state().history).toBe(before);
+    });
+  });
+
+  describe('export (V16)', () => {
+    async function withClip() {
+      const s = setup();
+      await s.importFiles('/m/clip.mp4');
+      s.app.addToTimeline(idOf(s.state(), '/m/clip.mp4'));
+      return s;
+    }
+
+    it('explains that a clip is needed, without asking where to save', async () => {
+      const { app, state, dialogs } = setup();
+      await app.exportVideo();
+      expect(dialogs.exportVideo).not.toHaveBeenCalled();
+      expect(state().message?.text).toMatch(/add a clip/i);
+    });
+
+    it('does nothing when the save dialog is cancelled', async () => {
+      const { app, state, events } = await withClip();
+      const before = events.length;
+      await app.exportVideo();
+      expect(state().exporting.state).toBe('idle');
+      expect(events.slice(before).filter((e) => e.label === 'Export')).toEqual([]);
+    });
+
+    it('shows progress, then where the video was saved', async () => {
+      const { app, state, engine, dialogs } = await withClip();
+      dialogs.exportVideo.mockResolvedValueOnce('/out/Untitled.mp4');
+      const states: string[] = [];
+      app.store.subscribe((s) => states.push(s.exporting.state));
+      await app.exportVideo();
+      expect(states).toContain('running');
+      expect(state().exporting).toEqual({ state: 'done', output: '/out/Untitled.mp4' });
+      expect((await engine.probe('/out/Untitled.mp4')).duration).toBe(10);
+    });
+
+    it('can be cancelled', async () => {
+      const { app, state, dialogs } = await withClip();
+      dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+      // Press Cancel as soon as the export is shown as running.
+      const stop = app.store.subscribe(
+        (s) => s.exporting.state === 'running' && app.cancelExport(),
+      );
+      await app.exportVideo();
+      stop();
+      expect(state().exporting.state).toBe('idle');
+      expect(state().message).toBeNull();
+    });
+  });
+
+  describe('save, open, new (P1, X1)', () => {
+    it('Save asks where the first time, stores relative paths, and is then clean', async () => {
+      const { app, state, disk, dialogs, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      dialogs.saveProject.mockResolvedValueOnce('/m/Task_11b.mve');
+      await app.save();
+      expect(dialogs.saveProject).toHaveBeenCalledWith('Untitled');
+      expect(JSON.parse(disk.get('/m/Task_11b.mve')!).media[0].path).toBe('photo.jpg');
+      expect([state().projectPath, isDirty(state()), projectTitle(state())]).toEqual([
+        '/m/Task_11b.mve',
+        false,
+        'Task_11b.mve — EasyMedia',
+      ]);
+    });
+
+    it('Save again overwrites without asking; Save As always asks', async () => {
+      const { app, dialogs, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      dialogs.saveProject.mockResolvedValue('/m/a.mve');
+      await app.save();
+      await app.save();
+      expect(dialogs.saveProject).toHaveBeenCalledTimes(1);
+      await app.saveAs();
+      expect(dialogs.saveProject).toHaveBeenCalledTimes(2);
+    });
+
+    it('a cancelled save keeps the work marked as unsaved', async () => {
+      const { app, state, disk, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      await app.save();
+      expect([isDirty(state()), disk.size, projectTitle(state())]).toEqual([
+        true,
+        0,
+        'Untitled • — EasyMedia',
+      ]);
+    });
+
+    it('Open reads a project, restores absolute paths, prepares proxies, and starts a fresh undo history', async () => {
+      const { app, state, project, disk, dialogs } = setup({ '/p/media/clip.mp4': video() });
+      const saved = {
+        ...createProject({ name: 'Task' }),
+        media: [{ id: 'c', kind: 'video', path: 'media/clip.mp4', duration: 10, hasAudio: true }],
+      };
+      disk.set('/p/task.mve', JSON.stringify(saved));
+      dialogs.openProject.mockResolvedValueOnce('/p/task.mve');
+      await app.open();
+      expect(project().media[0]!.path).toBe('/p/media/clip.mp4');
+      expect([canUndo(state().history), isDirty(state()), state().projectPath]).toEqual([
+        false,
+        false,
+        '/p/task.mve',
+      ]);
+      await vi.waitFor(() => expect(state().assets.c!.state).toBe('ready'));
+    });
+
+    it('Open asks before throwing away unsaved work', async () => {
+      const { app, dialogs, project, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      dialogs.confirm.mockResolvedValueOnce(false);
+      await app.open();
+      expect(dialogs.confirm).toHaveBeenCalledWith(expect.stringMatching(/unsaved changes/i));
+      expect(dialogs.openProject).not.toHaveBeenCalled();
+      expect(project().media).toHaveLength(1);
+    });
+
+    it('explains a file that is not a project', async () => {
+      const { app, state, disk, dialogs } = setup();
+      disk.set('/p/bad.mve', 'not json');
+      dialogs.openProject.mockResolvedValueOnce('/p/bad.mve');
+      await app.open();
+      expect(state().message?.text).toMatch(/not an EasyMedia project/i);
+    });
+
+    it('New starts an empty project (after asking, if there is unsaved work)', async () => {
+      const { app, project, dialogs, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      await app.newProject();
+      expect(dialogs.confirm).toHaveBeenCalled();
+      expect(project().media).toEqual([]);
+    });
+  });
+
+  describe('P3 autosave and recovery', () => {
+    it('autosaves a saved project to its file every minute when there are changes', async () => {
+      vi.useFakeTimers();
+      const { app, disk, dialogs, state, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      dialogs.saveProject.mockResolvedValueOnce('/m/a.mve');
+      await app.save();
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      expect(JSON.parse(disk.get('/m/a.mve')!).timeline.main).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(JSON.parse(disk.get('/m/a.mve')!).timeline.main).toHaveLength(1);
+      expect(isDirty(state())).toBe(false);
+      app.dispose();
+    });
+
+    it('autosaves unsaved work to the recovery file, which a save then removes', async () => {
+      vi.useFakeTimers();
+      const { app, disk, dialogs, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(disk.has('/cache/recovery.mve')).toBe(true);
+      dialogs.saveProject.mockResolvedValueOnce('/m/a.mve');
+      await app.save();
+      expect(disk.has('/cache/recovery.mve')).toBe(false);
+      app.dispose();
+    });
+
+    it('does not autosave when nothing changed', async () => {
+      vi.useFakeTimers();
+      const { app, disk } = setup();
+      await vi.advanceTimersByTimeAsync(180_000);
+      expect(disk.size).toBe(0);
+      app.dispose();
+    });
+
+    it('offers to restore unsaved work after a crash', async () => {
+      const { app, disk, dialogs, project, state } = setup({ '/m/photo.jpg': image });
+      const lost = {
+        ...createProject({ name: 'Lost' }),
+        media: [{ id: 'p', kind: 'image', path: '/m/photo.jpg', hasAudio: false }],
+      };
+      disk.set('/cache/recovery.mve', JSON.stringify(lost));
+      await app.start();
+      expect(dialogs.confirm).toHaveBeenCalledWith(expect.stringMatching(/restore/i));
+      expect(project().media).toHaveLength(1);
+      expect([isDirty(state()), state().projectPath]).toEqual([true, null]);
+    });
+
+    it('discards the recovery file if the student says no', async () => {
+      const { app, disk, dialogs, project } = setup();
+      disk.set('/cache/recovery.mve', JSON.stringify(createProject({ name: 'Lost' })));
+      dialogs.confirm.mockResolvedValueOnce(false);
+      await app.start();
+      expect([disk.has('/cache/recovery.mve'), project().media]).toEqual([false, []]);
+    });
+  });
+});

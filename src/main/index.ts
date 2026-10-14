@@ -1,5 +1,5 @@
 // Electron main process (ARCHITECTURE §2).
-import { app, BrowserWindow, ipcMain, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, protocol } from 'electron';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
@@ -7,6 +7,7 @@ import type { Events } from '../preload/api.ts';
 import { detectHardwareEncoder, encoderTester, videoEncoder } from './ffmpeg/hardware.ts';
 import { binaryPaths, platformKey } from './ffmpeg/paths.ts';
 import { registerIpc } from './ipc.ts';
+import { menuTemplate } from './menu.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
@@ -14,6 +15,9 @@ import { electronDialogs, projectFiles } from './services.ts';
 
 const APP_ROOT = join(__dirname, '..');
 const RESOURCES = app.isPackaged ? process.resourcesPath : join(APP_ROOT, 'resources');
+
+// Tests run with their own empty user-data folder (no real proxies or recovery file).
+if (process.env.EASYMEDIA_USER_DATA) app.setPath('userData', process.env.EASYMEDIA_USER_DATA);
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -68,10 +72,20 @@ void app.whenReady().then(async () => {
       mainWindow?.webContents.send(event, payload),
     engine: createNodeMediaEngine(binaries, { videoEncoder: videoEncoder(hardware) }),
     allow,
-    paths: { proxies },
+    paths: { proxies, recovery: join(app.getPath('userData'), 'recovery.mve') },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles,
   });
+
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate(
+      menuTemplate(
+        process.platform,
+        (action) => mainWindow?.webContents.send('menu:action', action),
+        !app.isPackaged,
+      ),
+    ),
+  );
 
   mainWindow = createWindow();
   app.on('activate', () => {

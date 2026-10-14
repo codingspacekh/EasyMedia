@@ -4,7 +4,7 @@ import { launchApp } from './app.ts';
 test.describe('M4 app shell', () => {
   test('opens the EasyMedia window', async () => {
     const { app, window: page } = await launchApp();
-    await expect(page).toHaveTitle('EasyMedia');
+    await expect(page).toHaveTitle('Untitled — EasyMedia');
     await expect(page.getByRole('heading', { name: 'EasyMedia' })).toBeVisible();
     await app.close();
   });

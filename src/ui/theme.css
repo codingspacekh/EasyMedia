@@ -1,0 +1,60 @@
+/* Colours and basics from the design system (design/screens/23-design-system.html). */
+:root {
+  --bg-0: #101216;
+  --bg-1: #171a20;
+  --bg-2: #1e222a;
+  --bg-3: #272c36;
+  --line: #2c323d;
+  --line-strong: #3a414e;
+  --tx-1: #eceef2;
+  --tx-2: #a9b0bc;
+  --tx-3: #737b89;
+  --accent: #4f8cff;
+  --accent-soft: rgba(79, 140, 255, 0.16);
+  --danger: #ff5a5f;
+  --success: #3ccf8e;
+  --warn: #f5b942;
+  --c-video: #3f7fe0;
+  --c-image: #8b65d9;
+  --c-title: #d8873a;
+  --font: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Consolas, monospace;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--tx-1);
+  font: 13px/1.4 var(--font);
+}
+button {
+  font: inherit;
+  color: var(--tx-1);
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.panel-h {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tx-2);
+}

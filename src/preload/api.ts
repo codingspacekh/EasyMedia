@@ -1,7 +1,7 @@
 // The typed surface the page can use (window.mve). Shared by main, preload and renderer.
 // Only the request channels listed in CHANNELS exist (P2).
 import type { Project } from '../core/model/types.ts';
-import type { JobEvent, ProbeInfo } from '../core/ports.ts';
+import type { AppPaths, JobEvent, ProbeInfo } from '../core/ports.ts';
 import type { Quality } from '../core/render/compile.ts';
 import type { WireError } from '../core/wire.ts';
 
@@ -32,13 +32,15 @@ export interface Channels {
     result: null;
   };
   'job:cancel': { args: [jobKey: string]; result: null };
-  'app:paths': { args: []; result: { proxies: string } };
+  'app:paths': { args: []; result: AppPaths };
   'dialog:openMedia': { args: []; result: string[] };
   'dialog:openProject': { args: []; result: string | null };
   'dialog:saveProject': { args: [suggestedName: string]; result: string | null };
   'dialog:exportVideo': { args: [suggestedName: string]; result: string | null };
+  'dialog:confirm': { args: [message: string]; result: boolean };
   'project:read': { args: [path: string]; result: string };
   'project:write': { args: [path: string, text: string]; result: null };
+  'project:remove': { args: [path: string]; result: null };
 }
 
 export type Channel = keyof Channels;
@@ -56,8 +58,10 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:openProject',
   'dialog:saveProject',
   'dialog:exportVideo',
+  'dialog:confirm',
   'project:read',
   'project:write',
+  'project:remove',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */

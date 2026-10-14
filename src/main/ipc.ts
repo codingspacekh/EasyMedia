@@ -1,7 +1,7 @@
 // Main-process side of the IPC contract (P2, ARCHITECTURE §8). Every request is answered with
 // data: a value, or a WireError the page turns back into the right error type.
 import { JobCancelledError } from '../core/model/errors.ts';
-import type { JobHandle, MediaEngine } from '../core/ports.ts';
+import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
@@ -12,14 +12,9 @@ export interface MainServices {
   send<E extends keyof Events>(event: E, payload: Events[E]): void;
   engine: MediaEngine;
   allow: AllowList;
-  paths: { proxies: string };
-  dialogs: {
-    openMedia(): Promise<string[]>;
-    openProject(): Promise<string | null>;
-    saveProject(suggestedName: string): Promise<string | null>;
-    exportVideo(suggestedName: string): Promise<string | null>;
-  };
-  files: { read(path: string): Promise<string>; write(path: string, text: string): Promise<void> };
+  paths: AppPaths;
+  dialogs: Dialogs;
+  files: ProjectFiles;
 }
 
 type Handlers = {
@@ -92,9 +87,14 @@ export function registerIpc(s: MainServices): void {
     'dialog:openProject': () => s.dialogs.openProject(),
     'dialog:saveProject': (name) => s.dialogs.saveProject(name),
     'dialog:exportVideo': (name) => s.dialogs.exportVideo(name),
+    'dialog:confirm': (message) => s.dialogs.confirm(message),
     'project:read': (path) => s.files.read(path),
     'project:write': async (path, text) => {
       await s.files.write(path, text);
+      return null;
+    },
+    'project:remove': async (path) => {
+      await s.files.remove(path);
       return null;
     },
   };

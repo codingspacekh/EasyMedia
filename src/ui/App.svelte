@@ -1,52 +1,102 @@
 <script lang="ts">
-  const modes = ['Video', 'Audio', 'Learn'] as const;
-  type Mode = (typeof modes)[number];
+  import { projectTitle, type App } from '../app/app.ts';
+  import { canRedo, canUndo } from '../app/history.ts';
+  import MediaBin from './MediaBin.svelte';
+  import Preview from './Preview.svelte';
+  import StatusBar from './StatusBar.svelte';
+  import Timeline from './Timeline.svelte';
 
-  let mode: Mode = $state('Video');
+  let { app }: { app: App } = $props();
+  const store = $derived(app.store);
+  const modes = ['Video', 'Audio', 'Learn'] as const;
+  let mode: (typeof modes)[number] = $state('Video');
+
+  $effect.pre(() => {
+    document.title = projectTitle($store);
+  });
 </script>
 
-<main>
-  <h1>EasyMedia</h1>
-  <nav aria-label="Mode">
-    {#each modes as m (m)}
-      <button type="button" aria-pressed={mode === m} onclick={() => (mode = m)}>{m}</button>
-    {/each}
-  </nav>
-  <p>{mode} mode — the editor arrives in milestone M4.</p>
-</main>
+<div class="app">
+  <header class="toolbar">
+    <h1>EasyMedia</h1>
+    <nav aria-label="Mode">
+      {#each modes as m (m)}
+        <button type="button" aria-pressed={mode === m} onclick={() => (mode = m)}>{m}</button>
+      {/each}
+    </nav>
+    <button onclick={() => app.importMedia()}>Import</button>
+    <button disabled={!canUndo($store.history)} onclick={() => app.undo()}>Undo</button>
+    <button disabled={!canRedo($store.history)} onclick={() => app.redo()}>Redo</button>
+    <button onclick={() => app.save()}>Save</button>
+    <span class="spacer"></span>
+    <button
+      class="primary"
+      disabled={$store.exporting.state === 'running'}
+      onclick={() => app.exportVideo()}
+    >
+      Export
+    </button>
+  </header>
+  {#if mode === 'Video'}
+    <main class="workspace">
+      <MediaBin {app} />
+      <Preview {app} />
+    </main>
+    <Timeline {app} />
+  {:else}
+    <main class="workspace later">
+      <p>{mode} mode arrives in a later milestone.</p>
+    </main>
+  {/if}
+  <StatusBar {app} />
+</div>
 
 <style>
-  :global(body) {
-    margin: 0;
-    background: #101216;
-    color: #eceef2;
-    font-family:
-      Inter,
-      -apple-system,
-      'Segoe UI',
-      system-ui,
-      sans-serif;
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
   }
-  main {
-    padding: 32px;
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--line);
+  }
+  h1 {
+    font-size: 15px;
+    margin: 0 8px 0 0;
   }
   nav {
     display: inline-flex;
     gap: 2px;
     padding: 3px;
+    margin-right: 8px;
     border-radius: 8px;
-    background: #171a20;
+    background: var(--bg-0);
   }
-  button {
+  nav button {
     border: 0;
-    border-radius: 6px;
-    padding: 6px 14px;
     background: transparent;
-    color: #a9b0bc;
-    font: inherit;
+    color: var(--tx-2);
   }
-  button[aria-pressed='true'] {
-    background: #272c36;
-    color: #eceef2;
+  nav button[aria-pressed='true'] {
+    background: var(--bg-3);
+    color: var(--tx-1);
+  }
+  .spacer {
+    flex: 1;
+  }
+  .workspace {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  .later {
+    align-items: center;
+    justify-content: center;
+    color: var(--tx-3);
   }
 </style>

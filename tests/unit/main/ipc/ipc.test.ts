@@ -66,6 +66,7 @@ describe('P2 main-process IPC handlers', () => {
         openProject: async () => '/p/task.mve',
         saveProject: async (name) => `/p/${name}.mve`,
         exportVideo: async (name) => `/p/${name}.mp4`,
+        confirm: async () => true,
       },
     });
     expect(await api.invoke('dialog:saveProject', 'Task_11b')).toEqual({
@@ -74,9 +75,15 @@ describe('P2 main-process IPC handlers', () => {
     });
     expect(await api.invoke('project:write', '/p/t.mve', '{}')).toEqual({ ok: true, value: null });
     expect(await api.invoke('project:read', '/p/t.mve')).toEqual({ ok: true, value: '{}' });
+    expect(await api.invoke('dialog:confirm', 'Discard?')).toEqual({ ok: true, value: true });
+    expect(await api.invoke('project:remove', '/p/t.mve')).toEqual({ ok: true, value: null });
+    expect(await api.invoke('project:read', '/p/t.mve')).toMatchObject({
+      ok: false,
+      error: { name: 'Error' },
+    });
     expect(await api.invoke('app:paths')).toEqual({
       ok: true,
-      value: { proxies: '/cache/proxies' },
+      value: { proxies: '/cache/proxies', recovery: '/cache/recovery.mve' },
     });
   });
 });

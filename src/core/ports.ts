@@ -58,3 +58,27 @@ export interface MediaEngine {
   ): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }
+
+/** Native file dialogs (P1). `null` / `[]` means the student cancelled. */
+export interface Dialogs {
+  openMedia(): Promise<string[]>;
+  openProject(): Promise<string | null>;
+  saveProject(suggestedName: string): Promise<string | null>;
+  exportVideo(suggestedName: string): Promise<string | null>;
+  /** A yes / no question, e.g. "Discard unsaved changes?". */
+  confirm(message: string): Promise<boolean>;
+}
+
+/** Reading and writing project (.mve) files. Writes are atomic. */
+export interface ProjectFiles {
+  read(path: string): Promise<string>;
+  write(path: string, text: string): Promise<void>;
+  remove(path: string): Promise<void>;
+}
+
+export interface AppPaths {
+  /** Folder for preview proxies. */
+  proxies: string;
+  /** Where unsaved work is autosaved (P3). */
+  recovery: string;
+}

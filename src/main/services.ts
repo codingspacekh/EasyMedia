@@ -1,7 +1,7 @@
 // Real file dialogs and project-file I/O for the main process.
 import { dialog, type BrowserWindow } from 'electron';
+import type { Dialogs, ProjectFiles } from '../core/ports.ts';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
-import type { MainServices } from './ipc.ts';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -27,7 +27,7 @@ const MEDIA_EXTENSIONS = [
   'wma',
 ];
 
-export function electronDialogs(window: () => BrowserWindow | undefined): MainServices['dialogs'] {
+export function electronDialogs(window: () => BrowserWindow | undefined): Dialogs {
   const win = () => window() as BrowserWindow;
   return {
     async openMedia() {
@@ -62,11 +62,21 @@ export function electronDialogs(window: () => BrowserWindow | undefined): MainSe
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
+    async confirm(message) {
+      const r = await dialog.showMessageBox(win(), {
+        type: 'question',
+        buttons: ['Yes', 'No'],
+        defaultId: 1,
+        cancelId: 1,
+        message,
+      });
+      return r.response === 0;
+    },
   };
 }
 
 /** Project files are written to a temporary file and renamed, so a crash never leaves half a file (ARCHITECTURE §9). */
-export const projectFiles: MainServices['files'] = {
+export const projectFiles: ProjectFiles = {
   read: (path) => readFile(path, 'utf8'),
   async write(path, text) {
     const temp = `${path}.saving`;
@@ -77,4 +87,5 @@ export const projectFiles: MainServices['files'] = {
       await rm(temp, { force: true });
     }
   },
+  remove: (path) => rm(path, { force: true }),
 };
