@@ -18,6 +18,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Electron 44 downloads its binary on first use, not during npm ci.
+      - name: Download the Electron binary
+        run: node node_modules/electron/install.js
       - run: npm run fetch:ffmpeg
       - run: npm run fixtures -- --group spike --out spikes/m0-electron/out
 
