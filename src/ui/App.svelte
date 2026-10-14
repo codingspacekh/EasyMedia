@@ -5,6 +5,7 @@
   import MediaBin from './MediaBin.svelte';
   import Preview from './Preview.svelte';
   import ProjectSettings from './ProjectSettings.svelte';
+  import SnapshotDialog from './SnapshotDialog.svelte';
   import StatusBar from './StatusBar.svelte';
   import Timeline from './Timeline.svelte';
 
@@ -13,6 +14,7 @@
   const modes = ['Video', 'Audio', 'Learn'] as const;
   let mode: (typeof modes)[number] = $state('Video');
   let settingsOpen = $state(false);
+  let snapshotOpen = $state(false);
   const settings = $derived($store.history.present.settings);
 
   $effect.pre(() => {
@@ -32,6 +34,10 @@
     <button disabled={!canUndo($store.history)} onclick={() => app.undo()}>Undo</button>
     <button disabled={!canRedo($store.history)} onclick={() => app.redo()}>Redo</button>
     <button onclick={() => app.save()}>Save</button>
+    <button
+      disabled={$store.history.present.timeline.main.length === 0}
+      onclick={() => (snapshotOpen = true)}>Snapshot</button
+    >
     <span class="spacer"></span>
     <button class="chip" onclick={() => (settingsOpen = true)}>
       {settings.aspect === 'custom' ? 'Custom' : settings.aspect} · {settings.width} × {settings.height}
@@ -60,6 +66,7 @@
   {/if}
   <StatusBar {app} />
   {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
+  {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
 </div>
 
 <style>

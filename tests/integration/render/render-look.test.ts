@@ -138,6 +138,26 @@ describe('looks in the exported video', () => {
     expect(halfway).toBeLessThan(170);
     expect(await brightness(file, 2.5)).toBeGreaterThan(230);
   });
+
+  it('V10 a snapshot at 16.66 s (text hidden) is the clip frame itself', async () => {
+    const p = createProject({ name: 'snap' });
+    const project: Project = {
+      ...p,
+      media: [hd, halves],
+      timeline: {
+        ...p.timeline,
+        main: [{ ...title('#000000', 't'), duration: 10 }, clip('v', 0, 10)],
+      },
+    };
+    const snap = join(dir, 'snap.png');
+    await engine.renderFrame(project, 16.66, snap, { projectDir: dir });
+    const direct = join(dir, 'direct.png');
+    await engine.extractFrame(join(dir, 'clip_1080p30_10s.mp4'), 6.66, direct);
+    const [a, b] = [await tinyFrame(snap, 0), await tinyFrame(direct, 0)];
+    for (let y = 0; y < 9; y++)
+      for (let x = 0; x < 16; x++)
+        a.at(x, y).forEach((v, i) => expect(Math.abs(v - b.at(x, y)[i]!)).toBeLessThan(10));
+  });
 });
 
 function title(colour: string, id: string): TitleSlide {

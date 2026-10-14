@@ -23,6 +23,10 @@ export interface Channels {
   'media:waveform': { args: [input: string, buckets: number]; result: number[] };
   'media:frame': { args: [input: string, time: number, output: string]; result: null };
   'media:resizeCrop': { args: [input: string, plan: ResizeCrop]; result: string };
+  'media:snapshot': {
+    args: [project: Project, time: number, output: string, options: RenderVideoOptions];
+    result: null;
+  };
   'media:render': {
     args: [jobKey: string, project: Project, output: string, options: RenderVideoOptions];
     result: null;
@@ -35,6 +39,7 @@ export interface Channels {
   'dialog:exportVideo': { args: [suggestedName: string]; result: string | null };
   'dialog:confirm': { args: [message: string]; result: boolean };
   'dialog:chooseFolder': { args: [title: string]; result: string | null };
+  'dialog:saveImage': { args: [suggestedName: string]; result: string | null };
   'project:read': { args: [path: string]; result: string };
   'project:write': { args: [path: string, text: string]; result: null };
   'project:remove': { args: [path: string]; result: null };
@@ -51,6 +56,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:waveform',
   'media:frame',
   'media:resizeCrop',
+  'media:snapshot',
   'media:render',
   'job:cancel',
   'app:paths',
@@ -60,6 +66,7 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:exportVideo',
   'dialog:confirm',
   'dialog:chooseFolder',
+  'dialog:saveImage',
   'project:read',
   'project:write',
   'project:remove',

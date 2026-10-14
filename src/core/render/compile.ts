@@ -27,6 +27,8 @@ export interface RenderOptions {
    * per caption / subtitle / credits item. Full-frame PNGs, except scrolling credits (text block only).
    */
   textImages?: Record<string, TextImage>;
+  /** V10: render only the frame at this time (a snapshot) instead of the whole video. */
+  frameAt?: Seconds;
 }
 
 export interface TextImage {
@@ -62,7 +64,12 @@ export function compileProject(project: Project, options: RenderOptions): Render
   };
   const soundOf = (item: MainItem) =>
     item.type === 'video' && !item.muted && assetOf(item.assetId).hasAudio === true;
-  const hasAudio = project.timeline.main.some(soundOf);
+  const frameAt = options.frameAt;
+  const total = mainTrackDuration(project.timeline.main);
+  if (frameAt !== undefined && !(frameAt >= 0 && frameAt < total)) {
+    throw new EditError('Move the playhead onto the video to take a snapshot.');
+  }
+  const hasAudio = frameAt === undefined && project.timeline.main.some(soundOf);
 
   const inputs: string[] = [];
   const filters: string[] = [];
@@ -199,6 +206,18 @@ export function compileProject(project: Project, options: RenderOptions): Render
     );
   });
 
+  if (frameAt !== undefined) {
+    return {
+      args: [
+        ...inputs,
+        '-filter_complex',
+        filters.join(';'),
+        ...['-map', '[vout]', '-ss', num(frameAt), '-frames:v', '1', '-update', '1', '-an'],
+      ],
+      duration: total,
+      hasAudio: false,
+    };
+  }
   const quality = options.quality ?? 'high';
   return {
     args: [
@@ -213,7 +232,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
       '-movflags',
       '+faststart',
     ],
-    duration: mainTrackDuration(project.timeline.main),
+    duration: total,
     hasAudio,
   };
 }

@@ -114,3 +114,35 @@ describe('V9 transitions in the export', () => {
     expect(g).toContain('[x1][v2]xfade=transition=fadeblack:duration=1:offset=5[vout]');
   });
 });
+
+describe('V10 one frame for a snapshot', () => {
+  const p = () =>
+    project([
+      clip('a', 0, 10),
+      { ...still('s', 5), effects: [{ effectId: 'video.sepia', params: {} }] },
+    ]);
+
+  it('renders the frame at the time asked, with no sound and no video encoder', () => {
+    const plan = compileProject(p(), { ...options, frameAt: 12.5 });
+    expect(plan.args.slice(-9)).toEqual([
+      '-map',
+      '[vout]',
+      '-ss',
+      '12.5',
+      '-frames:v',
+      '1',
+      '-update',
+      '1',
+      '-an',
+    ]);
+    expect(plan.args).not.toContain('-c:v');
+    expect(plan.hasAudio).toBe(false);
+    expect(plan.args.join(' ')).toContain('colorchannelmixer'); // the look is in the frame
+  });
+
+  it('explains a time outside the video', () => {
+    expect(() => compileProject(p(), { ...options, frameAt: 15 })).toThrow(
+      /playhead onto the video/i,
+    );
+  });
+});

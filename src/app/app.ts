@@ -25,6 +25,7 @@ import {
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
+import { findMainItemAt, setItemDuration } from '../core/model/timeline.ts';
 import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
 import type {
   AppPaths,
@@ -306,6 +307,55 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         patch({
           message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
         });
+        return made.id;
+      } catch (error) {
+        showError(error);
+        return null;
+      }
+    },
+
+    /**
+     * V10: saves the frame at `time` as it will be exported (with its looks) as a picture,
+     * imports it and, if asked, puts it on the timeline after the clip at that time.
+     * Hiding text leaves out captions, subtitles, credits and the words of title slides.
+     */
+    async snapshot(options: {
+      time: Seconds;
+      hideText: boolean;
+      addToTimeline: boolean;
+      duration: Seconds;
+      format?: 'png' | 'jpg' | 'bmp' | 'tiff';
+    }): Promise<Id | null> {
+      const { time, hideText, addToTimeline, duration, format = 'png' } = options;
+      const output = await dialogs.saveImage(`Snapshot_${time.toFixed(2)}s.${format}`);
+      if (!output) return null;
+      const current = present();
+      const project: Project = hideText
+        ? {
+            ...current,
+            timeline: {
+              ...current.timeline,
+              text: [],
+              main: current.timeline.main.map((m) => (m.type === 'title' ? { ...m, text: '' } : m)),
+            },
+          }
+        : current;
+      const { projectPath } = store.get();
+      try {
+        await engine.renderFrame(project, time, output, {
+          projectDir: projectPath ? dirOf(projectPath) : '/',
+          textImages: await drawTextImages(project),
+        });
+        const info = await engine.probe(output);
+        const made = assetFromProbe(output, info);
+        run(importMediaCommand(made));
+        void prepare(made, info);
+        if (addToTimeline) {
+          const at = findMainItemAt(present().timeline.main, time);
+          const clip = setItemDuration(createImageClip(made), duration);
+          run(addMainItem(clip, at ? at.index + 1 : undefined));
+        }
+        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.` } });
         return made.id;
       } catch (error) {
         showError(error);

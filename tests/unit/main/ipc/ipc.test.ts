@@ -68,6 +68,7 @@ describe('P2 main-process IPC handlers', () => {
         exportVideo: async (name) => `/p/${name}.mp4`,
         confirm: async () => true,
         chooseFolder: async () => '/usb',
+        saveImage: async (name) => `/p/${name}`,
       },
     });
     expect(await api.invoke('dialog:saveProject', 'Task_11b')).toEqual({

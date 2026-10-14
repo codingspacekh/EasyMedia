@@ -184,7 +184,13 @@
           ></span>
         {/if}
         <span class="name">{label(item)}</span>
-        <span class="len">{(laid.end - laid.start).toFixed(2)} s</span>
+        <span class="len"
+          >{(laid.end - laid.start).toFixed(2)} s{#if item.transitionIn}
+            <span class="badge" title="Transition into this clip"
+              >⇄ {item.transitionIn.duration.toFixed(1)} s</span
+            >{/if}{#if item.effects?.length || item.fade || item.panZoom}
+            <span class="badge" title="Effects">fx</span>{/if}</span
+        >
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
           class="handle end"
@@ -316,6 +322,12 @@
   .len {
     font: 11px var(--mono);
     opacity: 0.8;
+  }
+  .badge {
+    margin-left: 6px;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.35);
   }
   .handle {
     position: absolute;

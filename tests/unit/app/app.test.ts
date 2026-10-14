@@ -57,6 +57,7 @@ function setup(
     exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
+    saveImage: vi.fn<Dialogs['saveImage']>(async () => null),
   };
   const copies: string[] = [];
   const files = {
@@ -261,6 +262,57 @@ describe('M4 app use cases', () => {
       const { app, state } = setup();
       expect(await app.resizeCropImage('nope', 'centre')).toBeNull();
       expect(state().message?.kind).toBe('error');
+    });
+  });
+
+  describe('snapshot (V10)', () => {
+    async function withTwo() {
+      const s = setup();
+      await s.importFiles('/m/clip.mp4', '/m/photo.jpg');
+      s.app.addToTimeline(idOf(s.state(), '/m/clip.mp4')); // 0–10 s
+      s.app.addToTimeline(idOf(s.state(), '/m/photo.jpg')); // 10–15 s
+      return s;
+    }
+
+    it('saves the frame at a time as a picture, imports it and puts it after that clip', async () => {
+      const { app, engine, dialogs, project } = await withTwo();
+      const render = vi.spyOn(engine, 'renderFrame');
+      dialogs.saveImage.mockResolvedValueOnce('/m/Snapshot_n2end.tiff');
+      const id = await app.snapshot({
+        time: 9.97,
+        hideText: true,
+        addToTimeline: true,
+        duration: 10,
+      });
+      expect(dialogs.saveImage).toHaveBeenCalledWith('Snapshot_9.97s.png');
+      expect(render.mock.calls[0]![1]).toBe(9.97);
+      expect((await engine.probe('/m/Snapshot_n2end.tiff')).kind).toBe('image');
+      const main = project().timeline.main;
+      expect(main.map((m) => m.type)).toEqual(['video', 'image', 'image']);
+      expect(main[1]).toMatchObject({ assetId: id, duration: 10 });
+    });
+
+    it('with text hidden, the frame is made without captions or title words (Book A 11.11)', async () => {
+      const { app, engine, dialogs } = await withTwo();
+      app.edit(addTextItem(createTextItem('caption', 'Bees', 0, { id: 'cap' })));
+      const render = vi.spyOn(engine, 'renderFrame');
+      dialogs.saveImage.mockResolvedValueOnce('/m/still.png');
+      await app.snapshot({ time: 2, hideText: true, addToTimeline: false, duration: 5 });
+      expect(render.mock.calls[0]![0].timeline.text).toEqual([]);
+      dialogs.saveImage.mockResolvedValueOnce('/m/still2.png');
+      await app.snapshot({ time: 2, hideText: false, addToTimeline: false, duration: 5 });
+      expect(render.mock.calls[1]![0].timeline.text).toHaveLength(1);
+      expect(render.mock.calls[1]![3].textImages).toHaveProperty('cap');
+    });
+
+    it('does nothing when the save dialog is cancelled', async () => {
+      const { app, engine, project } = await withTwo();
+      const render = vi.spyOn(engine, 'renderFrame');
+      expect(
+        await app.snapshot({ time: 2, hideText: true, addToTimeline: true, duration: 5 }),
+      ).toBeNull();
+      expect(render).not.toHaveBeenCalled();
+      expect(project().media).toHaveLength(2);
     });
   });
 

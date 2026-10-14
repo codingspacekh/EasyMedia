@@ -93,6 +93,16 @@ export function createNodeMediaEngine(
       return path;
     },
 
+    async renderFrame(project, time, output, { projectDir, textImages }) {
+      const plan = compileProject(project, {
+        mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
+        frameAt: time,
+        ...(textImages ? { textImages } : {}),
+      });
+      const jpeg = /\.jpe?g$/i.test(output) ? ['-q:v', '2'] : [];
+      await queue.run({ label: 'Snapshot', args: [...plan.args, ...jpeg], output }).done;
+    },
+
     renderVideo(project, output, { projectDir, quality, textImages }) {
       let plan;
       try {

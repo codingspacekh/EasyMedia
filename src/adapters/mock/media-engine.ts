@@ -121,6 +121,23 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       return path;
     },
 
+    async renderFrame(project, time, output, { projectDir, textImages }) {
+      compileProject(project, {
+        mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
+        frameAt: time,
+        ...(textImages ? { textImages } : {}),
+      });
+      for (const asset of project.media) find(fromProjectPath(projectDir, asset.path));
+      const ext = output.split('.').pop()?.toLowerCase() ?? 'png';
+      const { width, height } = project.settings;
+      files.set(output, {
+        kind: 'image',
+        container: ext,
+        sizeBytes: width * height,
+        video: { codec: ext === 'jpg' ? 'mjpeg' : ext, width, height },
+      });
+    },
+
     renderVideo(project, output, { projectDir, textImages }) {
       let plan: ReturnType<typeof compileProject>;
       try {

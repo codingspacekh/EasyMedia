@@ -30,6 +30,7 @@ export function testApp(
     exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
+    saveImage: vi.fn<Dialogs['saveImage']>(async () => null),
   };
   const disk = new Map<string, string>();
   const app = createApp({

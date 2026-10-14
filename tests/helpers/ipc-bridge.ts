@@ -31,6 +31,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       exportVideo: async () => null,
       confirm: async () => false,
       chooseFolder: async () => null,
+      saveImage: async () => null,
     },
     files: {
       read: async (path) => {

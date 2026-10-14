@@ -66,6 +66,16 @@ export interface MediaEngine {
   resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
   /** Exports the project as an MP4 (V16). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
+  /**
+   * V10: one frame of the project as it will be exported (with its looks), saved as a picture.
+   * The format follows the output's extension: png, jpg, bmp or tiff.
+   */
+  renderFrame(
+    project: Project,
+    time: Seconds,
+    output: string,
+    options: RenderVideoOptions,
+  ): Promise<void>;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }
 
@@ -79,6 +89,8 @@ export interface Dialogs {
   confirm(message: string): Promise<boolean>;
   /** A folder (it can be created in the dialog), e.g. to package a project into. */
   chooseFolder(title: string): Promise<string | null>;
+  /** Where to save a snapshot (V10): PNG, JPG, BMP or TIFF. */
+  saveImage(suggestedName: string): Promise<string | null>;
 }
 
 /** Reading and writing project (.mve) files. Writes are atomic. */

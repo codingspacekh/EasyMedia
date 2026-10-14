@@ -180,6 +180,24 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         expect((await engine.probe(out('silent.mp4'))).audio).toBeUndefined();
       });
 
+      it('renderFrame saves one frame of the project as a picture at the project size (V10)', async () => {
+        const { engine, video, out } = setup();
+        const p = await twoTrimmedClips(engine, video);
+        await engine.renderFrame(p, 3, out('snap.tiff'), { projectDir: '/' });
+        expect(await engine.probe(out('snap.tiff'))).toMatchObject({
+          kind: 'image',
+          video: { width: 1280, height: 720 },
+        });
+      });
+
+      it('renderFrame explains a time outside the video', async () => {
+        const { engine, video, out } = setup();
+        const p = await twoTrimmedClips(engine, video);
+        await expect(
+          engine.renderFrame(p, 60, out('late.png'), { projectDir: '/' }),
+        ).rejects.toThrow(EditError);
+      });
+
       it('refuses an empty project with an explanation', async () => {
         const { engine, out } = setup();
         const job = engine.renderVideo(createProject({ name: 'Empty' }), out('empty.mp4'), {
