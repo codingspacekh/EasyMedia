@@ -8,6 +8,7 @@ import {
   moveMainItem,
   moveTimedItem,
   removeItem,
+  setClipMuted,
   setClipSpeed,
   setDuration,
   setProjectSettings,
@@ -63,6 +64,7 @@ describe('P4 every command leaves the original untouched and can be undone exact
     ['removeItem', removeItem('v')],
     ['trimClip', trimClip('v', { in: 8, out: 12.5 })],
     ['setClipSpeed', setClipSpeed('v', 1.5)],
+    ['setClipMuted', setClipMuted('v', true)],
     ['setDuration', setDuration('t', 3)],
     ['splitAtTime', splitAtTime(10, ['v1', 'v2'])],
     ['joinWithNext', joinWithNext('v1')],
@@ -129,6 +131,14 @@ describe('commands', () => {
   it('setClipSpeed recalculates the clip length on the timeline', () => {
     const p = run(sample(), setClipSpeed('v', 2));
     expect(itemDuration(p.timeline.main[1]!)).toBe(10);
+  });
+
+  it('V13 setClipMuted removes and restores the sound of a video clip', () => {
+    const muted = run(sample(), setClipMuted('v', true));
+    expect(muted.timeline.main[1]).toMatchObject({ muted: true });
+    expect(run(muted, setClipMuted('v', false)).timeline.main[1]).toMatchObject({ muted: false });
+    expect(setClipMuted('v', true).label).toBe('Remove sound');
+    expect(() => run(sample(), setClipMuted('t', true))).toThrow(/only video clips have sound/i);
   });
 
   it('setDuration works for stills, titles and text but not video', () => {

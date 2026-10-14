@@ -20,4 +20,7 @@ export function validateSettings(s: ProjectSettings): void {
     }
   }
   if (![24, 25, 30].includes(s.fps)) throw new EditError('Frame rate must be 24, 25 or 30 fps.');
+  if (s.fit !== undefined && !['letterbox', 'crop', 'stretch'].includes(s.fit)) {
+    throw new EditError('Choose how clips fit: black bars, crop to fill or stretch.');
+  }
 }

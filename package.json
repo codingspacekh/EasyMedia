@@ -22,6 +22,7 @@
     "coverage": "vitest run --coverage",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.ts",
     "fixtures": "node scripts/make-fixtures.ts",
+    "render": "node scripts/render.ts",
     "spike": "electron spikes/m0-electron/main.cjs"
   },
   "devDependencies": {

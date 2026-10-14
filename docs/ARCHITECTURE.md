@@ -251,28 +251,32 @@ Ctrl/⌘+Z ─► undo(history) → the previous (immutable) project is restored
 ### 7.4 Export
 
 ```
-ExportDialog (container, preset, quality) ─► compile(project, options)
-   compile = pure function:
-     1. resolve timeline   → absolute start/end of every item
-     2. build RenderPlan   → inputs[], filtergraph nodes, output options
-     3. emit ffmpeg args   → string[]
+ExportDialog (quality) ─► MediaEngine.renderVideo(project, output, { projectDir, quality })
+   ─► compileProject(project, options)            core/render/compile.ts — pure
+        1. refuse what cannot be exported yet     (EditError, shown to the student)
+        2. one FFmpeg input per main-track item    (-ss/-t for video, -loop for stills, color= for titles)
+        3. per item: speed → fit (letterbox/crop/stretch) → exact duration; sound or silence
+        4. concat all items                        (no audio stream at all if nothing has sound)
+        5. encoder options                         (libx264 crf, or bit rate for hardware encoders)
    ─► JobQueue.run(args) ─► progress events (parsed from ffmpeg -progress)
-   ─► done: show file, size, and "Inspect" button (T1)
+   ─► temp file renamed to the output on success
 ```
 
-Example: a 3 s title + a trimmed clip at 1.5× with a 1 s dissolve compiles to roughly:
+Example (M3): Book B Task 11c — Lake_Naivasha 0–6.3 s, sound removed, 1.5× speed:
 
 ```
-ffmpeg -loop 1 -t 3 -i title.png  -ss 8 -to 12.5 -i Lake_Naivasha.mp4
- -filter_complex "
-   [0:v]scale=1920:1080,format=yuv420p,setsar=1[v0];
-   [1:v]scale=1920:1080:force_original_aspect_ratio=decrease,
-        pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setpts=PTS/1.5,setsar=1[v1];
-   [v0][v1]xfade=transition=dissolve:duration=1:offset=2[vout]"
- -map "[vout]" -an -c:v libx264 -crf 20 -preset veryfast out.mp4
+ffmpeg -ss 0 -t 6.3 -i Lake_Naivasha.mp4
+ -filter_complex "[0:v]setpts=(PTS-STARTPTS)/1.5,
+                  scale=1920:1080:force_original_aspect_ratio=decrease:force_divisible_by=2,
+                  pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=#000000,setsar=1,fps=30,format=yuv420p,
+                  trim=duration=4.2[v0];
+                  [v0]concat=n=1:v=1:a=0[vout]"
+ -map [vout] -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -an -movflags +faststart out.mp4
 ```
 
-The compiler is **snapshot-tested**: each coursebook task has a stored expected command.
+Sound of a clip with audio goes through `asetpts → atempo (chained in 0.5–2× steps) → volume → aformat 48 kHz stereo → apad → atrim`, so every segment's sound lasts exactly as long as its picture. Muted clips, stills and titles get `anullsrc` silence when other clips have sound.
+
+The compiler is **snapshot-tested** (stored commands in `tests/unit/core/render/__snapshots__/`), and every feature is checked by **rendering real files**: length within one frame, sound length, fit-mode pixels, and — for the coursebook tasks — which moment of the source each frame came from.
 
 ### 7.5 Audio effect (audio mode)
 

@@ -2,7 +2,10 @@
 // Run against the real FFmpeg engine (integration) and the mock (unit), so the mock
 // cannot drift from reality.
 import { describe, expect, it } from 'vitest';
-import { JobCancelledError, MediaError } from '../../src/core/model/errors.ts';
+import { EditError, JobCancelledError, MediaError } from '../../src/core/model/errors.ts';
+import { assetFromProbe, createProject, createVideoClip } from '../../src/core/model/factory.ts';
+import { trimVideo } from '../../src/core/model/timeline.ts';
+import type { MediaAsset, Project, VideoClip } from '../../src/core/model/types.ts';
 import type { JobEvent, MediaEngine } from '../../src/core/ports.ts';
 
 export interface ContractSetup {
@@ -106,6 +109,69 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
     it('waveformPeaks explains a missing file', async () => {
       const { engine, missing } = setup();
       await expect(engine.waveformPeaks(missing, 10)).rejects.toThrow(/could not be found/i);
+    });
+
+    describe('renderVideo (V16)', () => {
+      const projectWith = (asset: MediaAsset, clips: VideoClip[]): Project => {
+        const p = createProject({ name: 'Contract' });
+        return {
+          ...p,
+          settings: { ...p.settings, width: 1280, height: 720 },
+          media: [asset],
+          timeline: { ...p.timeline, main: clips },
+        };
+      };
+      const twoTrimmedClips = async (engine: MediaEngine, video: string) => {
+        const asset = assetFromProbe(video, await engine.probe(video), { id: 'v' });
+        return projectWith(asset, [
+          trimVideo(createVideoClip(asset, { id: 'a' }), { in: 0, out: 2 }, asset),
+          trimVideo(createVideoClip(asset, { id: 'b' }), { in: 5, out: 7.5 }, asset),
+        ]);
+      };
+
+      it('exports the timeline at the project size and length, with sound', async () => {
+        const { engine, video, out } = setup();
+        await engine.renderVideo(await twoTrimmedClips(engine, video), out('render.mp4'), {
+          projectDir: '/',
+        }).done;
+        const info = await engine.probe(out('render.mp4'));
+        expect(info).toMatchObject({
+          kind: 'video',
+          container: 'mp4',
+          video: { width: 1280, height: 720 },
+        });
+        expect(info.duration).toBeCloseTo(4.5, 1);
+        expect(info.audio).toBeDefined();
+      });
+
+      it('has no audio stream when every clip is muted', async () => {
+        const { engine, video, out } = setup();
+        const p = await twoTrimmedClips(engine, video);
+        const muted = {
+          ...p,
+          timeline: { ...p.timeline, main: p.timeline.main.map((c) => ({ ...c, muted: true })) },
+        };
+        await engine.renderVideo(muted, out('silent.mp4'), { projectDir: '/' }).done;
+        expect((await engine.probe(out('silent.mp4'))).audio).toBeUndefined();
+      });
+
+      it('refuses an empty project with an explanation', async () => {
+        const { engine, out } = setup();
+        const job = engine.renderVideo(createProject({ name: 'Empty' }), out('empty.mp4'), {
+          projectDir: '/',
+        });
+        await expect(job.done).rejects.toThrow(EditError);
+        await expect(job.done).rejects.toThrow(/add a clip/i);
+      });
+
+      it('explains a missing media file', async () => {
+        const { engine, video, missing, out } = setup();
+        const p = await twoTrimmedClips(engine, video);
+        const gone = { ...p, media: p.media.map((m) => ({ ...m, path: missing })) };
+        await expect(
+          engine.renderVideo(gone, out('gone.mp4'), { projectDir: '/' }).done,
+        ).rejects.toThrow(/could not be found/i);
+      });
     });
   });
 }

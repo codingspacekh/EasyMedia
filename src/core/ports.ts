@@ -1,6 +1,8 @@
 // Ports (ARCHITECTURE §8): what the core and app need from the outside world.
 // Interfaces only. Adapters implement them: Node/FFmpeg in src/main, a fake in src/adapters/mock.
 import type { Seconds } from './model/time.ts';
+import type { Project } from './model/types.ts';
+import type { Quality } from './render/compile.ts';
 
 /** What a media file contains (T1 shows this to students). */
 export interface ProbeInfo {
@@ -48,5 +50,11 @@ export interface MediaEngine {
   waveformPeaks(input: string, buckets: number): Promise<number[]>;
   /** Saves one frame as an image; the format follows the output's extension (V10). */
   extractFrame(input: string, time: Seconds, output: string): Promise<void>;
+  /** Exports the project as an MP4 (V16). Media paths are resolved against `projectDir` (X1). */
+  renderVideo(
+    project: Project,
+    output: string,
+    options: { projectDir: string; quality?: Quality },
+  ): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }

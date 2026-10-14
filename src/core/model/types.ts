@@ -10,6 +10,8 @@ export interface ProjectSettings {
   fps: 24 | 25 | 30;
   /** Colour of the bars when a clip has a different shape (letterbox). */
   background: string;
+  /** How a clip of a different shape fills the frame (V1). Missing in M1 files = 'letterbox'. */
+  fit?: 'letterbox' | 'crop' | 'stretch';
 }
 
 export interface MediaAsset {
@@ -19,6 +21,8 @@ export interface MediaAsset {
   path: string;
   /** Length of the source; absent for still images. */
   duration?: Seconds;
+  /** Whether the file has a sound track, from the probe at import. Missing = treated as no sound. */
+  hasAudio?: boolean;
 }
 
 /** A video clip plays the source from `in` to `out` at `speed`. */

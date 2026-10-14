@@ -100,6 +100,18 @@ export function setClipSpeed(id: Id, speed: number): Command {
   };
 }
 
+/** V13: removes (or restores) the sound of a video clip. */
+export function setClipMuted(id: Id, muted: boolean): Command {
+  return {
+    label: muted ? 'Remove sound' : 'Restore sound',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        if (item.type !== 'video') throw new EditError('Only video clips have sound to remove.');
+        return { ...item, muted };
+      }),
+  };
+}
+
 export function setDuration(id: Id, duration: Seconds): Command {
   return {
     label: 'Change duration',

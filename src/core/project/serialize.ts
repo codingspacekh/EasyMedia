@@ -39,6 +39,7 @@ function isProject(doc: ProjectDocument): doc is ProjectDocument & Project {
     isObject(settings) &&
     has(settings, ['width', 'height', 'fps'], isNumber) &&
     has(settings, ['aspect', 'background'], isString) &&
+    (settings.fit === undefined || isString(settings.fit)) &&
     listOf(doc.media, isMediaAsset) &&
     isObject(timeline) &&
     listOf(timeline.main, isMainItem) &&
@@ -53,7 +54,8 @@ function isMediaAsset(m: Obj): boolean {
   return (
     has(m, ['id', 'path'], isString) &&
     ['video', 'image', 'audio'].includes(m.kind as string) &&
-    (m.duration === undefined || isNumber(m.duration))
+    (m.duration === undefined || isNumber(m.duration)) &&
+    (m.hasAudio === undefined || typeof m.hasAudio === 'boolean')
   );
 }
 

@@ -40,6 +40,23 @@ export const FIXTURES: FixtureSpec[] = [
     },
   },
   {
+    // Stand-in for Lake_Naivasha.mp4 (Book B Tasks 11b, 11c): long enough to trim 8–12.5 s.
+    // Its brightness rises steadily with time (luma 16 + 10 per second), so a test can tell
+    // which moment of the source any exported frame came from.
+    name: 'lake_1080p30_20s.mp4',
+    group: 'test',
+    inputs: [
+      ...lavfi("color=c=black:s=64x36:r=30:d=20,geq=lum='16+10*T':cb=128:cr=128,scale=1920:1080"),
+      ...sine(20),
+    ],
+    output: [...h264, ...aacStereo],
+    expect: {
+      durationS: 20,
+      video: { codec: 'h264', width: 1920, height: 1080 },
+      audio: { codec: 'aac', channels: 2, sampleRate: 44100 },
+    },
+  },
+  {
     name: 'clip_4x3_640x480.mov',
     group: 'test',
     inputs: [...testsrc(640, 480, 5), ...sine(5)],

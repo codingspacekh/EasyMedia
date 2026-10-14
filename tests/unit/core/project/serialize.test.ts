@@ -82,6 +82,24 @@ describe('P1 / P11 project files (.mve)', () => {
     expect(() => deserializeProject(text)).toThrow(/not an EasyMedia project, or it is damaged/i);
   });
 
+  it('still opens an M1 project saved before "fit" and "hasAudio" existed', () => {
+    const old = fullProject();
+    const settings: Partial<typeof old.settings> = { ...old.settings };
+    delete settings.fit;
+    const media = old.media.map((m) => {
+      const copy: Partial<typeof m> = { ...m };
+      delete copy.hasAudio;
+      return copy;
+    });
+    expect(() => deserializeProject(JSON.stringify({ ...old, settings, media }))).not.toThrow();
+  });
+
+  it('rejects a "hasAudio" that is not true or false', () => {
+    const p = fullProject();
+    const bad = JSON.stringify({ ...p, media: [{ ...p.media[0], hasAudio: 'yes' }] });
+    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+  });
+
   it('explains when a project comes from a newer version of the app', () => {
     const future = JSON.stringify({ ...fullProject(), schemaVersion: CURRENT_SCHEMA + 1 });
     expect(() => deserializeProject(future)).toThrow(/newer version of EasyMedia/i);
