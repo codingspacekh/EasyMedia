@@ -336,7 +336,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 
 **Exit gate**
 - E2E green on Windows + macOS.
-- **Performance check** on the weakest laptop: start ≤ 5 s, preview smooth, RAM ≤ 600 MB.
+- **Performance check on a real Windows laptop** (carried over from M0, where it was waived): start ≤ 5 s, preview smooth, RAM ≤ 600 MB.
 - Manual: export Book B Task 11b through the UI.
 
 ---
@@ -538,7 +538,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 
 | Milestone | Status | Gate passed | Release tag |
 |---|---|---|---|
-| M0 Foundations & spike | 🟡 In progress — built and green locally; awaiting CI on GitHub and the Windows-laptop spike ([gate record](acceptance/M0.md)) | | |
+| M0 Foundations & spike | ✅ Done ([gate record](acceptance/M0.md)) — Windows-laptop spike waived, deferred to M4 | 2026-10-14 | `v0.0.0` |
 | M1 Core model & commands | ☐ Not started | | |
 | M2 Media engine adapter | ☐ Not started | | |
 | M3 Render compiler v1 | ☐ Not started | | |
