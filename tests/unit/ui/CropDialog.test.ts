@@ -36,6 +36,23 @@ describe('resize & crop dialog (V11, screen 10)', () => {
     expect(dialog.textContent).toMatch(/Result\s*1920 × 1080/);
   });
 
+  it('the kept part can be dragged with the mouse', async () => {
+    await open();
+    const dialog = screen.getByRole('dialog', { name: 'Resize and crop image' });
+    const frame = screen.getByLabelText('Part to keep — drag to move');
+    // Centre first: 248 px off the top, 249 off the bottom. Drag 50 px (here 1 px = 1 px) up.
+    await fireEvent.mouseDown(frame, { clientX: 500, clientY: 500 });
+    await fireEvent.mouseMove(window, { clientX: 500, clientY: 450 });
+    await fireEvent.mouseUp(window, { clientX: 500, clientY: 450 });
+    expect(dialog.textContent).toMatch(/Removes 198 px from the top and 299 px from the bottom/);
+    expect(screen.getByRole('button', { name: 'Keep Centre' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+    // A preset still works afterwards.
+    await fireEvent.click(screen.getByRole('button', { name: 'Keep Bottom' }));
+    expect(dialog.textContent).toMatch(/Removes 497 px from the top/);
+  });
+
   it('saves a new file, keeps the original and can put it on the timeline', async () => {
     const { project } = await open();
     await fireEvent.click(screen.getByLabelText('Add to the timeline'));

@@ -60,3 +60,23 @@ describe('V11 crop to the project size with a 9-point anchor', () => {
     expect(() => planResizeCrop({ width: 0, height: 10 }, project, 'centre')).toThrow(EditError);
   });
 });
+
+describe('V11 crop at a place dragged with the mouse', () => {
+  const photo = { width: 3764, height: 3092 };
+  const project = { width: 1920, height: 1080 };
+
+  it('keeps the part whose top-left corner was dragged to (0, 300)', () => {
+    const plan = planResizeCrop(photo, project, { x: 0, y: 300 });
+    expect(plan.crop).toEqual({ x: 0, y: 300, width: 1920, height: 1080 });
+    expect(plan.removed).toEqual({ top: 300, bottom: 197, left: 0, right: 0 });
+  });
+
+  it('cannot be dragged outside the picture, and uses whole pixels', () => {
+    expect(planResizeCrop(photo, project, { x: 50, y: 900.6 }).crop).toMatchObject({
+      x: 0,
+      y: 497,
+    });
+    expect(planResizeCrop(photo, project, { x: -10, y: -40.4 }).crop).toMatchObject({ x: 0, y: 0 });
+    expect(planResizeCrop(photo, project, { x: 0, y: 120.6 }).crop.y).toBe(121);
+  });
+});

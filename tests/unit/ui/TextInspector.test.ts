@@ -148,4 +148,35 @@ describe('timeline text track', () => {
       t.app.store.get().history.present.timeline.text[0]!.id,
     );
   });
+
+  it('drags a caption along the text track to a new start time', async () => {
+    const t = testApp();
+    t.app.setPlayhead(3);
+    t.app.addText('caption'); // 3–8 s
+    render(Timeline, { props: { app: t.app } });
+    const caption = screen.getByRole('button', { name: /^Caption: Caption/ });
+    // 40 px = 1 s: dragging 80 px right moves it 2 s later.
+    await fireEvent.mouseDown(caption, { clientX: 130 });
+    await fireEvent.mouseMove(window, { clientX: 210 });
+    await fireEvent.mouseUp(window, { clientX: 210 });
+    expect(t.app.store.get().history.present.timeline.text[0]!.start).toBe(5);
+    expect(parseFloat(caption.style.left)).toBe(5 * 40);
+    t.app.undo();
+    expect(t.app.store.get().history.present.timeline.text[0]!.start).toBe(3);
+  });
+
+  it('a click without moving only selects the caption', async () => {
+    const t = testApp();
+    t.app.addText('caption');
+    t.app.select(null);
+    render(Timeline, { props: { app: t.app } });
+    const caption = screen.getByRole('button', { name: /^Caption: Caption/ });
+    await fireEvent.mouseDown(caption, { clientX: 10 });
+    await fireEvent.mouseUp(window, { clientX: 11 });
+    await fireEvent.click(caption);
+    expect(t.app.store.get().history.present.timeline.text[0]!.start).toBe(0);
+    expect(t.app.store.get().selection).toBe(
+      t.app.store.get().history.present.timeline.text[0]!.id,
+    );
+  });
 });

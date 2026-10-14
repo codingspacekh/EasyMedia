@@ -2,7 +2,7 @@
   // Resize & crop a still (V11, screen 10): make a photo match the project's aspect ratio without
   // stretching — the two steps of Book B Task 11a, done in the app instead of an image editor.
   import type { App } from '../app/app.ts';
-  import { planResizeCrop, type Anchor } from '../core/image/crop.ts';
+  import { planResizeCrop, type Anchor, type CropOffset } from '../core/image/crop.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import type { MediaAsset } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
@@ -35,10 +35,50 @@
     width: $store.history.present.settings.width,
     height: $store.history.present.settings.height,
   });
-  let anchor: Anchor = $state('centre');
+  /** One of the 9 presets, or where the student dragged the frame to. */
+  let keep: Anchor | CropOffset = $state('centre');
   let addToTimeline = $state(false);
   let saving = $state(false);
-  const plan = $derived(planResizeCrop(size, target, anchor));
+  let picture: HTMLDivElement | undefined = $state();
+  const plan = $derived(planResizeCrop(size, target, keep));
+
+  /** Picture pixels per screen pixel (the picture is shown smaller than it is). */
+  function scale(): number {
+    const shown = picture?.getBoundingClientRect().width ?? 0;
+    return shown > 0 ? plan.resize.width / shown : 1;
+  }
+
+  function startDrag(event: MouseEvent): void {
+    event.preventDefault();
+    const from = { x: event.clientX, y: event.clientY, crop: { ...plan.crop }, k: scale() };
+    const move = (e: MouseEvent) => {
+      keep = {
+        x: from.crop.x + (e.clientX - from.x) * from.k,
+        y: from.crop.y + (e.clientY - from.y) * from.k,
+      };
+    };
+    const stop = (e: MouseEvent) => {
+      move(e);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', stop);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+  }
+
+  /** Arrow keys move the frame too (10 px, or 1 px with Shift). */
+  function nudge(event: KeyboardEvent): void {
+    const step = event.shiftKey ? 1 : 10;
+    const d = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    }[event.key];
+    if (!d) return;
+    event.preventDefault();
+    keep = { x: plan.crop.x + d[0]!, y: plan.crop.y + d[1]! };
+  }
 
   const removedText = $derived.by(() => {
     const parts = (['top', 'bottom', 'left', 'right'] as const)
@@ -49,7 +89,7 @@
 
   async function save(): Promise<void> {
     saving = true;
-    const id = await app.resizeCropImage(asset.id, anchor);
+    const id = await app.resizeCropImage(asset.id, keep);
     saving = false;
     if (id === null) return;
     if (addToTimeline) app.addToTimeline(id);
@@ -61,19 +101,24 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Resize and crop image">
     <h2>Resize &amp; crop image <span class="syl">11.1 resizing and cropping a still</span></h2>
     <p class="hint">
-      Make {fileNameOf(asset.path)} fit the project without stretching it. Choose which part to keep:
-      the darker area is removed.
+      Make {fileNameOf(asset.path)} fit the project without stretching it. Drag the frame (or choose a
+      place) to pick the part to keep: the darker area is removed.
     </p>
 
     <div class="body">
       <div
         class="picture"
+        bind:this={picture}
         style:aspect-ratio="{plan.resize.width} / {plan.resize.height}"
-        aria-hidden="true"
       >
-        <img src={toMediaUrl(asset.path)} alt="" />
+        <img src={toMediaUrl(asset.path)} alt="" draggable="false" />
         <div
           class="keep"
+          role="button"
+          tabindex="0"
+          aria-label="Part to keep — drag to move"
+          onmousedown={startDrag}
+          onkeydown={nudge}
           style:left="{(plan.crop.x / plan.resize.width) * 100}%"
           style:top="{(plan.crop.y / plan.resize.height) * 100}%"
           style:width="{(plan.crop.width / plan.resize.width) * 100}%"
@@ -97,8 +142,8 @@
           {#each ANCHORS as [value, name] (value)}
             <button
               aria-label="Keep {name}"
-              aria-pressed={anchor === value}
-              onclick={() => (anchor = value)}
+              aria-pressed={keep === value}
+              onclick={() => (keep = value)}
             ></button>
           {/each}
         </div>
@@ -179,8 +224,12 @@
     display: block;
     filter: brightness(0.35);
   }
+  .keep:active {
+    cursor: grabbing;
+  }
   .keep {
     position: absolute;
+    cursor: grab;
     outline: 2px solid var(--accent);
     background: transparent;
     backdrop-filter: brightness(2.85);

@@ -36,7 +36,7 @@ import type {
 } from '../core/ports.ts';
 import type { TextImage } from '../core/render/compile.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
-import { planResizeCrop, type Anchor } from '../core/image/crop.ts';
+import { planResizeCrop, type Anchor, type CropOffset } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
 export interface AssetStatus {
@@ -282,10 +282,11 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     },
 
     /**
-     * V11: resizes a picture to cover the project frame, crops it at `anchor` and saves it as a
+     * V11: resizes a picture to cover the project frame, crops it at `keep` (one of 9 places, or
+     * where the student dragged it) and saves it as a
      * new file beside the original (Fish_Eagle.jpg → Fish_Eagle1.jpg), which is imported.
      */
-    async resizeCropImage(assetId: Id, anchor: Anchor): Promise<Id | null> {
+    async resizeCropImage(assetId: Id, keep: Anchor | CropOffset): Promise<Id | null> {
       const asset = present().media.find((m) => m.id === assetId);
       const size = store.get().assets[assetId]?.size;
       if (!asset || asset.kind !== 'image' || !size) {
@@ -296,7 +297,7 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       }
       const { width, height } = present().settings;
       try {
-        const plan = planResizeCrop(size, { width, height }, anchor);
+        const plan = planResizeCrop(size, { width, height }, keep);
         const path = await engine.resizeCropImage(asset.path, plan);
         const info = await engine.probe(path);
         const made = assetFromProbe(path, info);

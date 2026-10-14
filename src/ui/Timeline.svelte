@@ -5,11 +5,12 @@
   import {
     joinWithNext,
     moveMainItem,
+    moveTimedItem,
     setDuration,
     splitAtTime,
     trimClip,
   } from '../app/commands.ts';
-  import { handleDrag } from '../app/timeline-edit.ts';
+  import { handleDrag, moveDrag } from '../app/timeline-edit.ts';
   import { formatTime } from '../core/model/time.ts';
   import {
     findMainItemAt,
@@ -17,7 +18,7 @@
     mainTrackDuration,
     type LaidOutItem,
   } from '../core/model/timeline.ts';
-  import type { MainItem } from '../core/model/types.ts';
+  import type { MainItem, TextItem } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
 
   let { app }: { app: App } = $props();
@@ -76,6 +77,41 @@
         'duration' in result ? setDuration(item.id, result.duration) : trimClip(item.id, result),
       );
     };
+    window.addEventListener('mouseup', finish);
+  }
+
+  /** Live position of a caption being dragged along the text track. */
+  let moving: { id: string; start: number } | null = $state(null);
+
+  /** Drag a caption, subtitle or credits along the text track (V5); it snaps like the trim handles. */
+  function startMove(event: MouseEvent, item: TextItem): void {
+    event.preventDefault();
+    const startX = event.clientX;
+    const targets = [
+      $store.playhead,
+      ...layout.flatMap((l) => [l.start, l.end]),
+      ...project.timeline.text
+        .filter((t) => t.id !== item.id)
+        .flatMap((t) => [t.start, t.start + t.duration]),
+    ];
+    const at = (e: MouseEvent) =>
+      moveDrag(
+        item.start,
+        item.duration,
+        (e.clientX - startX) / pxPerSecond,
+        targets,
+        SNAP_PX / pxPerSecond,
+      );
+    const move = (e: MouseEvent) => (moving = { id: item.id, start: at(e) });
+    const finish = (e: MouseEvent) => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', finish);
+      moving = null;
+      // A click without moving only selects.
+      if (Math.abs(e.clientX - startX) >= 3) error = app.edit(moveTimedItem(item.id, at(e)));
+      app.select(item.id);
+    };
+    window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', finish);
   }
 
@@ -166,8 +202,10 @@
         class="clip text {item.kind}"
         aria-label="{name} {item.duration.toFixed(2)} s"
         aria-pressed={$store.selection === item.id}
-        style:left="{item.start * pxPerSecond}px"
+        class:moving={moving?.id === item.id}
+        style:left="{(moving?.id === item.id ? moving.start : item.start) * pxPerSecond}px"
         style:width="{item.duration * pxPerSecond}px"
+        onmousedown={(e) => startMove(e, item)}
         onclick={() => app.select(item.id)}
       >
         <span class="name">{name}</span>
@@ -260,7 +298,12 @@
     text-align: left;
     background: var(--c-title);
     opacity: 0.85;
-    cursor: pointer;
+    cursor: grab;
+  }
+  .clip.text.moving {
+    cursor: grabbing;
+    opacity: 1;
+    outline: 2px dashed #fff;
   }
   .group {
     display: inline-flex;

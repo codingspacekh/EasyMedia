@@ -10,6 +10,11 @@ export interface Size {
 
 /** Which part of the picture to keep: the same 9 places as text positions. */
 export type Anchor = TextPosition;
+/** Top-left corner of the kept part, in resized-picture pixels (dragged with the mouse). */
+export interface CropOffset {
+  x: number;
+  y: number;
+}
 
 /** What the main process needs to make the picture: numbers only, it builds the filter itself. */
 export interface ResizeCrop {
@@ -36,8 +41,12 @@ export function resizeKeepingRatio(
       };
 }
 
-/** Smallest resize that covers the target without stretching, then the crop at `anchor`. */
-export function planResizeCrop(original: Size, target: Size, anchor: Anchor): ResizeCropPlan {
+/** Smallest resize that covers the target without stretching, then the crop at `keep`. */
+export function planResizeCrop(
+  original: Size,
+  target: Size,
+  keep: Anchor | CropOffset,
+): ResizeCropPlan {
   if (!(original.width > 0 && original.height > 0)) {
     throw new EditError('This picture has no size. Import it again.');
   }
@@ -47,22 +56,24 @@ export function planResizeCrop(original: Size, target: Size, anchor: Anchor): Re
       : resizeKeepingRatio(original, { height: target.height });
   const spareX = resize.width - target.width;
   const spareY = resize.height - target.height;
-  const x = anchor.endsWith('left')
-    ? 0
-    : anchor.endsWith('right')
-      ? spareX
-      : Math.floor(spareX / 2);
-  const y = anchor.startsWith('top')
-    ? 0
-    : anchor.startsWith('bottom')
-      ? spareY
-      : Math.floor(spareY / 2);
+  const clamp = (v: number, max: number) => Math.min(max, Math.max(0, Math.round(v)));
+  const [x, y] =
+    typeof keep === 'object'
+      ? [clamp(keep.x, spareX), clamp(keep.y, spareY)]
+      : [
+          anchorOffset(keep.endsWith('left'), keep.endsWith('right'), spareX),
+          anchorOffset(keep.startsWith('top'), keep.startsWith('bottom'), spareY),
+        ];
   return {
     resize,
     crop: { x, y, ...target },
     removed: { top: y, bottom: spareY - y, left: x, right: spareX - x },
     filter: resizeCropFilter({ resize, crop: { x, y, ...target } }),
   };
+}
+
+function anchorOffset(start: boolean, end: boolean, spare: number): number {
+  return start ? 0 : end ? spare : Math.floor(spare / 2);
 }
 
 /** Checks the numbers (whole pixels, crop inside the resized picture) and builds the filter. */
