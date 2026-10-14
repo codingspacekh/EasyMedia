@@ -64,3 +64,29 @@ export async function tinyFrame(file: string, time: number) {
   };
   return { at, columnBrightness };
 }
+
+/** Average brightness (0–255) of the frame at `time`. */
+export async function brightness(file: string, time: number): Promise<number> {
+  const { stdout } = await execBuffer(
+    bundledFfmpeg().ffmpeg,
+    [
+      '-v',
+      'error',
+      '-ss',
+      String(time),
+      '-i',
+      file,
+      '-frames:v',
+      '1',
+      '-vf',
+      'scale=16:9:flags=area',
+      '-f',
+      'rawvideo',
+      '-pix_fmt',
+      'gray',
+      'pipe:1',
+    ],
+    { encoding: 'buffer' },
+  );
+  return stdout.reduce((sum, v) => sum + v, 0) / stdout.length;
+}
