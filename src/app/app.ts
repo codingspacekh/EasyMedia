@@ -36,7 +36,7 @@ import type {
 } from '../core/ports.ts';
 import type { TextImage } from '../core/render/compile.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
-import { planResizeCrop, type Anchor, type CropOffset } from '../core/image/crop.ts';
+import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
 export interface AssetStatus {
@@ -286,7 +286,7 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
      * where the student dragged it) and saves it as a
      * new file beside the original (Fish_Eagle.jpg → Fish_Eagle1.jpg), which is imported.
      */
-    async resizeCropImage(assetId: Id, keep: Anchor | CropOffset): Promise<Id | null> {
+    async resizeCropImage(assetId: Id, keep: Anchor | CropRegion): Promise<Id | null> {
       const asset = present().media.find((m) => m.id === assetId);
       const size = store.get().assets[assetId]?.size;
       if (!asset || asset.kind !== 'image' || !size) {

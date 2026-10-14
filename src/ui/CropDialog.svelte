@@ -1,8 +1,17 @@
 <script lang="ts">
   // Resize & crop a still (V11, screen 10): make a photo match the project's aspect ratio without
   // stretching — the two steps of Book B Task 11a, done in the app instead of an image editor.
+  // Choose the part to keep with the mouse (draw, move, resize from a corner) or a quick place.
   import type { App } from '../app/app.ts';
-  import { planResizeCrop, type Anchor, type CropOffset } from '../core/image/crop.ts';
+  import {
+    coverRegion,
+    moveRegion,
+    planResizeCrop,
+    regionFromCorners,
+    type Anchor,
+    type CropRegion,
+    type Point,
+  } from '../core/image/crop.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import type { MediaAsset } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
@@ -30,33 +39,48 @@
     ['bottom', 'Bottom'],
     ['bottom-right', 'Bottom right'],
   ];
+  const CORNERS = [
+    ['top-left', 'top-left'],
+    ['top-right', 'top-right'],
+    ['bottom-left', 'bottom-left'],
+    ['bottom-right', 'bottom-right'],
+  ] as const;
   const store = $derived(app.store);
   const target = $derived({
     width: $store.history.present.settings.width,
     height: $store.history.present.settings.height,
   });
-  /** One of the 9 presets, or where the student dragged the frame to. */
-  let keep: Anchor | CropOffset = $state('centre');
+  /** One of the 9 places (the largest part), or a part chosen with the mouse. */
+  let keep: Anchor | CropRegion = $state('centre');
   let addToTimeline = $state(false);
   let saving = $state(false);
   let picture: HTMLDivElement | undefined = $state();
   const plan = $derived(planResizeCrop(size, target, keep));
+  const region = $derived(typeof keep === 'object' ? keep : coverRegion(size, target, keep));
+  const url = $derived(toMediaUrl(asset.path));
+  const pct = (part: number, whole: number) => `${(part / whole) * 100}%`;
 
-  /** Picture pixels per screen pixel (the picture is shown smaller than it is). */
-  function scale(): number {
-    const shown = picture?.getBoundingClientRect().width ?? 0;
-    return shown > 0 ? plan.resize.width / shown : 1;
+  const removedText = $derived.by(() => {
+    const parts = (['top', 'bottom', 'left', 'right'] as const)
+      .filter((side) => plan.removed[side] > 0)
+      .map((side) => `${plan.removed[side]} px from the ${side}`);
+    if (!parts.length) return 'Nothing is cut off';
+    const last = parts.pop()!;
+    return `Removes ${parts.length ? `${parts.join(', ')} and ${last}` : last}`;
+  });
+
+  /** A mouse position in original-picture pixels. */
+  function toPicture(event: MouseEvent): Point {
+    const box = picture?.getBoundingClientRect();
+    const k = box && box.width > 0 ? size.width / box.width : 1;
+    return { x: (event.clientX - (box?.left ?? 0)) * k, y: (event.clientY - (box?.top ?? 0)) * k };
   }
 
-  function startDrag(event: MouseEvent): void {
+  /** Follows the mouse until it is released. */
+  function follow(event: MouseEvent, update: (at: Point) => void): void {
     event.preventDefault();
-    const from = { x: event.clientX, y: event.clientY, crop: { ...plan.crop }, k: scale() };
-    const move = (e: MouseEvent) => {
-      keep = {
-        x: from.crop.x + (e.clientX - from.x) * from.k,
-        y: from.crop.y + (e.clientY - from.y) * from.k,
-      };
-    };
+    event.stopPropagation();
+    const move = (e: MouseEvent) => update(toPicture(e));
     const stop = (e: MouseEvent) => {
       move(e);
       window.removeEventListener('mousemove', move);
@@ -66,9 +90,35 @@
     window.addEventListener('mouseup', stop);
   }
 
-  /** Arrow keys move the frame too (10 px, or 1 px with Shift). */
+  /** Pressing on the picture draws a new part from that point. */
+  function startDraw(event: MouseEvent): void {
+    const fixed = toPicture(event);
+    follow(event, (at) => {
+      // A click without moving keeps the current part.
+      if (Math.hypot(at.x - fixed.x, at.y - fixed.y) > 4)
+        keep = regionFromCorners(fixed, at, size, target);
+    });
+  }
+
+  function startMove(event: MouseEvent): void {
+    const from = toPicture(event);
+    const start = region;
+    follow(event, (at) => (keep = moveRegion(start, at.x - from.x, at.y - from.y, size)));
+  }
+
+  /** Dragging a corner: the opposite corner stays where it is. */
+  function startResize(event: MouseEvent, corner: string): void {
+    const r = region;
+    const fixed = {
+      x: corner.endsWith('left') ? r.x + r.width : r.x,
+      y: corner.startsWith('top') ? r.y + r.height : r.y,
+    };
+    follow(event, (at) => (keep = regionFromCorners(fixed, at, size, target)));
+  }
+
+  /** Arrow keys move the part too (1/100 of the picture, or 1 px with Shift). */
   function nudge(event: KeyboardEvent): void {
-    const step = event.shiftKey ? 1 : 10;
+    const step = event.shiftKey ? 1 : size.width / 100;
     const d = {
       ArrowLeft: [-step, 0],
       ArrowRight: [step, 0],
@@ -77,15 +127,8 @@
     }[event.key];
     if (!d) return;
     event.preventDefault();
-    keep = { x: plan.crop.x + d[0]!, y: plan.crop.y + d[1]! };
+    keep = moveRegion(region, d[0]!, d[1]!, size);
   }
-
-  const removedText = $derived.by(() => {
-    const parts = (['top', 'bottom', 'left', 'right'] as const)
-      .filter((side) => plan.removed[side] > 0)
-      .map((side) => `${plan.removed[side]} px from the ${side}`);
-    return parts.length ? `Removes ${parts.join(' and ')}` : 'Nothing is cut off';
-  });
 
   async function save(): Promise<void> {
     saving = true;
@@ -100,30 +143,46 @@
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Resize and crop image">
     <h2>Resize &amp; crop image <span class="syl">11.1 resizing and cropping a still</span></h2>
-    <p class="hint">
-      Make {fileNameOf(asset.path)} fit the project without stretching it. Drag the frame (or choose a
-      place) to pick the part to keep: the darker area is removed.
-    </p>
+    <p class="hint">Make {fileNameOf(asset.path)} fit the project without stretching it.</p>
 
     <div class="body">
-      <div
-        class="picture"
-        bind:this={picture}
-        style:aspect-ratio="{plan.resize.width} / {plan.resize.height}"
-      >
-        <img src={toMediaUrl(asset.path)} alt="" draggable="false" />
+      <div class="left">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-          class="keep"
-          role="button"
-          tabindex="0"
-          aria-label="Part to keep — drag to move"
-          onmousedown={startDrag}
-          onkeydown={nudge}
-          style:left="{(plan.crop.x / plan.resize.width) * 100}%"
-          style:top="{(plan.crop.y / plan.resize.height) * 100}%"
-          style:width="{(plan.crop.width / plan.resize.width) * 100}%"
-          style:height="{(plan.crop.height / plan.resize.height) * 100}%"
-        ></div>
+          class="picture"
+          bind:this={picture}
+          style:width="min(100%, {(440 * size.width) / size.height}px)"
+          style:aspect-ratio="{size.width} / {size.height}"
+          aria-label="Picture — drag to select the part to keep"
+          onmousedown={startDraw}
+        >
+          <img src={url} alt="" draggable="false" />
+          <div
+            class="keep"
+            role="button"
+            tabindex="0"
+            aria-label="Part to keep — drag to move"
+            style:left={pct(region.x, size.width)}
+            style:top={pct(region.y, size.height)}
+            style:width={pct(region.width, size.width)}
+            style:height={pct(region.height, size.height)}
+            onmousedown={startMove}
+            onkeydown={nudge}
+          >
+            {#each CORNERS as [corner, name] (corner)}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <span
+                class="handle {corner}"
+                aria-label="Resize from the {name} corner"
+                onmousedown={(e) => startResize(e, corner)}
+              ></span>
+            {/each}
+          </div>
+        </div>
+        <p class="hint">
+          Drag on the picture to choose a part, drag inside it to move it, drag a corner to change
+          its size. The darker area is removed.
+        </p>
       </div>
 
       <div class="steps">
@@ -138,7 +197,7 @@
         </div>
         <p class="hint">Constrain proportions: no stretching.</p>
         <h3>Step 2 · Crop to {target.width} × {target.height}</h3>
-        <div class="grid9" role="group" aria-label="Part to keep">
+        <div class="grid9" role="group" aria-label="Quick places (largest part)">
           {#each ANCHORS as [value, name] (value)}
             <button
               aria-label="Keep {name}"
@@ -148,9 +207,31 @@
           {/each}
         </div>
         <p>{removedText}</p>
+        <p class="hint">
+          Keeps {Math.round(region.width)} × {Math.round(region.height)} of the original
+        </p>
+        {#if plan.enlarged}
+          <p class="warn" role="status">
+            This part is smaller than the video, so it is enlarged and may look blurry. Choose a
+            bigger part for a sharper picture.
+          </p>
+        {/if}
         <div class="sizes">
           <span>Result</span><b>{target.width} × {target.height}</b>
         </div>
+        <div
+          class="result"
+          role="img"
+          aria-label="Result preview"
+          style:aspect-ratio="{target.width} / {target.height}"
+          style:background-image="url('{url}')"
+          style:background-size="{(size.width / region.width) * 100}% auto"
+          style:background-position="{region.width < size.width
+            ? (region.x / (size.width - region.width)) * 100
+            : 0}% {region.height < size.height
+            ? (region.y / (size.height - region.height)) * 100
+            : 0}%"
+        ></div>
       </div>
     </div>
 
@@ -178,8 +259,8 @@
     z-index: 10;
   }
   .dialog {
-    width: 640px;
-    max-height: 90vh;
+    width: min(900px, 94vw);
+    max-height: 94vh;
     overflow: auto;
     background: var(--bg-1);
     border: 1px solid var(--line-strong);
@@ -207,32 +288,70 @@
   }
   .body {
     display: grid;
-    grid-template-columns: 1fr 230px;
-    gap: 16px;
+    grid-template-columns: 1fr 250px;
+    gap: 18px;
     align-items: start;
   }
   .picture {
     position: relative;
-    max-height: 340px;
-    max-width: 100%;
     overflow: hidden;
     background: #000;
+    cursor: crosshair;
+    user-select: none;
   }
   .picture img {
     width: 100%;
     height: 100%;
     display: block;
-    filter: brightness(0.35);
-  }
-  .keep:active {
-    cursor: grabbing;
+    pointer-events: none;
   }
   .keep {
     position: absolute;
-    cursor: grab;
+    border: 2px solid #fff;
+    /* Everything outside the part is shaded: this is what will be removed. */
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.6),
+      0 0 0 9999px rgba(0, 0, 0, 0.62);
+    cursor: move;
+  }
+  .keep:focus-visible {
     outline: 2px solid var(--accent);
-    background: transparent;
-    backdrop-filter: brightness(2.85);
+    outline-offset: 2px;
+  }
+  .handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.6);
+    border-radius: 2px;
+  }
+  .handle.top-left {
+    left: -8px;
+    top: -8px;
+    cursor: nwse-resize;
+  }
+  .handle.top-right {
+    right: -8px;
+    top: -8px;
+    cursor: nesw-resize;
+  }
+  .handle.bottom-left {
+    left: -8px;
+    bottom: -8px;
+    cursor: nesw-resize;
+  }
+  .handle.bottom-right {
+    right: -8px;
+    bottom: -8px;
+    cursor: nwse-resize;
+  }
+  .result {
+    width: 100%;
+    margin-top: 6px;
+    background-repeat: no-repeat;
+    background-color: #000;
+    border: 1px solid var(--line-strong);
   }
   .sizes {
     display: grid;
@@ -258,6 +377,11 @@
   }
   .hint {
     color: var(--tx-3);
+    font-size: 12px;
+    margin: 6px 0;
+  }
+  .warn {
+    color: var(--warn);
     font-size: 12px;
     margin: 6px 0;
   }

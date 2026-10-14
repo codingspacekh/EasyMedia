@@ -36,21 +36,55 @@ describe('resize & crop dialog (V11, screen 10)', () => {
     expect(dialog.textContent).toMatch(/Result\s*1920 × 1080/);
   });
 
-  it('the kept part can be dragged with the mouse', async () => {
+  // In these tests the picture is not laid out, so 1 screen pixel = 1 picture pixel from (0, 0).
+  const drag = async (el: Element, from: [number, number], to: [number, number]) => {
+    await fireEvent.mouseDown(el, { clientX: from[0], clientY: from[1] });
+    await fireEvent.mouseMove(window, { clientX: to[0], clientY: to[1] });
+    await fireEvent.mouseUp(window, { clientX: to[0], clientY: to[1] });
+  };
+
+  it('drawing on the picture selects a new part with the project shape (zooming in)', async () => {
     await open();
     const dialog = screen.getByRole('dialog', { name: 'Resize and crop image' });
-    const frame = screen.getByLabelText('Part to keep — drag to move');
-    // Centre first: 248 px off the top, 249 off the bottom. Drag 50 px (here 1 px = 1 px) up.
-    await fireEvent.mouseDown(frame, { clientX: 500, clientY: 500 });
-    await fireEvent.mouseMove(window, { clientX: 500, clientY: 450 });
-    await fireEvent.mouseUp(window, { clientX: 500, clientY: 450 });
-    expect(dialog.textContent).toMatch(/Removes 198 px from the top and 299 px from the bottom/);
+    await drag(
+      screen.getByLabelText('Picture — drag to select the part to keep'),
+      [100, 100],
+      [1100, 150],
+    );
+    expect(dialog.textContent).toMatch(/Keeps 1000 × 563 of the original/);
+    expect(dialog.textContent).toMatch(/Removes 192 px from the top/);
+    expect(dialog.textContent).toMatch(/enlarged.*blurry/i);
     expect(screen.getByRole('button', { name: 'Keep Centre' }).getAttribute('aria-pressed')).toBe(
       'false',
     );
-    // A preset still works afterwards.
-    await fireEvent.click(screen.getByRole('button', { name: 'Keep Bottom' }));
+  });
+
+  it('dragging inside the selected part moves it', async () => {
+    await open();
+    const dialog = screen.getByRole('dialog', { name: 'Resize and crop image' });
+    await fireEvent.click(screen.getByRole('button', { name: /^Keep Bottom$/ }));
+    await drag(screen.getByLabelText('Part to keep — drag to move'), [500, 500], [500, 450]);
+    expect(dialog.textContent).toMatch(/Removes 472 px from the top and 25 px from the bottom/);
+  });
+
+  it('dragging a corner handle makes the part smaller or bigger', async () => {
+    await open();
+    const dialog = screen.getByRole('dialog', { name: 'Resize and crop image' });
+    await drag(
+      screen.getByLabelText('Resize from the bottom-right corner'),
+      [3764, 2604],
+      [1882, 1546],
+    );
+    expect(dialog.textContent).toMatch(/Keeps 1882 × 1059 of the original/);
+    // A button brings back the largest part.
+    await fireEvent.click(screen.getByRole('button', { name: /^Keep Bottom$/ }));
     expect(dialog.textContent).toMatch(/Removes 497 px from the top/);
+    expect(dialog.textContent).not.toMatch(/blurry/);
+  });
+
+  it('shows the result: exactly the part that will be saved', async () => {
+    await open();
+    expect(screen.getByLabelText('Result preview')).toBeTruthy();
   });
 
   it('saves a new file, keeps the original and can put it on the timeline', async () => {

@@ -5,8 +5,8 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
-import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { countPixels, grayFrame, measure } from '../integration/helpers/measure.ts';
+import { bundledFfmpeg, run } from '../integration/helpers/ffmpeg.ts';
+import { countPixels, grayFrame, measure, tinyFrame } from '../integration/helpers/measure.ts';
 import { answerDialogs, launchApp } from './app.ts';
 
 const FRAME = 1 / 30;
@@ -285,5 +285,52 @@ test('Book B Activity 11a: 4:3 at 960 × 720, yellow 48 pt serif title over a pi
   const m = await measure(output);
   expect([m.width, m.height]).toEqual([960, 720]);
   expect(Math.abs(m.videoDuration - 6)).toBeLessThanOrEqual(FRAME + 0.001);
+  await app.close();
+});
+
+test('V11 choosing the part with the mouse: the saved picture is exactly the part shown', async () => {
+  const { app, window: page } = await launchApp();
+  await answerDialogs(app, { open: [join(dir, EAGLE)] });
+  await page.getByRole('button', { name: 'Import' }).click();
+  await page.getByRole('button', { name: `Resize and crop ${EAGLE}` }).click();
+  const dialog = page.getByRole('dialog', { name: 'Resize and crop image' });
+  const pic = (await page.locator('.picture').boundingBox())!;
+  // Draw a part on the picture, then move it.
+  await page.mouse.move(pic.x + 20, pic.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(pic.x + pic.width * 0.6, pic.y + 60, { steps: 10 });
+  await page.mouse.up();
+  const part = (await page.locator('.keep').boundingBox())!;
+  await page.mouse.move(part.x + part.width / 2, part.y + part.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(part.x + part.width / 2 + 40, part.y + part.height / 2 + 80, { steps: 10 });
+  await page.mouse.up();
+
+  const text = await dialog.innerText();
+  const num = (re: RegExp) => Number(re.exec(text)?.[1] ?? 0);
+  const [w, h] = [num(/Width\s+(\d+) px/), num(/Height\s+(\d+) px/)];
+  const [top, left] = [num(/(\d+) px from the top/), num(/(\d+) px from the left/)];
+  expect(w).toBeGreaterThan(1920); // a smaller part than the largest, so the picture is resized up
+
+  const before = await page.getByText(/^photo_3764x3092\d+\.jpg$/).count();
+  await dialog.getByRole('button', { name: 'Save image' }).click();
+  await expect(page.getByText(/^photo_3764x3092\d+\.jpg$/)).toHaveCount(before + 1);
+  const saved = (await page
+    .getByText(/^photo_3764x3092\d+\.jpg$/)
+    .last()
+    .textContent())!;
+  const m = await measure(join(dir, saved));
+  expect([m.width, m.height]).toEqual([1920, 1080]);
+
+  // Make the expected picture straight from the numbers the dialog showed, and compare.
+  const expected = join(dir, 'expected-crop.png');
+  await run(bundledFfmpeg().ffmpeg, [
+    ...['-v', 'error', '-i', join(dir, EAGLE)],
+    ...['-vf', `scale=${w}:${h}:flags=lanczos,crop=1920:1080:${left}:${top}`, '-y', expected],
+  ]);
+  const [a, b] = [await tinyFrame(join(dir, saved), 0), await tinyFrame(expected, 0)];
+  for (let y = 0; y < 9; y++)
+    for (let x = 0; x < 16; x++)
+      a.at(x, y).forEach((v, i) => expect(Math.abs(v - b.at(x, y)[i]!)).toBeLessThan(12));
   await app.close();
 });

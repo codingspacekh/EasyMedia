@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { planResizeCrop, resizeKeepingRatio } from '../../../../src/core/image/crop.ts';
+import {
+  coverRegion,
+  moveRegion,
+  planFromRegion,
+  planResizeCrop,
+  regionFromCorners,
+  resizeKeepingRatio,
+} from '../../../../src/core/image/crop.ts';
 import { EditError } from '../../../../src/core/model/errors.ts';
 
 describe('V11 resize with constrained proportions', () => {
@@ -61,22 +68,64 @@ describe('V11 crop to the project size with a 9-point anchor', () => {
   });
 });
 
-describe('V11 crop at a place dragged with the mouse', () => {
+describe('V11 choosing the part to keep with the mouse (in original pixels)', () => {
   const photo = { width: 3764, height: 3092 };
   const project = { width: 1920, height: 1080 };
 
-  it('keeps the part whose top-left corner was dragged to (0, 300)', () => {
-    const plan = planResizeCrop(photo, project, { x: 0, y: 300 });
-    expect(plan.crop).toEqual({ x: 0, y: 300, width: 1920, height: 1080 });
-    expect(plan.removed).toEqual({ top: 300, bottom: 197, left: 0, right: 0 });
+  it('the largest 16:9 part, kept at the bottom, is Book B Task 11a', () => {
+    const region = coverRegion(photo, project, 'bottom');
+    expect(region).toEqual({ x: 0, y: 974.75, width: 3764, height: 2117.25 });
+    const plan = planFromRegion(photo, project, region);
+    expect(plan.resize).toEqual({ width: 1920, height: 1577 });
+    expect(plan.crop).toEqual({ x: 0, y: 497, width: 1920, height: 1080 });
+    expect(plan.removed).toMatchObject({ top: 497, bottom: 0 });
+    expect(plan.enlarged).toBe(false);
   });
 
-  it('cannot be dragged outside the picture, and uses whole pixels', () => {
-    expect(planResizeCrop(photo, project, { x: 50, y: 900.6 }).crop).toMatchObject({
-      x: 0,
-      y: 497,
+  it('a smaller part zooms in: the picture is resized bigger, then cropped', () => {
+    const plan = planFromRegion(photo, project, {
+      x: 1000,
+      y: 1000,
+      width: 1882,
+      height: 1058.625,
     });
-    expect(planResizeCrop(photo, project, { x: -10, y: -40.4 }).crop).toMatchObject({ x: 0, y: 0 });
-    expect(planResizeCrop(photo, project, { x: 0, y: 120.6 }).crop.y).toBe(121);
+    expect(plan.resize).toEqual({ width: 3840, height: 3154 });
+    expect(plan.crop).toEqual({ x: 1020, y: 1020, width: 1920, height: 1080 });
+    expect(plan.enlarged).toBe(true); // 3840 > 3764: may look blurry
+  });
+
+  it('moving keeps the part inside the picture', () => {
+    const region = { x: 100, y: 100, width: 1000, height: 562.5 };
+    expect(moveRegion(region, 50, -500, photo)).toEqual({ ...region, x: 150, y: 0 });
+    expect(moveRegion(region, 9000, 9000, photo)).toEqual({
+      ...region,
+      x: 2764,
+      y: 2529.5,
+    });
+  });
+
+  it('drawing from one corner to another keeps the project shape', () => {
+    // the wider of the two directions decides the size
+    expect(regionFromCorners({ x: 0, y: 0 }, { x: 1000, y: 100 }, photo, project)).toEqual({
+      x: 0,
+      y: 0,
+      width: 1000,
+      height: 562.5,
+    });
+    // dragging up and to the left from the bottom-right corner
+    expect(regionFromCorners({ x: 3764, y: 3092 }, { x: 3000, y: 3000 }, photo, project)).toEqual({
+      x: 3000,
+      y: 2662.25,
+      width: 764,
+      height: 429.75,
+    });
+  });
+
+  it('a drawn part stays inside the picture and is never tiny', () => {
+    const wide = regionFromCorners({ x: 100, y: 100 }, { x: 9000, y: 200 }, photo, project);
+    expect(wide.x + wide.width).toBeLessThanOrEqual(3764);
+    expect(wide.width).toBeCloseTo(3664, 5);
+    const tiny = regionFromCorners({ x: 10, y: 10 }, { x: 12, y: 12 }, photo, project);
+    expect(tiny.width).toBeCloseTo(3764 / 20, 5);
   });
 });
