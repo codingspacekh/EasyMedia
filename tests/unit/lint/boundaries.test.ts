@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { ESLint } from 'eslint';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +12,10 @@ async function boundaryErrors(filePath: string, importPath: string): Promise<num
 }
 
 describe('architecture boundary: core imports nothing outside core', () => {
+  // The first lint loads the TypeScript parser and config, which can take > 5 s on slow CI
+  // runners (seen on macOS Intel). Load it once here so each test measures only its own lint.
+  beforeAll(() => eslint.lintText('', { filePath: 'src/core/warm-up.ts' }), 60_000);
+
   it.each([
     'electron',
     'node:fs',
