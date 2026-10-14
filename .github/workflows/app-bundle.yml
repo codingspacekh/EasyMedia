@@ -1,0 +1,73 @@
+name: App bundle (Windows, for testing)
+
+# Builds a ready-to-run zip of the current EasyMedia app for a Windows laptop: no installer,
+# no Node.js. Used for the M4 performance check on a real laptop. (Real installers: M12.)
+# Run it from the Actions tab ("Run workflow") or: gh workflow run app-bundle.yml --ref dev
+on:
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      # Electron 44 downloads its binary on first use, not during npm ci.
+      - run: node node_modules/electron/install.js
+      - run: npm run fetch:ffmpeg
+      - run: npm run build:app
+
+      - name: Assemble bundle
+        shell: pwsh
+        run: |
+          $b = 'EasyMedia-windows'
+          New-Item -ItemType Directory -Force "$b/app/resources/ffmpeg" | Out-Null
+          Copy-Item node_modules/electron/dist "$b/electron" -Recurse
+          Copy-Item package.json "$b/app/"
+          Copy-Item out "$b/app/out" -Recurse
+          Copy-Item dist "$b/app/dist" -Recurse
+          Copy-Item resources/ffmpeg/win32-x64 "$b/app/resources/ffmpeg/win32-x64" -Recurse
+
+          @(
+            '@echo off'
+            'cd /d "%~dp0"'
+            'start "" electron\electron.exe app'
+          ) | Set-Content "$b/EasyMedia.bat" -Encoding ascii
+
+          @(
+            '@echo off'
+            'cd /d "%~dp0"'
+            'echo EasyMedia will open. Import a video, play it, export it, then close EasyMedia.'
+            'set EASYMEDIA_PERF_REPORT=%~dp0performance-report.json'
+            'electron\electron.exe app'
+            'echo.'
+            'type performance-report.json'
+            'echo.'
+            'echo Please give performance-report.json (in this folder) to your teacher.'
+            'pause'
+          ) | Set-Content "$b/Measure performance.bat" -Encoding ascii
+
+          @(
+            'EasyMedia - test build (not the final installer)'
+            ''
+            'Start:  double-click EasyMedia.bat'
+            'If Windows shows "Windows protected your PC": click "More info", then "Run anyway".'
+            ''
+            'Performance check (for the teacher):'
+            '  1. Close other programs.'
+            '  2. Double-click "Measure performance.bat".'
+            '  3. In EasyMedia: Import a video, wait for Ready, Add it, press Play, then Export.'
+            '  4. Close EasyMedia. Give performance-report.json to your teacher.'
+          ) | Set-Content "$b/README.txt" -Encoding ascii
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EasyMedia-windows
+          path: EasyMedia-windows
+          retention-days: 7

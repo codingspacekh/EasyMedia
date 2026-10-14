@@ -10,3 +10,6 @@ design/__pycache__/
 
 # Coursebook PDFs are copyrighted: keep them local only
 *.pdf
+out/
+test-results/
+playwright-report/

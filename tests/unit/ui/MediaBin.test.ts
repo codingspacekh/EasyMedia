@@ -1,0 +1,37 @@
+import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import MediaBin from '../../../src/ui/MediaBin.svelte';
+import { testApp } from '../../helpers/test-app.ts';
+
+describe('media bin', () => {
+  it('invites the student to import when empty', () => {
+    render(MediaBin, { props: { app: testApp().app } });
+    expect(screen.getByText(/no media yet/i)).toBeTruthy();
+  });
+
+  it('M4: shows "Preparing preview" for a video until its proxy is ready', async () => {
+    const { app, importFiles } = testApp();
+    render(MediaBin, { props: { app } });
+    await importFiles('/m/clip.mp4');
+    expect(screen.getByText('clip.mp4')).toBeTruthy();
+    expect(screen.getByText(/preparing preview/i)).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText(/preparing preview/i)).toBeNull());
+    expect(screen.getByText(/ready/i)).toBeTruthy();
+  });
+
+  it('shows what each file is: length, size and type', async () => {
+    const { app, importFiles } = testApp();
+    render(MediaBin, { props: { app } });
+    await importFiles('/m/clip.mp4', '/m/photo.jpg');
+    expect(screen.getByText(/video · 00:10\.00/i)).toBeTruthy();
+    expect(screen.getByText(/image/i)).toBeTruthy();
+  });
+
+  it('adds a file to the timeline', async () => {
+    const { app, importFiles } = testApp();
+    render(MediaBin, { props: { app } });
+    await importFiles('/m/photo.jpg');
+    await fireEvent.click(screen.getByRole('button', { name: /add photo\.jpg to the timeline/i }));
+    expect(app.store.get().history.present.timeline.main).toHaveLength(1);
+  });
+});

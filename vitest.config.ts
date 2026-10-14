@@ -43,7 +43,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,svelte}', 'scripts/lib/**/*.ts'],
-      exclude: ['src/ui/main.ts'],
+      // Electron start-up files run only inside the real app: covered by the Playwright
+      // end-to-end tests (tests/e2e), not by unit coverage.
+      exclude: [
+        'src/ui/main.ts',
+        'src/main/index.ts',
+        'src/main/services.ts',
+        'src/preload/index.ts',
+      ],
       thresholds: {
         lines: 85,
         branches: 85,

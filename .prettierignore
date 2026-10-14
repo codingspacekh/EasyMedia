@@ -8,3 +8,6 @@ spikes/**/out
 package-lock.json
 *.md
 *.pdf
+out
+test-results
+playwright-report

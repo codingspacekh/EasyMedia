@@ -5,6 +5,7 @@
   "description": "Lightweight video and audio editor for Cambridge AS & A Level IT (9626) Chapter 11",
   "license": "GPL-3.0-or-later",
   "type": "module",
+  "main": "out/main.cjs",
   "engines": {
     "node": ">=24"
   },
@@ -23,10 +24,14 @@
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.ts",
     "fixtures": "node scripts/make-fixtures.ts",
     "render": "node scripts/render.ts",
-    "spike": "electron spikes/m0-electron/main.cjs"
+    "spike": "electron spikes/m0-electron/main.cjs",
+    "build:app": "vite build && vite build -c vite.electron.config.ts --mode main && vite build -c vite.electron.config.ts --mode preload",
+    "app": "npm run build:app && electron .",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@testing-library/svelte": "5.4.2",
     "@types/node": "24.19.0",
