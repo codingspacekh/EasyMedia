@@ -11,6 +11,7 @@
   } from '../app/commands.ts';
   import { itemDuration, layoutMain } from '../core/model/timeline.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import ClipLookInspector from './ClipLookInspector.svelte';
   import TextInspector from './TextInspector.svelte';
   import TimeField from './TimeField.svelte';
 
@@ -156,6 +157,13 @@
         {#key item.id}<TextInspector {app} {item} />{/key}
       {/if}
     {/if}
+    {#key item.id}
+      <ClipLookInspector
+        {app}
+        {item}
+        index={project.timeline.main.findIndex((m) => m.id === item.id)}
+      />
+    {/key}
   {/if}
 </aside>
 
