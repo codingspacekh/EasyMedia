@@ -1,5 +1,6 @@
 <script lang="ts">
   // Main track (V2, V3, V12): select, split, join, drag to reorder, trim handles with snapping, zoom.
+  // Text track (V4, V5): titles go on the main track; captions, subtitles and credits on their own.
   import type { App } from '../app/app.ts';
   import {
     joinWithNext,
@@ -22,6 +23,7 @@
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const SNAP_PX = 8;
+  const TEXT_KINDS = { caption: 'Caption', subtitle: 'Subtitle', credits: 'Credits' };
 
   let pxPerSecond = $state(40);
   let draggingId: string | null = $state(null);
@@ -93,6 +95,12 @@
       >Join</button
     >
     <button disabled={!$store.selection} onclick={() => app.removeSelected()}>Delete</button>
+    <span class="group" role="group" aria-label="Add text">
+      <button aria-label="Add title" onclick={() => app.addTitle()}>+ Title</button>
+      <button aria-label="Add caption" onclick={() => app.addText('caption')}>+ Caption</button>
+      <button aria-label="Add subtitle" onclick={() => app.addText('subtitle')}>+ Subtitle</button>
+      <button aria-label="Add credits" onclick={() => app.addText('credits')}>+ Credits</button>
+    </span>
     {#if error}<span class="error" role="alert">{error}</span>{/if}
     <span class="spacer"></span>
     <span class="tc"
@@ -151,13 +159,29 @@
     {/each}
     <div class="playhead" style:left="{$store.playhead * pxPerSecond}px"></div>
   </div>
+  <div class="track text-track" aria-label="Text track">
+    {#each project.timeline.text as item (item.id)}
+      {@const name = `${TEXT_KINDS[item.kind]}: ${item.text.split('\n')[0]}`}
+      <button
+        class="clip text {item.kind}"
+        aria-label="{name} {item.duration.toFixed(2)} s"
+        aria-pressed={$store.selection === item.id}
+        style:left="{item.start * pxPerSecond}px"
+        style:width="{item.duration * pxPerSecond}px"
+        onclick={() => app.select(item.id)}
+      >
+        <span class="name">{name}</span>
+      </button>
+    {/each}
+    <div class="playhead" style:left="{$store.playhead * pxPerSecond}px"></div>
+  </div>
 </section>
 
 <style>
   .timeline {
     border-top: 1px solid var(--line);
     background: var(--bg-1);
-    height: 190px;
+    height: 236px;
     display: flex;
     flex-direction: column;
   }
@@ -222,6 +246,26 @@
   }
   .clip.title {
     background: var(--c-title);
+  }
+  .text-track {
+    flex: 0 0 38px;
+  }
+  .clip.text {
+    top: 5px;
+    bottom: 5px;
+    padding: 0 8px;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    background: var(--c-title);
+    opacity: 0.85;
+    cursor: pointer;
+  }
+  .group {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 8px;
   }
   .clip[aria-pressed='true'] {
     outline: 2px solid #fff;

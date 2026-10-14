@@ -232,6 +232,44 @@ describe('M4 app use cases', () => {
     });
   });
 
+  describe('adding text (V4, V5)', () => {
+    it('adds a title slide after the selected clip and selects it, undoably', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      app.addToTimeline(idOf(state(), '/m/clip.mp4'));
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      app.select(project().timeline.main[0]!.id);
+      app.addTitle();
+      const main = project().timeline.main;
+      expect(main.map((m) => m.type)).toEqual(['video', 'title', 'image']);
+      expect(main[1]).toMatchObject({ type: 'title', text: 'Your title' });
+      expect(state().selection).toBe(main[1]!.id);
+      app.undo();
+      expect(project().timeline.main).toHaveLength(2);
+    });
+
+    it('adds a title at the end when nothing is selected', () => {
+      const { app, project } = setup();
+      app.addTitle();
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['title']);
+    });
+
+    it('adds captions, subtitles and credits at the playhead and selects them', () => {
+      const { app, state, project } = setup();
+      app.setPlayhead(2.5);
+      app.addText('caption');
+      app.addText('subtitle');
+      app.addText('credits');
+      const text = project().timeline.text;
+      expect(text.map((t) => [t.kind, t.start, t.text])).toEqual([
+        ['caption', 2.5, 'Caption'],
+        ['subtitle', 2.5, 'Subtitle'],
+        ['credits', 2.5, 'Made by\nYour name'],
+      ]);
+      expect(state().selection).toBe(text[2]!.id);
+    });
+  });
+
   describe('export (V16)', () => {
     async function withClip() {
       const s = setup();

@@ -2,6 +2,7 @@
 // calls these and shows the store. Errors never escape: they become a message for the student.
 import {
   addMainItem,
+  addTextItem,
   importMedia as importMediaCommand,
   relinkMedia,
   removeItem,
@@ -19,10 +20,12 @@ import {
   assetFromProbe,
   createImageClip,
   createProject,
+  createTextItem,
+  createTitleSlide,
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
-import type { Id, MediaAsset, Project } from '../core/model/types.ts';
+import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
 import type {
   AppPaths,
   Dialogs,
@@ -78,6 +81,11 @@ export const projectTitle = (s: AppState): string =>
 
 const DISCARD = 'You have unsaved changes. Discard them and';
 const UNEXPECTED = 'Something went wrong. Please try again.';
+const NEW_TEXT: Record<TextItem['kind'], string> = {
+  caption: 'Caption',
+  subtitle: 'Subtitle',
+  credits: 'Made by\nYour name',
+};
 
 export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60_000 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -307,6 +315,22 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       } catch (error) {
         return error instanceof EditError ? error.message : UNEXPECTED;
       }
+    },
+
+    /** V4: a new title slide after the selected clip (or at the end), ready to edit. */
+    addTitle(): void {
+      const main = present().timeline.main;
+      const selected = main.findIndex((m) => m.id === store.get().selection);
+      const title = createTitleSlide('Your title');
+      run(addMainItem(title, selected >= 0 ? selected + 1 : main.length));
+      patch({ selection: title.id });
+    },
+
+    /** V4, V5: a caption, subtitle or credits at the playhead, ready to edit. */
+    addText(kind: TextItem['kind']): void {
+      const item = createTextItem(kind, NEW_TEXT[kind], store.get().playhead);
+      run(addTextItem(item));
+      patch({ selection: item.id });
     },
 
     select: (id: Id | null) => patch({ selection: id }),
