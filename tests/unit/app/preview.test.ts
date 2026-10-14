@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AppState, AssetStatus } from '../../../src/app/app.ts';
 import { createHistory } from '../../../src/app/history.ts';
-import { previewAt } from '../../../src/app/preview.ts';
+import { previewAt, textLayersAt } from '../../../src/app/preview.ts';
 import { toMediaUrl } from '../../../src/core/media-url.ts';
 import {
   createImageClip,
   createMediaAsset,
   createProject,
+  createTextItem,
   createTitleSlide,
   createVideoClip,
 } from '../../../src/core/model/factory.ts';
@@ -104,5 +105,91 @@ describe('what the preview shows at the playhead (approximate preview, ARCHITECT
 
   it('nothing after the end of the timeline', () => {
     expect(previewAt(state(ready), 7)).toEqual({ kind: 'empty' });
+  });
+});
+
+describe('text drawn over the preview (same pictures as the export)', () => {
+  const measure = (t: string) => t.length * 10;
+  function withText() {
+    const s = state(ready);
+    const project = s.history.present;
+    const titled = {
+      ...project,
+      timeline: {
+        ...project.timeline,
+        main: [
+          { ...project.timeline.main[0]!, text: 'Welcome', fadeIn: 1 },
+          ...project.timeline.main.slice(1),
+        ],
+        text: [
+          { ...createTextItem('caption', 'The lake', 2, { id: 'cap' }), duration: 3 },
+          { ...createTextItem('credits', 'A\nB', 4, { id: 'cr' }), duration: 2 },
+        ],
+      },
+    };
+    return { ...s, history: createHistory(titled) };
+  }
+
+  it("shows a title slide's words, fading in from the slide's own start", () => {
+    const layers = textLayersAt(withText(), 0.5, measure);
+    expect(layers).toEqual([
+      expect.objectContaining({
+        id: 't',
+        text: 'Welcome',
+        mode: 'frame',
+        opacity: 0.5,
+        x: 0,
+        y: 0,
+      }),
+    ]);
+  });
+
+  it('shows captions only during their time, in timeline order after the title', () => {
+    expect(textLayersAt(withText(), 1.9, measure).map((l) => l.id)).toEqual(['t']);
+    expect(textLayersAt(withText(), 3, measure).map((l) => l.id)).toEqual(['cap']);
+    expect(textLayersAt(withText(), 5, measure).map((l) => l.id)).toEqual(['cr']);
+    expect(textLayersAt(withText(), 6.5, measure).map((l) => l.id)).toEqual([]);
+  });
+
+  it('scrolls credits as a block, using its measured height', () => {
+    // 2 lines × 36 × 1.2 = 86.4, plus 2 × 18 padding → 123 px; halfway: 1080 − ½ × 1203
+    const [credits] = textLayersAt(withText(), 5, measure).filter((l) => l.id === 'cr');
+    expect(credits).toMatchObject({ mode: 'block', x: 0 });
+    expect(credits!.y).toBeCloseTo(1080 - 0.5 * (1080 + 123), 5);
+  });
+
+  it('a title with no words has no layer', () => {
+    expect(textLayersAt(state(ready), 1, measure)).toEqual([]);
+  });
+});
+
+describe('title slide backgrounds in the preview', () => {
+  function titleOver(background: { kind: 'image' | 'video'; assetId: string }) {
+    const s = state(ready);
+    const project = s.history.present;
+    const main = [{ ...project.timeline.main[0]!, background }, ...project.timeline.main.slice(1)];
+    return {
+      ...s,
+      history: createHistory({ ...project, timeline: { ...project.timeline, main } }),
+    };
+  }
+
+  it('shows the picture behind a title', () => {
+    expect(previewAt(titleOver({ kind: 'image', assetId: 'photo' }), 1)).toEqual({
+      kind: 'image',
+      src: toMediaUrl('/m/photo.jpg'),
+      itemId: 't',
+    });
+  });
+
+  it('plays the video behind a title from its start, silently (as exported)', () => {
+    expect(previewAt(titleOver({ kind: 'video', assetId: 'lake' }), 1.5)).toEqual({
+      kind: 'video',
+      src: toMediaUrl('/cache/lake.mp4'),
+      mediaTime: 1.5,
+      rate: 1,
+      volume: 0,
+      itemId: 't',
+    });
   });
 });
