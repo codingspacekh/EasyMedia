@@ -2,10 +2,12 @@
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../..', import.meta.url));
+// No trailing separator: on Windows a trailing backslash before the closing quote of a
+// command-line argument escapes the quote, so Electron received a garbled app path and never started.
+export const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
 export async function launchApp(): Promise<{
   app: ElectronApplication;

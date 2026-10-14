@@ -82,10 +82,13 @@
     justify-content: center;
     padding: 16px;
     min-height: 0;
+    overflow: hidden;
+    /* The screen is sized from both the width AND height available (cq units), so a 16:9
+       frame always fits — in a short window it used to overflow and cover the toolbar. */
+    container-type: size;
   }
   .screen {
-    width: 100%;
-    max-width: 720px;
+    width: min(100cqw, 100cqh * 16 / 9, 960px);
     aspect-ratio: 16 / 9;
     background: #000;
     display: flex;

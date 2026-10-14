@@ -50,3 +50,26 @@ test.describe('M4 app shell', () => {
     await app.close();
   });
 });
+
+// Regression: in a short window the 16:9 preview grew taller than its space and covered the
+// toolbar (seen on the macOS Apple Silicon CI runner): the Import button could not be clicked.
+test('at the smallest window size (1100 × 700) nothing covers the toolbar and the preview fits', async () => {
+  const { app, window: page } = await launchApp();
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]!.setContentSize(1100, 700),
+  );
+  await page.waitForTimeout(300);
+  for (const name of ['Import', 'Undo', 'Save', 'Export']) {
+    const box = (await page.getByRole('button', { name }).boundingBox())!;
+    const hit = await page.evaluate(
+      ([x, y]) => document.elementFromPoint(x!, y!)?.textContent?.trim(),
+      [box.x + box.width / 2, box.y + box.height / 2],
+    );
+    expect(hit, `${name} button is covered`).toBe(name);
+  }
+  const screen = (await page.locator('.screen').boundingBox())!;
+  const stage = (await page.locator('.stage').boundingBox())!;
+  expect(screen.y).toBeGreaterThanOrEqual(stage.y - 1);
+  expect(screen.y + screen.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+  await app.close();
+});

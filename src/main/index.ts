@@ -9,6 +9,7 @@ import { binaryPaths, platformKey } from './ffmpeg/paths.ts';
 import { registerIpc } from './ipc.ts';
 import { menuTemplate } from './menu.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
+import { recordPerformance } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
 import { electronDialogs, projectFiles } from './services.ts';
@@ -88,6 +89,8 @@ void app.whenReady().then(async () => {
   );
 
   mainWindow = createWindow();
+  if (process.env.EASYMEDIA_PERF_REPORT)
+    recordPerformance(process.env.EASYMEDIA_PERF_REPORT, mainWindow);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });
