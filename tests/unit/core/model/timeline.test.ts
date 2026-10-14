@@ -16,6 +16,7 @@ import {
   setItemDuration,
   setVideoSpeed,
   splitMainItem,
+  transitionOverlap,
   trimVideo,
 } from '../../../../src/core/model/timeline.ts';
 
@@ -164,5 +165,64 @@ describe('timeline rules', () => {
     it('ignores the item itself when it is being moved', () => {
       expect(() => assertFitsInTrack([at(0, 'a')], at(2, 'a'))).not.toThrow();
     });
+  });
+});
+
+describe('V9 transitions overlap the clips they join', () => {
+  const still = (id: string, seconds: number) =>
+    setItemDuration(createImageClip(photo, { id }), seconds);
+  const dissolve = (duration: number) => ({ effectId: 'transition.dissolve', duration });
+
+  it('Book B Task 11g: total length = sum of the clips − the transition (4.2 + 4.5 − 2 = 6.7 s)', () => {
+    const items = [still('n1', 4.2), { ...still('n2', 4.5), transitionIn: dissolve(2) }];
+    const [first, second] = layoutMain(items);
+    expect([first!.start, first!.end]).toEqual([0, 4.2]);
+    expect(second!.start).toBeCloseTo(2.2, 10);
+    expect(second!.end).toBeCloseTo(6.7, 10);
+    expect(mainTrackDuration(items)).toBeCloseTo(6.7, 10);
+  });
+
+  it('a transition cannot be longer than either clip, and the first clip has none', () => {
+    const items = [
+      { ...still('a', 1), transitionIn: dissolve(3) },
+      { ...still('b', 5), transitionIn: dissolve(3) },
+    ];
+    expect(transitionOverlap(items, 0)).toBe(0);
+    expect(transitionOverlap(items, 1)).toBe(1);
+  });
+
+  it('during a transition the playhead belongs to the clip that is ending', () => {
+    const items = [still('a', 4), { ...still('b', 4), transitionIn: dissolve(1) }];
+    expect(findMainItemAt(items, 3.5)).toEqual({ index: 0, offset: 3.5 });
+    expect(findMainItemAt(items, 4.5)).toEqual({ index: 1, offset: 1.5 });
+  });
+});
+
+describe('splitting and joining keep a clip’s effects (V7, V9, V15)', () => {
+  const looked = {
+    ...setItemDuration(createImageClip(photo, { id: 'p' }), 6),
+    fade: { in: 1, out: 2, colour: 'black' as const },
+    effects: [{ effectId: 'video.sepia', params: {} }],
+    transitionIn: { effectId: 'transition.dissolve', duration: 1 },
+    panZoom: { from: { zoom: 1, x: 0.5, y: 0.5 }, to: { zoom: 2, x: 0.5, y: 0.5 } },
+  };
+
+  it('both parts keep the filters; the fade in, transition and pan & zoom stay on the first, the fade out on the second', () => {
+    const [a, b] = splitMainItem(looked, 3, ['a', 'b']);
+    expect(a).toMatchObject({
+      effects: looked.effects,
+      transitionIn: looked.transitionIn,
+      panZoom: looked.panZoom,
+    });
+    expect(a.fade).toEqual({ in: 1, out: 0, colour: 'black' });
+    expect(b).toMatchObject({ effects: looked.effects });
+    expect(b.fade).toEqual({ in: 0, out: 2, colour: 'black' });
+    expect(b.transitionIn).toBeUndefined();
+    expect(b.panZoom).toBeUndefined();
+  });
+
+  it('joining the parts back gives the original look', () => {
+    const [a, b] = splitMainItem(looked, 3, ['a', 'b']);
+    expect(joinMainItems(a, b)).toEqual({ ...looked, id: 'a' });
   });
 });

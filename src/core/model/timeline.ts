@@ -3,6 +3,7 @@
 import { EditError } from './errors.ts';
 import type { Seconds } from './time.ts';
 import type {
+  ClipFade,
   AudioItem,
   Id,
   ImageClip,
@@ -30,13 +31,21 @@ export function itemDuration(item: MainItem): Seconds {
 }
 
 /** Start and end of every main-track item: they play one after another with no gaps. */
+/** How long item `index` overlaps the one before it (its transition; never longer than either). */
+export function transitionOverlap(items: readonly MainItem[], index: number): Seconds {
+  const item = items[index];
+  const before = items[index - 1];
+  if (!item?.transitionIn || !before) return 0;
+  return Math.min(item.transitionIn.duration, itemDuration(before), itemDuration(item));
+}
+
+/** Where each item sits on the main track; a transition starts an item before the last one ends. */
 export function layoutMain(items: readonly MainItem[]): LaidOutItem[] {
-  let start = 0;
-  return items.map((item) => {
-    const end = start + itemDuration(item);
-    const laid = { item, start, end };
-    start = end;
-    return laid;
+  let end = 0;
+  return items.map((item, index) => {
+    const start = end - transitionOverlap(items, index);
+    end = start + itemDuration(item);
+    return { item, start, end };
   });
 }
 
@@ -94,29 +103,51 @@ export function splitMainItem(
 ): [MainItem, MainItem] {
   assertMinDuration(offset);
   assertMinDuration(itemDuration(item) - offset);
-  if (item.type === 'video') {
+  // Filters stay on both parts; the fade in, transition and pan & zoom belong to the start,
+  // the fade out to the end.
+  const rest = { ...item };
+  delete rest.transitionIn;
+  delete rest.panZoom;
+  const first = item.fade ? { fade: { ...item.fade, out: 0 } } : {};
+  const second = item.fade ? { fade: { ...item.fade, in: 0 } } : {};
+  if (item.type === 'video' && rest.type === 'video') {
     const cut = item.in + offset * item.speed;
     return [
-      { ...item, id: idA, out: cut },
-      { ...item, id: idB, in: cut },
+      { ...item, ...first, id: idA, out: cut },
+      { ...rest, ...second, id: idB, in: cut },
     ];
   }
+  if (item.type === 'video' || rest.type === 'video') throw new Error('unreachable');
   return [
-    { ...item, id: idA, duration: offset },
-    { ...item, id: idB, duration: item.duration - offset },
+    { ...item, ...first, id: idA, duration: offset },
+    { ...rest, ...second, id: idB, duration: item.duration - offset },
   ];
+}
+
+/** The look of two joined parts: the first part's, with the second part's fade out. */
+function joinedLook(a: MainItem, b: MainItem): { fade?: ClipFade } {
+  return a.fade || b.fade
+    ? {
+        fade: {
+          in: a.fade?.in ?? 0,
+          out: b.fade?.out ?? 0,
+          colour: a.fade?.colour ?? b.fade?.colour ?? 'black',
+        },
+      }
+    : {};
 }
 
 /** Joins two neighbouring parts that came from splitting the same piece. Keeps the first id. */
 export function joinMainItems(a: MainItem, b: MainItem): MainItem {
-  if (a.type === 'video' && b.type === 'video' && continuesVideo(a, b)) {
-    return { ...a, out: b.out };
+  const sameFilters = JSON.stringify(a.effects ?? []) === JSON.stringify(b.effects ?? []);
+  if (sameFilters && a.type === 'video' && b.type === 'video' && continuesVideo(a, b)) {
+    return { ...a, ...joinedLook(a, b), out: b.out };
   }
-  if (a.type === 'image' && b.type === 'image' && a.assetId === b.assetId) {
-    return { ...a, duration: a.duration + b.duration };
+  if (sameFilters && a.type === 'image' && b.type === 'image' && a.assetId === b.assetId) {
+    return { ...a, ...joinedLook(a, b), duration: a.duration + b.duration };
   }
-  if (a.type === 'title' && b.type === 'title' && sameTitle(a, b)) {
-    return { ...a, duration: a.duration + b.duration };
+  if (sameFilters && a.type === 'title' && b.type === 'title' && sameTitle(a, b)) {
+    return { ...a, ...joinedLook(a, b), duration: a.duration + b.duration };
   }
   throw new EditError(
     'Only parts of the same clip that were split can be joined. Clips placed one after another are already joined (spliced).',

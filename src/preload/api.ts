@@ -23,6 +23,10 @@ export interface Channels {
   'media:waveform': { args: [input: string, buckets: number]; result: number[] };
   'media:frame': { args: [input: string, time: number, output: string]; result: null };
   'media:resizeCrop': { args: [input: string, plan: ResizeCrop]; result: string };
+  'media:snapshot': {
+    args: [project: Project, time: number, output: string, options: RenderVideoOptions];
+    result: string;
+  };
   'media:render': {
     args: [jobKey: string, project: Project, output: string, options: RenderVideoOptions];
     result: null;
@@ -51,6 +55,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:waveform',
   'media:frame',
   'media:resizeCrop',
+  'media:snapshot',
   'media:render',
   'job:cancel',
   'app:paths',

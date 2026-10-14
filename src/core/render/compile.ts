@@ -2,7 +2,8 @@
 // processes. The job queue adds progress flags and the output path.
 import { EditError } from '../model/errors.ts';
 import type { Seconds } from '../model/time.ts';
-import { itemDuration, mainTrackDuration } from '../model/timeline.ts';
+import { itemDuration, mainTrackDuration, transitionOverlap } from '../model/timeline.ts';
+import { filtersFor, transitionById } from '../effects/registry.ts';
 import type {
   Entrance,
   MainItem,
@@ -26,6 +27,8 @@ export interface RenderOptions {
    * per caption / subtitle / credits item. Full-frame PNGs, except scrolling credits (text block only).
    */
   textImages?: Record<string, TextImage>;
+  /** V10: render only the frame at this time (a snapshot) instead of the whole video. */
+  frameAt?: Seconds;
 }
 
 export interface TextImage {
@@ -61,7 +64,12 @@ export function compileProject(project: Project, options: RenderOptions): Render
   };
   const soundOf = (item: MainItem) =>
     item.type === 'video' && !item.muted && assetOf(item.assetId).hasAudio === true;
-  const hasAudio = project.timeline.main.some(soundOf);
+  const frameAt = options.frameAt;
+  const total = mainTrackDuration(project.timeline.main);
+  if (frameAt !== undefined && !(frameAt >= 0 && frameAt < total)) {
+    throw new EditError('Move the playhead onto the video to take a snapshot.');
+  }
+  const hasAudio = frameAt === undefined && project.timeline.main.some(soundOf);
 
   const inputs: string[] = [];
   const filters: string[] = [];
@@ -79,6 +87,9 @@ export function compileProject(project: Project, options: RenderOptions): Render
   project.timeline.main.forEach((item, i) => {
     const d = num(itemDuration(item));
     const audioOut = `[a${i}]`;
+    // With a look (pan & zoom, filters, fade) the item is made as [p<i>] and finished as [v<i>].
+    const look = lookChain(item, settings);
+    const vOut = look ? `[p${i}]` : `[v${i}]`;
     if (item.type === 'video') {
       const k = inputIndex++;
       inputs.push(
@@ -91,7 +102,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
       );
       const setpts =
         item.speed === 1 ? 'setpts=PTS-STARTPTS' : `setpts=(PTS-STARTPTS)/${num(item.speed)}`;
-      filters.push(`[${k}:v]${setpts},${fitFilter(settings)},trim=duration=${d}[v${i}]`);
+      filters.push(`[${k}:v]${setpts},${fitFilter(settings)},trim=duration=${d}${vOut}`);
       if (hasAudio) {
         if (soundOf(item)) {
           const tempo = atempoChain(item.speed)
@@ -99,7 +110,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
             .join('');
           const volume = item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
           filters.push(
-            `[${k}:a]asetpts=PTS-STARTPTS${tempo}${volume},${AUDIO_FORMAT},apad,atrim=duration=${d}${audioOut}`,
+            `[${k}:a]asetpts=PTS-STARTPTS${tempo}${volume},${AUDIO_FORMAT},apad,atrim=duration=${d}${audioFades(item)}${audioOut}`,
           );
         } else {
           filters.push(`${SILENCE},atrim=duration=${d}${audioOut}`);
@@ -108,11 +119,11 @@ export function compileProject(project: Project, options: RenderOptions): Render
     } else {
       if (item.type === 'image') {
         const k = loopImage(d, options.mediaPath(assetOf(item.assetId)));
-        filters.push(`[${k}:v]${fitFilter(settings)},trim=duration=${d}[v${i}]`);
+        filters.push(`[${k}:v]${fitFilter(settings)},trim=duration=${d}${vOut}`);
       } else {
         // Title slide: background (colour, picture or video), then its words on top.
         const words = item.text.trim() !== '';
-        const bgOut = words ? `[bg${i}]` : `[v${i}]`;
+        const bgOut = words ? `[bg${i}]` : vOut;
         const bg = item.background;
         if (bg.kind === 'colour') {
           filters.push(`${colourFrame(settings, bg.colour, d)}${bgOut}`);
@@ -130,22 +141,56 @@ export function compileProject(project: Project, options: RenderOptions): Render
           const k = loopImage(d, textImage(item.id).path);
           filters.push(`[${k}:v]format=rgba${fades(0, itemDuration(item), item)}[t${i}x]`);
           filters.push(
-            `[bg${i}][t${i}x]overlay=${overlayPosition(item.entrance, 0, settings)}[v${i}]`,
+            `[bg${i}][t${i}x]overlay=${overlayPosition(item.entrance, 0, settings)}${vOut}`,
           );
         }
       }
       if (hasAudio) filters.push(`${SILENCE},atrim=duration=${d}${audioOut}`);
     }
+    if (look) filters.push(`${vOut}${look}[v${i}]`);
   });
 
-  const n = project.timeline.main.length;
-  const segments = project.timeline.main
-    .map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`)
-    .join('');
+  const main = project.timeline.main;
+  const n = main.length;
   const texts = project.timeline.text;
-  filters.push(
-    `${segments}concat=n=${n}:v=1:a=${hasAudio ? 1 : 0}${texts.length ? '[vbase]' : '[vout]'}${hasAudio ? '[aout]' : ''}`,
-  );
+  const videoEnd = texts.length ? '[vbase]' : '[vout]';
+  if (main.every((_, i) => transitionOverlap(main, i) === 0)) {
+    const segments = main.map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`).join('');
+    filters.push(
+      `${segments}concat=n=${n}:v=1:a=${hasAudio ? 1 : 0}${videoEnd}${hasAudio ? '[aout]' : ''}`,
+    );
+  } else {
+    // V9: join the items one by one — a cut is a concat of two, a transition is an xfade.
+    let video = '[v0]';
+    let audio = '[a0]';
+    let length = itemDuration(main[0]!);
+    for (let i = 1; i < n; i++) {
+      const last = i === n - 1;
+      const vNext = last ? videoEnd : `[x${i}]`;
+      const aNext = last ? '[aout]' : `[xa${i}]`;
+      const overlap = transitionOverlap(main, i);
+      if (overlap > 0) {
+        const kind = transitionById(main[i]!.transitionIn!.effectId);
+        if (!kind)
+          throw new EditError('This transition is not available in this version of EasyMedia.');
+        filters.push(
+          `${video}[v${i}]xfade=transition=${kind.xfade}:duration=${num(overlap)}:offset=${num(length - overlap)}${vNext}`,
+        );
+        if (hasAudio) filters.push(`${audio}[a${i}]acrossfade=d=${num(overlap)}${aNext}`);
+      } else {
+        // concat gives its output a fine timebase; xfade needs the frame timebase, so set it back.
+        filters.push(
+          hasAudio
+            ? `${video}${audio}[v${i}][a${i}]concat=n=2:v=1:a=1[c${i}]${aNext}`
+            : `${video}[v${i}]concat=n=2:v=1:a=0[c${i}]`,
+        );
+        filters.push(`[c${i}]settb=1/${settings.fps}${vNext}`);
+      }
+      video = vNext;
+      audio = aNext;
+      length += itemDuration(main[i]!) - overlap;
+    }
+  }
 
   // Captions, subtitles and credits are laid over the joined video at their own times.
   texts.forEach((item, j) => {
@@ -165,6 +210,18 @@ export function compileProject(project: Project, options: RenderOptions): Render
     );
   });
 
+  if (frameAt !== undefined) {
+    return {
+      args: [
+        ...inputs,
+        '-filter_complex',
+        filters.join(';'),
+        ...['-map', '[vout]', '-ss', num(frameAt), '-frames:v', '1', '-update', '1', '-an'],
+      ],
+      duration: total,
+      hasAudio: false,
+    };
+  }
   const quality = options.quality ?? 'high';
   return {
     args: [
@@ -179,7 +236,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
       '-movflags',
       '+faststart',
     ],
-    duration: mainTrackDuration(project.timeline.main),
+    duration: total,
     hasAudio,
   };
 }
@@ -190,6 +247,52 @@ function assertExportable(project: Project): void {
   if (audio[0].length > 0 || audio[1].length > 0) {
     throw new EditError('Exporting music and voiceover tracks is not available yet.');
   }
+}
+
+/** Pan & zoom, filters and fade of one item, or '' when it has none (V7, V8, V15). */
+function lookChain(item: MainItem, s: ProjectSettings): string {
+  const length = itemDuration(item);
+  const parts: string[] = [];
+  if (item.panZoom) parts.push(panZoomFilter(item.panZoom, length, s));
+  const effects = filtersFor(item.effects ?? []);
+  if (effects) parts.push(effects);
+  const fade = item.fade;
+  if (fade) {
+    const colour = `color=${fade.colour}`;
+    if (fade.in > 0) parts.push(`fade=t=in:st=0:d=${num(fade.in)}:${colour}`);
+    if (fade.out > 0)
+      parts.push(`fade=t=out:st=${num(length - fade.out)}:d=${num(fade.out)}:${colour}`);
+  }
+  return parts.join(',');
+}
+
+/** The sound fades with the picture (V7). */
+function audioFades(item: MainItem): string {
+  const fade = item.fade;
+  if (!fade) return '';
+  const length = itemDuration(item);
+  return (
+    (fade.in > 0 ? `,afade=t=in:st=0:d=${num(fade.in)}` : '') +
+    (fade.out > 0 ? `,afade=t=out:st=${num(length - fade.out)}:d=${num(fade.out)}` : '')
+  );
+}
+
+/**
+ * V8: zoompan, one output frame per input frame. The view moves linearly from `from` to `to`
+ * between `start` and `end`, and is held before and after; it never leaves the picture.
+ */
+function panZoomFilter(
+  pz: NonNullable<MainItem['panZoom']>,
+  length: Seconds,
+  s: ProjectSettings,
+): string {
+  const start = pz.start ?? 0;
+  const end = pz.end ?? length;
+  const p = `min(max((on/${s.fps}-${num(start)})/${num(end - start)},0),1)`;
+  const lerp = (a: number, b: number) => `${num(a)}+${num(b - a)}*${p}`;
+  const centre = (axis: 'x' | 'y', size: 'iw' | 'ih') =>
+    `'max(0,min(${size}-${size}/zoom,(${lerp(pz.from[axis], pz.to[axis])})*${size}-${size}/zoom/2))'`;
+  return `zoompan=z='${lerp(pz.from.zoom, pz.to.zoom)}':x=${centre('x', 'iw')}:y=${centre('y', 'ih')}:d=1:s=${s.width}x${s.height}:fps=${s.fps}`;
 }
 
 /** Fades the transparency of a text layer (V7 for text). */

@@ -239,8 +239,12 @@
 
 <section>
   <h3>Effects <span class="syl">11.4</span></h3>
-  <TimeField label="Fade in" value={item.fadeIn ?? 0} commit={(t) => effects({ fadeIn: t })} />
-  <TimeField label="Fade out" value={item.fadeOut ?? 0} commit={(t) => effects({ fadeOut: t })} />
+  <TimeField label="Text fade in" value={item.fadeIn ?? 0} commit={(t) => effects({ fadeIn: t })} />
+  <TimeField
+    label="Text fade out"
+    value={item.fadeOut ?? 0}
+    commit={(t) => effects({ fadeOut: t })}
+  />
   <label class="stack">
     Entrance
     <select

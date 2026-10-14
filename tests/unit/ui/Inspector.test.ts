@@ -39,7 +39,9 @@ describe('M5 inspector', () => {
     const { item } = await selected('/m/clip.mp4');
     await type('End point', '6.3');
     await fireEvent.click(screen.getByRole('button', { name: '1.5×' }));
+    await fireEvent.click(screen.getByRole('tab', { name: 'Audio' }));
     await fireEvent.click(screen.getByLabelText('Remove sound'));
+    await fireEvent.click(screen.getByRole('tab', { name: 'Clip' }));
     expect(item()).toMatchObject({ in: 0, out: 6.3, speed: 1.5, muted: true });
     expect(screen.getByText('4.20 s')).toBeTruthy();
     expect(screen.getByRole('button', { name: '1.5×' }).getAttribute('aria-pressed')).toBe('true');

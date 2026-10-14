@@ -25,8 +25,55 @@ export interface MediaAsset {
   hasAudio?: boolean;
 }
 
+/** One filter from the effect registry with its settings (V15). */
+export interface EffectInstance {
+  effectId: string;
+  params: Record<string, number>;
+}
+
+/** V7: the whole picture fades in from / out to a colour. */
+export interface ClipFade {
+  in: Seconds;
+  out: Seconds;
+  colour: 'black' | 'white';
+}
+
+/** One frame of a pan & zoom: how far in, and where the centre of the view is (0–1 across / down). */
+export interface PanZoomFrame {
+  zoom: number;
+  x: number;
+  y: number;
+}
+
+/** V8: the view moves from one frame to another, between `start` and `end` seconds of the item. */
+export interface PanZoom {
+  from: PanZoomFrame;
+  to: PanZoomFrame;
+  /** Default 0 (the start of the item). */
+  start?: Seconds;
+  /** Default: the end of the item. */
+  end?: Seconds;
+  /** The preset it was made from, shown in the inspector. */
+  preset?: string;
+}
+
+/** V9: how this item takes over from the one before it; the two overlap for `duration`. */
+export interface Transition {
+  effectId: string;
+  duration: Seconds;
+}
+
+/** How a clip, picture or title slide looks (V7, V8, V9, V15). */
+export interface ClipLook {
+  fade?: ClipFade;
+  /** Filters from the effect registry, applied in order. */
+  effects?: EffectInstance[];
+  panZoom?: PanZoom;
+  transitionIn?: Transition;
+}
+
 /** A video clip plays the source from `in` to `out` at `speed`. */
-export interface VideoClip {
+export interface VideoClip extends ClipLook {
   type: 'video';
   id: Id;
   assetId: Id;
@@ -37,7 +84,7 @@ export interface VideoClip {
   volume: number;
 }
 
-export interface ImageClip {
+export interface ImageClip extends ClipLook {
   type: 'image';
   id: Id;
   assetId: Id;
@@ -86,7 +133,7 @@ export type TitleBackground =
   | { kind: 'video'; assetId: Id };
 
 /** A text-based slide on the main track (V4). */
-export interface TitleSlide extends TextEffects {
+export interface TitleSlide extends TextEffects, ClipLook {
   type: 'title';
   id: Id;
   text: string;

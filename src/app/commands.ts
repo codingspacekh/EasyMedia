@@ -4,10 +4,18 @@ import { EditError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import { validateSettings } from '../core/model/settings.ts';
 import { validateTextStyle } from '../core/text/fonts.ts';
+import {
+  defaultParams,
+  effectById,
+  transitionById,
+  validateParams,
+} from '../core/effects/registry.ts';
 import type { Seconds } from '../core/model/time.ts';
 import {
   assertFitsInTrack,
   findMainItemAt,
+  itemDuration,
+  MIN_DURATION,
   joinMainItems,
   setItemDuration,
   setVideoSpeed,
@@ -16,6 +24,11 @@ import {
 } from '../core/model/timeline.ts';
 import type {
   AudioItem,
+  ClipFade,
+  ClipLook,
+  PanZoom,
+  PanZoomFrame,
+  Transition,
   Id,
   MainItem,
   MediaAsset,
@@ -316,6 +329,136 @@ export function setTitleBackground(id: Id, background: TitleBackground): Command
         return { ...item, background };
       }),
   };
+}
+
+/** V7: fade the whole picture in from / out to black or white. 0 and 0 removes the fade. */
+export function setFade(id: Id, fade: ClipFade): Command {
+  return {
+    label: 'Change fade',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        if (!(fade.in >= 0 && fade.out >= 0)) throw new EditError('Fades cannot be negative.');
+        if (fade.in + fade.out > itemDuration(item) + 1e-9) {
+          throw new EditError('The fades are longer than the clip. Make them shorter.');
+        }
+        return fade.in === 0 && fade.out === 0 ? without(item, 'fade') : { ...item, fade };
+      }),
+  };
+}
+
+/** V15: add a filter from the effect registry, with its default settings. */
+export function addEffect(id: Id, effectId: string): Command {
+  return {
+    label: 'Add effect',
+    apply: (p) => {
+      const def = effectById(effectId);
+      if (!def) throw new EditError('This effect is not available in this version of EasyMedia.');
+      return updateMain(p, id, (item) => ({
+        ...item,
+        effects: [...(item.effects ?? []), { effectId, params: defaultParams(def) }],
+      }));
+    },
+  };
+}
+
+export function setEffectParams(id: Id, index: number, params: Record<string, number>): Command {
+  return {
+    label: 'Change effect',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        const effects = [...(item.effects ?? [])];
+        const effect = effects[index];
+        const def = effect && effectById(effect.effectId);
+        if (!effect || !def) throw new EditError('This effect could not be found.');
+        validateParams(def, params);
+        effects[index] = { ...effect, params };
+        return { ...item, effects };
+      }),
+  };
+}
+
+export function removeEffect(id: Id, index: number): Command {
+  return {
+    label: 'Remove effect',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        const effects = (item.effects ?? []).filter((_, i) => i !== index);
+        return effects.length ? { ...item, effects } : without(item, 'effects');
+      }),
+  };
+}
+
+/** V9: the transition from the previous item into this one; null removes it. */
+export function setTransition(id: Id, transition: Transition | null): Command {
+  return {
+    label: transition ? 'Add transition' : 'Remove transition',
+    apply: (p) => {
+      const index = mainIndex(p, id);
+      if (transition) {
+        if (index === 0) {
+          throw new EditError(
+            'The first clip has nothing before it. Add the transition to the next clip.',
+          );
+        }
+        if (!transitionById(transition.effectId)) {
+          throw new EditError('This transition is not available in this version of EasyMedia.');
+        }
+        const shortest = Math.min(
+          itemDuration(p.timeline.main[index - 1]!),
+          itemDuration(p.timeline.main[index]!),
+        );
+        if (!(transition.duration >= MIN_DURATION)) {
+          throw new EditError(`A transition must last at least ${MIN_DURATION} s.`);
+        }
+        if (transition.duration >= shortest) {
+          throw new EditError(
+            `The transition must be shorter than both clips (under ${shortest.toFixed(2)} s here).`,
+          );
+        }
+      }
+      return updateMain(p, id, (item) => {
+        return transition ? { ...item, transitionIn: transition } : without(item, 'transitionIn');
+      });
+    },
+  };
+}
+
+/** V8: pan & zoom from one frame to another; null removes it. */
+export function setPanZoom(id: Id, panZoom: PanZoom | null): Command {
+  return {
+    label: panZoom ? 'Change pan and zoom' : 'Remove pan and zoom',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        if (!panZoom) return without(item, 'panZoom');
+        for (const frame of [panZoom.from, panZoom.to]) assertFrame(frame);
+        const length = itemDuration(item);
+        const start = panZoom.start ?? 0;
+        const end = panZoom.end ?? length;
+        if (!(start >= 0 && start < length && end <= length + 1e-9)) {
+          throw new EditError('The pan and zoom must start and end inside the clip.');
+        }
+        if (!(end - start >= MIN_DURATION)) {
+          throw new EditError('The pan and zoom must end after it starts.');
+        }
+        return { ...item, panZoom };
+      }),
+  };
+}
+
+/** The item without one of its look settings. */
+function without(item: MainItem, key: keyof ClipLook): MainItem {
+  const copy = { ...item };
+  delete copy[key];
+  return copy;
+}
+
+function assertFrame(frame: PanZoomFrame): void {
+  if (!(frame.zoom >= 1 && frame.zoom <= 4)) {
+    throw new EditError('Zoom must be between 100 % and 400 %.');
+  }
+  if (!(frame.x >= 0 && frame.x <= 1 && frame.y >= 0 && frame.y <= 1)) {
+    throw new EditError('The centre of the view must be inside the picture.');
+  }
 }
 
 export function setProjectSettings(change: Partial<ProjectSettings>): Command {

@@ -16,15 +16,16 @@ describe('media bin', () => {
     expect(screen.getByText('clip.mp4')).toBeTruthy();
     expect(screen.getByText(/preparing preview/i)).toBeTruthy();
     await waitFor(() => expect(screen.queryByText(/preparing preview/i)).toBeNull());
-    expect(screen.getByText(/ready/i)).toBeTruthy();
+    expect(screen.getByText('1080p · 30 fps')).toBeTruthy();
   });
 
   it('shows what each file is: length, size and type', async () => {
     const { app, importFiles } = testApp();
     render(MediaBin, { props: { app } });
     await importFiles('/m/clip.mp4', '/m/photo.jpg');
-    expect(screen.getByText(/video · 00:10\.00/i)).toBeTruthy();
-    expect(screen.getByText(/image/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('1080p · 30 fps')).toBeTruthy());
+    expect(screen.getByText('0:10')).toBeTruthy();
+    expect(screen.getByText('100×100')).toBeTruthy();
   });
 
   it('adds a file to the timeline', async () => {

@@ -23,7 +23,11 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
     send: (event, payload) => listeners.get(event)?.forEach((l) => l(payload)),
     engine,
     allow,
-    paths: { proxies: '/cache/proxies', recovery: '/cache/recovery.mve' },
+    paths: {
+      proxies: '/cache/proxies',
+      recovery: '/cache/recovery.mve',
+      snapshots: '/cache/snapshots',
+    },
     dialogs: {
       openMedia: async () => [],
       openProject: async () => null,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import Inspector from '../../../src/ui/Inspector.svelte';
+import App from '../../../src/ui/App.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -80,8 +81,8 @@ describe('text inspector (screens 02–04)', () => {
 
   it('V7 fades text in and out and gives it an entrance', async () => {
     const { item } = withCaption();
-    await change('Fade in', '0.5');
-    await change('Fade out', '1');
+    await change('Text fade in', '0.5');
+    await change('Text fade out', '1');
     await change('Entrance', 'fly-left');
     expect(item()).toMatchObject({ fadeIn: 0.5, fadeOut: 1, entrance: 'fly-left' });
   });
@@ -125,9 +126,9 @@ describe('title slide inspector (screen 03)', () => {
 });
 
 describe('timeline text track', () => {
-  it('adds a title, caption, subtitle and credits from the timeline bar', async () => {
+  it('adds a title, caption, subtitle and credits from the toolbar', async () => {
     const t = testApp();
-    render(Timeline, { props: { app: t.app } });
+    render(App, { props: { app: t.app } });
     for (const name of ['Add title', 'Add caption', 'Add subtitle', 'Add credits'])
       await fireEvent.click(screen.getByRole('button', { name }));
     const { main, text } = t.app.store.get().history.present.timeline;

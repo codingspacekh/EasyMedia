@@ -154,7 +154,7 @@ test('Book A 11.10: two texts with a smooth change between them, then a yellow 5
   await setText(page, 'We need to take care of our bees.');
   await page.getByRole('checkbox', { name: 'Outline' }).check();
   await setTime(page, 'Duration', '3');
-  await setTime(page, 'Fade out', '0.5');
+  await setTime(page, 'Text fade out', '0.5');
 
   await page.getByRole('button', { name: 'Add subtitle' }).click();
   await setText(
@@ -164,7 +164,7 @@ test('Book A 11.10: two texts with a smooth change between them, then a yellow 5
   await page.getByRole('checkbox', { name: 'Outline' }).check();
   await setTime(page, 'Starts at', '3');
   await setTime(page, 'Duration', '7');
-  await setTime(page, 'Fade in', '0.5');
+  await setTime(page, 'Text fade in', '0.5');
 
   await page.locator('[data-item]').first().click();
   await page.getByRole('button', { name: 'Add title' }).click();

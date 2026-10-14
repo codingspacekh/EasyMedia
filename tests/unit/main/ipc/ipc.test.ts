@@ -84,7 +84,11 @@ describe('P2 main-process IPC handlers', () => {
     });
     expect(await api.invoke('app:paths')).toEqual({
       ok: true,
-      value: { proxies: '/cache/proxies', recovery: '/cache/recovery.mve' },
+      value: {
+        proxies: '/cache/proxies',
+        recovery: '/cache/recovery.mve',
+        snapshots: '/cache/snapshots',
+      },
     });
   });
 

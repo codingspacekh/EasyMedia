@@ -25,6 +25,7 @@ import {
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
+import { findMainItemAt, setItemDuration } from '../core/model/timeline.ts';
 import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
 import type {
   AppPaths,
@@ -44,8 +45,12 @@ export interface AssetStatus {
   progress: number;
   /** Small preview copy of a video, once made. */
   proxyPath?: string;
-  /** Pixel size of a picture, from the probe (V11 needs it). */
+  /** Pixel size of a picture or video, from the probe (V11 and the media bin use it). */
   size?: { width: number; height: number };
+  /** Frames per second of a video. */
+  fps?: number;
+  /** One small frame of a video, for the media bin and the timeline. */
+  thumbPath?: string;
   message?: string;
 }
 
@@ -146,9 +151,13 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         return;
       }
     }
+    const size = info.video && { width: info.video.width, height: info.video.height };
+    const facts = {
+      ...(size ? { size } : {}),
+      ...(info.video?.fps ? { fps: info.video.fps } : {}),
+    };
     if (asset.kind !== 'video') {
-      const size = info.video && { width: info.video.width, height: info.video.height };
-      setAsset(asset.id, { state: 'ready', progress: 1, ...(size ? { size } : {}) });
+      setAsset(asset.id, { state: 'ready', progress: 1, ...facts });
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
@@ -167,7 +176,26 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         proxyJobs.delete(job.id);
       }
     }
-    setAsset(asset.id, { state: 'ready', progress: 1, proxyPath });
+    setAsset(asset.id, { state: 'ready', progress: 1, proxyPath, ...facts });
+    // A thumbnail from the small preview copy (fast); made once and reused.
+    const thumbPath = proxyPath.replace(/\.mp4$/, '-thumb.jpg');
+    try {
+      await engine.probe(thumbPath);
+    } catch {
+      try {
+        await engine.makeThumbnails(proxyPath, thumbPath, {
+          count: 1,
+          height: 180,
+          duration: asset.duration ?? 0,
+        }).done;
+      } catch {
+        return; // no thumbnail is not a problem: the bin shows the name
+      }
+    }
+    store.update((s) => {
+      const current = s.assets[asset.id];
+      return current ? { ...s, assets: { ...s.assets, [asset.id]: { ...current, thumbPath } } } : s;
+    });
   }
 
   function load(project: Project, projectPath: string | null, saved: Project = project): void {
@@ -306,6 +334,56 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         patch({
           message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
         });
+        return made.id;
+      } catch (error) {
+        showError(error);
+        return null;
+      }
+    },
+
+    /**
+     * V10: saves the frame at `time` as it will be exported (with its looks) as a picture,
+     * imports it and, if asked, puts it on the timeline after the clip at that time.
+     * Hiding text leaves out captions, subtitles, credits and the words of title slides.
+     */
+    async snapshot(options: {
+      time: Seconds;
+      hideText: boolean;
+      addToTimeline: boolean;
+      duration: Seconds;
+      format?: 'png' | 'jpg' | 'bmp' | 'tiff';
+    }): Promise<Id | null> {
+      const { time, hideText, addToTimeline, duration, format = 'png' } = options;
+      const { projectPath } = store.get();
+      // Saved straight away: next to a saved project (so it travels with it), else in the app's folder.
+      const folder = projectPath ? `${dirOf(projectPath)}/Snapshots` : paths.snapshots;
+      const wanted = `${folder}/Snapshot_${time.toFixed(2)}s.${format}`;
+      const current = present();
+      const project: Project = hideText
+        ? {
+            ...current,
+            timeline: {
+              ...current.timeline,
+              text: [],
+              main: current.timeline.main.map((m) => (m.type === 'title' ? { ...m, text: '' } : m)),
+            },
+          }
+        : current;
+      try {
+        const output = await engine.renderFrame(project, time, wanted, {
+          projectDir: projectPath ? dirOf(projectPath) : '/',
+          textImages: await drawTextImages(project),
+        });
+        const info = await engine.probe(output);
+        const made = assetFromProbe(output, info);
+        run(importMediaCommand(made));
+        void prepare(made, info);
+        if (addToTimeline) {
+          const at = findMainItemAt(present().timeline.main, time);
+          const clip = setItemDuration(createImageClip(made), duration);
+          run(addMainItem(clip, at ? at.index + 1 : undefined));
+        }
+        patch({ message: { kind: 'info', text: `Added ${fileNameOf(output)} to the media.` } });
         return made.id;
       } catch (error) {
         showError(error);

@@ -6,6 +6,7 @@ import { fromMediaUrl } from '../core/media-url.ts';
 import type { Events } from '../preload/api.ts';
 import { detectHardwareEncoder, encoderTester, videoEncoder } from './ffmpeg/hardware.ts';
 import { binaryPaths, platformKey } from './ffmpeg/paths.ts';
+import { sendToWindow } from './send.ts';
 import { registerIpc } from './ipc.ts';
 import { menuTemplate } from './menu.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
@@ -67,13 +68,21 @@ void app.whenReady().then(async () => {
       : new Response(null, { status: 400 });
   });
 
+  const engine = createNodeMediaEngine(binaries, { videoEncoder: videoEncoder(hardware) });
+  // Quitting stops every FFmpeg job: no preview or export keeps running after EasyMedia closes.
+  app.on('before-quit', () => engine.cancelAll());
+
   registerIpc({
     ipc: ipcMain,
     send: <E extends keyof Events>(event: E, payload: Events[E]) =>
-      mainWindow?.webContents.send(event, payload),
-    engine: createNodeMediaEngine(binaries, { videoEncoder: videoEncoder(hardware) }),
+      sendToWindow(mainWindow, event, payload),
+    engine,
     allow,
-    paths: { proxies, recovery: join(app.getPath('userData'), 'recovery.mve') },
+    paths: {
+      proxies,
+      recovery: join(app.getPath('userData'), 'recovery.mve'),
+      snapshots: join(app.getPath('userData'), 'snapshots'),
+    },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
   });
@@ -82,7 +91,7 @@ void app.whenReady().then(async () => {
     Menu.buildFromTemplate(
       menuTemplate(
         process.platform,
-        (action) => mainWindow?.webContents.send('menu:action', action),
+        (action) => sendToWindow(mainWindow, 'menu:action', action),
         !app.isPackaged,
       ),
     ),

@@ -60,7 +60,7 @@ function isMediaAsset(m: Obj): boolean {
 }
 
 function isMainItem(m: Obj): boolean {
-  if (!isString(m.id)) return false;
+  if (!isString(m.id) || !hasValidLook(m)) return false;
   switch (m.type) {
     case 'video':
       return (
@@ -77,6 +77,36 @@ function isMainItem(m: Obj): boolean {
     default:
       return false;
   }
+}
+
+/** Optional M7 settings: fade, filters, pan & zoom, transition (absent in older files). */
+function hasValidLook(m: Obj): boolean {
+  const optional = (value: unknown, check: (o: Obj) => boolean) =>
+    value === undefined || (isObject(value) && check(value as Obj));
+  const frame = (f: unknown) => isObject(f) && has(f as Obj, ['zoom', 'x', 'y'], isNumber);
+  return (
+    optional(
+      m.fade,
+      (f) => has(f, ['in', 'out'], isNumber) && ['black', 'white'].includes(f.colour as string),
+    ) &&
+    (m.effects === undefined ||
+      (Array.isArray(m.effects) &&
+        m.effects.every(
+          (e) =>
+            isObject(e) &&
+            isString((e as Obj).effectId) &&
+            isObject((e as Obj).params) &&
+            Object.values((e as Obj).params as Obj).every(isNumber),
+        ))) &&
+    optional(
+      m.panZoom,
+      (z) =>
+        frame(z.from) &&
+        frame(z.to) &&
+        [z.start, z.end].every((t) => t === undefined || isNumber(t)),
+    ) &&
+    optional(m.transitionIn, (t) => isString(t.effectId) && isNumber(t.duration))
+  );
 }
 
 function isTextItem(t: Obj): boolean {

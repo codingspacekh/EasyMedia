@@ -130,3 +130,51 @@ describe('P11 migrations upgrade old project files step by step', () => {
     expect(() => migrate({ schemaVersion: 1 }, { 1: migrations[1] }, 3)).toThrow(/version 2/);
   });
 });
+
+describe('M7 clip looks in project files', () => {
+  const looked = (): Project => {
+    const p = fullProject();
+    const [first, ...rest] = p.timeline.main;
+    return {
+      ...p,
+      timeline: {
+        ...p.timeline,
+        main: [
+          {
+            ...first!,
+            fade: { in: 1, out: 0.5, colour: 'white' },
+            effects: [{ effectId: 'video.blur', params: { radius: 8 } }],
+            panZoom: {
+              from: { zoom: 1, x: 0.5, y: 0.5 },
+              to: { zoom: 2, x: 0.3, y: 0.4 },
+              start: 1,
+            },
+          },
+          ...rest.map((item) => ({
+            ...item,
+            transitionIn: { effectId: 'transition.dissolve', duration: 1 },
+          })),
+        ],
+      },
+    };
+  };
+
+  it('keeps fades, filters, pan & zoom and transitions', () => {
+    const p = looked();
+    expect(deserializeProject(serializeProject(p))).toEqual(p);
+  });
+
+  it.each([
+    ['a fade colour that is not black or white', { fade: { in: 1, out: 0, colour: 'red' } }],
+    ['a filter without settings', { effects: [{ effectId: 'video.blur' }] }],
+    ['a transition without a duration', { transitionIn: { effectId: 'transition.dissolve' } }],
+    [
+      'a pan & zoom frame without a zoom',
+      { panZoom: { from: { x: 0.5, y: 0.5 }, to: { zoom: 1, x: 0, y: 0 } } },
+    ],
+  ])('refuses a damaged file: %s', (_, look) => {
+    const doc = JSON.parse(serializeProject(fullProject()));
+    Object.assign(doc.timeline.main[0], look);
+    expect(() => deserializeProject(JSON.stringify(doc))).toThrow(ProjectFileError);
+  });
+});

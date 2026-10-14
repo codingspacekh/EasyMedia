@@ -84,6 +84,11 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(path);
       return path;
     },
+    'media:snapshot': async (project, time, output, options) => {
+      const path = await s.engine.renderFrame(project, time, output, options);
+      s.allow.add(path);
+      return path;
+    },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),
     'job:cancel': async (key) => {

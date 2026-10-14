@@ -12,6 +12,7 @@ import {
   createVideoClip,
 } from '../../../src/core/model/factory.ts';
 import { setItemDuration, setVideoSpeed, trimVideo } from '../../../src/core/model/timeline.ts';
+import type { MainItem } from '../../../src/core/model/types.ts';
 
 const lake = createMediaAsset({
   id: 'lake',
@@ -191,5 +192,60 @@ describe('title slide backgrounds in the preview', () => {
       volume: 0,
       itemId: 't',
     });
+  });
+});
+
+describe('looks in the preview (V7, V8, V9, V15 — approximate)', () => {
+  function withMain(change: (main: MainItem[]) => MainItem[]) {
+    const s = state(ready);
+    const project = s.history.present;
+    return {
+      ...s,
+      history: createHistory({
+        ...project,
+        timeline: { ...project.timeline, main: change(project.timeline.main) },
+      }),
+    };
+  }
+
+  it('shows filters, the fade and the pan & zoom view of the clip at the playhead', () => {
+    const s = withMain(([title, video, image]) => [
+      title!,
+      video!,
+      {
+        ...image!,
+        effects: [{ effectId: 'video.sepia', params: {} }],
+        fade: { in: 2, out: 0, colour: 'white' },
+        panZoom: { from: { zoom: 1, x: 0.5, y: 0.5 }, to: { zoom: 2, x: 0.5, y: 0.5 } },
+      },
+    ]);
+    // the still runs 4–7 s: 1 s in, the fade is half way and the zoom a third of the way
+    const frame = previewAt(s, 5);
+    expect(frame).toMatchObject({
+      kind: 'image',
+      look: { filter: 'sepia(1)', fade: { colour: 'white', amount: 0.5 } },
+    });
+    expect(frame.kind === 'image' && frame.look?.view?.zoom).toBeCloseTo(4 / 3, 10);
+  });
+
+  it('a clip with no look has none', () => {
+    expect(previewAt(state(ready), 5)).not.toHaveProperty('look');
+  });
+
+  it('during a transition the next clip comes in on top, with how far the transition has got', () => {
+    const s = withMain(([title, video, image]) => [
+      title!,
+      video!,
+      { ...image!, transitionIn: { effectId: 'transition.dissolve', duration: 1 } },
+    ]);
+    // the video runs 2–4 s, the still now starts at 3 s
+    const frame = previewAt(s, 3.25);
+    expect(frame).toMatchObject({ kind: 'video', itemId: 'v' });
+    expect(frame.kind === 'video' && frame.incoming).toEqual({
+      frame: { kind: 'image', src: toMediaUrl('/m/photo.jpg'), itemId: 'i' },
+      progress: 0.25,
+      transition: 'Dissolve',
+    });
+    expect(previewAt(s, 2.5)).not.toHaveProperty('incoming');
   });
 });

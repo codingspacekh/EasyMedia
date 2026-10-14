@@ -263,6 +263,9 @@ ExportDialog (quality) ─► MediaEngine.renderVideo(project, output, { project
         2. one FFmpeg input per main-track item    (-ss/-t for video, -loop for stills, color= for titles)
         3. per item: speed → fit (letterbox/crop/stretch) → exact duration; sound or silence
         4. concat all items                        (no audio stream at all if nothing has sound)
+        3b. looks (M7): zoompan (pan & zoom) → registry filters → fade / afade, per item
+        4.  with transitions (M7): items are joined one by one — a cut is concat n=2 (timebase reset
+            with settb for xfade), a transition is xfade + acrossfade at offset = length so far − overlap
         4b. text layers (M6): each caption / subtitle / credits PNG is laid over the joined video
             with overlay … enable='between(t,start,end)', alpha fades and fly-in / scroll expressions;
             a title slide's words are laid over its colour, picture or video background
@@ -307,6 +310,7 @@ interface MediaEngine {
   waveformPeaks(input: string, buckets: number): Promise<number[]>;         // 0–1 peaks
   extractFrame(input: string, time: Seconds, output: string): Promise<void>; // V10, format from extension
   resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;         // V11, numbered copy beside it
+  renderFrame(project, time, output, options): Promise<string>;               // V10 snapshot: the exact exported frame; returns the path written (never overwrites)
   renderVideo(project, output, { projectDir, quality?, textImages? }): JobHandle; // V16
   onJobEvent(listener: (e: JobEvent) => void): () => void;                  // queued/started/progress/done/error/cancelled
 }
@@ -330,6 +334,7 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:proxy` / `media:thumbnails` | invoke | start a job under the page's job key |
 | `media:render` | invoke | start an export job |
 | `media:waveform` / `media:frame` | invoke | peaks / still frame |
+| `media:snapshot` | invoke | V10: one frame of the project through the compiler, saved as PNG/JPG/BMP/TIFF without a dialog (a `Snapshots` folder next to the project, or the app's own folder before the first save); never overwrites; returns the path, which is then allowed for `media://` |
 | `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |

@@ -83,7 +83,7 @@ function setup(
     dialogs,
     files,
     text,
-    paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
+    paths: { proxies: '/cache', recovery: '/cache/recovery.mve', snapshots: '/cache/snapshots' },
   });
   const state = () => app.store.get();
   const project = () => state().history.present;
@@ -141,7 +141,9 @@ describe('M4 app use cases', () => {
           proxyPath: existing,
         }),
       );
-      expect(events.filter((e) => e.type === 'queued')).toHaveLength(0);
+      expect(
+        events.filter((e) => e.type === 'queued' && e.label === 'Preparing preview'),
+      ).toHaveLength(0);
     });
 
     it('explains a file that cannot be read and imports the others', async () => {
@@ -233,6 +235,23 @@ describe('M4 app use cases', () => {
   });
 
   describe('resize & crop a still (V11)', () => {
+    it('makes a thumbnail for a video from its preview copy, and remembers its size and frame rate', async () => {
+      const { state, engine, importFiles } = setup();
+      const thumbs = vi.spyOn(engine, 'makeThumbnails');
+      await importFiles('/m/clip.mp4');
+      await vi.waitFor(() =>
+        expect(state().assets[idOf(state(), '/m/clip.mp4')]!.thumbPath).toBeDefined(),
+      );
+      const status = state().assets[idOf(state(), '/m/clip.mp4')]!;
+      expect(status.thumbPath).toBe(status.proxyPath!.replace(/\.mp4$/, '-thumb.jpg'));
+      expect(thumbs).toHaveBeenCalledWith(status.proxyPath, status.thumbPath, {
+        count: 1,
+        height: 180,
+        duration: 10,
+      });
+      expect(status).toMatchObject({ size: { width: 1920, height: 1080 }, fps: 30 });
+    });
+
     it('remembers the size of an imported picture', async () => {
       const { state, importFiles } = setup();
       await importFiles('/m/photo.jpg');
@@ -261,6 +280,74 @@ describe('M4 app use cases', () => {
       const { app, state } = setup();
       expect(await app.resizeCropImage('nope', 'centre')).toBeNull();
       expect(state().message?.kind).toBe('error');
+    });
+  });
+
+  describe('snapshot (V10)', () => {
+    async function withTwo() {
+      const s = setup();
+      await s.importFiles('/m/clip.mp4', '/m/photo.jpg');
+      s.app.addToTimeline(idOf(s.state(), '/m/clip.mp4')); // 0–10 s
+      s.app.addToTimeline(idOf(s.state(), '/m/photo.jpg')); // 10–15 s
+      return s;
+    }
+
+    it('adds the frame straight to the media — no save dialog — and puts it after that clip', async () => {
+      const { app, engine, project, state } = await withTwo();
+      const render = vi.spyOn(engine, 'renderFrame');
+      const id = await app.snapshot({
+        time: 9.97,
+        hideText: true,
+        addToTimeline: true,
+        duration: 10,
+        format: 'tiff',
+      });
+      // An unsaved project keeps its snapshots in the app's own snapshots folder.
+      expect(render.mock.calls[0]![1]).toBe(9.97);
+      expect(render.mock.calls[0]![2]).toBe('/cache/snapshots/Snapshot_9.97s.tiff');
+      const made = project().media.find((m) => m.id === id)!;
+      expect(made.path).toBe('/cache/snapshots/Snapshot_9.97s.tiff');
+      expect((await engine.probe(made.path)).kind).toBe('image');
+      const main = project().timeline.main;
+      expect(main.map((m) => m.type)).toEqual(['video', 'image', 'image']);
+      expect(main[1]).toMatchObject({ assetId: id, duration: 10 });
+      expect(state().message).toEqual({
+        kind: 'info',
+        text: 'Added Snapshot_9.97s.tiff to the media.',
+      });
+    });
+
+    it('a saved project keeps its snapshots in a Snapshots folder next to it', async () => {
+      const { app, dialogs, project } = await withTwo();
+      dialogs.saveProject.mockResolvedValueOnce('/m/Task_11d.mve');
+      await app.save();
+      const id = await app.snapshot({ time: 2, hideText: true, addToTimeline: false, duration: 5 });
+      expect(project().media.find((m) => m.id === id)!.path).toBe(
+        '/m/Snapshots/Snapshot_2.00s.png',
+      );
+    });
+
+    it('a second snapshot of the same moment never overwrites the first', async () => {
+      const { app, project } = await withTwo();
+      const options = { time: 2, hideText: true, addToTimeline: false, duration: 5 };
+      const first = await app.snapshot(options);
+      const second = await app.snapshot(options);
+      const path = (id: string | null) => project().media.find((m) => m.id === id)!.path;
+      expect([path(first), path(second)]).toEqual([
+        '/cache/snapshots/Snapshot_2.00s.png',
+        '/cache/snapshots/Snapshot_2.00s2.png',
+      ]);
+    });
+
+    it('with text hidden, the frame is made without captions or title words (Book A 11.11)', async () => {
+      const { app, engine } = await withTwo();
+      app.edit(addTextItem(createTextItem('caption', 'Bees', 0, { id: 'cap' })));
+      const render = vi.spyOn(engine, 'renderFrame');
+      await app.snapshot({ time: 2, hideText: true, addToTimeline: false, duration: 5 });
+      expect(render.mock.calls[0]![0].timeline.text).toEqual([]);
+      await app.snapshot({ time: 2, hideText: false, addToTimeline: false, duration: 5 });
+      expect(render.mock.calls[1]![0].timeline.text).toHaveLength(1);
+      expect(render.mock.calls[1]![3].textImages).toHaveProperty('cap');
     });
   });
 

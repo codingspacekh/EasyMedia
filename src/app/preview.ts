@@ -3,25 +3,101 @@
 // drawn on top with the same drawing code as the export, so it sits on the same pixels.
 import { toMediaUrl } from '../core/media-url.ts';
 import type { Seconds } from '../core/model/time.ts';
-import { findMainItemAt } from '../core/model/timeline.ts';
-import type { Id, TextStyle } from '../core/model/types.ts';
+import {
+  findMainItemAt,
+  itemDuration,
+  layoutMain,
+  transitionOverlap,
+} from '../core/model/timeline.ts';
+import type { Id, MainItem, PanZoomFrame, TextStyle } from '../core/model/types.ts';
+import { previewFilter, transitionById } from '../core/effects/registry.ts';
+import { panZoomAt } from '../core/effects/panzoom.ts';
 import { textImageSize, type TextImageMode } from '../core/text/draw.ts';
 import type { Measure } from '../core/text/layout.ts';
 import { textMotion } from '../core/text/motion.ts';
 import type { AppState } from './app.ts';
 
+/** How the clip looks at this moment (approximate preview of the export, ARCHITECTURE §7.3). */
+export interface PreviewLook {
+  /** CSS filter for the clip's filters (V15). */
+  filter: string;
+  /** How far the picture has faded to black or white (V7), 0–1. */
+  fade: { colour: 'black' | 'white'; amount: number } | null;
+  /** Pan & zoom view (V8): zoom and the centre of the view, 0–1. */
+  view: PanZoomFrame | null;
+}
+
+interface Extras {
+  look?: PreviewLook;
+  /** V9: the next clip coming in over this one during a transition. */
+  incoming?: { frame: PreviewFrame; progress: number; transition: string };
+}
+
 export type PreviewFrame =
   | { kind: 'empty' }
-  | { kind: 'video'; src: string; mediaTime: Seconds; rate: number; volume: number; itemId: Id }
-  | { kind: 'waiting'; progress: number; itemId: Id }
-  | { kind: 'image'; src: string; itemId: Id }
-  | { kind: 'colour'; colour: string; itemId: Id };
+  | ({
+      kind: 'video';
+      src: string;
+      mediaTime: Seconds;
+      rate: number;
+      volume: number;
+      itemId: Id;
+    } & Extras)
+  | ({ kind: 'waiting'; progress: number; itemId: Id } & Extras)
+  | ({ kind: 'image'; src: string; itemId: Id } & Extras)
+  | ({ kind: 'colour'; colour: string; itemId: Id } & Extras);
 
 export function previewAt(state: AppState, time: Seconds): PreviewFrame {
-  const project = state.history.present;
-  const hit = findMainItemAt(project.timeline.main, time);
+  const main = state.history.present.timeline.main;
+  const hit = findMainItemAt(main, time);
   if (!hit) return { kind: 'empty' };
-  const item = project.timeline.main[hit.index]!;
+  const frame = frameOf(state, hit.index, hit.offset);
+  // During a transition, the next item is already starting.
+  const next = layoutMain(main)[hit.index + 1];
+  if (frame.kind === 'empty' || !next || time < next.start) return frame;
+  const overlap = transitionOverlap(main, hit.index + 1);
+  if (overlap <= 0) return frame;
+  return {
+    ...frame,
+    incoming: {
+      frame: frameOf(state, hit.index + 1, time - next.start),
+      progress: (time - next.start) / overlap,
+      transition: transitionById(next.item.transitionIn!.effectId)?.label ?? 'Transition',
+    },
+  };
+}
+
+/** The look of an item `offset` seconds in, or undefined when it has none. */
+function lookOf(item: MainItem, offset: Seconds): PreviewLook | undefined {
+  if (!item.effects?.length && !item.fade && !item.panZoom) return undefined;
+  const length = itemDuration(item);
+  let fade: PreviewLook['fade'] = null;
+  if (item.fade) {
+    const { in: fadeIn, out, colour } = item.fade;
+    const amount = Math.max(
+      fadeIn > 0 ? 1 - offset / fadeIn : 0,
+      out > 0 ? 1 - (length - offset) / out : 0,
+      0,
+    );
+    fade = { colour, amount: Math.min(1, amount) };
+  }
+  return {
+    filter: previewFilter(item.effects ?? []),
+    fade,
+    view: item.panZoom ? panZoomAt(item.panZoom, offset, length) : null,
+  };
+}
+
+function frameOf(state: AppState, index: number, offset: Seconds): PreviewFrame {
+  const item = state.history.present.timeline.main[index]!;
+  const frame = baseFrame(state, item, offset);
+  const look = lookOf(item, offset);
+  return look && frame.kind !== 'empty' ? { ...frame, look } : frame;
+}
+
+function baseFrame(state: AppState, item: MainItem, offset: Seconds): PreviewFrame {
+  const project = state.history.present;
+  const hit = { offset };
   if (item.type === 'title') {
     const bg = item.background;
     if (bg.kind === 'colour') return { kind: 'colour', colour: bg.colour, itemId: item.id };

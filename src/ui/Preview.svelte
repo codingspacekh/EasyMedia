@@ -5,6 +5,9 @@
   import { mainTrackDuration } from '../core/model/timeline.ts';
   import { drawText } from '../core/text/draw.ts';
   import { cssFont } from '../core/text/layout.ts';
+  import Icon from './Icon.svelte';
+  import PreviewLayer from './PreviewLayer.svelte';
+  import { ui } from './ui-state.svelte.ts';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
@@ -12,7 +15,6 @@
   const frame = $derived(previewAt($store, $store.playhead));
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
-  let video: HTMLVideoElement | undefined = $state();
   let textCanvas: HTMLCanvasElement | undefined = $state();
   const settings = $derived($store.history.present.settings);
   /** Bumped when a bundled font finishes loading, so the text is drawn again with it. */
@@ -46,18 +48,6 @@
     }
   });
 
-  // Keep the <video> on the right moment of the right clip.
-  $effect(() => {
-    if (!video || frame.kind !== 'video') return;
-    video.playbackRate = frame.rate;
-    video.volume = frame.volume;
-    video.muted = frame.volume === 0;
-    if (!playing || Math.abs(video.currentTime - frame.mediaTime) > 0.3)
-      video.currentTime = frame.mediaTime;
-    if (playing) void video.play().catch(() => {});
-    else video.pause();
-  });
-
   // The playhead moves with real time while playing (approximate preview, ARCHITECTURE §7.3).
   $effect(() => {
     if (!playing) return;
@@ -83,21 +73,44 @@
 </script>
 
 <section class="preview">
+  <div class="top">
+    <span class="label">Preview</span>
+    <span class="spacer"></span>
+    <span
+      class="chip"
+      title="The preview plays small copies so it stays smooth; the export uses the original files."
+      >Proxy · smooth</span
+    >
+    <button
+      class="chip"
+      aria-pressed={ui.safeArea}
+      title="Keep titles and captions inside this frame so no screen cuts them off"
+      onclick={() => (ui.safeArea = !ui.safeArea)}
+      >Safe area {#if ui.safeArea}<Icon name="check" size={14} />{/if}</button
+    >
+  </div>
   <div class="stage">
-    <div class="screen" data-preview={frame.kind}>
-      {#if frame.kind === 'video'}
-        <!-- The student's own clip in a live preview: a captions track does not apply here.
-             The student's captions and subtitles are drawn on the canvas on top. -->
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video bind:this={video} src={frame.src} preload="auto"></video>
-      {:else if frame.kind === 'image'}
-        <img src={frame.src} alt="" />
-      {:else if frame.kind === 'colour'}
-        <div class="fill" style:background={frame.colour}></div>
-      {:else if frame.kind === 'waiting'}
-        <p>Preparing preview… {Math.round(frame.progress * 100)} %</p>
-      {:else}
+    <div
+      class="screen"
+      data-preview={frame.kind}
+      style:width="min(100cqw, 100cqh * {settings.width} / {settings.height}, 960px)"
+      style:aspect-ratio="{settings.width} / {settings.height}"
+    >
+      {#if frame.kind === 'empty'}
         <p>Nothing to show yet.</p>
+      {:else}
+        <PreviewLayer {frame} {playing} />
+        {#if frame.incoming}
+          <!-- V9: the next clip blends in over this one (approximate: every transition dissolves). -->
+          <div
+            class="incoming"
+            role="img"
+            aria-label={frame.incoming.transition}
+            style:opacity={frame.incoming.progress}
+          >
+            <PreviewLayer frame={frame.incoming.frame as typeof frame} {playing} />
+          </div>
+        {/if}
       {/if}
       <canvas
         class="text"
@@ -106,11 +119,29 @@
         height={settings.height}
         aria-hidden="true"
       ></canvas>
+      {#if ui.safeArea}<div class="safe" aria-hidden="true"></div>{/if}
     </div>
   </div>
   <div class="transport">
-    <button onclick={togglePlay} disabled={duration === 0}>{playing ? 'Pause' : 'Play'}</button>
-    <span class="tc">{formatTime($store.playhead)} / {formatTime(duration)}</span>
+    <button
+      class="ghost icon-only"
+      aria-label="Go to the start"
+      disabled={duration === 0}
+      onclick={() => app.setPlayhead(0)}><Icon name="toStart" /></button
+    >
+    <button
+      class="play"
+      aria-label={playing ? 'Pause' : 'Play'}
+      onclick={togglePlay}
+      disabled={duration === 0}><Icon name={playing ? 'pause' : 'play'} size={20} /></button
+    >
+    <button
+      class="ghost icon-only"
+      aria-label="Go to the end"
+      disabled={duration === 0}
+      onclick={() => app.setPlayhead(duration)}><Icon name="toEnd" /></button
+    >
+    <span class="tc">{formatTime($store.playhead)} <small>/ {formatTime(duration)}</small></span>
   </div>
 </section>
 
@@ -134,9 +165,10 @@
     container-type: size;
   }
   .screen {
-    width: min(100cqw, 100cqh * 16 / 9, 960px);
-    aspect-ratio: 16 / 9;
     background: #000;
+    box-shadow:
+      0 0 0 1px #000,
+      0 8px 30px rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -152,22 +184,73 @@
     object-fit: contain;
     pointer-events: none;
   }
-  video,
-  img,
-  .fill {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+  .incoming {
+    position: absolute;
+    inset: 0;
   }
-  .transport {
+  p {
+    position: relative;
+  }
+  .top {
+    height: 38px;
+    flex: none;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
+    gap: 8px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-1);
+  }
+  .label {
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tx-2);
+  }
+  .top .chip {
+    height: 24px;
+  }
+  button.chip[aria-pressed='true'] {
+    color: var(--tx-1);
+    border-color: var(--accent);
+  }
+  .safe {
+    position: absolute;
+    inset: 5%;
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+    pointer-events: none;
+  }
+  .transport {
+    height: 54px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
     border-top: 1px solid var(--line);
     background: var(--bg-1);
   }
+  .play {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    border: 0;
+    background: var(--tx-1);
+    color: #111;
+  }
+  .play:hover:not(:disabled) {
+    background: #fff;
+  }
   .tc {
-    font: 600 14px var(--mono);
+    margin-left: 6px;
+    font: 600 15px var(--mono);
+    letter-spacing: 0.02em;
+  }
+  .tc small {
+    color: var(--tx-3);
+    font-weight: 400;
+    font-size: 13px;
   }
 </style>

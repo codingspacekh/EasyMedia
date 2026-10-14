@@ -45,7 +45,7 @@ export function testApp(
     text: {
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
-    paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
+    paths: { proxies: '/cache', recovery: '/cache/recovery.mve', snapshots: '/cache/snapshots' },
   });
   const importFiles = async (...paths: string[]) => {
     dialogs.openMedia.mockResolvedValueOnce(paths);
