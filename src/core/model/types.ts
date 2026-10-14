@@ -63,6 +63,21 @@ export interface TextStyle {
   italic: boolean;
   align: 'left' | 'centre' | 'right';
   position: TextPosition;
+  /** Readability (V6). */
+  shadow?: boolean;
+  outline?: boolean;
+  /** A dark box behind the text. */
+  box?: boolean;
+}
+
+/** How text arrives on screen (Book B: "an appropriate animation effect"). Lasts 1 s. */
+export type Entrance = 'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down';
+
+/** Fades and entrance shared by title slides and text items (V7 for text). */
+export interface TextEffects {
+  fadeIn?: Seconds;
+  fadeOut?: Seconds;
+  entrance?: Entrance;
 }
 
 export type TitleBackground =
@@ -71,7 +86,7 @@ export type TitleBackground =
   | { kind: 'video'; assetId: Id };
 
 /** A text-based slide on the main track (V4). */
-export interface TitleSlide {
+export interface TitleSlide extends TextEffects {
   type: 'title';
   id: Id;
   text: string;
@@ -83,13 +98,15 @@ export interface TitleSlide {
 export type MainItem = VideoClip | ImageClip | TitleSlide;
 
 /** Captions, subtitles and credits sit on the text track at an absolute time (V4, V5). */
-export interface TextItem {
+export interface TextItem extends TextEffects {
   kind: 'caption' | 'subtitle' | 'credits';
   id: Id;
   text: string;
   start: Seconds;
   duration: Seconds;
   style: TextStyle;
+  /** Credits scroll up from the bottom (V5). */
+  scroll?: boolean;
 }
 
 export interface AudioItem {

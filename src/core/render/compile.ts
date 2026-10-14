@@ -3,7 +3,14 @@
 import { EditError } from '../model/errors.ts';
 import type { Seconds } from '../model/time.ts';
 import { itemDuration, mainTrackDuration } from '../model/timeline.ts';
-import type { MainItem, MediaAsset, Project, ProjectSettings } from '../model/types.ts';
+import type {
+  Entrance,
+  MainItem,
+  MediaAsset,
+  Project,
+  ProjectSettings,
+  TextEffects,
+} from '../model/types.ts';
 import { atempoChain, fitFilter, num } from './filters.ts';
 
 export type Quality = 'high' | 'medium' | 'low';
@@ -14,6 +21,17 @@ export interface RenderOptions {
   /** libx264 (default) or a detected hardware encoder. */
   videoEncoder?: string;
   quality?: Quality;
+  /**
+   * Text drawn by the app's canvas (ARCHITECTURE §7.3), one PNG per title slide with words and
+   * per caption / subtitle / credits item. Full-frame PNGs, except scrolling credits (text block only).
+   */
+  textImages?: Record<string, TextImage>;
+}
+
+export interface TextImage {
+  path: string;
+  width: number;
+  height: number;
 }
 
 export interface RenderPlan {
@@ -48,6 +66,15 @@ export function compileProject(project: Project, options: RenderOptions): Render
   const inputs: string[] = [];
   const filters: string[] = [];
   let inputIndex = 0;
+  const textImage = (id: string): TextImage => {
+    const image = options.textImages?.[id];
+    if (!image) throw new EditError('The text was not prepared for export. Please try again.');
+    return image;
+  };
+  const loopImage = (seconds: string, path: string) => {
+    inputs.push('-loop', '1', '-framerate', String(settings.fps), '-t', seconds, '-i', path);
+    return inputIndex++;
+  };
 
   project.timeline.main.forEach((item, i) => {
     const d = num(itemDuration(item));
@@ -80,20 +107,32 @@ export function compileProject(project: Project, options: RenderOptions): Render
       }
     } else {
       if (item.type === 'image') {
-        const k = inputIndex++;
-        inputs.push(
-          '-loop',
-          '1',
-          '-framerate',
-          String(settings.fps),
-          '-t',
-          d,
-          '-i',
-          options.mediaPath(assetOf(item.assetId)),
-        );
+        const k = loopImage(d, options.mediaPath(assetOf(item.assetId)));
         filters.push(`[${k}:v]${fitFilter(settings)},trim=duration=${d}[v${i}]`);
       } else {
-        filters.push(`${colourFrame(settings, titleColour(item), d)}[v${i}]`);
+        // Title slide: background (colour, picture or video), then its words on top.
+        const words = item.text.trim() !== '';
+        const bgOut = words ? `[bg${i}]` : `[v${i}]`;
+        const bg = item.background;
+        if (bg.kind === 'colour') {
+          filters.push(`${colourFrame(settings, bg.colour, d)}${bgOut}`);
+        } else if (bg.kind === 'image') {
+          const k = loopImage(d, options.mediaPath(assetOf(bg.assetId)));
+          filters.push(`[${k}:v]${fitFilter(settings)},trim=duration=${d}${bgOut}`);
+        } else {
+          const k = inputIndex++;
+          inputs.push('-ss', '0', '-t', d, '-i', options.mediaPath(assetOf(bg.assetId)));
+          filters.push(
+            `[${k}:v]setpts=PTS-STARTPTS,${fitFilter(settings)},tpad=stop_mode=clone:stop_duration=${d},trim=duration=${d}${bgOut}`,
+          );
+        }
+        if (words) {
+          const k = loopImage(d, textImage(item.id).path);
+          filters.push(`[${k}:v]format=rgba${fades(0, itemDuration(item), item)}[t${i}x]`);
+          filters.push(
+            `[bg${i}][t${i}x]overlay=${overlayPosition(item.entrance, 0, settings)}[v${i}]`,
+          );
+        }
       }
       if (hasAudio) filters.push(`${SILENCE},atrim=duration=${d}${audioOut}`);
     }
@@ -103,9 +142,28 @@ export function compileProject(project: Project, options: RenderOptions): Render
   const segments = project.timeline.main
     .map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`)
     .join('');
+  const texts = project.timeline.text;
   filters.push(
-    `${segments}concat=n=${n}:v=1:a=${hasAudio ? 1 : 0}[vout]${hasAudio ? '[aout]' : ''}`,
+    `${segments}concat=n=${n}:v=1:a=${hasAudio ? 1 : 0}${texts.length ? '[vbase]' : '[vout]'}${hasAudio ? '[aout]' : ''}`,
   );
+
+  // Captions, subtitles and credits are laid over the joined video at their own times.
+  texts.forEach((item, j) => {
+    const image = textImage(item.id);
+    const start = item.start;
+    const end = item.start + item.duration;
+    const k = loopImage(num(end), image.path);
+    filters.push(`[${k}:v]format=rgba${fades(start, end, item)}[t${j}]`);
+    const position =
+      item.kind === 'credits' && item.scroll !== false
+        ? `x=(main_w-overlay_w)/2:y='main_h-(t-${num(start)})/${num(item.duration)}*(main_h+overlay_h)'`
+        : overlayPosition(item.entrance, start, settings);
+    const from = j === 0 ? '[vbase]' : `[o${j - 1}]`;
+    const to = j === texts.length - 1 ? '[vout]' : `[o${j}]`;
+    filters.push(
+      `${from}[t${j}]overlay=${position}:enable='between(t,${num(start)},${num(end)})'${to}`,
+    );
+  });
 
   const quality = options.quality ?? 'high';
   return {
@@ -127,23 +185,43 @@ export function compileProject(project: Project, options: RenderOptions): Render
 }
 
 function assertExportable(project: Project): void {
-  const { main, text, audio } = project.timeline;
+  const { main, audio } = project.timeline;
   if (main.length === 0) throw new EditError('Add a clip to the timeline before exporting.');
-  if (text.length > 0) {
-    throw new EditError('Exporting captions, subtitles and credits is not available yet.');
-  }
   if (audio[0].length > 0 || audio[1].length > 0) {
     throw new EditError('Exporting music and voiceover tracks is not available yet.');
   }
-  for (const item of main) {
-    if (item.type === 'title' && (item.text.trim() !== '' || item.background.kind !== 'colour')) {
-      throw new EditError('Exporting title text and title pictures is not available yet.');
-    }
-  }
 }
 
-function titleColour(item: Extract<MainItem, { type: 'title' }>): string {
-  return item.background.kind === 'colour' ? item.background.colour : '#000000';
+/** Fades the transparency of a text layer (V7 for text). */
+function fades(start: Seconds, end: Seconds, effects: TextEffects): string {
+  const fadeIn = effects.fadeIn ?? 0;
+  const fadeOut = effects.fadeOut ?? 0;
+  return (
+    (fadeIn > 0 ? `,fade=t=in:st=${num(start)}:d=${num(fadeIn)}:alpha=1` : '') +
+    (fadeOut > 0 ? `,fade=t=out:st=${num(end - fadeOut)}:d=${num(fadeOut)}:alpha=1` : '')
+  );
+}
+
+/** Where a full-frame text layer sits; an entrance slides it in over the first second. */
+function overlayPosition(
+  entrance: Entrance | undefined,
+  start: Seconds,
+  s: ProjectSettings,
+): string {
+  const t = `t-${num(start)}`;
+  const slide = (from: number) => `'if(lt(${t},1),${from}+(${t})*${-from},0)'`;
+  switch (entrance) {
+    case 'fly-left':
+      return `x=${slide(-s.width)}:y=0`;
+    case 'fly-right':
+      return `x='if(lt(${t},1),${s.width}-(${t})*${s.width},0)':y=0`;
+    case 'fly-up':
+      return `x=0:y='if(lt(${t},1),${s.height}-(${t})*${s.height},0)'`;
+    case 'fly-down':
+      return `x=0:y=${slide(-s.height)}`;
+    default:
+      return 'x=0:y=0';
+  }
 }
 
 function colourFrame(s: ProjectSettings, colour: string, duration: string): string {

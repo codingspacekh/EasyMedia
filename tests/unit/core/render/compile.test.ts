@@ -212,16 +212,10 @@ describe('V1–V3, V12–V14, V16 render compiler', () => {
     it.each([
       ['an empty project', project([]), /add a clip/i],
       [
-        'captions and credits (M6)',
-        project([clip()], { text: [createTextItem('caption', 'Hi', 0)] }),
-        /captions, subtitles and credits/i,
-      ],
-      [
         'music and voiceover tracks (M8)',
         project([clip()], { audio: [[createAudioItem(music, 0)], []] }),
         /music and voiceover/i,
       ],
-      ['title text (M6)', project([createTitleSlide('Hello')]), /title text/i],
       [
         'a clip whose file is not in the project',
         project([createVideoClip({ ...lake, id: 'gone' })]),
