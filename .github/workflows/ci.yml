@@ -40,9 +40,6 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Unit + UI tests with coverage gate
-        run: npm run coverage
-
       - name: Cache bundled FFmpeg
         uses: actions/cache@v4
         with:
@@ -51,11 +48,8 @@ jobs:
       - name: Fetch bundled FFmpeg (checksums verified)
         run: npm run fetch:ffmpeg
 
-      - name: Integration tests (real FFmpeg)
-        run: npm run test:integration
-
-      - name: Acceptance tests (coursebook scenarios)
-        run: npm run test:acceptance
+      - name: All tests (unit, UI, integration with real FFmpeg, acceptance) with coverage gate
+        run: npm run coverage
 
       - name: Production build
         run: npm run build

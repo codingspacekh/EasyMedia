@@ -540,7 +540,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 |---|---|---|---|
 | M0 Foundations & spike | ✅ Done ([gate record](acceptance/M0.md)) — Windows-laptop spike waived, deferred to M4 | 2026-10-14 | `v0.0.0` |
 | M1 Core model & commands | ✅ Done ([gate record](acceptance/M1.md)) | 2026-10-14 | `v0.1.0` |
-| M2 Media engine adapter | ☐ Not started | | |
+| M2 Media engine adapter | 🟡 Built and green locally; awaiting CI and merge ([gate record](acceptance/M2.md)) | | |
 | M3 Render compiler v1 | ☐ Not started | | |
 | M4 Walking skeleton | ☐ Not started | | |
 | M5 Video editing core | ☐ Not started | | |

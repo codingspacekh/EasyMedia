@@ -105,7 +105,10 @@ EasyMedia/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  └─ mock/                fake media, fake jobs (browser + tests)
 │  ├─ workers/                audio.worker.ts
-│  ├─ main/                   Electron main: index.ts, ipc/*, jobs/*, ffmpeg/*, protocol.ts
+│  ├─ main/                   Electron main: index.ts, ipc/*, protocol.ts
+│  │  ├─ ffmpeg/              paths.ts, progress.ts, errors.ts (plain-English), hardware.ts (encoder detection)
+│  │  ├─ jobs/                queue.ts (concurrency, progress, cancel, temp-then-rename)
+│  │  └─ media/               engine.ts (MediaEngine via FFmpeg), probe.ts, jobs.ts (FFmpeg arguments)
 │  └─ preload/                preload.ts (Facade)
 ├─ resources/
 │  ├─ ffmpeg/{win-x64,mac-arm64,mac-x64}/
@@ -283,19 +286,25 @@ Select 4.00–6.00 s ─► Effect ▸ Reverb… ─► dialog generated from sc
 ## 8. Ports and IPC contract
 
 ```ts
-// core/ports.ts
+// core/ports.ts — implemented in M2 by src/main/media/engine.ts (FFmpeg) and src/adapters/mock/media-engine.ts
 interface MediaEngine {
-  probe(path: string): Promise<ProbeInfo>;
-  extractFrame(path: string, t: Seconds, out: string, format: 'png'|'jpg'|'bmp'|'tiff'): Promise<void>; // V10
-  decodeAudio(path: string): Promise<{ sampleRate: number; channels: Float32Array[] }>;
-  encodeAudio(pcm: Float32Array[], opts: AudioExportOptions): Promise<string>;                          // A16, A17
-  runJob(job: JobSpec): JobHandle;           // proxy, thumbnails, waveform, export
+  probe(path: string): Promise<ProbeInfo>;                                   // T1: kind, container, codecs, size…
+  makeProxy(input: string, output: string, duration: Seconds): JobHandle;   // 360 px preview copy
+  makeThumbnails(input, output, { count, height, duration }): JobHandle;    // one strip image
+  waveformPeaks(input: string, buckets: number): Promise<number[]>;         // 0–1 peaks
+  extractFrame(input: string, time: Seconds, output: string): Promise<void>; // V10, format from extension
+  onJobEvent(listener: (e: JobEvent) => void): () => void;                  // queued/started/progress/done/error/cancelled
 }
+interface JobHandle { id: string; done: Promise<void>; cancel(): void }      // done rejects JobCancelledError / MediaError
+
+// Planned for later milestones:
+//   decodeAudio / encodeAudio (M9, A16–A17), export jobs (M3/M8)
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; }
 interface Recorder { start(deviceId?): Promise<void>; stop(): Promise<Float32Array[]>; }  // A14 (uses getUserMedia)
-interface JobEvents { on(jobId, cb: (e: JobProgress | JobDone | JobError) => void): () => void; }
 ```
+
+The real and mock engines both pass one shared **contract test suite** (`tests/contract/media-engine.contract.ts`), so the mock used by UI tests cannot drift from real FFmpeg behaviour.
 
 | IPC channel | Direction | Purpose |
 |---|---|---|

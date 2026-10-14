@@ -14,6 +14,7 @@ describe('test fixture definitions (MILESTONES §3.2)', () => {
         'music_stereo_45s.mp3',
         'tone_dc_offset.wav',
         'voice_noisy.wav',
+        'music_with_cover.mp3',
         'spike_1080p30_60s.mp4',
       ]),
     );

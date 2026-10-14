@@ -104,6 +104,24 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 8, audio: { codec: 'pcm_s16le', channels: 1, sampleRate: 44100 } },
   },
   {
+    // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
+    name: 'music_with_cover.mp3',
+    group: 'test',
+    inputs: [
+      ...tone('0.4*sin(2*PI*262*t)', 5),
+      ...lavfi('testsrc2=size=300x300:rate=1:duration=1'),
+    ],
+    output: [
+      ...['-map', '0:a', '-map', '1:v'],
+      ...['-c:a', 'libmp3lame', '-b:a', '128k', '-c:v', 'mjpeg', '-disposition:v', 'attached_pic'],
+    ],
+    expect: {
+      durationS: 5,
+      video: { codec: 'mjpeg', width: 300, height: 300 },
+      audio: { codec: 'mp3', channels: 1, sampleRate: 44100 },
+    },
+  },
+  {
     // One minute of full-HD video for the M0 performance spike.
     name: 'spike_1080p30_60s.mp4',
     group: 'spike',
