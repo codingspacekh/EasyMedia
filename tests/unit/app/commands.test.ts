@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   addAudioItem,
+  addEffect,
+  removeEffect,
+  setEffectParams,
+  setFade,
+  setPanZoom,
+  setTransition,
   addMainItem,
   addTextItem,
   importMedia,
@@ -30,8 +36,13 @@ import {
   createTitleSlide,
   createVideoClip,
 } from '../../../src/core/model/factory.ts';
-import { itemDuration, setItemDuration } from '../../../src/core/model/timeline.ts';
+import {
+  itemDuration,
+  mainTrackDuration,
+  setItemDuration,
+} from '../../../src/core/model/timeline.ts';
 import type { Project } from '../../../src/core/model/types.ts';
+import { EditError } from '../../../src/core/model/errors.ts';
 import { deepFreeze } from '../../helpers/freeze.ts';
 
 const lake = createMediaAsset({
@@ -78,6 +89,13 @@ describe('P4 every command leaves the original untouched and can be undone exact
     ['setDuration', setDuration('t', 3)],
     ['splitAtTime', splitAtTime(10, ['v1', 'v2'])],
     ['joinWithNext', joinWithNext('v1')],
+    ['setFade', setFade('v', { in: 1, out: 1, colour: 'black' })],
+    ['addEffect', addEffect('v', 'video.sepia')],
+    ['setTransition', setTransition('v', { effectId: 'transition.dissolve', duration: 2 })],
+    [
+      'setPanZoom',
+      setPanZoom('v', { from: { zoom: 1, x: 0.5, y: 0.5 }, to: { zoom: 2, x: 0.5, y: 0.5 } }),
+    ],
     ['moveMainItem', moveMainItem('v', 0)],
     ['moveTimedItem', moveTimedItem('x', 4)],
     ['addTextItem', addTextItem(createTextItem('subtitle', 'Hi', 1, { id: 's' }))],
@@ -333,5 +351,92 @@ describe('commands', () => {
       expect(addMainItem(createTitleSlide('T')).label).toBe('Add title');
       expect(importMedia(lake).label).toBe('Import Lake_Naivasha.mp4');
     });
+  });
+});
+
+describe('V7 fades on clips, pictures and titles', () => {
+  it('fades in from black and out to white, with numeric durations', () => {
+    const p = run(sample(), setFade('v', { in: 1, out: 2, colour: 'white' }));
+    expect(p.timeline.main[1]!.fade).toEqual({ in: 1, out: 2, colour: 'white' });
+  });
+
+  it('removes the fade when both are 0', () => {
+    let p = run(sample(), setFade('t', { in: 1, out: 0, colour: 'black' }));
+    p = run(p, setFade('t', { in: 0, out: 0, colour: 'black' }));
+    expect(p.timeline.main[0]!.fade).toBeUndefined();
+  });
+
+  it('explains fades longer than the clip, or below 0', () => {
+    expect(() => run(sample(), setFade('t', { in: 5, out: 4, colour: 'black' }))).toThrow(
+      /longer than the clip/,
+    );
+    expect(() => run(sample(), setFade('t', { in: -1, out: 0, colour: 'black' }))).toThrow(
+      EditError,
+    );
+  });
+});
+
+describe('V15 filters from the registry', () => {
+  it('adds a filter with its default settings, several per clip, in order', () => {
+    let p = run(sample(), addEffect('v', 'video.cyan'));
+    p = run(p, addEffect('v', 'video.blur'));
+    expect(p.timeline.main[1]!.effects).toEqual([
+      { effectId: 'video.cyan', params: {} },
+      { effectId: 'video.blur', params: { radius: 5 } },
+    ]);
+  });
+
+  it('changes and removes a filter', () => {
+    let p = run(sample(), addEffect('v', 'video.blur'));
+    p = run(p, setEffectParams('v', 0, { radius: 12 }));
+    expect(p.timeline.main[1]!.effects![0]!.params).toEqual({ radius: 12 });
+    p = run(p, removeEffect('v', 0));
+    expect(p.timeline.main[1]!.effects).toBeUndefined();
+  });
+
+  it('explains a setting out of range, and an unknown filter', () => {
+    const p = run(sample(), addEffect('v', 'video.blur'));
+    expect(() => run(p, setEffectParams('v', 0, { radius: 99 }))).toThrow(/between 1 and 30/);
+    expect(() => run(sample(), addEffect('v', 'video.nope'))).toThrow(EditError);
+  });
+});
+
+describe('V9 transitions', () => {
+  it('Book B Task 11g: a 2-second transition into the second clip shortens the video by 2 s', () => {
+    const p = run(sample(), setTransition('v', { effectId: 'transition.dissolve', duration: 2 }));
+    expect(p.timeline.main[1]!.transitionIn).toEqual({
+      effectId: 'transition.dissolve',
+      duration: 2,
+    });
+    expect(mainTrackDuration(p.timeline.main)).toBe(26);
+    expect(run(p, setTransition('v', null)).timeline.main[1]!.transitionIn).toBeUndefined();
+  });
+
+  it('explains: nothing comes before the first clip; too long; unknown transition', () => {
+    const dissolve = (duration: number) => ({ effectId: 'transition.dissolve', duration });
+    expect(() => run(sample(), setTransition('t', dissolve(1)))).toThrow(/first clip/i);
+    expect(() => run(sample(), setTransition('v', dissolve(8)))).toThrow(/shorter than both clips/);
+    expect(() => run(sample(), setTransition('v', dissolve(0.05)))).toThrow(EditError);
+    expect(() => run(sample(), setTransition('v', { effectId: 'nope', duration: 1 }))).toThrow(
+      EditError,
+    );
+  });
+});
+
+describe('V8 pan and zoom', () => {
+  const zoomIn = { from: { zoom: 1, x: 0.5, y: 0.5 }, to: { zoom: 1.5, x: 0.5, y: 0.5 } };
+
+  it('Book A 11.07: zoom in from 5 s into the clip until its end', () => {
+    const p = run(sample(), setPanZoom('v', { ...zoomIn, start: 5 }));
+    expect(p.timeline.main[1]!.panZoom).toEqual({ ...zoomIn, start: 5 });
+    expect(run(p, setPanZoom('v', null)).timeline.main[1]!.panZoom).toBeUndefined();
+  });
+
+  it('explains a zoom below 100 %, a centre outside the picture, or times outside the clip', () => {
+    const bad = (pz: object) => () => run(sample(), setPanZoom('v', { ...zoomIn, ...pz }));
+    expect(bad({ to: { zoom: 0.5, x: 0.5, y: 0.5 } })).toThrow(/zoom/i);
+    expect(bad({ from: { zoom: 1, x: 1.5, y: 0.5 } })).toThrow(EditError);
+    expect(bad({ start: 30 })).toThrow(/inside the clip/);
+    expect(bad({ start: 5, end: 4 })).toThrow(EditError);
   });
 });
