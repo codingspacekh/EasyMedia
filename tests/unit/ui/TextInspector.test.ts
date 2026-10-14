@@ -80,8 +80,8 @@ describe('text inspector (screens 02–04)', () => {
 
   it('V7 fades text in and out and gives it an entrance', async () => {
     const { item } = withCaption();
-    await change('Fade in', '0.5');
-    await change('Fade out', '1');
+    await change('Text fade in', '0.5');
+    await change('Text fade out', '1');
     await change('Entrance', 'fly-left');
     expect(item()).toMatchObject({ fadeIn: 0.5, fadeOut: 1, entrance: 'fly-left' });
   });

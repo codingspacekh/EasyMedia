@@ -139,6 +139,18 @@ describe('looks in the exported video', () => {
     expect(await brightness(file, 2.5)).toBeGreaterThan(230);
   });
 
+  it('V9 a plain cut followed by a transition exports (regression: concat timebase)', async () => {
+    const file = await render(
+      [
+        clip('a', 0, 2),
+        clip('b', 2, 4),
+        { ...clip('c', 4, 6), transitionIn: { effectId: 'transition.dissolve', duration: 1 } },
+      ],
+      'cut-then-dissolve.mp4',
+    );
+    expect(Math.abs((await measure(file)).videoDuration - 5)).toBeLessThanOrEqual(FRAME + 0.001);
+  });
+
   it('V10 a snapshot at 16.66 s (text hidden) is the clip frame itself', async () => {
     const p = createProject({ name: 'snap' });
     const project: Project = {

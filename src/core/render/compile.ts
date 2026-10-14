@@ -177,10 +177,14 @@ export function compileProject(project: Project, options: RenderOptions): Render
           `${video}[v${i}]xfade=transition=${kind.xfade}:duration=${num(overlap)}:offset=${num(length - overlap)}${vNext}`,
         );
         if (hasAudio) filters.push(`${audio}[a${i}]acrossfade=d=${num(overlap)}${aNext}`);
-      } else if (hasAudio) {
-        filters.push(`${video}${audio}[v${i}][a${i}]concat=n=2:v=1:a=1${vNext}${aNext}`);
       } else {
-        filters.push(`${video}[v${i}]concat=n=2:v=1:a=0${vNext}`);
+        // concat gives its output a fine timebase; xfade needs the frame timebase, so set it back.
+        filters.push(
+          hasAudio
+            ? `${video}${audio}[v${i}][a${i}]concat=n=2:v=1:a=1[c${i}]${aNext}`
+            : `${video}[v${i}]concat=n=2:v=1:a=0[c${i}]`,
+        );
+        filters.push(`[c${i}]settb=1/${settings.fps}${vNext}`);
       }
       video = vNext;
       audio = aNext;

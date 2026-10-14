@@ -110,7 +110,7 @@ describe('V9 transitions in the export', () => {
         { ...still('c', 3), transitionIn: { effectId: 'transition.fadeblack', duration: 1 } },
       ]),
     );
-    expect(g).toContain('[v0][v1]concat=n=2:v=1:a=0[x1]');
+    expect(g).toContain('[v0][v1]concat=n=2:v=1:a=0[c1];[c1]settb=1/30[x1]');
     expect(g).toContain('[x1][v2]xfade=transition=fadeblack:duration=1:offset=5[vout]');
   });
 });
