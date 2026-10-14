@@ -171,6 +171,20 @@ Coursebook media stays on the teacher's machine and is used only for the manual 
 
 If a gate fails, fix forward inside the same milestone. Do **not** start the next one.
 
+### 4.3 Branches and merging
+
+| Branch | Purpose |
+|---|---|
+| `dev` | Day-to-day work. Every push runs CI on Windows x64, macOS Apple Silicon and macOS Intel. |
+| `main` | Only code that has passed CI on **all three** platforms. Changes arrive **only** through a pull request from `dev`. |
+
+Rules:
+
+1. Never push directly to `main`.
+2. Open a pull request `dev → main`. Merge only when all three CI jobs on its latest commit are green.
+3. If any job fails, fix it on `dev` (regression test first, R4); the pull request picks up the new run.
+4. While the repository is private on the free plan, GitHub cannot enforce rule 2, so it is followed by process. When the repository becomes public, turn on branch protection for `main` with the three CI jobs as required checks.
+
 ## 5. Milestone overview
 
 ```
