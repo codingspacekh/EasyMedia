@@ -1,9 +1,16 @@
 name: CI
 
+# Runs on every push to dev and main. A pull request from dev to main shows the
+# result of the run for its latest commit, so the tests are not run twice
+# (macOS minutes count 10x on private repositories).
 on:
   push:
     branches: [main, dev]
-  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
