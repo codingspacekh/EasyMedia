@@ -524,7 +524,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 
 | Milestone | Status | Gate passed | Release tag |
 |---|---|---|---|
-| M0 Foundations & spike | ☐ Not started | | |
+| M0 Foundations & spike | 🟡 In progress — built and green locally; awaiting CI on GitHub and the Windows-laptop spike ([gate record](acceptance/M0.md)) | | |
 | M1 Core model & commands | ☐ Not started | | |
 | M2 Media engine adapter | ☐ Not started | | |
 | M3 Render compiler v1 | ☐ Not started | | |

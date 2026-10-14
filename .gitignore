@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+resources/ffmpeg/
+tests/fixtures/media/
+spikes/**/out/
+design/__pycache__/
+*.log
+.DS_Store
+
+# Coursebook PDFs are copyrighted: keep them local only
+*.pdf
