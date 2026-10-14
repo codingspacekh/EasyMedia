@@ -12,7 +12,7 @@ import {
   createVideoClip,
 } from '../../../src/core/model/factory.ts';
 import { setItemDuration, trimVideo } from '../../../src/core/model/timeline.ts';
-import type { MainItem, MediaAsset, Project } from '../../../src/core/model/types.ts';
+import type { MainItem, MediaAsset, Project, TitleSlide } from '../../../src/core/model/types.ts';
 import { createNodeMediaEngine } from '../../../src/main/media/engine.ts';
 import { bundledFfmpeg, run } from '../helpers/ffmpeg.ts';
 import { brightness, measure, tinyFrame } from '../helpers/measure.ts';
@@ -140,6 +140,6 @@ describe('looks in the exported video', () => {
   });
 });
 
-function title(colour: string, id: string): MainItem {
+function title(colour: string, id: string): TitleSlide {
   return { ...createTitleSlide('', { id }), background: { kind: 'colour', colour } };
 }

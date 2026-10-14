@@ -5,6 +5,7 @@
   import { mainTrackDuration } from '../core/model/timeline.ts';
   import { drawText } from '../core/text/draw.ts';
   import { cssFont } from '../core/text/layout.ts';
+  import PreviewLayer from './PreviewLayer.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
@@ -12,7 +13,6 @@
   const frame = $derived(previewAt($store, $store.playhead));
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
-  let video: HTMLVideoElement | undefined = $state();
   let textCanvas: HTMLCanvasElement | undefined = $state();
   const settings = $derived($store.history.present.settings);
   /** Bumped when a bundled font finishes loading, so the text is drawn again with it. */
@@ -46,18 +46,6 @@
     }
   });
 
-  // Keep the <video> on the right moment of the right clip.
-  $effect(() => {
-    if (!video || frame.kind !== 'video') return;
-    video.playbackRate = frame.rate;
-    video.volume = frame.volume;
-    video.muted = frame.volume === 0;
-    if (!playing || Math.abs(video.currentTime - frame.mediaTime) > 0.3)
-      video.currentTime = frame.mediaTime;
-    if (playing) void video.play().catch(() => {});
-    else video.pause();
-  });
-
   // The playhead moves with real time while playing (approximate preview, ARCHITECTURE §7.3).
   $effect(() => {
     if (!playing) return;
@@ -85,19 +73,21 @@
 <section class="preview">
   <div class="stage">
     <div class="screen" data-preview={frame.kind}>
-      {#if frame.kind === 'video'}
-        <!-- The student's own clip in a live preview: a captions track does not apply here.
-             The student's captions and subtitles are drawn on the canvas on top. -->
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video bind:this={video} src={frame.src} preload="auto"></video>
-      {:else if frame.kind === 'image'}
-        <img src={frame.src} alt="" />
-      {:else if frame.kind === 'colour'}
-        <div class="fill" style:background={frame.colour}></div>
-      {:else if frame.kind === 'waiting'}
-        <p>Preparing preview… {Math.round(frame.progress * 100)} %</p>
-      {:else}
+      {#if frame.kind === 'empty'}
         <p>Nothing to show yet.</p>
+      {:else}
+        <PreviewLayer {frame} {playing} />
+        {#if frame.incoming}
+          <!-- V9: the next clip blends in over this one (approximate: every transition dissolves). -->
+          <div
+            class="incoming"
+            role="img"
+            aria-label={frame.incoming.transition}
+            style:opacity={frame.incoming.progress}
+          >
+            <PreviewLayer frame={frame.incoming.frame as typeof frame} {playing} />
+          </div>
+        {/if}
       {/if}
       <canvas
         class="text"
@@ -152,12 +142,12 @@
     object-fit: contain;
     pointer-events: none;
   }
-  video,
-  img,
-  .fill {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+  .incoming {
+    position: absolute;
+    inset: 0;
+  }
+  p {
+    position: relative;
   }
   .transport {
     display: flex;
