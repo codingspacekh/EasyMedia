@@ -19,7 +19,7 @@
     "test:watch": "vitest --project unit --project ui",
     "test:integration": "vitest run --project integration",
     "test:acceptance": "vitest run --project acceptance",
-    "coverage": "vitest run --project unit --project ui --coverage",
+    "coverage": "vitest run --coverage",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.ts",
     "fixtures": "node scripts/make-fixtures.ts",
     "spike": "electron spikes/m0-electron/main.cjs"
