@@ -322,13 +322,14 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
 | `app:paths` | invoke | proxy folder and recovery file |
-| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `confirm` | invoke | native dialogs |
+| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `confirm` / `chooseFolder` | invoke | native dialogs |
 | `project:read` / `project:write` / `project:remove` | invoke | `.mve` files (write = temp file + rename) |
-| `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, undo, redo) |
+| `project:copy` | invoke | Package Project (P2): copies a media file — only files in the allow-list |
+| `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, package, undo, redo) |
 
 Local files reach the page only through the **`media://` protocol** (`src/main/protocol/`): range requests for seeking, and an **allow-list** of files the app probed or created — the page can never read arbitrary files.
 
-Planned for later milestones: `media:decode-audio` / `media:encode-audio` (M9), `project:pack` (M5).
+Planned for later milestones: `media:decode-audio` / `media:encode-audio` (M9).
 
 ## 9. Error handling
 

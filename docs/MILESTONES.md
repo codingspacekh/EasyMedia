@@ -350,7 +350,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 1. Project settings dialog (V1) — screen 11.
 2. Inspector **Clip** tab: Start/End point fields, set-to-playhead, speed buttons (V2, V14) — screen 01.
 3. Timeline: drag to reorder, Split, Join, Delete, trim handles, snapping, zoom.
-4. Clip sound: mute, unlink, delete audio (V13 removal).
+4. Clip sound: mute / remove sound (V13 removal). *Unlink audio moved to M8: it needs the audio tracks M8 adds.*
 5. Image clips and duration (V12).
 6. Package project (P2), missing-media relink (P6).
 
@@ -418,7 +418,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 **Goal:** music and voiceover tracks in Video mode, and every export container and preset — screens 08, 12.
 
 **Build order**
-1. Audio tracks: add at playhead, start offset, trim, volume, fades, lower under voiceover (V13) — screen 08.
+1. Audio tracks: add at playhead, start offset, trim, volume, fades, lower under voiceover (V13) — screen 08. Also **unlink a clip's sound onto an audio track** (moved here from M5).
 2. All containers: MP4, MOV, AVI, WMV, MPG; lossy and genuinely lossless (V16).
 3. Destination presets + **estimated file size** (V17).
 4. Format pros/cons in the export dialog (T7, video).
@@ -545,7 +545,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M2 Media engine adapter | ✅ Done ([gate record](acceptance/M2.md)) | 2026-10-14 | `v0.2.0` |
 | M3 Render compiler v1 | ✅ Done ([gate record](acceptance/M3.md)) | 2026-10-15 | `v0.3.0` |
 | M4 Walking skeleton | ✅ Done ([gate record](acceptance/M4.md)) — Windows-laptop check not done, carried to M5 | 2026-10-14 | `v0.4.0` |
-| M5 Video editing core | ☐ Not started | | |
+| M5 Video editing core | 🟡 Built and green locally; awaiting CI, manual checks and merge ([gate record](acceptance/M5.md)) | | |
 | M6 Text & stills | ☐ Not started | | |
 | M7 Effects & transitions | ☐ Not started | | |
 | M8 Audio-in-video & export | ☐ Not started | | |
