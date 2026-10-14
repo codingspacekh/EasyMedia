@@ -99,17 +99,18 @@ EasyMedia/
 │  │  ├─ audio/               pcm.ts, dsp/*.ts, history.ts (memento)
 │  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
 │  │  └─ ports.ts             interfaces only
-│  ├─ app/                    history.ts, commands.ts, store.ts, usecases/*
+│  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts
 │  ├─ ui/                     Svelte: App.svelte, screens/, components/, dialogs/
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  └─ mock/                fake media, fake jobs (browser + tests)
 │  ├─ workers/                audio.worker.ts
-│  ├─ main/                   Electron main: index.ts, ipc/*, protocol.ts
+│  ├─ main/                   Electron main: index.ts, ipc.ts, menu.ts, services.ts (dialogs, files), perf.ts
+│  │  ├─ protocol/            media:// server: serve.ts, range.ts, allowlist.ts
 │  │  ├─ ffmpeg/              paths.ts, progress.ts, errors.ts (plain-English), hardware.ts (encoder detection)
 │  │  ├─ jobs/                queue.ts (concurrency, progress, cancel, temp-then-rename)
 │  │  └─ media/               engine.ts (MediaEngine via FFmpeg), probe.ts, jobs.ts (FFmpeg arguments)
-│  └─ preload/                preload.ts (Facade)
+│  └─ preload/                index.ts (window.mve Facade), api.ts (typed channels)
 ├─ resources/
 │  ├─ ffmpeg/{win-x64,mac-arm64,mac-x64}/
 │  └─ fonts/                  bundled OFL fonts (X2)
@@ -310,15 +311,24 @@ interface Recorder { start(deviceId?): Promise<void>; stop(): Promise<Float32Arr
 
 The real and mock engines both pass one shared **contract test suite** (`tests/contract/media-engine.contract.ts`), so the mock used by UI tests cannot drift from real FFmpeg behaviour.
 
+IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; page side: `src/adapters/electron/`). Every request returns `{ ok, value }` or `{ ok: false, error: WireError }`; the page rebuilds the right error class (`core/wire.ts`), so students always see the plain-English message.
+
 | IPC channel | Direction | Purpose |
 |---|---|---|
-| `media:probe` | invoke | ffprobe a file |
-| `media:frame` | invoke | extract still |
-| `media:decode-audio` / `media:encode-audio` | invoke | PCM in/out (transferred as `ArrayBuffer`) |
-| `job:start` / `job:cancel` | invoke | queue / cancel FFmpeg jobs |
-| `job:event` | main → renderer | progress, done, error |
-| `project:open` / `project:save` / `project:pack` | invoke | file I/O |
-| `dialog:open` / `dialog:save` | invoke | native dialogs |
+| `media:probe` | invoke | ffprobe a file; the path is then allowed for `media://` |
+| `media:proxy` / `media:thumbnails` | invoke | start a job under the page's job key |
+| `media:render` | invoke | start an export job |
+| `media:waveform` / `media:frame` | invoke | peaks / still frame |
+| `job:cancel` | invoke | cancel a job by key |
+| `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
+| `app:paths` | invoke | proxy folder and recovery file |
+| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `confirm` | invoke | native dialogs |
+| `project:read` / `project:write` / `project:remove` | invoke | `.mve` files (write = temp file + rename) |
+| `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, undo, redo) |
+
+Local files reach the page only through the **`media://` protocol** (`src/main/protocol/`): range requests for seeking, and an **allow-list** of files the app probed or created — the page can never read arbitrary files.
+
+Planned for later milestones: `media:decode-audio` / `media:encode-audio` (M9), `project:pack` (M5).
 
 ## 9. Error handling
 
