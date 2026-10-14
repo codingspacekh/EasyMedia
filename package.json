@@ -1,0 +1,47 @@
+{
+  "name": "mini-video-editor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Lightweight video and audio editor for Cambridge AS & A Level IT (9626) Chapter 11",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --project unit --project ui",
+    "test:watch": "vitest --project unit --project ui",
+    "test:integration": "vitest run --project integration",
+    "coverage": "vitest run --project unit --project ui --coverage",
+    "fetch:ffmpeg": "node scripts/fetch-ffmpeg.ts",
+    "fixtures": "node scripts/make-fixtures.ts",
+    "spike": "electron spikes/m0-electron/main.cjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@testing-library/svelte": "5.4.2",
+    "@types/node": "24.19.0",
+    "@vitest/coverage-v8": "5.0.2",
+    "electron": "44.5.0",
+    "eslint": "10.11.0",
+    "eslint-plugin-svelte": "3.23.0",
+    "globals": "17.12.0",
+    "jsdom": "30.1.1",
+    "prettier": "3.9.9",
+    "prettier-plugin-svelte": "4.1.1",
+    "svelte": "5.57.1",
+    "svelte-check": "4.7.6",
+    "svelte-eslint-parser": "1.8.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

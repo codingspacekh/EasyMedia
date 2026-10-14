@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; media-src file:; style-src 'self' 'unsafe-inline'"
+    />
+    <title>M0 spike</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #101216;
+        color: #eceef2;
+        font:
+          13px/1.5 -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      button {
+        margin-right: 6px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #3a414e;
+        background: #1e222a;
+        color: inherit;
+      }
+      video {
+        display: block;
+        width: 640px;
+        height: 360px;
+        background: #000;
+        margin: 14px 0;
+      }
+      #ram {
+        font:
+          600 14px ui-monospace,
+          monospace;
+        color: #3ccf8e;
+      }
+      pre {
+        background: #171a20;
+        padding: 10px;
+        border-radius: 6px;
+        max-height: 240px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>M0 performance spike</h2>
+    <button id="import">Import…</button>
+    <button id="export" disabled>Export 1080p (libx264)</button>
+    <span id="ram">RAM –</span>
+    <video id="video" controls muted></video>
+    <div id="status">Idle</div>
+    <pre id="log"></pre>
+    <script src="renderer.js"></script>
+  </body>
+</html>

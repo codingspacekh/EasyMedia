@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+resources
+design
+docs
+spikes/**/out
+package-lock.json
+*.md
+*.pdf
