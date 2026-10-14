@@ -96,6 +96,9 @@ EasyMedia/
 │  │  │  ├─ transitions/      dissolve.ts, wipe.ts …
 │  │  │  └─ audio/            normalise.ts, compressor.ts, echo.ts, reverb.ts, eq.ts, noise.ts …
 │  │  ├─ render/              compile.ts (project → RenderPlan → ffmpeg args), presets.ts
+│  │  ├─ text/                layout.ts (wrap, place, contrast), draw.ts (one drawing for preview + export),
+│  │  │                       motion.ts (fades, fly-ins, credits scroll), fonts.ts
+│  │  ├─ image/               crop.ts (V11 resize with constrained proportions + 9-point crop)
 │  │  ├─ audio/               pcm.ts, dsp/*.ts, history.ts (memento)
 │  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
 │  │  └─ ports.ts             interfaces only
@@ -103,6 +106,7 @@ EasyMedia/
 │  ├─ ui/                     Svelte: App.svelte, screens/, components/, dialogs/
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
+│  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts)
 │  │  └─ mock/                fake media, fake jobs (browser + tests)
 │  ├─ workers/                audio.worker.ts
 │  ├─ main/                   Electron main: index.ts, ipc.ts, menu.ts, services.ts (dialogs, files), perf.ts
@@ -246,18 +250,22 @@ Ctrl/⌘+Z ─► undo(history) → the previous (immutable) project is restored
 
 - Plays **proxy** files in at most two `<video>` elements (current + next, for transitions).
 - Effects use their `preview` hint: CSS `filter` (brightness, contrast, saturate, grayscale, sepia, blur), CSS `opacity` for fades and dissolves, CSS `transform` for pan/zoom.
-- Text items are canvas-rendered PNGs layered on top (same images used in export, so fonts match).
+- Text items are drawn on a canvas layered on top, with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). Fades, fly-ins and the credits scroll follow `core/text/motion.ts`, the same rules the export writes as FFmpeg expressions.
 - **"Render preview of selection"** runs the real compiler on a short range for a frame-exact check.
 
 ### 7.4 Export
 
 ```
-ExportDialog (quality) ─► MediaEngine.renderVideo(project, output, { projectDir, quality })
+app.exportVideo ─► TextRenderer draws each text as a PNG (project:saveImage → app's own folder)
+ExportDialog (quality) ─► MediaEngine.renderVideo(project, output, { projectDir, quality, textImages })
    ─► compileProject(project, options)            core/render/compile.ts — pure
         1. refuse what cannot be exported yet     (EditError, shown to the student)
         2. one FFmpeg input per main-track item    (-ss/-t for video, -loop for stills, color= for titles)
         3. per item: speed → fit (letterbox/crop/stretch) → exact duration; sound or silence
         4. concat all items                        (no audio stream at all if nothing has sound)
+        4b. text layers (M6): each caption / subtitle / credits PNG is laid over the joined video
+            with overlay … enable='between(t,start,end)', alpha fades and fly-in / scroll expressions;
+            a title slide's words are laid over its colour, picture or video background
         5. encoder options                         (libx264 crf, or bit rate for hardware encoders)
    ─► JobQueue.run(args) ─► progress events (parsed from ffmpeg -progress)
    ─► temp file renamed to the output on success
@@ -298,9 +306,12 @@ interface MediaEngine {
   makeThumbnails(input, output, { count, height, duration }): JobHandle;    // one strip image
   waveformPeaks(input: string, buckets: number): Promise<number[]>;         // 0–1 peaks
   extractFrame(input: string, time: Seconds, output: string): Promise<void>; // V10, format from extension
+  resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;         // V11, numbered copy beside it
+  renderVideo(project, output, { projectDir, quality?, textImages? }): JobHandle; // V16
   onJobEvent(listener: (e: JobEvent) => void): () => void;                  // queued/started/progress/done/error/cancelled
 }
 interface JobHandle { id: string; done: Promise<void>; cancel(): void }      // done rejects JobCancelledError / MediaError
+interface TextRenderer { draw(text, style, frame, mode: 'frame' | 'block'): Promise<{ png, width, height }> } // §7.3
 
 // Planned for later milestones:
 //   decodeAudio / encodeAudio (M9, A16–A17), export jobs (M3/M8)
@@ -319,12 +330,14 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:proxy` / `media:thumbnails` | invoke | start a job under the page's job key |
 | `media:render` | invoke | start an export job |
 | `media:waveform` / `media:frame` | invoke | peaks / still frame |
+| `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
 | `app:paths` | invoke | proxy folder and recovery file |
 | `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `confirm` / `chooseFolder` | invoke | native dialogs |
 | `project:read` / `project:write` / `project:remove` | invoke | `.mve` files (write = temp file + rename) |
 | `project:copy` | invoke | Package Project (P2): copies a media file — only files in the allow-list |
+| `project:saveImage` | invoke | a text PNG by plain name into the app's own `text` folder (never the student's folders) |
 | `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, package, undo, redo) |
 
 Local files reach the page only through the **`media://` protocol** (`src/main/protocol/`): range requests for seeking, and an **allow-list** of files the app probed or created — the page can never read arbitrary files.

@@ -132,3 +132,23 @@ export async function grayFrame(file: string, time: number) {
     },
   };
 }
+
+/** How many full-size pixels of the frame at `time` match `test(r, g, b)`. */
+export async function countPixels(
+  file: string,
+  time: number,
+  test: (r: number, g: number, b: number) => boolean,
+): Promise<number> {
+  const { stdout } = await execBuffer(
+    bundledFfmpeg().ffmpeg,
+    [
+      ...['-v', 'error', '-ss', String(time), '-i', file, '-frames:v', '1'],
+      ...['-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1'],
+    ],
+    { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 },
+  );
+  let n = 0;
+  for (let i = 0; i + 2 < stdout.length; i += 3)
+    if (test(stdout[i]!, stdout[i + 1]!, stdout[i + 2]!)) n++;
+  return n;
+}

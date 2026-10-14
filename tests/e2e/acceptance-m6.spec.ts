@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { grayFrame, measure, tinyFrame } from '../integration/helpers/measure.ts';
+import { countPixels, grayFrame, measure } from '../integration/helpers/measure.ts';
 import { answerDialogs, launchApp } from './app.ts';
 
 const FRAME = 1 / 30;
@@ -185,9 +185,10 @@ test('Book A 11.10: two texts with a smooth change between them, then a yellow 5
   expect(await changed(6)).toBeGreaterThan(3000); // second text
   expect(await changed(15)).toBeLessThan(200); // no text after 10 s
   // The end slide: yellow words on black.
-  const yellow = await tinyFrame(output, 22.5);
-  const cells = Array.from({ length: 16 * 9 }, (_, i) => yellow.at(i % 16, Math.floor(i / 16)));
-  expect(cells.some(([r, g, b]) => r > 60 && g > 60 && b < r / 2)).toBe(true);
+  // The end slide: yellow words on black (counted at full size; thin text vanishes when shrunk).
+  const yellow = (r: number, g: number, b: number) => r > 180 && g > 180 && b < 90;
+  expect(await countPixels(output, 22.5, yellow)).toBeGreaterThan(2000);
+  expect(await countPixels(join(dir, LAKE), 2.5, yellow)).toBeLessThan(200);
   await app.close();
 });
 
