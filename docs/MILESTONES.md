@@ -545,7 +545,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M2 Media engine adapter | ✅ Done ([gate record](acceptance/M2.md)) | 2026-10-14 | `v0.2.0` |
 | M3 Render compiler v1 | ✅ Done ([gate record](acceptance/M3.md)) | 2026-10-15 | `v0.3.0` |
 | M4 Walking skeleton | ✅ Done ([gate record](acceptance/M4.md)) — Windows-laptop check not done, carried to M5 | 2026-10-14 | `v0.4.0` |
-| M5 Video editing core | 🟡 Built and green locally; awaiting CI, manual checks and merge ([gate record](acceptance/M5.md)) | | |
+| M5 Video editing core | ✅ Done ([gate record](acceptance/M5.md)) — Windows-laptop check skipped, left to M12 | 2026-10-14 | `v0.5.0` |
 | M6 Text & stills | ☐ Not started | | |
 | M7 Effects & transitions | ☐ Not started | | |
 | M8 Audio-in-video & export | ☐ Not started | | |
