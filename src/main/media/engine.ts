@@ -25,7 +25,7 @@ export function createNodeMediaEngine(
     run,
     videoEncoder = 'libx264',
   }: { concurrency?: number; run?: RunProcess; videoEncoder?: string } = {},
-): MediaEngine {
+): MediaEngine & { cancelAll(): void } {
   const queue = createJobQueue({ ffmpeg: binaries.ffmpeg, concurrency, ...(run ? { run } : {}) });
 
   async function probe(path: string): Promise<ProbeInfo> {
@@ -119,6 +119,9 @@ export function createNodeMediaEngine(
     },
 
     onJobEvent: (listener) => queue.onEvent(listener),
+
+    /** Stops every FFmpeg job, e.g. when the app quits, so nothing keeps running afterwards. */
+    cancelAll: () => queue.cancelAll(),
   };
 }
 

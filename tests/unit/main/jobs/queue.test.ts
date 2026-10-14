@@ -154,6 +154,18 @@ describe('N12 background job queue', () => {
     expect(events.at(-1)).toBe('done');
   });
 
+  it('cancelAll stops the running job and drops waiting ones (the app is quitting)', async () => {
+    const { queue, runs, calls } = setup();
+    const first = queue.run({ label: 'Preparing preview', args: ['-i', 'a.mp4'], output: out });
+    const second = queue.run({ label: 'Thumbnails', args: ['-i', 'b.mp4'], output: '/out/b.jpg' });
+    await tick();
+    queue.cancelAll();
+    await expect(first.done).rejects.toThrow(JobCancelledError);
+    await expect(second.done).rejects.toThrow(JobCancelledError);
+    expect(runs.map((r) => r.killed)).toEqual([true]); // the second never started
+    expect(calls.some((c) => c.startsWith('rename'))).toBe(false);
+  });
+
   it('listeners can stop listening', async () => {
     const { queue } = setup();
     const seen: string[] = [];

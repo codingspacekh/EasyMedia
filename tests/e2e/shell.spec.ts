@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { launchApp } from './app.ts';
+import { execSync } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
+import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
+import { answerDialogs, launchApp } from './app.ts';
 
 test.describe('M4 app shell', () => {
   test('opens the EasyMedia window', async () => {
@@ -76,4 +82,31 @@ test('at the smallest window size (1100 × 700) nothing covers the toolbar and t
   expect(screen.y).toBeGreaterThanOrEqual(stage.y - 1);
   expect(screen.y + screen.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
   await app.close();
+});
+
+test('quitting while previews are being made stops FFmpeg and closes at once (regression)', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mve-quit-'));
+  const names = ['clip_1080p30_10s.mp4', 'lake_1080p30_20s.mp4'];
+  await generateFixtures(
+    bundledFfmpeg().ffmpeg,
+    dir,
+    selectFixtures(FIXTURES, 'test').filter((f) => names.includes(f.name)),
+  );
+  const { app, window: page } = await launchApp();
+  await answerDialogs(app, { open: names.map((n) => join(dir, n)) });
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByText(names[1]!, { exact: true })).toBeVisible();
+  const pid = app.process().pid!;
+  // Quit at once, while the preview copies and thumbnails are still being made.
+  const closed = await Promise.race([
+    app.close().then(() => true),
+    new Promise<boolean>((r) => setTimeout(() => r(false), 15_000)),
+  ]);
+  expect(closed, 'the app closed within 15 s').toBe(true);
+  expect(() => process.kill(pid, 0), 'the app process is gone').toThrow();
+  if (process.platform !== 'win32') {
+    const left = execSync(`pgrep -f "ffmpeg.*${dir}" || true`).toString().trim();
+    expect(left, 'no FFmpeg left running').toBe('');
+  }
+  await rm(dir, { recursive: true, force: true });
 });

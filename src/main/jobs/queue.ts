@@ -82,6 +82,8 @@ export function createJobQueue({
 }) {
   const listeners = new Set<(event: JobEvent) => void>();
   const waiting: Job[] = [];
+  /** Jobs that have started and not finished (so they can all be stopped when the app quits). */
+  const active = new Set<Job>();
   let running = 0;
   let nextId = 1;
 
@@ -95,6 +97,7 @@ export function createJobQueue({
   async function start(job: Job): Promise<void> {
     running++;
     job.state = 'running';
+    active.add(job);
     emit({ type: 'started', ...base(job) });
     const temp = tempPathFor(job.spec.output, job.id);
     let last = 0;
@@ -128,6 +131,7 @@ export function createJobQueue({
     } finally {
       job.state = 'finished';
       running--;
+      active.delete(job);
       pump();
     }
   }
@@ -162,6 +166,11 @@ export function createJobQueue({
       emit({ type: 'queued', ...base(job) });
       pump();
       return { id: job.id, done, cancel: () => cancel(job) };
+    },
+    /** Stops everything: waiting jobs never start, running FFmpeg processes are killed. */
+    cancelAll(): void {
+      for (const job of [...waiting]) cancel(job);
+      for (const job of [...active]) cancel(job);
     },
     onEvent(listener: (event: JobEvent) => void): () => void {
       listeners.add(listener);
