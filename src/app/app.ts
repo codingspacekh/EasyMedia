@@ -45,8 +45,12 @@ export interface AssetStatus {
   progress: number;
   /** Small preview copy of a video, once made. */
   proxyPath?: string;
-  /** Pixel size of a picture, from the probe (V11 needs it). */
+  /** Pixel size of a picture or video, from the probe (V11 and the media bin use it). */
   size?: { width: number; height: number };
+  /** Frames per second of a video. */
+  fps?: number;
+  /** One small frame of a video, for the media bin and the timeline. */
+  thumbPath?: string;
   message?: string;
 }
 
@@ -147,9 +151,13 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         return;
       }
     }
+    const size = info.video && { width: info.video.width, height: info.video.height };
+    const facts = {
+      ...(size ? { size } : {}),
+      ...(info.video?.fps ? { fps: info.video.fps } : {}),
+    };
     if (asset.kind !== 'video') {
-      const size = info.video && { width: info.video.width, height: info.video.height };
-      setAsset(asset.id, { state: 'ready', progress: 1, ...(size ? { size } : {}) });
+      setAsset(asset.id, { state: 'ready', progress: 1, ...facts });
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
@@ -168,7 +176,26 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         proxyJobs.delete(job.id);
       }
     }
-    setAsset(asset.id, { state: 'ready', progress: 1, proxyPath });
+    setAsset(asset.id, { state: 'ready', progress: 1, proxyPath, ...facts });
+    // A thumbnail from the small preview copy (fast); made once and reused.
+    const thumbPath = proxyPath.replace(/\.mp4$/, '-thumb.jpg');
+    try {
+      await engine.probe(thumbPath);
+    } catch {
+      try {
+        await engine.makeThumbnails(proxyPath, thumbPath, {
+          count: 1,
+          height: 180,
+          duration: asset.duration ?? 0,
+        }).done;
+      } catch {
+        return; // no thumbnail is not a problem: the bin shows the name
+      }
+    }
+    store.update((s) => {
+      const current = s.assets[asset.id];
+      return current ? { ...s, assets: { ...s.assets, [asset.id]: { ...current, thumbPath } } } : s;
+    });
   }
 
   function load(project: Project, projectPath: string | null, saved: Project = project): void {

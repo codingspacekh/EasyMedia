@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
 import { brightness, grayFrame, measure, tinyFrame } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp } from './app.ts';
+import { answerDialogs, launchApp, openTab } from './app.ts';
 
 const FRAME = 1 / 30;
 const BEE = 'clip_1080p30_10s.mp4'; // a detailed moving test pattern with sound (BeeFly, balloon…)
@@ -32,7 +32,11 @@ async function importAndAdd(page: Page, files: string[]) {
   }
 }
 const item = (page: Page, n: number) => page.locator('[data-item]').nth(n);
+const CLIP_FIELDS = ['Start point', 'End point'];
+const EFFECT_FIELDS = ['Fade in', 'Fade out', 'Starts at (in the clip)', 'Ends at (in the clip)'];
 async function setTime(page: Page, label: string, value: string) {
+  if (CLIP_FIELDS.includes(label)) await openTab(page, 'Clip');
+  if (EFFECT_FIELDS.includes(label)) await openTab(page, 'Effects');
   const box = page.getByLabel(label, { exact: true });
   await box.fill(value);
   await box.press('Enter');
@@ -82,6 +86,7 @@ test('Book A 11.06 + 11.09: fades between clips and a dissolve between two parts
   await item(page, 2).click();
   await setTime(page, 'Start point', '5');
   await setTime(page, 'End point', '10');
+  await openTab(page, 'Effects');
   await page.getByLabel('Transition', { exact: true }).selectOption('transition.dissolve');
   await expect(item(page, 2)).toContainText('⇄ 1.0 s');
   await exportTo(page, output);
@@ -102,6 +107,7 @@ test('Book A 11.07: an 8 s clip zooms in from 5 s to its end', async () => {
   await importAndAdd(page, [BEE]);
   await item(page, 0).click();
   await setTime(page, 'End point', '8');
+  await openTab(page, 'Effects');
   await page.getByLabel('Pan and zoom', { exact: true }).selectOption('zoom-in');
   await setTime(page, 'Starts at (in the clip)', '5');
   await exportTo(page, output);
@@ -136,6 +142,7 @@ test('Book A 11.11 + 11.12: a TIFF still without text at the end, with a box blu
   expect(await difference([still, 0], [join(dir, BEE), 0])).toBeLessThan(4);
 
   await item(page, 1).click();
+  await openTab(page, 'Effects');
   await page.getByRole('button', { name: 'Add Box blur' }).click();
   await answerDialogs(app, { exportTo: output });
   await exportTo(page, output);
@@ -154,6 +161,7 @@ test('Book B Task 11g: a 2-second transition between Naivasha1 (4.2 s) and Naiva
   await item(page, 1).click();
   await setTime(page, 'Start point', '8');
   await setTime(page, 'End point', '12.5');
+  await openTab(page, 'Effects');
   await page.getByLabel('Transition', { exact: true }).selectOption('transition.dissolve');
   await page.getByRole('button', { name: '2 s', exact: true }).click();
   await expect(page.getByText('00:00.00 / 00:06.70').first()).toBeVisible();
@@ -173,6 +181,7 @@ test('Book B Tasks 11h + 11i: zoom in right, a zoomed snapshot, a cold cyan tone
   await importAndAdd(page, [BEE]);
   // 11h: pan & zoom removes the left edge.
   await item(page, 0).click();
+  await openTab(page, 'Effects');
   await page.getByLabel('Pan and zoom', { exact: true }).selectOption('zoom-in-right');
   // 11h: a snapshot of the final frame, zoomed in.
   await app.evaluate(({ dialog }, path) => {
@@ -186,9 +195,11 @@ test('Book B Tasks 11h + 11i: zoom in right, a zoomed snapshot, a cold cyan tone
   await snap.getByRole('button', { name: 'Save snapshot' }).click();
   await expect(page.locator('.bin').getByText('balloon_end.png', { exact: true })).toBeVisible();
   await item(page, 1).click();
+  await openTab(page, 'Effects');
   await page.getByLabel('Pan and zoom', { exact: true }).selectOption('zoom-in');
   // 11i: the savannah looks cold; the frames fade to black before the credits.
   await item(page, 0).click();
+  await openTab(page, 'Effects');
   await page.getByRole('button', { name: 'Add Cyan tone' }).click();
   await item(page, 1).click();
   await setTime(page, 'Fade out', '1');

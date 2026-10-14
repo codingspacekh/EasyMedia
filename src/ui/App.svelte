@@ -4,6 +4,8 @@
   import Inspector from './Inspector.svelte';
   import MediaBin from './MediaBin.svelte';
   import Preview from './Preview.svelte';
+  import Icon from './Icon.svelte';
+  import { ui } from './ui-state.svelte.ts';
   import ProjectSettings from './ProjectSettings.svelte';
   import SnapshotDialog from './SnapshotDialog.svelte';
   import StatusBar from './StatusBar.svelte';
@@ -24,32 +26,87 @@
 
 <div class="app">
   <header class="toolbar">
-    <h1>EasyMedia</h1>
-    <nav aria-label="Mode">
+    <h1 class="visually-hidden">EasyMedia</h1>
+    <nav class="seg" aria-label="Mode">
       {#each modes as m (m)}
-        <button type="button" aria-pressed={mode === m} onclick={() => (mode = m)}>{m}</button>
+        <button type="button" aria-pressed={mode === m} onclick={() => (mode = m)}>
+          <Icon name={m === 'Video' ? 'video' : m === 'Audio' ? 'audio' : 'learn'} />
+          {m}
+        </button>
       {/each}
     </nav>
-    <button onclick={() => app.importMedia()}>Import</button>
-    <button disabled={!canUndo($store.history)} onclick={() => app.undo()}>Undo</button>
-    <button disabled={!canRedo($store.history)} onclick={() => app.redo()}>Redo</button>
-    <button onclick={() => app.save()}>Save</button>
-    <button
-      disabled={$store.history.present.timeline.main.length === 0}
-      onclick={() => (snapshotOpen = true)}>Snapshot</button
-    >
+    <span class="vsep"></span>
+    <div class="tools">
+      <button class="tool" onclick={() => app.importMedia()}><Icon name="import" />Import</button>
+      <button
+        class="tool"
+        aria-label="Add title"
+        onclick={() => {
+          app.addTitle();
+          ui.inspectorTab = 'text'; // a new title opens where its words are typed
+        }}
+      >
+        <Icon name="title" />Title
+      </button>
+      <button class="tool" aria-label="Add caption" onclick={() => app.addText('caption')}>
+        <Icon name="caption" />Caption
+      </button>
+      <button class="tool" aria-label="Add subtitle" onclick={() => app.addText('subtitle')}>
+        <Icon name="subtitle" />Subtitle
+      </button>
+      <button class="tool" aria-label="Add credits" onclick={() => app.addText('credits')}>
+        <Icon name="credits" />Credits
+      </button>
+      <button
+        class="tool"
+        disabled={$store.history.present.timeline.main.length === 0}
+        onclick={() => (snapshotOpen = true)}><Icon name="snapshot" />Snapshot</button
+      >
+      <button class="tool" disabled title="Music and voiceover tracks arrive in the next version">
+        <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
+      </button>
+    </div>
     <span class="spacer"></span>
-    <button class="chip" onclick={() => (settingsOpen = true)}>
-      {settings.aspect === 'custom' ? 'Custom' : settings.aspect} · {settings.width} × {settings.height}
-      ·
-      {settings.fps} fps
+    <button
+      class="chip"
+      aria-label="Project settings: {settings.aspect === 'custom'
+        ? 'Custom'
+        : settings.aspect} · {settings.width} × {settings.height} · {settings.fps} fps"
+      onclick={() => (settingsOpen = true)}
+    >
+      <Icon name="screen" size={14} />
+      <b>{settings.aspect === 'custom' ? 'Custom' : settings.aspect}</b>
+      <span class="detail">· {settings.width} × {settings.height} · {settings.fps} fps</span>
+      <Icon name="chevron" size={14} />
     </button>
+    <button
+      class="ghost icon-only"
+      aria-label="Save"
+      title="Save (Ctrl/Cmd + S)"
+      onclick={() => app.save()}
+    >
+      <Icon name="save" />
+    </button>
+    <button
+      class="ghost icon-only"
+      aria-label="Undo"
+      title="Undo"
+      disabled={!canUndo($store.history)}
+      onclick={() => app.undo()}><Icon name="undo" /></button
+    >
+    <button
+      class="ghost icon-only"
+      aria-label="Redo"
+      title="Redo"
+      disabled={!canRedo($store.history)}
+      onclick={() => app.redo()}><Icon name="redo" /></button
+    >
     <button
       class="primary"
       disabled={$store.exporting.state === 'running'}
       onclick={() => app.exportVideo()}
     >
-      Export
+      <Icon name="export" /> Export
     </button>
   </header>
   {#if mode === 'Video'}
@@ -75,42 +132,70 @@
     flex-direction: column;
     height: 100vh;
   }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .toolbar {
+    height: 56px;
+    flex: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 10px;
+    padding: 0 12px;
     background: var(--bg-1);
     border-bottom: 1px solid var(--line);
   }
-  h1 {
-    font-size: 15px;
-    margin: 0 8px 0 0;
+  .seg > button {
+    gap: 6px;
   }
-  nav {
-    display: inline-flex;
+  .tools {
+    display: flex;
     gap: 2px;
-    padding: 3px;
-    margin-right: 8px;
-    border-radius: 8px;
-    background: var(--bg-0);
   }
-  nav button {
+  .tool {
+    flex-direction: column;
+    gap: 2px;
+    width: 62px;
+    height: 44px;
+    padding: 0;
     border: 0;
     background: transparent;
     color: var(--tx-2);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
   }
-  nav button[aria-pressed='true'] {
+  .tool .short {
+    display: none;
+  }
+  .tool:hover:not(:disabled) {
     background: var(--bg-3);
     color: var(--tx-1);
   }
-  .spacer {
-    flex: 1;
-  }
   .chip {
-    border-radius: 999px;
-    color: var(--tx-2);
-    font-size: 12px;
+    cursor: pointer;
+  }
+  /* Smaller windows (down to 1100 px): narrower tools, shorter project chip. */
+  @media (max-width: 1300px) {
+    .tool {
+      width: 50px;
+      font-size: 10px;
+    }
+    .chip .detail,
+    .tool .long {
+      display: none;
+    }
+    .tool .short {
+      display: inline;
+    }
+    .toolbar {
+      gap: 6px;
+    }
   }
   .workspace {
     flex: 1;

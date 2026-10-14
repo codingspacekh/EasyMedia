@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import Inspector from '../../../src/ui/Inspector.svelte';
+import App from '../../../src/ui/App.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -125,9 +126,9 @@ describe('title slide inspector (screen 03)', () => {
 });
 
 describe('timeline text track', () => {
-  it('adds a title, caption, subtitle and credits from the timeline bar', async () => {
+  it('adds a title, caption, subtitle and credits from the toolbar', async () => {
     const t = testApp();
-    render(Timeline, { props: { app: t.app } });
+    render(App, { props: { app: t.app } });
     for (const name of ['Add title', 'Add caption', 'Add subtitle', 'Add credits'])
       await fireEvent.click(screen.getByRole('button', { name }));
     const { main, text } = t.app.store.get().history.present.timeline;

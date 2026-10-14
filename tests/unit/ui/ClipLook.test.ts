@@ -12,6 +12,7 @@ async function twoClips(select: 0 | 1 = 0) {
   const item = () => t.app.store.get().history.present.timeline.main[select]!;
   t.app.select(item().id);
   render(Inspector, { props: { app: t.app } });
+  await fireEvent.click(screen.getByRole('tab', { name: 'Effects' }));
   return { ...t, item };
 }
 const type = async (label: string, value: string) =>

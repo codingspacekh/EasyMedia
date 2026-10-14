@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
 import { brightness, measure } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp, menu } from './app.ts';
+import { answerDialogs, launchApp, menu, openTab } from './app.ts';
 
 const FRAME = 1 / 30;
 const LAKE = 'lake_1080p30_20s.mp4'; // stand-in for Lake_Naivasha.mp4 (brightness rises with time)
@@ -50,6 +50,7 @@ test('Book B Task 11b through the UI: start after 8 s, 4.5 s long, no sound', as
   await page.locator('[data-item]').first().click();
   await setTime(page, 'Start point', '8');
   await setTime(page, 'End point', '12.5');
+  await openTab(page, 'Audio');
   await page.getByLabel('Remove sound').check();
   await expect(page.locator('.inspector .len')).toHaveText('4.50 s');
   await exportTo(page, output);
@@ -72,6 +73,7 @@ test('Book B Task 11c through the UI: first 6.3 s, no sound, 1.5× → 4.2 s', a
   await page.locator('[data-item]').first().click();
   await setTime(page, 'End point', '6.3');
   await page.getByRole('button', { name: '1.5×' }).click();
+  await openTab(page, 'Audio');
   await page.getByLabel('Remove sound').check();
   await expect(page.locator('.inspector .len')).toHaveText('4.20 s');
   await exportTo(page, output);
@@ -108,6 +110,7 @@ test('Book A Activity 11.13: remove the sound from all the clips', async () => {
   await importAndAdd(page, [BEE, BEE_SLOW]);
   for (const clip of await page.locator('[data-item]').all()) {
     await clip.click();
+    await openTab(page, 'Audio');
     await page.getByLabel('Remove sound').check();
   }
   await exportTo(page, output);

@@ -142,7 +142,9 @@ describe('M4 app use cases', () => {
           proxyPath: existing,
         }),
       );
-      expect(events.filter((e) => e.type === 'queued')).toHaveLength(0);
+      expect(
+        events.filter((e) => e.type === 'queued' && e.label === 'Preparing preview'),
+      ).toHaveLength(0);
     });
 
     it('explains a file that cannot be read and imports the others', async () => {
@@ -234,6 +236,23 @@ describe('M4 app use cases', () => {
   });
 
   describe('resize & crop a still (V11)', () => {
+    it('makes a thumbnail for a video from its preview copy, and remembers its size and frame rate', async () => {
+      const { state, engine, importFiles } = setup();
+      const thumbs = vi.spyOn(engine, 'makeThumbnails');
+      await importFiles('/m/clip.mp4');
+      await vi.waitFor(() =>
+        expect(state().assets[idOf(state(), '/m/clip.mp4')]!.thumbPath).toBeDefined(),
+      );
+      const status = state().assets[idOf(state(), '/m/clip.mp4')]!;
+      expect(status.thumbPath).toBe(status.proxyPath!.replace(/\.mp4$/, '-thumb.jpg'));
+      expect(thumbs).toHaveBeenCalledWith(status.proxyPath, status.thumbPath, {
+        count: 1,
+        height: 180,
+        duration: 10,
+      });
+      expect(status).toMatchObject({ size: { width: 1920, height: 1080 }, fps: 30 });
+    });
+
     it('remembers the size of an imported picture', async () => {
       const { state, importFiles } = setup();
       await importFiles('/m/photo.jpg');

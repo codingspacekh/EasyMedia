@@ -61,7 +61,7 @@ describe('preview player', () => {
     await importFiles('/m/photo.jpg');
     app.addToTimeline(app.store.get().history.present.media[0]!.id);
     await Promise.resolve();
-    expect(screen.getByText('00:00.00 / 00:05.00')).toBeTruthy();
+    expect(document.querySelector('.tc')!.textContent).toBe('00:00.00 / 00:05.00');
     await fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
     await fireEvent.click(screen.getByRole('button', { name: 'Pause' }));

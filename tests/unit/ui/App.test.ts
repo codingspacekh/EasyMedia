@@ -3,6 +3,9 @@ import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import App from '../../../src/ui/App.svelte';
 import { testApp } from '../../helpers/test-app.ts';
 
+const mode = (name: string) =>
+  within(screen.getByRole('navigation', { name: 'Mode' })).getByRole('button', { name });
+
 describe('App shell', () => {
   it('shows the app name', () => {
     render(App, { props: { app: testApp().app } });
@@ -13,16 +16,14 @@ describe('App shell', () => {
     render(App, { props: { app: testApp().app } });
     const modes = within(screen.getByRole('navigation', { name: 'Mode' })).getAllByRole('button');
     expect(modes.map((b) => b.textContent?.trim())).toEqual(['Video', 'Audio', 'Learn']);
-    expect(screen.getByRole('button', { name: 'Video' }).getAttribute('aria-pressed')).toBe('true');
+    expect(mode('Video').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('switches mode when another mode is clicked', async () => {
     render(App, { props: { app: testApp().app } });
-    await fireEvent.click(screen.getByRole('button', { name: 'Audio' }));
-    expect(screen.getByRole('button', { name: 'Audio' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Video' }).getAttribute('aria-pressed')).toBe(
-      'false',
-    );
+    await fireEvent.click(mode('Audio'));
+    expect(mode('Audio').getAttribute('aria-pressed')).toBe('true');
+    expect(mode('Video').getAttribute('aria-pressed')).toBe('false');
   });
 
   it('has the main actions; Undo and Redo are off until there is something to undo', async () => {

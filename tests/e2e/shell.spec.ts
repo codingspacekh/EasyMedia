@@ -61,8 +61,12 @@ test('at the smallest window size (1100 × 700) nothing covers the toolbar and t
   await page.waitForTimeout(300);
   for (const name of ['Import', 'Undo', 'Save', 'Export']) {
     const box = (await page.getByRole('button', { name }).boundingBox())!;
+    // The button itself (or something inside it, like its icon) must be what is under its centre.
     const hit = await page.evaluate(
-      ([x, y]) => document.elementFromPoint(x!, y!)?.textContent?.trim(),
+      ([x, y]) => {
+        const button = document.elementFromPoint(x!, y!)?.closest('button');
+        return button?.getAttribute('aria-label') ?? button?.textContent?.trim();
+      },
       [box.x + box.width / 2, box.y + box.height / 2],
     );
     expect(hit, `${name} button is covered`).toBe(name);

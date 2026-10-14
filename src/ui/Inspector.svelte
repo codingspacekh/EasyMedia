@@ -11,7 +11,10 @@
   } from '../app/commands.ts';
   import { itemDuration, layoutMain } from '../core/model/timeline.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import { toMediaUrl } from '../core/media-url.ts';
   import ClipLookInspector from './ClipLookInspector.svelte';
+  import Icon from './Icon.svelte';
+  import { ui, type InspectorTab } from './ui-state.svelte.ts';
   import TextInspector from './TextInspector.svelte';
   import TimeField from './TimeField.svelte';
 
@@ -30,6 +33,39 @@
     item && item.type !== 'title' ? project.media.find((m) => m.id === item.assetId) : undefined,
   );
   let actionError: string | null = $state(null);
+
+  /** The tabs each kind of item has; the student's last choice is kept when it exists here. */
+  const tabs = $derived<[InspectorTab, string][]>(
+    !item
+      ? []
+      : item.type === 'video'
+        ? [
+            ['clip', 'Clip'],
+            ['audio', 'Audio'],
+            ['effects', 'Effects'],
+          ]
+        : item.type === 'image'
+          ? [
+              ['clip', 'Clip'],
+              ['effects', 'Effects'],
+            ]
+          : [
+              ['text', 'Text'],
+              ['effects', 'Effects'],
+            ],
+  );
+  const tab = $derived(tabs.some(([t]) => t === ui.inspectorTab) ? ui.inspectorTab : tabs[0]?.[0]);
+
+  /** A small picture of the item for the header. */
+  const thumb = $derived.by(() => {
+    if (!item) return null;
+    if (item.type === 'title') {
+      return item.background.kind === 'colour' ? { colour: item.background.colour } : null;
+    }
+    const status = $store.assets[item.assetId];
+    if (item.type === 'image' && asset) return { url: toMediaUrl(asset.path) };
+    return status?.thumbPath ? { url: toMediaUrl(status.thumbPath) } : null;
+  });
 
   /** Source time under the playhead, for "set to playhead". */
   function sourceTimeAtPlayhead(): number | null {
@@ -58,9 +94,14 @@
   <div class="panel-h">Inspector</div>
   {#if textItem}
     <div class="head">
-      <div class="title">{textItem.text.split('\n')[0] || TEXT_KINDS[textItem.kind]}</div>
-      <div class="kind">
-        {TEXT_KINDS[textItem.kind]} · <span class="len">{textItem.duration.toFixed(2)} s</span>
+      <div class="thumb text">
+        <Icon name={textItem.kind === 'credits' ? 'credits' : 'caption'} />
+      </div>
+      <div class="who">
+        <div class="title">{textItem.text.split('\n')[0] || TEXT_KINDS[textItem.kind]}</div>
+        <div class="kind">
+          {TEXT_KINDS[textItem.kind]} · <span class="len">{textItem.duration.toFixed(2)} s</span>
+        </div>
       </div>
     </div>
     <section>
@@ -81,20 +122,54 @@
     <p class="empty">Select a clip on the timeline to change it.</p>
   {:else}
     <div class="head">
-      <div class="title">
-        {asset ? fileNameOf(asset.path) : item.type === 'title' ? 'Title slide' : 'Clip'}
+      <div
+        class="thumb"
+        style:background-image={thumb?.url ? `url("${thumb.url}")` : null}
+        style:background-color={thumb?.colour ?? null}
+      >
+        {#if !thumb}<Icon name={item.type === 'title' ? 'title' : 'video'} />{/if}
       </div>
-      <div class="kind">
-        {item.type === 'video'
-          ? 'Video clip'
-          : item.type === 'image'
-            ? 'Still image'
-            : 'Title slide'} ·
-        <span class="len">{itemDuration(item).toFixed(2)} s</span>
+      <div class="who">
+        <div class="title">
+          {asset
+            ? fileNameOf(asset.path)
+            : item.type === 'title'
+              ? item.text.split('\n')[0] || 'Title slide'
+              : 'Clip'}
+        </div>
+        <div class="kind">
+          {item.type === 'video'
+            ? 'Video clip'
+            : item.type === 'image'
+              ? 'Still image'
+              : 'Title slide'} ·
+          <span class="len">{itemDuration(item).toFixed(2)} s</span>
+        </div>
       </div>
     </div>
 
-    {#if item.type === 'video'}
+    {#if item.type !== 'video'}
+      <section>
+        <h3>Duration <span class="syl">11.1</span></h3>
+        <TimeField
+          label="Duration"
+          value={item.duration}
+          commit={(t) => app.edit(setDuration(item.id, t))}
+        />
+      </section>
+    {/if}
+
+    <div class="tabs">
+      <div class="seg small" role="tablist" aria-label="Inspector">
+        {#each tabs as [value, name] (value)}
+          <button role="tab" aria-selected={tab === value} onclick={() => (ui.inspectorTab = value)}
+            >{name}</button
+          >
+        {/each}
+      </div>
+    </div>
+
+    {#if item.type === 'video' && tab === 'clip'}
       <section>
         <h3>Trim <span class="syl">11.1</span></h3>
         <TimeField
@@ -131,9 +206,9 @@
           )} s on the timeline
         </p>
       </section>
-
+    {:else if item.type === 'video' && tab === 'audio'}
       <section>
-        <h3>Sound <span class="syl">11.1</span></h3>
+        <h3>Clip sound <span class="syl">11.1</span></h3>
         <label class="check">
           <input
             type="checkbox"
@@ -143,33 +218,33 @@
           />
           Remove sound
         </label>
+        <p class="hint">
+          Volume and separating the sound onto its own track come with the music tracks.
+        </p>
       </section>
-    {:else}
-      <section>
-        <h3>Duration <span class="syl">11.1</span></h3>
-        <TimeField
-          label="Duration"
-          value={item.duration}
-          commit={(t) => app.edit(setDuration(item.id, t))}
+    {:else if item.type === 'image' && tab === 'clip'}
+      <p class="hint pad">
+        This picture shows for the duration above. Use the Effects tab for pan & zoom, fades and
+        filters.
+      </p>
+    {:else if item.type === 'title' && tab === 'text'}
+      {#key item.id}<TextInspector {app} {item} />{/key}
+    {:else if tab === 'effects'}
+      {#key item.id}
+        <ClipLookInspector
+          {app}
+          {item}
+          index={project.timeline.main.findIndex((m) => m.id === item.id)}
         />
-      </section>
-      {#if item.type === 'title'}
-        {#key item.id}<TextInspector {app} {item} />{/key}
-      {/if}
+      {/key}
     {/if}
-    {#key item.id}
-      <ClipLookInspector
-        {app}
-        {item}
-        index={project.timeline.main.findIndex((m) => m.id === item.id)}
-      />
-    {/key}
   {/if}
 </aside>
 
 <style>
   .inspector {
-    width: 300px;
+    width: 332px;
+    flex: none;
     border-left: 1px solid var(--line);
     background: var(--bg-1);
     overflow: auto;
@@ -179,8 +254,39 @@
     color: var(--tx-3);
   }
   .head {
+    display: flex;
+    gap: 10px;
+    align-items: center;
     padding: 12px;
     border-bottom: 1px solid var(--line);
+  }
+  .thumb {
+    width: 54px;
+    height: 32px;
+    flex: none;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    background: var(--bg-3) center / cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tx-3);
+  }
+  .thumb.text {
+    background: var(--c-text);
+    color: #241b00;
+  }
+  .who {
+    min-width: 0;
+  }
+  .tabs {
+    padding: 10px 12px 2px;
+  }
+  .tabs .seg > button {
+    flex: 1;
+  }
+  .pad {
+    padding: 4px 12px 12px;
   }
   .title {
     font-weight: 600;

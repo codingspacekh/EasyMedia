@@ -54,3 +54,10 @@ export async function menu(app: ElectronApplication, top: string, label: string)
     [top, label] as const,
   );
 }
+
+/** Opens an inspector tab (Clip, Audio, Effects, Text) if the selected item has it and it is not open. */
+export async function openTab(page: Page, name: 'Clip' | 'Audio' | 'Effects' | 'Text') {
+  const tab = page.getByRole('tab', { name, exact: true });
+  if ((await tab.count()) && (await tab.getAttribute('aria-selected')) !== 'true')
+    await tab.click();
+}
