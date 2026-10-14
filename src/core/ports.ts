@@ -4,6 +4,7 @@ import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
 import type { Quality, TextImage } from './render/compile.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
+import type { ResizeCrop } from './image/crop.ts';
 
 /** What a media file contains (T1 shows this to students). */
 export interface ProbeInfo {
@@ -58,6 +59,11 @@ export interface MediaEngine {
   waveformPeaks(input: string, buckets: number): Promise<number[]>;
   /** Saves one frame as an image; the format follows the output's extension (V10). */
   extractFrame(input: string, time: Seconds, output: string): Promise<void>;
+  /**
+   * V11: saves a resized and cropped copy of a picture. Never overwrites: if `output` is taken,
+   * the next free numbered name is used. Resolves with the path actually written.
+   */
+  resizeCropImage(input: string, output: string, plan: ResizeCrop): Promise<string>;
   /** Exports the project as an MP4 (V16). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;

@@ -135,4 +135,30 @@ describe('P2 main-process IPC handlers', () => {
     const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
     expect(allow.has('/cache/text/text-ab_1.png')).toBe(true);
   });
+
+  it('V11 crops only pictures the app has opened, and lets the preview show the new one', async () => {
+    const photo = {
+      kind: 'image' as const,
+      container: 'jpg',
+      sizeBytes: 1,
+      video: { codec: 'mjpeg', width: 400, height: 300 },
+    };
+    const { api } = inProcessBridge(
+      createMockMediaEngine({ '/m/p.jpg': photo, '/etc/x.jpg': photo }),
+    );
+    const plan = {
+      resize: { width: 160, height: 120 },
+      crop: { x: 0, y: 30, width: 160, height: 90 },
+    };
+    expect(await api.invoke('media:resizeCrop', '/etc/x.jpg', '/m/x1.jpg', plan)).toMatchObject({
+      ok: false,
+    });
+    await api.invoke('media:probe', '/m/p.jpg');
+    expect(await api.invoke('media:resizeCrop', '/m/p.jpg', '/m/p1.jpg', plan)).toEqual({
+      ok: true,
+      value: '/m/p1.jpg',
+    });
+    const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
+    expect(allow.has('/m/p1.jpg')).toBe(true);
+  });
 });

@@ -1,10 +1,14 @@
 <script lang="ts">
   import type { App, AssetStatus } from '../app/app.ts';
   import { formatTime } from '../core/model/time.ts';
+  import type { MediaAsset } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import CropDialog from './CropDialog.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
+  let cropping: { asset: MediaAsset; size: { width: number; height: number } } | null =
+    $state(null);
 
   function statusText(status: AssetStatus | undefined): string {
     if (!status) return 'Checking…';
@@ -40,11 +44,22 @@
           >
             Add
           </button>
+          {#if asset.kind === 'image' && status?.size}
+            {@const size = status.size}
+            <button
+              class="crop"
+              aria-label={`Resize and crop ${name}`}
+              onclick={() => (cropping = { asset, size })}>Resize & crop…</button
+            >
+          {/if}
         {/if}
       </li>
     {/each}
   </ul>
 </aside>
+{#if cropping}
+  <CropDialog {app} asset={cropping.asset} size={cropping.size} onclose={() => (cropping = null)} />
+{/if}
 
 <style>
   .bin {
@@ -88,7 +103,14 @@
   }
   button {
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 2;
     align-self: center;
+  }
+  button.crop {
+    grid-column: 1 / span 2;
+    grid-row: auto;
+    justify-self: start;
+    font-size: 11.5px;
+    padding: 2px 8px;
   }
 </style>

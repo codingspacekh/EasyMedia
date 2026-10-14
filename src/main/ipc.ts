@@ -3,6 +3,7 @@
 import { JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
+import { resizeCropFilter } from '../core/image/crop.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
 import type { AllowList } from './protocol/allowlist.ts';
@@ -75,6 +76,13 @@ export function registerIpc(s: MainServices): void {
       await s.engine.extractFrame(input, time, output);
       s.allow.add(output);
       return null;
+    },
+    'media:resizeCrop': async (input, output, plan) => {
+      resizeCropFilter(plan); // explains a bad crop before anything else
+      if (!s.allow.has(input)) throw new Error('Only pictures opened in EasyMedia can be cropped.');
+      const path = await s.engine.resizeCropImage(input, output, plan);
+      s.allow.add(path);
+      return path;
     },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),

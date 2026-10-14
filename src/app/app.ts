@@ -36,6 +36,8 @@ import type {
 } from '../core/ports.ts';
 import type { TextImage } from '../core/render/compile.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
+import { numberedPath } from '../core/project/paths.ts';
+import { planResizeCrop, type Anchor } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
 export interface AssetStatus {
@@ -43,6 +45,8 @@ export interface AssetStatus {
   progress: number;
   /** Small preview copy of a video, once made. */
   proxyPath?: string;
+  /** Pixel size of a picture, from the probe (V11 needs it). */
+  size?: { width: number; height: number };
   message?: string;
 }
 
@@ -144,7 +148,8 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       }
     }
     if (asset.kind !== 'video') {
-      setAsset(asset.id, { state: 'ready', progress: 1 });
+      const size = info.video && { width: info.video.width, height: info.video.height };
+      setAsset(asset.id, { state: 'ready', progress: 1, ...(size ? { size } : {}) });
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
@@ -274,6 +279,37 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
         const before = present();
         run(importMediaCommand(asset));
         if (present() !== before) void prepare(asset, info);
+      }
+    },
+
+    /**
+     * V11: resizes a picture to cover the project frame, crops it at `anchor` and saves it as a
+     * new file beside the original (Fish_Eagle.jpg → Fish_Eagle1.jpg), which is imported.
+     */
+    async resizeCropImage(assetId: Id, anchor: Anchor): Promise<Id | null> {
+      const asset = present().media.find((m) => m.id === assetId);
+      const size = store.get().assets[assetId]?.size;
+      if (!asset || asset.kind !== 'image' || !size) {
+        patch({
+          message: { kind: 'error', text: 'Wait until the picture is ready, then try again.' },
+        });
+        return null;
+      }
+      const { width, height } = present().settings;
+      try {
+        const plan = planResizeCrop(size, { width, height }, anchor);
+        const path = await engine.resizeCropImage(asset.path, numberedPath(asset.path, 1), plan);
+        const info = await engine.probe(path);
+        const made = assetFromProbe(path, info);
+        run(importMediaCommand(made));
+        void prepare(made, info);
+        patch({
+          message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
+        });
+        return made.id;
+      } catch (error) {
+        showError(error);
+        return null;
       }
     },
 

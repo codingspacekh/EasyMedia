@@ -232,6 +232,38 @@ describe('M4 app use cases', () => {
     });
   });
 
+  describe('resize & crop a still (V11)', () => {
+    it('remembers the size of an imported picture', async () => {
+      const { state, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      expect(state().assets[idOf(state(), '/m/photo.jpg')]!.size).toEqual({
+        width: 100,
+        height: 100,
+      });
+    });
+
+    it('saves a new picture the size of the project beside the original, and imports it', async () => {
+      const { app, state, project, engine, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      const id = await app.resizeCropImage(idOf(state(), '/m/photo.jpg'), 'bottom');
+      expect(id).not.toBeNull();
+      const made = project().media.find((m) => m.id === id)!;
+      expect(made.path).toBe('/m/photo1.jpg');
+      expect((await engine.probe('/m/photo1.jpg')).video).toMatchObject({
+        width: 1920,
+        height: 1080,
+      });
+      expect(project().media.map((m) => m.path)).toEqual(['/m/photo.jpg', '/m/photo1.jpg']);
+      expect(state().message).toEqual({ kind: 'info', text: 'Saved photo1.jpg (1920 × 1080).' });
+    });
+
+    it('explains when the picture size is not known yet', async () => {
+      const { app, state } = setup();
+      expect(await app.resizeCropImage('nope', 'centre')).toBeNull();
+      expect(state().message?.kind).toBe('error');
+    });
+  });
+
   describe('adding text (V4, V5)', () => {
     it('adds a title slide after the selected clip and selects it, undoably', async () => {
       const { app, state, project, importFiles } = setup();

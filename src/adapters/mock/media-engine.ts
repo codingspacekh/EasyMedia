@@ -2,7 +2,8 @@
 // the shared contract tests — but finishes instantly and needs no FFmpeg or real files.
 import { FILE_NOT_FOUND, JobCancelledError, MediaError } from '../../core/model/errors.ts';
 import type { JobEvent, JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
-import { fromProjectPath } from '../../core/project/paths.ts';
+import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
+import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
 
 const PROXY_HEIGHT = 360;
@@ -98,6 +99,25 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
           height: src.video?.height ?? 0,
         },
       });
+    },
+
+    async resizeCropImage(input, output, plan) {
+      resizeCropFilter(plan);
+      const src = find(input);
+      let path = output;
+      for (let n = 2; files.has(path); n++) path = numberedPath(output, n);
+      const ext = path.split('.').pop() ?? 'jpg';
+      files.set(path, {
+        kind: 'image',
+        container: ext,
+        sizeBytes: Math.round(src.sizeBytes / 2),
+        video: {
+          codec: ext === 'jpg' ? 'mjpeg' : ext,
+          width: plan.crop.width,
+          height: plan.crop.height,
+        },
+      });
+      return path;
     },
 
     renderVideo(project, output, { projectDir, textImages }) {

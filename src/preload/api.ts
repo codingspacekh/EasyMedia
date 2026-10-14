@@ -3,6 +3,7 @@
 import type { Project } from '../core/model/types.ts';
 import type { AppPaths, JobEvent, ProbeInfo, RenderVideoOptions } from '../core/ports.ts';
 import type { WireError } from '../core/wire.ts';
+import type { ResizeCrop } from '../core/image/crop.ts';
 
 export interface Channels {
   'media:probe': { args: [path: string]; result: ProbeInfo };
@@ -21,6 +22,7 @@ export interface Channels {
   };
   'media:waveform': { args: [input: string, buckets: number]; result: number[] };
   'media:frame': { args: [input: string, time: number, output: string]; result: null };
+  'media:resizeCrop': { args: [input: string, output: string, plan: ResizeCrop]; result: string };
   'media:render': {
     args: [jobKey: string, project: Project, output: string, options: RenderVideoOptions];
     result: null;
@@ -48,6 +50,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:thumbnails',
   'media:waveform',
   'media:frame',
+  'media:resizeCrop',
   'media:render',
   'job:cancel',
   'app:paths',
