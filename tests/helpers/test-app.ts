@@ -29,6 +29,7 @@ export function testApp(
     saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
     exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
+    chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
   };
   const disk = new Map<string, string>();
   const app = createApp({
@@ -38,6 +39,7 @@ export function testApp(
       read: async (p) => disk.get(p) ?? Promise.reject(new Error('ENOENT')),
       write: async (p, t) => void disk.set(p, t),
       remove: async (p) => void disk.delete(p),
+      copy: async () => {},
     },
     paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
   });

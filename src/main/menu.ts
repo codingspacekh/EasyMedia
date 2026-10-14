@@ -29,6 +29,7 @@ export function menuTemplate(
         { type: 'separator' },
         item('Import Media…', 'CmdOrCtrl+I', 'import'),
         item('Export Video…', 'CmdOrCtrl+E', 'export'),
+        item('Package Project…', 'CmdOrCtrl+Shift+P', 'package'),
         ...(mac ? [] : [{ type: 'separator' } as const, { role: 'quit', label: 'Exit' } as const]),
       ],
     },

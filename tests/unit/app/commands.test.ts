@@ -7,6 +7,7 @@ import {
   joinWithNext,
   moveMainItem,
   moveTimedItem,
+  relinkMedia,
   removeItem,
   setClipMuted,
   setClipSpeed,
@@ -65,6 +66,7 @@ describe('P4 every command leaves the original untouched and can be undone exact
     ['trimClip', trimClip('v', { in: 8, out: 12.5 })],
     ['setClipSpeed', setClipSpeed('v', 1.5)],
     ['setClipMuted', setClipMuted('v', true)],
+    ['relinkMedia', relinkMedia('lake', { ...lake, path: 'moved/Lake_Naivasha.mp4' })],
     ['setDuration', setDuration('t', 3)],
     ['splitAtTime', splitAtTime(10, ['v1', 'v2'])],
     ['joinWithNext', joinWithNext('v1')],
@@ -131,6 +133,22 @@ describe('commands', () => {
   it('setClipSpeed recalculates the clip length on the timeline', () => {
     const p = run(sample(), setClipSpeed('v', 2));
     expect(itemDuration(p.timeline.main[1]!)).toBe(10);
+  });
+
+  it('P6 relinkMedia points a missing file to its new place; clips keep their edits', () => {
+    const trimmed = run(sample(), trimClip('v', { in: 8, out: 12.5 }));
+    const moved = run(trimmed, relinkMedia('lake', { ...lake, path: '/new/Lake.mp4' }));
+    expect(moved.media.find((m) => m.id === 'lake')!.path).toBe('/new/Lake.mp4');
+    expect(moved.timeline.main[1]).toMatchObject({ assetId: 'lake', in: 8, out: 12.5 });
+    expect(relinkMedia('lake', lake).label).toBe('Locate file');
+  });
+
+  it('P6 relinkMedia refuses a different kind of file, or one too short for the clips', () => {
+    expect(() => run(sample(), relinkMedia('lake', { ...photo, id: 'lake' }))).toThrow(/a video/i);
+    const trimmed = run(sample(), trimClip('v', { in: 8, out: 12.5 }));
+    expect(() => run(trimmed, relinkMedia('lake', { ...lake, duration: 10 }))).toThrow(
+      /shorter than the part used/i,
+    );
   });
 
   it('V13 setClipMuted removes and restores the sound of a video clip', () => {

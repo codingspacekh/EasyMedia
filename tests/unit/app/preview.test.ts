@@ -66,8 +66,24 @@ describe('what the preview shows at the playhead (approximate preview, ARCHITECT
       src: toMediaUrl('/cache/lake.mp4'),
       mediaTime: 10,
       rate: 2,
+      volume: 1,
       itemId: 'v',
     });
+  });
+
+  it('V13 a clip with its sound removed plays silently in the preview, as in the export', () => {
+    const s = state(ready);
+    const main = s.history.present.timeline.main.map((m) =>
+      m.type === 'video' ? { ...m, muted: true } : m,
+    );
+    const muted = {
+      ...s,
+      history: {
+        ...s.history,
+        present: { ...s.history.present, timeline: { ...s.history.present.timeline, main } },
+      },
+    };
+    expect(previewAt(muted, 3)).toMatchObject({ kind: 'video', volume: 0 });
   });
 
   it('a video whose proxy is not ready yet shows "preparing" with progress', () => {

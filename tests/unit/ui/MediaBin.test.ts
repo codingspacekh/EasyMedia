@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import MediaBin from '../../../src/ui/MediaBin.svelte';
-import { testApp } from '../../helpers/test-app.ts';
+import { IMAGE, testApp } from '../../helpers/test-app.ts';
 
 describe('media bin', () => {
   it('invites the student to import when empty', () => {
@@ -33,5 +33,23 @@ describe('media bin', () => {
     await importFiles('/m/photo.jpg');
     await fireEvent.click(screen.getByRole('button', { name: /add photo\.jpg to the timeline/i }));
     expect(app.store.get().history.present.timeline.main).toHaveLength(1);
+  });
+
+  it('P6 offers Locate… for a file that cannot be found', async () => {
+    const { app } = testApp({ '/new/photo.jpg': IMAGE });
+    app.store.update((st) => ({
+      ...st,
+      history: {
+        ...st.history,
+        present: {
+          ...st.history.present,
+          media: [{ id: 'p', kind: 'image', path: '/old/photo.jpg', hasAudio: false }],
+        },
+      },
+      assets: { p: { state: 'failed', progress: 0, message: 'The file could not be found.' } },
+    }));
+    render(MediaBin, { props: { app } });
+    expect(screen.getByText(/could not be found/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Locate photo.jpg' })).toBeTruthy();
   });
 });

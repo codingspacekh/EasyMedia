@@ -8,7 +8,7 @@ import type { AppState } from './app.ts';
 
 export type PreviewFrame =
   | { kind: 'empty' }
-  | { kind: 'video'; src: string; mediaTime: Seconds; rate: number; itemId: Id }
+  | { kind: 'video'; src: string; mediaTime: Seconds; rate: number; volume: number; itemId: Id }
   | { kind: 'waiting'; progress: number; itemId: Id }
   | { kind: 'image'; src: string; itemId: Id }
   | { kind: 'colour'; colour: string; itemId: Id };
@@ -37,6 +37,8 @@ export function previewAt(state: AppState, time: Seconds): PreviewFrame {
     src: toMediaUrl(status.proxyPath),
     mediaTime: item.in + hit.offset * item.speed,
     rate: item.speed,
+    // Matches the export: removed sound is silent (V13).
+    volume: item.muted ? 0 : item.volume,
     itemId: item.id,
   };
 }

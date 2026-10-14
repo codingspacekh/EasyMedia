@@ -44,4 +44,13 @@ describe('App shell', () => {
     await importFiles('/m/photo.jpg');
     expect(document.title).toBe('Untitled • — EasyMedia');
   });
+
+  it('the settings button shows the project format and opens Project settings', async () => {
+    render(App, { props: { app: testApp().app } });
+    const button = screen.getByRole('button', { name: /16:9 · 1920 × 1080 · 30 fps/ });
+    await fireEvent.click(button);
+    expect(screen.getByRole('dialog', { name: 'Project settings' })).toBeTruthy();
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });

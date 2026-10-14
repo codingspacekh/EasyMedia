@@ -21,6 +21,7 @@ describe('X3 native menus', () => {
     ['Save As…', 'CmdOrCtrl+Shift+S', 'saveAs'],
     ['Import Media…', 'CmdOrCtrl+I', 'import'],
     ['Export Video…', 'CmdOrCtrl+E', 'export'],
+    ['Package Project…', 'CmdOrCtrl+Shift+P', 'package'],
   ])('File ▸ %s (%s) sends "%s" to the page', (label, accelerator, action) => {
     const send = vi.fn<(a: MenuAction) => void>();
     const item = items(find(menuTemplate('darwin', send, false), 'File')).find(

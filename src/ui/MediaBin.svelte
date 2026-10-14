@@ -30,12 +30,17 @@
           {asset.kind}{asset.duration !== undefined ? ` · ${formatTime(asset.duration)}` : ''}
         </div>
         <div class="status" class:failed={status?.state === 'failed'}>{statusText(status)}</div>
-        <button
-          aria-label={`Add ${name} to the timeline`}
-          onclick={() => app.addToTimeline(asset.id)}
-        >
-          Add
-        </button>
+        {#if status?.state === 'failed'}
+          <button aria-label={`Locate ${name}`} onclick={() => app.locate(asset.id)}>Locate…</button
+          >
+        {:else}
+          <button
+            aria-label={`Add ${name} to the timeline`}
+            onclick={() => app.addToTimeline(asset.id)}
+          >
+            Add
+          </button>
+        {/if}
       </li>
     {/each}
   </ul>

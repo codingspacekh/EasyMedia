@@ -67,6 +67,8 @@ export interface Dialogs {
   exportVideo(suggestedName: string): Promise<string | null>;
   /** A yes / no question, e.g. "Discard unsaved changes?". */
   confirm(message: string): Promise<boolean>;
+  /** A folder (it can be created in the dialog), e.g. to package a project into. */
+  chooseFolder(title: string): Promise<string | null>;
 }
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
@@ -74,6 +76,8 @@ export interface ProjectFiles {
   read(path: string): Promise<string>;
   write(path: string, text: string): Promise<void>;
   remove(path: string): Promise<void>;
+  /** Copies a media file (P2). Only files the app has opened may be copied. */
+  copy(from: string, to: string): Promise<void>;
 }
 
 export interface AppPaths {

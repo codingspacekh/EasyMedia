@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp, isDirty, projectTitle, type AppState } from '../../../src/app/app.ts';
+import { setClipSpeed, trimClip } from '../../../src/app/commands.ts';
 import { canUndo } from '../../../src/app/history.ts';
 import { proxyPathFor } from '../../../src/app/proxy-path.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
@@ -45,7 +46,9 @@ function setup(
     saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
     exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
+    chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
   };
+  const copies: string[] = [];
   const files = {
     read: async (path: string) => {
       const text = disk.get(path);
@@ -54,6 +57,7 @@ function setup(
     },
     write: async (path: string, text: string) => void disk.set(path, text),
     remove: async (path: string) => void disk.delete(path),
+    copy: async (from: string, to: string) => void copies.push(`${from} → ${to}`),
   };
   const app = createApp({
     engine,
@@ -67,7 +71,7 @@ function setup(
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   }
-  return { app, engine, events, disk, dialogs, state, project, importFiles };
+  return { app, engine, events, disk, dialogs, copies, state, project, importFiles };
 }
 
 const idOf = (s: AppState, path: string) =>
@@ -184,6 +188,30 @@ describe('M4 app use cases', () => {
     });
   });
 
+  describe('M5 edit: inspector changes report errors inline, not in the status bar', () => {
+    async function withClip() {
+      const t = setup();
+      await t.importFiles('/m/clip.mp4');
+      t.app.addToTimeline(idOf(t.state(), '/m/clip.mp4'));
+      return { ...t, clipId: t.project().timeline.main[0]!.id };
+    }
+
+    it('applies a valid edit and returns no error', async () => {
+      const { app, project, clipId } = await withClip();
+      expect(app.edit(trimClip(clipId, { in: 2, out: 6 }))).toBeNull();
+      expect(project().timeline.main[0]).toMatchObject({ in: 2, out: 6 });
+    });
+
+    it('returns the reason for an invalid edit, changes nothing, shows no banner', async () => {
+      const { app, state, project, clipId } = await withClip();
+      const before = project();
+      expect(app.edit(trimClip(clipId, { in: 0, out: 25 }))).toMatch(/end of the clip/i);
+      expect(app.edit(setClipSpeed(clipId, 9))).toMatch(/between 0\.25× and 4×/);
+      expect(project()).toBe(before);
+      expect(state().message).toBeNull();
+    });
+  });
+
   describe('export (V16)', () => {
     async function withClip() {
       const s = setup();
@@ -287,6 +315,28 @@ describe('M4 app use cases', () => {
       await vi.waitFor(() => expect(state().assets.c!.state).toBe('ready'));
     });
 
+    it('P6 a file that moved is marked missing; Locate points it to the new place', async () => {
+      const { app, state, project, disk, dialogs } = setup({ '/new/clip.mp4': video() });
+      const saved = {
+        ...createProject({ name: 'Task' }),
+        media: [{ id: 'c', kind: 'video', path: 'media/clip.mp4', duration: 10, hasAudio: true }],
+      };
+      disk.set('/p/task.mve', JSON.stringify(saved));
+      dialogs.openProject.mockResolvedValueOnce('/p/task.mve');
+      await app.open();
+      await vi.waitFor(() =>
+        expect(state().assets.c).toMatchObject({
+          state: 'failed',
+          message: expect.stringMatching(/could not be found/i),
+        }),
+      );
+
+      dialogs.openMedia.mockResolvedValueOnce(['/new/clip.mp4']);
+      await app.locate('c');
+      expect(project().media[0]!.path).toBe('/new/clip.mp4');
+      await vi.waitFor(() => expect(state().assets.c!.state).toBe('ready'));
+    });
+
     it('Open asks before throwing away unsaved work', async () => {
       const { app, dialogs, project, importFiles } = setup();
       await importFiles('/m/photo.jpg');
@@ -311,6 +361,47 @@ describe('M4 app use cases', () => {
       await app.newProject();
       expect(dialogs.confirm).toHaveBeenCalled();
       expect(project().media).toEqual([]);
+    });
+  });
+
+  describe('P2 package project: project and media together in one folder', () => {
+    it('copies every media file into media/ and writes the project next to it', async () => {
+      const { app, disk, dialogs, copies, state, importFiles } = setup({
+        '/a/clip.mp4': video(),
+        '/b/clip.mp4': video(),
+        '/m/photo.jpg': image,
+      });
+      await importFiles('/a/clip.mp4', '/b/clip.mp4', '/m/photo.jpg');
+      dialogs.chooseFolder.mockResolvedValueOnce('/usb/Task11d');
+      await app.packageProject();
+      expect(copies).toEqual([
+        '/a/clip.mp4 → /usb/Task11d/media/clip.mp4',
+        '/b/clip.mp4 → /usb/Task11d/media/clip-2.mp4',
+        '/m/photo.jpg → /usb/Task11d/media/photo.jpg',
+      ]);
+      expect(
+        JSON.parse(disk.get('/usb/Task11d/Untitled.mve')!).media.map(
+          (m: { path: string }) => m.path,
+        ),
+      ).toEqual(['media/clip.mp4', 'media/clip-2.mp4', 'media/photo.jpg']);
+      expect(state().message).toMatchObject({
+        kind: 'info',
+        text: expect.stringMatching(/packaged/i),
+      });
+    });
+
+    it('asks for missing files to be located first', async () => {
+      const { app, dialogs, copies, state, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      const id = idOf(state(), '/m/photo.jpg');
+      app.store.update((s) => ({
+        ...s,
+        assets: { ...s.assets, [id]: { state: 'failed', progress: 0 } },
+      }));
+      await app.packageProject();
+      expect(dialogs.chooseFolder).not.toHaveBeenCalled();
+      expect(copies).toEqual([]);
+      expect(state().message?.text).toMatch(/locate/i);
     });
   });
 

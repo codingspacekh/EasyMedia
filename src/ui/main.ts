@@ -29,6 +29,7 @@ if (!window.mve) {
     saveAs: app.saveAs,
     import: app.importMedia,
     export: app.exportVideo,
+    package: app.packageProject,
     undo: app.undo,
     redo: app.redo,
   };
