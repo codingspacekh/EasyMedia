@@ -25,6 +25,12 @@ export interface MediaAsset {
   hasAudio?: boolean;
 }
 
+/** One filter from the effect registry with its settings (V15). */
+export interface EffectInstance {
+  effectId: string;
+  params: Record<string, number>;
+}
+
 /** A video clip plays the source from `in` to `out` at `speed`. */
 export interface VideoClip {
   type: 'video';
