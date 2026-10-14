@@ -4,7 +4,19 @@ import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['node_modules/', 'dist/', 'coverage/', 'resources/', 'design/', 'spikes/'] },
+  {
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'out/',
+      'coverage/',
+      'resources/',
+      'design/',
+      'spikes/',
+      'test-results/',
+      'playwright-report/',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...svelte.configs.recommended,

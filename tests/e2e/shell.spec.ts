@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test';
+import { launchApp } from './app.ts';
+
+test.describe('M4 app shell', () => {
+  test('opens the EasyMedia window', async () => {
+    const { app, window: page } = await launchApp();
+    await expect(page).toHaveTitle('EasyMedia');
+    await expect(page.getByRole('heading', { name: 'EasyMedia' })).toBeVisible();
+    await app.close();
+  });
+
+  test('ARCHITECTURE §2 security: isolated, sandboxed, no Node.js in the page; only window.mve', async () => {
+    const { app, window: page } = await launchApp();
+    const prefs = await app.evaluate(({ BrowserWindow }) => {
+      const contents = BrowserWindow.getAllWindows()[0]!.webContents as unknown as {
+        getLastWebPreferences(): {
+          contextIsolation: boolean;
+          sandbox: boolean;
+          nodeIntegration: boolean;
+        };
+      };
+      const p = contents.getLastWebPreferences();
+      return {
+        contextIsolation: p.contextIsolation,
+        sandbox: p.sandbox,
+        nodeIntegration: p.nodeIntegration,
+      };
+    });
+    expect(prefs).toEqual({ contextIsolation: true, sandbox: true, nodeIntegration: false });
+    const exposed = await page.evaluate(() => ({
+      hasRequire: typeof (globalThis as { require?: unknown }).require !== 'undefined',
+      hasProcess: typeof (globalThis as { process?: unknown }).process !== 'undefined',
+      bridge: typeof (globalThis as { mve?: unknown }).mve,
+    }));
+    expect(exposed).toEqual({ hasRequire: false, hasProcess: false, bridge: 'object' });
+    await app.close();
+  });
+
+  test('blocks pop-up windows and navigation away from the app', async () => {
+    const { app, window: page } = await launchApp();
+    await page.evaluate(() => window.open('https://example.com'));
+    await page
+      .evaluate(() => {
+        location.href = 'https://example.com';
+      })
+      .catch(() => {});
+    await page.waitForTimeout(500);
+    expect(app.windows()).toHaveLength(1);
+    expect(page.url()).toMatch(/^file:/);
+    await app.close();
+  });
+});
