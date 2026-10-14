@@ -1,0 +1,70 @@
+name: M0 spike bundle (Windows)
+
+# Builds a ready-to-run zip of the throw-away M0 performance spike for a student's
+# Windows laptop: no Node.js, Git or GitHub login needed there.
+# Run it from the Actions tab ("Run workflow") or: gh workflow run spike-bundle.yml
+on:
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run fetch:ffmpeg
+      - run: npm run fixtures -- --group spike --out spikes/m0-electron/out
+
+      - name: Assemble bundle
+        shell: pwsh
+        run: |
+          $b = 'EasyMedia-M0-spike'
+          New-Item -ItemType Directory -Force "$b/app/spikes", "$b/app/resources/ffmpeg" | Out-Null
+          Copy-Item node_modules/electron/dist "$b/electron" -Recurse
+          Copy-Item spikes/m0-electron "$b/app/spikes/m0-electron" -Recurse
+          Copy-Item resources/ffmpeg/win32-x64 "$b/app/resources/ffmpeg/win32-x64" -Recurse
+
+          $auto = @(
+            '@echo off'
+            'cd /d "%~dp0"'
+            'echo EasyMedia M0 performance test. It takes 1-3 minutes. Do not close this window.'
+            'electron\electron.exe app\spikes\m0-electron\main.cjs --auto app\spikes\m0-electron\out\spike_1080p30_60s.mp4 --report "%~dp0report.json"'
+            'echo.'
+            'type report.json'
+            'echo.'
+            'echo Done. Please give the file report.json (in this folder) to your teacher.'
+            'pause'
+          )
+          $auto | Set-Content "$b/1-run-performance-test.bat" -Encoding ascii
+
+          $manual = @(
+            '@echo off'
+            'cd /d "%~dp0"'
+            'electron\electron.exe app\spikes\m0-electron\main.cjs'
+          )
+          $manual | Set-Content "$b/2-try-your-own-video.bat" -Encoding ascii
+
+          $readme = @(
+            'EasyMedia - M0 performance test (throw-away prototype, not the real app)'
+            ''
+            '1. Close other programs (browser, games) so the result is fair.'
+            '2. Double-click 1-run-performance-test.bat'
+            '   If Windows shows "Windows protected your PC": click "More info", then "Run anyway".'
+            '3. A window opens, plays a test video and exports it. Wait until it closes by itself.'
+            '4. Give report.json from this folder to your teacher.'
+            ''
+            'Optional: 2-try-your-own-video.bat lets you import, play and export any video by hand.'
+          )
+          $readme | Set-Content "$b/README.txt" -Encoding ascii
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EasyMedia-M0-spike-windows
+          path: EasyMedia-M0-spike
+          retention-days: 7
