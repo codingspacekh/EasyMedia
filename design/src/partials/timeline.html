@@ -1,0 +1,65 @@
+<section class="timeline">
+  <div class="tl-bar">
+    <span class="btn sm">{{i:scissors:s14}} Split</span>
+    <span class="btn sm">{{i:trim:s14}} Trim</span>
+    <span class="btn sm">{{i:unlink:s14}} Join</span>
+    <span class="btn sm">{{i:transition:s14}} Transition</span>
+    <span class="btn sm">{{i:x:s14}} Delete</span>
+    <div class="vsep" style="height:20px"></div>
+    <span class="btn sm icon ghost on" style="color:var(--accent)">{{i:magnet:s14}}</span>
+    <span style="color:var(--tx-3);font-size:11.5px">Snap</span>
+    <span class="spacer"></span>
+    <span class="tc" style="font-size:13px">{{TC|tc-video}}</span>
+    <span style="color:var(--tx-3);font-size:12px">/ 00:40.70</span>
+    <div class="vsep" style="height:20px"></div>
+    <span class="btn sm icon ghost">{{i:zoomout:s14}}</span>
+    <div class="slider" style="flex:none;width:110px"><i style="width:45%"></i><b style="left:45%"></b></div>
+    <span class="btn sm icon ghost">{{i:zoomin:s14}}</span>
+  </div>
+  <div class="tl-body">
+    <div class="ruler"><div class="corner">30 px = 1 s</div>
+      <div class="scale">
+        <span style="left:8px">0:00</span><span style="left:158px">0:05</span><span style="left:308px">0:10</span><span style="left:458px">0:15</span><span style="left:608px">0:20</span><span style="left:758px">0:25</span><span style="left:908px">0:30</span><span style="left:1058px">0:35</span><span style="left:1208px">0:40</span>
+      </div>
+    </div>
+
+    <div class="track" style="height:76px">
+      <div class="th"><span class="dot" style="background:var(--c-video)"></span><div><div class="tn">Video</div><div class="ts">Main track</div></div><div class="ticons">{{i:eye:s14}}{{i:lock:s14}}</div></div>
+      <div class="lane">
+        <div class="clip title {{SEL_T0}}" style="left:8px;width:238px"><div class="cl">{{i:title:s14}} Title: Lake Naivasha, Kenya <em>8.00 s</em></div><div class="strip"><div class="sc-eagle"></div><div class="sc-eagle"></div><div class="sc-eagle"></div><div class="sc-eagle"></div></div>{{HANDLES_T0}}</div>
+        <div class="clip video {{SEL_N1}}" style="left:248px;width:124px"><div class="cl">Naivasha1 <em>4.20 s</em></div><div class="strip"><div class="sc-lake2"></div><div class="sc-lake2"></div></div><span class="speed">1.5×</span>{{HANDLES_N1}}</div>
+        <div class="clip video" style="left:374px;width:133px"><div class="cl">Naivasha2 <em>4.50 s</em></div><div class="strip"><div class="sc-lake"></div><div class="sc-lake"></div></div></div>
+        <div class="xfade {{XF_SEL}}" style="left:346px;width:56px">{{i:transition:s14}} 2.0s</div>
+        <div class="clip image {{SEL_S}}" style="left:509px;width:298px"><div class="cl">{{i:camera:s14}} Snapshot_n2end.png <em>10.00 s</em></div><div class="strip"><div class="sc-lake2"></div><div class="sc-lake2"></div><div class="sc-lake2"></div><div class="sc-lake2"></div><div class="sc-lake2"></div></div>{{PZ_BADGE}}{{HANDLES_S}}</div>
+        <div class="clip video {{SEL_FE}}" style="left:809px;width:238px"><div class="cl">Fish_Eagle.mp4 <em>8.00 s</em></div><div class="strip"><div class="{{FE_SCENE|fe-scene}}"></div><div class="{{FE_SCENE|fe-scene}}"></div><div class="{{FE_SCENE|fe-scene}}"></div><div class="{{FE_SCENE|fe-scene}}"></div></div><div class="fade-out" style="width:30px"></div>{{HANDLES_FE}}</div>
+        <div class="clip title" style="left:1049px;width:178px"><div class="cl">{{i:title:s14}} Black background <em>6.00 s</em></div><div class="strip"><div class="sc-black"></div></div></div>
+      </div>
+    </div>
+
+    <div class="track" style="height:46px">
+      <div class="th"><span class="dot" style="background:var(--c-text)"></span><div><div class="tn">Text</div><div class="ts">Captions · credits</div></div><div class="ticons">{{i:eye:s14}}</div></div>
+      <div class="lane">
+        <div class="clip text {{SEL_C1}}" style="left:509px;width:148px;top:6px;bottom:6px"><div class="cl">{{i:captions:s14}} Lake Naivasha sits in…</div>{{HANDLES_C1}}</div>
+        <div class="clip text" style="left:659px;width:148px;top:6px;bottom:6px"><div class="cl">{{i:captions:s14}} …best bird-watching</div></div>
+        <div class="clip text {{SEL_CR}}" style="left:1049px;width:178px;top:6px;bottom:6px"><div class="cl">{{i:credits:s14}} Credits (scroll)</div>{{HANDLES_CR}}</div>
+      </div>
+    </div>
+
+    <div class="track" style="height:62px">
+      <div class="th"><span class="dot" style="background:var(--c-music)"></span><div><div class="tn">Music</div><div class="ts">Audio 1</div></div><div class="ticons">{{i:vol:s14}}{{i:lock:s14}}</div></div>
+      <div class="lane">
+        <div class="clip music {{SEL_M}}" style="left:158px;width:1069px"><div class="cl">{{i:music:s14}} Task_11e_audio.mp3 <em>starts 5.00 s · fade out 3 s</em></div>{{wave:music1:1069:42:#5fe0a5:music}}<div class="fade-out" style="width:90px"></div>{{HANDLES_M}}</div>
+      </div>
+    </div>
+
+    <div class="track" style="height:62px">
+      <div class="th"><span class="dot" style="background:var(--c-voice)"></span><div><div class="tn">Voiceover</div><div class="ts">Audio 2</div></div><div class="ticons">{{i:vol:s14}}{{i:mic:s14}}</div></div>
+      <div class="lane">
+        <div class="clip voice" style="left:518px;width:120px"><div class="cl">{{i:mic:s14}} Voiceover_1</div>{{wave:voice1:120:42:#6fe6ea:voice}}</div>
+      </div>
+    </div>
+
+{{PH|ph-video}}
+  </div>
+  <div class="tl-foot"><div class="hscroll"></div></div>
+</section>

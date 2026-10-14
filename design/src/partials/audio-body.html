@@ -1,0 +1,66 @@
+<div class="a-body">
+  <div class="a-tracks">
+    <div class="ruler"><div class="corner" style="width:190px">24 px = 1 s</div>
+      <div class="scale" style="background:repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 120px) 8px 0 / 100% 100% no-repeat, repeating-linear-gradient(90deg, #2a2f39 0 1px, transparent 1px 24px) 8px 16px / 100% 10px no-repeat">
+        <span style="left:8px">0:00</span><span style="left:128px">0:05</span><span style="left:248px">0:10</span><span style="left:368px">0:15</span><span style="left:488px">0:20</span><span style="left:608px">0:25</span><span style="left:728px">0:30</span><span style="left:848px">0:35</span>
+      </div>
+    </div>
+    <div class="a-track" style="height:250px">
+      <div class="a-th">
+        <div class="tn"><span class="dot" style="width:8px;height:8px;border-radius:2px;background:var(--c-music)"></span>Task_11p_audio</div>
+        <div class="ts">Stereo · 44 100 Hz · 16-bit</div>
+        <div class="mini"><span>Mute</span><span>Solo</span><span>{{i:x:s14}}</span></div>
+        <div class="row" style="margin-top:4px">{{i:vol:s14}}<div class="slider"><i style="width:75%"></i><b style="left:75%"></b></div></div>
+        <div class="row">L<div class="slider"><i style="width:50%;background:var(--line-strong)"></i><b style="left:50%"></b></div>R</div>
+      </div>
+      <div class="a-lane">
+        <div class="aclip music" style="left:8px;width:960px"><div class="cl">{{i:music:s14}} Task_11p_audio.mp3</div>
+          <div class="ch">{{wave:aL:960:110:#4fd39a:music:x}}</div>
+          <div class="ch">{{wave:aR:960:110:#4fd39a:music:x}}</div>
+        </div>
+        {{SELECTION}}
+      </div>
+    </div>
+    <div class="a-track" style="height:140px">
+      <div class="a-th">
+        <div class="tn"><span class="dot" style="width:8px;height:8px;border-radius:2px;background:var(--c-voice)"></span>Voiceover_3</div>
+        <div class="ts">Mono · 44 100 Hz · 16-bit</div>
+        <div class="mini"><span>Mute</span><span>Solo</span><span>{{i:x:s14}}</span></div>
+      </div>
+      <div class="a-lane">
+        <div class="aclip voice" style="left:272px;width:240px"><div class="cl">{{i:mic:s14}} Voiceover_3.mp3</div><div class="ch">{{wave:v3:240:92:#5fe3e8:voice:x}}</div></div>
+        {{SELECTION2}}
+      </div>
+    </div>
+{{TRACK3|track3-empty}}
+{{PLAYHEAD|playhead-audio}}
+  </div>
+  <aside class="panel side">
+    <div class="panel-h">Selected track</div>
+    <div class="sec">
+      <table class="props"><tr><td>Channels</td><td class="v">2 (stereo)</td></tr><tr><td>Sample rate</td><td class="v">44 100 Hz</td></tr><tr><td>Sample resolution</td><td class="v">16-bit</td></tr><tr><td>Length</td><td class="v">40.00 s</td></tr><tr><td style="border:0">Uncompressed size</td><td class="v" style="border:0">7.06 MB</td></tr></table>
+      <div class="hint">{{i:book:s14}} <b>Why this size?</b> 44 100 × 16 × 2 × 40 ÷ 8 bytes. Open <b>Learn</b> to see it step by step.</div>
+    </div>
+    <div class="panel-h">History</div>
+    <div class="hist">
+      <div>{{i:import:s14}} Import Task_11p_audio.mp3</div>
+      <div>{{i:import:s14}} Import Voiceover_3.mp3</div>
+      <div>{{i:move:s14}} Align Voiceover_3 to 11.00 s</div>
+      <div class="cur">{{i:ibeam:s14}} Select 10.00 – 21.00 s</div>
+    </div>
+  </aside>
+</div>
+<div class="sel-bar">
+  <div class="grp"><span class="k">Project rate</span><div class="field select" style="width:120px">44 100 Hz {{i:chev:s14}}</div></div>
+  <div class="vsep" style="height:36px"></div>
+  <div class="grp"><span class="k">Selection start</span><span class="bigtc focus">00:00:10.00</span></div>
+  <div class="grp"><span class="k">Selection end</span><span class="bigtc">00:00:21.00</span></div>
+  <div class="grp"><span class="k">Length</span><span class="bigtc">00:00:11.00</span></div>
+  <div class="vsep" style="height:36px"></div>
+  <div class="grp"><span class="k">Audio position</span><span class="bigtc">00:00:20.25</span></div>
+  <span class="spacer" style="flex:1"></span>
+  <span class="hint" style="margin:0">Selection = 11.00 s × 44 100 = <b>485 100 samples</b> per channel</span>
+</div>
+<footer class="statusbar">
+  <span class="ok">{{i:check:s14}} Ready</span><span>2 tracks · stereo mix · 44.1 kHz</span><span class="spacer" style="flex:1"></span><span>{{i:save:s14}} Autosaved 10:51</span>
+</footer>

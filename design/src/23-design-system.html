@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>23 Design system</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>23 · Design system</b> — colours, type, controls, timeline items, teaching components and icons used by every screen</p>
+<div class="frame" style="height:auto">
+  <div class="ds">
+    <section>
+      <h3>Surfaces &amp; text</h3>
+      <div class="sw-grid">
+        <div class="sw"><div style="background:#101216"></div>bg-0<code>#101216</code></div>
+        <div class="sw"><div style="background:#171a20"></div>bg-1 panel<code>#171a20</code></div>
+        <div class="sw"><div style="background:#1e222a"></div>bg-2 raised<code>#1e222a</code></div>
+        <div class="sw"><div style="background:#272c36"></div>bg-3 hover<code>#272c36</code></div>
+        <div class="sw"><div style="background:#2c323d"></div>line<code>#2c323d</code></div>
+        <div class="sw"><div style="background:#eceef2"></div>text-1<code>#eceef2</code></div>
+      </div>
+      <h3 style="margin-top:20px">Accent &amp; states</h3>
+      <div class="sw-grid">
+        <div class="sw"><div style="background:#4f8cff"></div>accent<code>#4f8cff</code></div>
+        <div class="sw"><div style="background:#3ccf8e"></div>success<code>#3ccf8e</code></div>
+        <div class="sw"><div style="background:#f5b942"></div>warning / lossy<code>#f5b942</code></div>
+        <div class="sw"><div style="background:#ff5a5f"></div>danger · playhead<code>#ff5a5f</code></div>
+        <div class="sw"><div style="background:#a9b0bc"></div>text-2<code>#a9b0bc</code></div>
+        <div class="sw"><div style="background:#737b89"></div>text-3<code>#737b89</code></div>
+      </div>
+      <h3 style="margin-top:20px">Timeline item colours</h3>
+      <div class="sw-grid">
+        <div class="sw"><div style="background:#3f7fe0"></div>Video clip<code>#3f7fe0</code></div>
+        <div class="sw"><div style="background:#8b65d9"></div>Image / still<code>#8b65d9</code></div>
+        <div class="sw"><div style="background:#d8873a"></div>Title slide<code>#d8873a</code></div>
+        <div class="sw"><div style="background:#d9b13b"></div>Text overlay<code>#d9b13b</code></div>
+        <div class="sw"><div style="background:#33a874"></div>Music<code>#33a874</code></div>
+        <div class="sw"><div style="background:#22aab0"></div>Voiceover<code>#22aab0</code></div>
+      </div>
+    </section>
+    <section>
+      <h3>Typography — Inter (UI) · JetBrains Mono (numbers &amp; time)</h3>
+      <div class="type-row"><code>Title 15/650</code><span style="font-size:15px;font-weight:650">Export video</span></div>
+      <div class="type-row"><code>Body 13/400</code><span>Removes detail you are unlikely to notice.</span></div>
+      <div class="type-row"><code>Label 11/600 caps</code><span class="label-s" style="margin:0">Sample rate</span></div>
+      <div class="type-row"><code>Hint 11.5/400</code><span class="hint" style="margin:0">Source 6.30 s ÷ 1.5 = <b>4.20 s on the timeline</b></span></div>
+      <div class="type-row"><code>Timecode 15 mono</code><span class="tc">00:19.40 <small>/ 00:40.70</small></span></div>
+      <div class="type-row"><code>Number 30/700 mono</code><span style="font:700 30px var(--mono)">≈ 25 MB</span></div>
+      <h3 style="margin-top:20px">Buttons</h3>
+      <div class="row" style="flex-wrap:wrap;gap:8px"><span class="btn primary">{{i:export:s14}} Primary</span><span class="btn">Default</span><span class="btn ghost">Ghost</span><span class="btn danger">Danger</span><span class="btn sm">Small</span><span class="btn icon">{{i:undo}}</span><span class="tbtn">{{i:play}}</span><span class="tbtn on">{{i:ibeam}}</span><span class="tbtn rec">{{i:rec}}</span></div>
+    </section>
+    <section>
+      <h3>Inputs — every time value can be typed (0.01 s)</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field">6.30<span class="u">s</span></div>
+        <div class="field focus">12.50<span class="u">s</span></div>
+        <div class="field select">1920 × 1080 {{i:chev:s14}}</div>
+        <div class="field txt">Task_11e.mp4</div>
+      </div>
+      <div class="row" style="margin-top:12px;gap:14px"><span class="toggle on"></span><span class="toggle"></span><span class="check on">{{i:check:s14}}</span><span class="check"></span><span class="radio on"></span><span class="radio"></span><div class="slider" style="max-width:160px"><i style="width:60%"></i><b style="left:60%"></b></div></div>
+      <div class="row" style="margin-top:12px;gap:14px"><div class="seg small"><button class="on">16:9</button><button>4:3</button><button>Custom</button></div><div class="pills"><span class="pill on">Treble boost</span><span class="pill">Flat</span><span class="pill add">{{i:plus:s14}} Add filter</span></div></div>
+      <h3 style="margin-top:20px">Teaching components</h3>
+      <div class="row" style="gap:10px"><span class="syl">11.1</span><span class="syl">11.2 noise reduction</span><span class="why">?</span><span class="chip" style="color:var(--warn)">Lossy</span><span class="hint" style="margin:0;color:var(--success)">{{i:check:s14}} Good contrast (7.1 : 1)</span></div>
+      <div class="why-box" style="margin-top:10px">{{i:info}}<div><b>"Why" box.</b> Every tool explains why it is used, in syllabus wording (T5).</div></div>
+    </section>
+    <section>
+      <h3>Timeline items</h3>
+      <div style="position:relative;height:200px;background:var(--bg-0);border-radius:8px;border:1px solid var(--line)">
+        <div class="clip video" style="left:10px;width:160px;top:10px;height:60px"><div class="cl">Video clip <em>4.20 s</em></div><div class="strip"><div class="sc-lake"></div><div class="sc-lake"></div></div><span class="speed">1.5×</span></div>
+        <div class="clip video sel" style="left:180px;width:160px;top:10px;height:60px"><div class="cl">Selected <em>trim handles</em></div><div class="strip"><div class="sc-lake2"></div><div class="sc-lake2"></div></div><span class="handle l"></span><span class="handle r"></span></div>
+        <div class="xfade" style="left:146px;width:56px;top:40px">{{i:transition:s14}} 1.0s</div>
+        <div class="clip image" style="left:350px;width:120px;top:10px;height:60px"><div class="cl">{{i:image:s14}} Still</div><div class="strip"><div class="sc-eagle"></div></div></div>
+        <div class="clip title" style="left:480px;width:110px;top:10px;height:60px"><div class="cl">{{i:title:s14}} Title</div><div class="strip"><div class="sc-black"></div></div></div>
+        <div class="clip text" style="left:10px;width:200px;top:82px;height:30px"><div class="cl">{{i:captions:s14}} Caption</div></div>
+        <div class="clip text" style="left:220px;width:160px;top:82px;height:30px"><div class="cl">{{i:credits:s14}} Credits (scroll)</div></div>
+        <div class="clip music" style="left:10px;width:370px;top:124px;height:66px"><div class="cl">{{i:music:s14}} Music <em>fade out</em></div>{{wave:ds1:370:46:#5fe0a5:music}}<div class="fade-out" style="width:60px"></div></div>
+        <div class="clip voice" style="left:390px;width:200px;top:124px;height:66px"><div class="cl">{{i:mic:s14}} Voiceover</div>{{wave:ds2:200:46:#6fe6ea:voice}}</div>
+      </div>
+    </section>
+    <section style="grid-column:1 / -1">
+      <h3>Icons (24 px grid, 1.8 stroke)</h3>
+      <div class="icon-grid" style="grid-template-columns:repeat(17,1fr)"><div>{{i:play:s20}}<span>play</span></div><div>{{i:pause:s20}}<span>pause</span></div><div>{{i:stop:s20}}<span>stop</span></div><div>{{i:rec:s20}}<span>rec</span></div><div>{{i:skipb:s20}}<span>skipb</span></div><div>{{i:skipf:s20}}<span>skipf</span></div><div>{{i:import:s20}}<span>import</span></div><div>{{i:title:s20}}<span>title</span></div><div>{{i:captions:s20}}<span>captions</span></div><div>{{i:credits:s20}}<span>credits</span></div><div>{{i:camera:s20}}<span>camera</span></div><div>{{i:scissors:s20}}<span>scissors</span></div><div>{{i:split:s20}}<span>split</span></div><div>{{i:transition:s20}}<span>transition</span></div><div>{{i:undo:s20}}<span>undo</span></div><div>{{i:redo:s20}}<span>redo</span></div><div>{{i:export:s20}}<span>export</span></div><div>{{i:sliders:s20}}<span>sliders</span></div><div>{{i:volx:s20}}<span>volx</span></div><div>{{i:vol:s20}}<span>vol</span></div><div>{{i:lock:s20}}<span>lock</span></div><div>{{i:eye:s20}}<span>eye</span></div><div>{{i:help:s20}}<span>help</span></div><div>{{i:chev:s20}}<span>chev</span></div><div>{{i:chevr:s20}}<span>chevr</span></div><div>{{i:x:s20}}<span>x</span></div><div>{{i:plus:s20}}<span>plus</span></div><div>{{i:minus:s20}}<span>minus</span></div><div>{{i:copy:s20}}<span>copy</span></div><div>{{i:paste:s20}}<span>paste</span></div><div>{{i:trim:s20}}<span>trim</span></div><div>{{i:silence:s20}}<span>silence</span></div><div>{{i:zoomin:s20}}<span>zoomin</span></div><div>{{i:zoomout:s20}}<span>zoomout</span></div><div>{{i:magnet:s20}}<span>magnet</span></div><div>{{i:film:s20}}<span>film</span></div><div>{{i:image:s20}}<span>image</span></div><div>{{i:music:s20}}<span>music</span></div><div>{{i:mic:s20}}<span>mic</span></div><div>{{i:wave:s20}}<span>wave</span></div><div>{{i:info:s20}}<span>info</span></div><div>{{i:check:s20}}<span>check</span></div><div>{{i:ibeam:s20}}<span>ibeam</span></div><div>{{i:move:s20}}<span>move</span></div><div>{{i:folder:s20}}<span>folder</span></div><div>{{i:search:s20}}<span>search</span></div><div>{{i:fade:s20}}<span>fade</span></div><div>{{i:sparkle:s20}}<span>sparkle</span></div><div>{{i:book:s20}}<span>book</span></div><div>{{i:calc:s20}}<span>calc</span></div><div>{{i:loop:s20}}<span>loop</span></div><div>{{i:aspect:s20}}<span>aspect</span></div><div>{{i:file:s20}}<span>file</span></div><div>{{i:save:s20}}<span>save</span></div><div>{{i:unlink:s20}}<span>unlink</span></div><div>{{i:mono:s20}}<span>mono</span></div><div>{{i:palette:s20}}<span>palette</span></div><div>{{i:gauge:s20}}<span>gauge</span></div><div>{{i:dots:s20}}<span>dots</span></div><div>{{i:monitor:s20}}<span>monitor</span></div><div>{{i:phone:s20}}<span>phone</span></div><div>{{i:disc:s20}}<span>disc</span></div><div>{{i:globe:s20}}<span>globe</span></div><div>{{i:crop:s20}}<span>crop</span></div><div>{{i:anchor:s20}}<span>anchor</span></div></div>
+    </section>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,44 @@
+<!--@SEL_C1: sel-->
+<!--@HANDLES_C1: <span class="handle l"></span><span class="handle r"></span>-->
+<!--@CAP_SEL: sel-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>02 Video editor — caption selected</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>02 · Video mode</b> — caption selected: text, style, readability and timing</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:toolbar-video}}
+  <div class="workspace">
+    {{include:bin}}
+    {{include:preview}}
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div style="padding:10px 12px 0"><div class="seg small" style="width:100%"><button class="on" style="flex:1">{{i:captions:s14}} Caption</button><button style="flex:1">Subtitle</button><button style="flex:1">Credits</button></div></div>
+      <div class="sec">
+        <div class="field txt" style="height:46px;align-items:flex-start;padding-top:5px;line-height:1.35;font-size:12px">Lake Naivasha sits in the Great Rift Valley. It is home to over 400 species of birds.</div>
+        <div class="row" style="margin-top:8px"><div class="field select grow txt">Inter (sans-serif) {{i:chev:s14}}</div><div class="field" style="width:62px">36<span class="u">pt</span></div><span class="swatch" style="background:#fff;width:28px;height:28px;border-radius:4px"></span></div>
+        <div class="row"><div class="btnrow" style="flex:1"><span class="btn sm on"><b>B</b></span><span class="btn sm"><i>I</i></span><span class="btn sm on">Left</span><span class="btn sm">Centre</span><span class="btn sm">Right</span></div></div>
+      </div>
+      <div class="sec">
+        <div class="sec-h">Position &amp; readability <span class="syl">11.1</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="row" style="align-items:flex-start">
+          <div class="grid9"><span class="on"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;margin-left:8px">
+            <div class="row" style="margin:0"><span class="toggle on"></span><span style="font-size:12px">Shadow</span><span class="toggle" style="margin-left:10px"></span><span style="font-size:12px">Outline</span></div>
+            <div class="row" style="margin:0"><span class="toggle"></span><span style="font-size:12px">Background box</span></div>
+          </div>
+        </div>
+        <div class="hint" style="color:var(--success);margin-top:6px">{{i:check:s14}} Good contrast (7.1 : 1) — easy to read</div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="sec-h">Timing</div>
+        <div class="row"><span class="lbl">Start</span><div class="field grow">16.70<span class="u">s</span></div><span class="lbl" style="width:auto">Length</span><div class="field grow focus">5.00<span class="u">s</span></div></div>
+        <div class="row"><span class="lbl">Fade in</span><div class="field grow">0.20<span class="u">s</span></div><span class="lbl" style="width:auto">Out</span><div class="field grow">0.20<span class="u">s</span></div></div>
+      </div>
+    </aside>
+  </div>
+  {{include:timeline}}
+  {{include:statusbar}}
+</div>
+</body></html>

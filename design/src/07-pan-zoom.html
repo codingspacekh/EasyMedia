@@ -1,0 +1,36 @@
+<!--@SEL_S: sel-->
+<!--@HANDLES_S: <span class="handle l"></span><span class="handle r"></span>-->
+<!--@PZ_BADGE: <span class="speed" style="right:auto;left:6px">⤢ zoom</span>-->
+<!--@SCREEN: <div class="screen sc-lake2"><div class="kf" style="inset:8px;border:2px dashed rgba(255,255,255,.9)"><span style="background:#fff;color:#111;top:6px;left:6px">Start · 100%</span></div><div class="kf" style="left:250px;top:70px;width:236px;height:133px;border:2px solid var(--accent);background:rgba(79,140,255,.12)"><span style="background:var(--accent);color:#fff">End · 180%</span></div></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>07 Pan and zoom</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>07 · Video mode — still image with pan &amp; zoom</b> — set how long a still shows, then choose a preset or drag Start / End frames on the preview (V8, V12)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:toolbar-video}}
+  <div class="workspace">
+    {{include:bin}}
+    {{include:preview}}
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div class="insp-head"><div class="thumb sc-lake2"></div><div><div class="t1">Snapshot_n2end.png</div><div class="t2">Still image · 1920 × 1080</div></div></div>
+      <div class="sec">
+        <div class="sec-h">{{i:image:s14}} Still image <span class="syl">11.1 inserting a still</span></div>
+        <div class="row"><span class="lbl">Duration</span><div class="field grow">10.00<span class="u">s</span></div></div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="sec-h">{{i:zoomin:s14}} Pan &amp; zoom <span class="syl">11.1 pan and zoom</span><span class="spacer"></span><span class="why">?</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px"><span class="btn sm" style="padding:0 6px;font-size:11.5px">None</span><span class="btn sm" style="padding:0 6px;font-size:11.5px">Zoom in</span><span class="btn sm" style="padding:0 6px;font-size:11.5px">Zoom in left</span><span class="btn sm" style="padding:0 6px;font-size:11.5px">Zoom in right</span><span class="btn sm" style="padding:0 6px;font-size:11.5px">Zoom out</span><span class="btn sm" style="padding:0 6px;font-size:11.5px">Pan left → right</span><span class="btn sm" style="padding:0 6px;font-size:11.5px">Pan right → left</span><span class="btn sm on" style="padding:0 6px;font-size:11.5px">Custom</span></div>
+        <div class="label-s" style="margin-top:12px">Start frame</div>
+        <div class="row" style="margin:0"><div class="field grow">100<span class="u">% zoom</span></div><div class="field grow txt">Centre</div></div>
+        <div class="label-s" style="margin-top:10px">End frame</div>
+        <div class="row" style="margin:0"><div class="field grow focus">180<span class="u">% zoom</span></div><div class="field grow">62, 38<span class="u">x, y %</span></div></div>
+      </div>
+    </aside>
+  </div>
+  {{include:timeline}}
+  {{include:statusbar}}
+</div>
+</body></html>

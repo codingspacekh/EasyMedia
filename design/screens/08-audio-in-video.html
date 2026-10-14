@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>08 Audio in a video</title>
+<meta name="viewport" content="width=1520">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<p class="frame-label"><b>08 · Video mode — adding and editing audio in a video</b> — start time, trim, volume, fades and automatic lowering under a voiceover; effects open in Audio mode (V13)</p>
+<div class="frame">
+  <header class="titlebar">
+  <div class="lights"><span></span><span></span><span></span></div>
+  <div class="title"><b>Lake_Naivasha.mve</b> — Mini Video Editor</div>
+</header>
+
+  <div class="toolbar">
+  <div class="seg">
+    <button class="on"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M3 12h18M3 16.5h4M17 7.5h4M17 16.5h4"/></svg> Video</button>
+    <button><svg class="i" viewBox="0 0 24 24"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h0"/></svg> Audio</button>
+    <button><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg> Learn</button>
+  </div>
+  <div class="vsep"></div>
+  <div class="tools">
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Import</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>Title</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h4M13 15h4M7 11h10"/></svg>Caption</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="m3 9 2.5-3L8 9"/><path d="M5.5 6v13"/></svg>Credits</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg>Snapshot</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/></svg>Split</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="11" height="12" rx="1.5"/><rect x="10" y="6" width="11" height="12" rx="1.5"/></svg>Transition</div>
+    <div class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Add music</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="chip"><svg class="i s14" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/></svg> <b>16:9</b> · 1920 × 1080 · 30 fps <svg class="i s14" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+  <div class="btn ghost icon"><svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></div>
+  <div class="btn ghost icon"><svg class="i" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></div>
+  <div class="btn primary"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg> Export</div>
+</div>
+
+  <div class="workspace">
+    <aside class="panel bin">
+  <div class="panel-h">Media <span class="spacer"></span><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div>
+  <div class="bin-tabs"><div class="seg small"><button class="on">All</button><button>Video</button><button>Images</button><button>Audio</button></div></div>
+  <div class="bin-grid">
+    <div class="media"><div class="thumb sc-eagle"><span class="badge"><svg class="i s14" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span></div><div class="name">Fish_Eagle1.jpg</div><div class="meta">1920×1080 · used</div></div>
+    <div class="media"><div class="thumb sc-lake"><span class="badge">0:20</span></div><div class="name">Lake_Naivasha.mp4</div><div class="meta">1080p · 30 fps</div></div>
+    <div class="media sel"><div class="thumb sc-lake2"><span class="badge">0:06</span></div><div class="name">Naivasha1.mp4</div><div class="meta">1080p · used</div></div>
+    <div class="media"><div class="thumb sc-lake"><span class="badge">0:04</span></div><div class="name">Naivasha2.mp4</div><div class="meta">1080p · used</div></div>
+    <div class="media"><div class="thumb sc-eaglevid"><span class="badge">0:08</span></div><div class="name">Fish_Eagle.mp4</div><div class="meta">1080p · used</div></div>
+    <div class="media"><div class="thumb sc-bee"><span class="badge warn r">Preparing 62%</span><span class="badge">0:12</span></div><div class="name">Balloon.mp4</div><div class="meta">4K · making proxy</div></div>
+  </div>
+</aside>
+
+    <section class="preview">
+  <div class="preview-top">
+    <span style="font-weight:600;font-size:12px;color:var(--tx-2);letter-spacing:.02em;text-transform:uppercase">Preview</span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="chip" style="height:24px">Proxy · smooth</span>
+    <span class="chip" style="height:24px">Safe area <svg class="i s14" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg> Exact preview</span>
+  </div>
+  <div class="stage">
+    <div class="screen sc-lake2">
+      <div class="safe"></div>
+      <div class="ov-text " style="left:40px;top:34px;width:330px;font-size:21px;line-height:1.3;font-family:Inter,sans-serif;text-shadow:0 0 1px #000,0 1px 4px rgba(0,0,0,.8)">Lake Naivasha sits in the Great Rift Valley. It is home to over 400 species of birds.</div>
+    </div>
+
+  </div>
+  <div class="transport">
+    <span class="btn ghost icon"><svg class="i" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></span>
+    <span class="play"><svg class="i s20" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M7 4.5v15l12.5-7.5z"/></svg></span>
+    <span class="btn ghost icon"><svg class="i" viewBox="0 0 24 24"><path d="m5 4 10 8-10 8z"/><path d="M19 5v14"/></svg></span>
+    <span class="tc">00:19.40 <small>/ 00:40.70</small></span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="btn ghost icon"><svg class="i" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg></span>
+    <span class="btn ghost icon"><svg class="i" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></span>
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg> Snapshot</span>
+  </div>
+</section>
+
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div class="insp-head"><div class="thumb sc-audio"><svg class="i s14" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="t1">Task_11e_audio.mp3</div><div class="t2">Music · Audio 1 · stereo 44.1 kHz</div></div></div>
+      <div class="sec">
+        <div class="sec-h"><svg class="i s14" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Position &amp; trim <span class="syl">11.1 adding audio</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="row"><span class="lbl">Starts at</span><div class="field grow focus">5.00<span class="u">s</span></div><span class="btn sm icon" title="Set to playhead"><svg class="i s14" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></span></div>
+        <div class="row"><span class="lbl">Trim</span><div class="field grow">0.00<span class="u">s</span></div><span style="color:var(--tx-3)">–</span><div class="field grow">35.70<span class="u">s</span></div></div>
+        <div class="hint">Plays <b>5.00 – 40.70 s</b>, ending with the video</div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><svg class="i s14" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg> Volume &amp; fades <span class="syl">11.1 editing audio</span></div>
+        <div class="row"><span class="lbl">Volume</span><div class="slider"><i style="width:80%"></i><b style="left:80%"></b></div><span style="font:500 11.5px var(--mono);width:34px;text-align:right">80%</span></div>
+        <div class="row"><span class="lbl" style="width:56px">Fade in</span><div class="field grow">0.00<span class="u">s</span></div><span class="lbl" style="width:auto">Out</span><div class="field grow">3.00<span class="u">s</span></div></div>
+        <div class="row"><span class="toggle on"></span><span style="font-size:12px">Lower under voiceover (−6 dB)</span></div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="row" style="margin:0"><span class="btn sm" style="flex:1"><svg class="i s14" viewBox="0 0 24 24"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h0"/></svg> Edit in Audio mode</span><span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg> Mute</span></div>
+        <div class="hint">Echo, EQ, noise reduction and pitch are in Audio mode.</div>
+      </div>
+    </aside>
+  </div>
+  <section class="timeline">
+  <div class="tl-bar">
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></svg> Split</span>
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><path d="M8 4H5v16h3M16 4h3v16h-3"/><path d="M10 12h4"/></svg> Trim</span>
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/><path d="M3 3l18 18"/></svg> Join</span>
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><rect x="3" y="6" width="11" height="12" rx="1.5"/><rect x="10" y="6" width="11" height="12" rx="1.5"/></svg> Transition</span>
+    <span class="btn sm"><svg class="i s14" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg> Delete</span>
+    <div class="vsep" style="height:20px"></div>
+    <span class="btn sm icon ghost on" style="color:var(--accent)"><svg class="i s14" viewBox="0 0 24 24"><path d="M6 15V8a6 6 0 0 1 12 0v7"/><path d="M6 15h4v-4M14 11v4h4"/><path d="M6 19h4M14 19h4"/></svg></span>
+    <span style="color:var(--tx-3);font-size:11.5px">Snap</span>
+    <span class="spacer"></span>
+    <span class="tc" style="font-size:13px">00:19.40</span>
+    <span style="color:var(--tx-3);font-size:12px">/ 00:40.70</span>
+    <div class="vsep" style="height:20px"></div>
+    <span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/></svg></span>
+    <div class="slider" style="flex:none;width:110px"><i style="width:45%"></i><b style="left:45%"></b></div>
+    <span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></svg></span>
+  </div>
+  <div class="tl-body">
+    <div class="ruler"><div class="corner">30 px = 1 s</div>
+      <div class="scale">
+        <span style="left:8px">0:00</span><span style="left:158px">0:05</span><span style="left:308px">0:10</span><span style="left:458px">0:15</span><span style="left:608px">0:20</span><span style="left:758px">0:25</span><span style="left:908px">0:30</span><span style="left:1058px">0:35</span><span style="left:1208px">0:40</span>
+      </div>
+    </div>
+
+    <div class="track" style="height:76px">
+      <div class="th"><span class="dot" style="background:var(--c-video)"></span><div><div class="tn">Video</div><div class="ts">Main track</div></div><div class="ticons"><svg class="i s14" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i s14" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div></div>
+      <div class="lane">
+        <div class="clip title " style="left:8px;width:238px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg> Title: Lake Naivasha, Kenya <em>8.00 s</em></div><div class="strip"><div class="sc-eagle"></div><div class="sc-eagle"></div><div class="sc-eagle"></div><div class="sc-eagle"></div></div></div>
+        <div class="clip video " style="left:248px;width:124px"><div class="cl">Naivasha1 <em>4.20 s</em></div><div class="strip"><div class="sc-lake2"></div><div class="sc-lake2"></div></div><span class="speed">1.5×</span></div>
+        <div class="clip video" style="left:374px;width:133px"><div class="cl">Naivasha2 <em>4.50 s</em></div><div class="strip"><div class="sc-lake"></div><div class="sc-lake"></div></div></div>
+        <div class="xfade " style="left:346px;width:56px"><svg class="i s14" viewBox="0 0 24 24"><rect x="3" y="6" width="11" height="12" rx="1.5"/><rect x="10" y="6" width="11" height="12" rx="1.5"/></svg> 2.0s</div>
+        <div class="clip image " style="left:509px;width:298px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg> Snapshot_n2end.png <em>10.00 s</em></div><div class="strip"><div class="sc-lake2"></div><div class="sc-lake2"></div><div class="sc-lake2"></div><div class="sc-lake2"></div><div class="sc-lake2"></div></div></div>
+        <div class="clip video " style="left:809px;width:238px"><div class="cl">Fish_Eagle.mp4 <em>8.00 s</em></div><div class="strip"><div class="sc-eaglevid"></div><div class="sc-eaglevid"></div><div class="sc-eaglevid"></div><div class="sc-eaglevid"></div></div><div class="fade-out" style="width:30px"></div></div>
+        <div class="clip title" style="left:1049px;width:178px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg> Black background <em>6.00 s</em></div><div class="strip"><div class="sc-black"></div></div></div>
+      </div>
+    </div>
+
+    <div class="track" style="height:46px">
+      <div class="th"><span class="dot" style="background:var(--c-text)"></span><div><div class="tn">Text</div><div class="ts">Captions · credits</div></div><div class="ticons"><svg class="i s14" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div></div>
+      <div class="lane">
+        <div class="clip text " style="left:509px;width:148px;top:6px;bottom:6px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h4M13 15h4M7 11h10"/></svg> Lake Naivasha sits in…</div></div>
+        <div class="clip text" style="left:659px;width:148px;top:6px;bottom:6px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h4M13 15h4M7 11h10"/></svg> …best bird-watching</div></div>
+        <div class="clip text " style="left:1049px;width:178px;top:6px;bottom:6px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="m3 9 2.5-3L8 9"/><path d="M5.5 6v13"/></svg> Credits (scroll)</div></div>
+      </div>
+    </div>
+
+    <div class="track" style="height:62px">
+      <div class="th"><span class="dot" style="background:var(--c-music)"></span><div><div class="tn">Music</div><div class="ts">Audio 1</div></div><div class="ticons"><svg class="i s14" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><svg class="i s14" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div></div>
+      <div class="lane">
+        <div class="clip music sel" style="left:158px;width:1069px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Task_11e_audio.mp3 <em>starts 5.00 s · fade out 3 s</em></div><svg class="wave" viewBox="0 0 1069 42" preserveAspectRatio="none"><path d="M0,5.8 L2,6.2 L4,7.2 L6,5.5 L8,6.3 L10,7.5 L12,8.5 L14,10.1 L16,12.4 L18,13.1 L20,12.4 L22,13.2 L24,14.6 L26,14.7 L28,13.2 L30,13.3 L32,14.1 L34,12.5 L36,11.6 L38,12.2 L40,11.5 L42,12.2 L44,10.5 L46,10.8 L48,10.8 L50,10.7 L52,12.4 L54,11.2 L56,11.1 L58,12.7 L60,11.9 L62,13.3 L64,15.1 L66,13.5 L68,13.5 L70,14.0 L72,14.1 L74,14.1 L76,14.0 L78,12.5 L80,11.2 L82,11.9 L84,10.7 L86,9.8 L88,7.3 L90,8.5 L92,5.4 L94,5.9 L96,7.6 L98,5.4 L100,5.3 L102,5.5 L104,8.9 L106,8.6 L108,8.9 L110,9.7 L112,8.5 L114,7.7 L116,10.6 L118,7.2 L120,9.4 L122,8.5 L124,7.7 L126,6.5 L128,8.6 L130,4.7 L132,8.0 L134,6.5 L136,5.7 L138,6.0 L140,5.6 L142,5.1 L144,6.0 L146,8.5 L148,8.0 L150,7.5 L152,9.5 L154,8.7 L156,10.1 L158,11.8 L160,12.4 L162,12.2 L164,12.8 L166,12.7 L168,13.7 L170,12.0 L172,12.3 L174,11.7 L176,12.5 L178,10.1 L180,11.3 L182,11.4 L184,9.6 L186,11.7 L188,9.7 L190,10.6 L192,12.3 L194,12.3 L196,13.7 L198,14.3 L200,14.1 L202,13.8 L204,15.2 L206,15.7 L208,15.5 L210,14.0 L212,14.6 L214,14.9 L216,14.2 L218,12.9 L220,11.5 L222,10.3 L224,10.9 L226,8.0 L228,8.4 L230,8.7 L232,6.2 L234,8.0 L236,5.3 L238,9.0 L240,7.7 L242,9.0 L244,6.6 L246,10.6 L248,9.9 L250,9.0 L252,10.0 L254,10.2 L256,9.7 L258,9.6 L260,8.1 L262,8.4 L264,5.4 L266,6.6 L268,4.8 L270,4.0 L272,4.1 L274,6.8 L276,3.8 L278,1.8 L280,4.3 L282,6.1 L284,4.7 L286,8.2 L288,6.9 L290,7.4 L292,10.7 L294,10.4 L296,9.7 L298,12.8 L300,11.3 L302,13.5 L304,13.2 L306,13.0 L308,12.5 L310,10.4 L312,11.0 L314,11.9 L316,9.5 L318,10.2 L320,8.8 L322,8.5 L324,9.3 L326,10.5 L328,11.4 L330,10.7 L332,13.0 L334,12.6 L336,14.5 L338,15.2 L340,14.9 L342,15.4 L344,15.5 L346,15.2 L348,14.8 L350,15.4 L352,14.1 L354,13.1 L356,13.1 L358,12.9 L360,10.8 L362,8.9 L364,8.0 L366,9.2 L368,7.6 L370,6.8 L372,7.6 L374,7.7 L376,6.4 L378,7.9 L380,7.2 L382,9.1 L384,10.1 L386,10.1 L388,11.0 L390,10.1 L392,11.5 L394,9.9 L396,10.8 L398,9.2 L400,8.1 L402,9.5 L404,5.3 L406,3.6 L408,6.8 L410,4.7 L412,2.7 L414,6.5 L416,4.0 L418,5.9 L420,4.8 L422,5.7 L424,5.1 L426,4.7 L428,9.7 L430,10.3 L432,8.7 L434,10.7 L436,11.1 L438,12.2 L440,11.6 L442,11.6 L444,10.7 L446,10.9 L448,9.9 L450,10.0 L452,10.1 L454,7.5 L456,8.2 L458,9.7 L460,9.0 L462,11.0 L464,8.1 L466,10.4 L468,10.0 L470,13.0 L472,12.6 L474,13.8 L476,14.9 L478,14.9 L480,15.0 L482,15.4 L484,15.0 L486,15.7 L488,14.6 L490,15.2 L492,13.0 L494,12.5 L496,13.5 L498,12.7 L500,11.0 L502,9.9 L504,9.6 L506,8.2 L508,9.8 L510,7.3 L512,10.8 L514,9.5 L516,10.1 L518,9.1 L520,9.0 L522,11.0 L524,12.2 L526,11.6 L528,12.4 L530,9.5 L532,10.7 L534,8.3 L536,8.7 L538,9.7 L540,6.2 L542,5.6 L544,5.7 L546,4.9 L548,5.9 L550,3.0 L552,2.7 L554,3.1 L556,2.8 L558,3.9 L560,3.4 L562,6.9 L564,7.2 L566,7.9 L568,6.5 L570,9.0 L572,8.9 L574,10.8 L576,11.7 L578,9.6 L580,9.2 L582,9.6 L584,9.7 L586,11.1 L588,10.5 L590,10.1 L592,9.9 L594,8.4 L596,7.7 L598,6.5 L600,6.7 L602,9.0 L604,8.2 L606,11.9 L608,11.3 L610,11.1 L612,12.2 L614,13.5 L616,14.0 L618,14.3 L620,15.4 L622,16.2 L624,16.0 L626,15.5 L628,14.6 L630,13.9 L632,12.2 L634,12.4 L636,10.9 L638,10.3 L640,11.3 L642,11.1 L644,10.9 L646,9.0 L648,9.7 L650,10.1 L652,9.8 L654,11.4 L656,10.6 L658,11.7 L660,11.6 L662,13.1 L664,13.6 L666,12.8 L668,13.3 L670,12.1 L672,11.6 L674,10.3 L676,10.9 L678,9.7 L680,8.0 L682,8.7 L684,7.3 L686,3.5 L688,5.6 L690,2.9 L692,6.8 L694,6.8 L696,5.5 L698,4.5 L700,8.4 L702,4.5 L704,8.5 L706,6.6 L708,8.8 L710,10.2 L712,9.9 L714,10.0 L716,8.0 L718,10.5 L720,9.1 L722,7.9 L724,7.7 L726,7.4 L728,7.4 L730,9.2 L732,8.4 L734,7.7 L736,8.0 L738,8.3 L740,6.7 L742,8.9 L744,9.0 L746,11.2 L748,10.8 L750,11.0 L752,13.9 L754,14.7 L756,14.2 L758,14.2 L760,15.5 L762,14.6 L764,15.1 L766,13.6 L768,13.2 L770,12.1 L772,13.3 L774,10.6 L776,10.9 L778,11.0 L780,11.6 L782,8.9 L784,8.9 L786,8.7 L788,12.1 L790,12.0 L792,12.9 L794,11.3 L796,13.4 L798,12.2 L800,14.1 L802,14.0 L804,12.9 L806,13.9 L808,12.5 L810,12.7 L812,9.3 L814,8.4 L816,7.3 L818,8.7 L820,7.1 L822,6.6 L824,4.2 L826,4.7 L828,3.1 L830,2.6 L832,2.4 L834,7.5 L836,6.3 L838,8.4 L840,8.1 L842,9.1 L844,7.6 L846,10.0 L848,9.7 L850,10.9 L852,7.6 L854,7.5 L856,8.0 L858,8.4 L860,9.0 L862,5.9 L864,7.7 L866,7.8 L868,6.9 L870,6.4 L872,5.5 L874,4.5 L876,5.1 L878,6.4 L880,7.9 L882,10.4 L884,8.0 L886,11.7 L888,12.6 L890,13.8 L892,13.9 L894,13.3 L896,14.4 L898,15.4 L900,14.7 L902,14.1 L904,14.6 L906,12.8 L908,12.1 L910,11.7 L912,12.3 L914,10.0 L916,10.2 L918,12.1 L920,10.8 L922,9.9 L924,12.4 L926,10.7 L928,10.4 L930,12.5 L932,13.7 L934,13.5 L936,14.8 L938,13.7 L940,14.6 L942,13.4 L944,14.7 L946,13.6 L948,12.1 L950,10.8 L952,11.8 L954,10.0 L956,9.1 L958,6.3 L960,5.1 L962,8.4 L964,3.7 L966,6.1 L968,7.4 L970,7.6 L972,7.4 L974,6.5 L976,8.3 L978,8.4 L980,6.8 L982,9.8 L984,7.3 L986,7.6 L988,9.3 L990,8.4 L992,8.3 L994,8.1 L996,9.2 L998,5.4 L1000,5.2 L1002,6.4 L1004,3.7 L1006,6.8 L1008,5.8 L1010,6.3 L1012,3.6 L1014,6.8 L1016,5.2 L1018,6.8 L1020,7.7 L1022,9.5 L1024,8.8 L1026,11.0 L1028,12.8 L1030,12.9 L1032,14.3 L1034,14.4 L1036,14.2 L1038,13.0 L1040,13.2 L1042,12.2 L1044,12.6 L1046,11.1 L1048,12.8 L1050,12.4 L1052,10.6 L1054,11.3 L1056,10.9 L1058,8.8 L1060,11.9 L1062,10.8 L1064,11.2 L1066,13.2 L1068,11.6 L1068,30.4 L1066,28.8 L1064,30.8 L1062,31.2 L1060,30.1 L1058,33.2 L1056,31.1 L1054,30.7 L1052,31.4 L1050,29.6 L1048,29.2 L1046,30.9 L1044,29.4 L1042,29.8 L1040,28.8 L1038,29.0 L1036,27.8 L1034,27.6 L1032,27.7 L1030,29.1 L1028,29.2 L1026,31.0 L1024,33.2 L1022,32.5 L1020,34.3 L1018,35.2 L1016,36.8 L1014,35.2 L1012,38.4 L1010,35.7 L1008,36.2 L1006,35.2 L1004,38.3 L1002,35.6 L1000,36.8 L998,36.6 L996,32.8 L994,33.9 L992,33.7 L990,33.6 L988,32.7 L986,34.4 L984,34.7 L982,32.2 L980,35.2 L978,33.6 L976,33.7 L974,35.5 L972,34.6 L970,34.4 L968,34.6 L966,35.9 L964,38.3 L962,33.6 L960,36.9 L958,35.7 L956,32.9 L954,32.0 L952,30.2 L950,31.2 L948,29.9 L946,28.4 L944,27.3 L942,28.6 L940,27.4 L938,28.3 L936,27.2 L934,28.5 L932,28.3 L930,29.5 L928,31.6 L926,31.3 L924,29.6 L922,32.1 L920,31.2 L918,29.9 L916,31.8 L914,32.0 L912,29.7 L910,30.3 L908,29.9 L906,29.2 L904,27.4 L902,27.9 L900,27.3 L898,26.6 L896,27.6 L894,28.7 L892,28.1 L890,28.2 L888,29.4 L886,30.3 L884,34.0 L882,31.6 L880,34.1 L878,35.6 L876,36.9 L874,37.5 L872,36.5 L870,35.6 L868,35.1 L866,34.2 L864,34.3 L862,36.1 L860,33.0 L858,33.6 L856,34.0 L854,34.5 L852,34.4 L850,31.1 L848,32.3 L846,32.0 L844,34.4 L842,32.9 L840,33.9 L838,33.6 L836,35.7 L834,34.5 L832,39.6 L830,39.4 L828,38.9 L826,37.3 L824,37.8 L822,35.4 L820,34.9 L818,33.3 L816,34.7 L814,33.6 L812,32.7 L810,29.3 L808,29.5 L806,28.1 L804,29.1 L802,28.0 L800,27.9 L798,29.8 L796,28.6 L794,30.7 L792,29.1 L790,30.0 L788,29.9 L786,33.3 L784,33.1 L782,33.1 L780,30.4 L778,31.0 L776,31.1 L774,31.4 L772,28.7 L770,29.9 L768,28.8 L766,28.4 L764,26.9 L762,27.4 L760,26.5 L758,27.8 L756,27.8 L754,27.3 L752,28.1 L750,31.0 L748,31.2 L746,30.8 L744,33.0 L742,33.1 L740,35.3 L738,33.7 L736,34.0 L734,34.3 L732,33.6 L730,32.8 L728,34.6 L726,34.6 L724,34.3 L722,34.1 L720,32.9 L718,31.5 L716,34.0 L714,32.0 L712,32.1 L710,31.8 L708,33.2 L706,35.4 L704,33.5 L702,37.5 L700,33.6 L698,37.5 L696,36.5 L694,35.2 L692,35.2 L690,39.1 L688,36.4 L686,38.5 L684,34.7 L682,33.3 L680,34.0 L678,32.3 L676,31.1 L674,31.7 L672,30.4 L670,29.9 L668,28.7 L666,29.2 L664,28.4 L662,28.9 L660,30.4 L658,30.3 L656,31.4 L654,30.6 L652,32.2 L650,31.9 L648,32.3 L646,33.0 L644,31.1 L642,30.9 L640,30.7 L638,31.7 L636,31.1 L634,29.6 L632,29.8 L630,28.1 L628,27.4 L626,26.5 L624,26.0 L622,25.8 L620,26.6 L618,27.7 L616,28.0 L614,28.5 L612,29.8 L610,30.9 L608,30.7 L606,30.1 L604,33.8 L602,33.0 L600,35.3 L598,35.5 L596,34.3 L594,33.6 L592,32.1 L590,31.9 L588,31.5 L586,30.9 L584,32.3 L582,32.4 L580,32.8 L578,32.4 L576,30.3 L574,31.2 L572,33.1 L570,33.0 L568,35.5 L566,34.1 L564,34.8 L562,35.1 L560,38.6 L558,38.1 L556,39.2 L554,38.9 L552,39.3 L550,39.0 L548,36.1 L546,37.1 L544,36.3 L542,36.4 L540,35.8 L538,32.3 L536,33.3 L534,33.7 L532,31.3 L530,32.5 L528,29.6 L526,30.4 L524,29.8 L522,31.0 L520,33.0 L518,32.9 L516,31.9 L514,32.5 L512,31.2 L510,34.7 L508,32.2 L506,33.8 L504,32.4 L502,32.1 L500,31.0 L498,29.3 L496,28.5 L494,29.5 L492,29.0 L490,26.8 L488,27.4 L486,26.3 L484,27.0 L482,26.6 L480,27.0 L478,27.1 L476,27.1 L474,28.2 L472,29.4 L470,29.0 L468,32.0 L466,31.6 L464,33.9 L462,31.0 L460,33.0 L458,32.3 L456,33.8 L454,34.5 L452,31.9 L450,32.0 L448,32.1 L446,31.1 L444,31.3 L442,30.4 L440,30.4 L438,29.8 L436,30.9 L434,31.3 L432,33.3 L430,31.7 L428,32.3 L426,37.3 L424,36.9 L422,36.3 L420,37.2 L418,36.1 L416,38.0 L414,35.5 L412,39.3 L410,37.3 L408,35.2 L406,38.4 L404,36.7 L402,32.5 L400,33.9 L398,32.8 L396,31.2 L394,32.1 L392,30.5 L390,31.9 L388,31.0 L386,31.9 L384,31.9 L382,32.9 L380,34.8 L378,34.1 L376,35.6 L374,34.3 L372,34.4 L370,35.2 L368,34.4 L366,32.8 L364,34.0 L362,33.1 L360,31.2 L358,29.1 L356,28.9 L354,28.9 L352,27.9 L350,26.6 L348,27.2 L346,26.8 L344,26.5 L342,26.6 L340,27.1 L338,26.8 L336,27.5 L334,29.4 L332,29.0 L330,31.3 L328,30.6 L326,31.5 L324,32.7 L322,33.5 L320,33.2 L318,31.8 L316,32.5 L314,30.1 L312,31.0 L310,31.6 L308,29.5 L306,29.0 L304,28.8 L302,28.5 L300,30.7 L298,29.2 L296,32.3 L294,31.6 L292,31.3 L290,34.6 L288,35.1 L286,33.8 L284,37.3 L282,35.9 L280,37.7 L278,40.2 L276,38.2 L274,35.2 L272,37.9 L270,38.0 L268,37.2 L266,35.4 L264,36.6 L262,33.6 L260,33.9 L258,32.4 L256,32.3 L254,31.8 L252,32.0 L250,33.0 L248,32.1 L246,31.4 L244,35.4 L242,33.0 L240,34.3 L238,33.0 L236,36.7 L234,34.0 L232,35.8 L230,33.3 L228,33.6 L226,34.0 L224,31.1 L222,31.7 L220,30.5 L218,29.1 L216,27.8 L214,27.1 L212,27.4 L210,28.0 L208,26.5 L206,26.3 L204,26.8 L202,28.2 L200,27.9 L198,27.7 L196,28.3 L194,29.7 L192,29.7 L190,31.4 L188,32.3 L186,30.3 L184,32.4 L182,30.6 L180,30.7 L178,31.9 L176,29.5 L174,30.3 L172,29.7 L170,30.0 L168,28.3 L166,29.3 L164,29.2 L162,29.8 L160,29.6 L158,30.2 L156,31.9 L154,33.3 L152,32.5 L150,34.5 L148,34.0 L146,33.5 L144,36.0 L142,36.9 L140,36.4 L138,36.0 L136,36.3 L134,35.5 L132,34.0 L130,37.3 L128,33.4 L126,35.5 L124,34.3 L122,33.5 L120,32.6 L118,34.8 L116,31.4 L114,34.3 L112,33.5 L110,32.3 L108,33.1 L106,33.4 L104,33.1 L102,36.5 L100,36.7 L98,36.6 L96,34.4 L94,36.1 L92,36.6 L90,33.5 L88,34.7 L86,32.2 L84,31.3 L82,30.1 L80,30.8 L78,29.5 L76,28.0 L74,27.9 L72,27.9 L70,28.0 L68,28.5 L66,28.5 L64,26.9 L62,28.7 L60,30.1 L58,29.3 L56,30.9 L54,30.8 L52,29.6 L50,31.3 L48,31.2 L46,31.2 L44,31.5 L42,29.8 L40,30.5 L38,29.8 L36,30.4 L34,29.5 L32,27.9 L30,28.7 L28,28.8 L26,27.3 L24,27.4 L22,28.8 L20,29.6 L18,28.9 L16,29.6 L14,31.9 L12,33.5 L10,34.5 L8,35.7 L6,36.5 L4,34.8 L2,35.8 L0,36.2 Z" fill="#5fe0a5"/></svg><div class="fade-out" style="width:90px"></div><span class="handle l"></span><span class="handle r"></span></div>
+      </div>
+    </div>
+
+    <div class="track" style="height:62px">
+      <div class="th"><span class="dot" style="background:var(--c-voice)"></span><div><div class="tn">Voiceover</div><div class="ts">Audio 2</div></div><div class="ticons"><svg class="i s14" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><svg class="i s14" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/></svg></div></div>
+      <div class="lane">
+        <div class="clip voice" style="left:518px;width:120px"><div class="cl"><svg class="i s14" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/></svg> Voiceover_1</div><svg class="wave" viewBox="0 0 120 42" preserveAspectRatio="none"><path d="M0,17.4 L2,13.1 L4,8.2 L6,8.4 L8,8.8 L10,20.6 L12,20.4 L14,20.3 L16,20.0 L18,20.4 L20,20.6 L22,20.4 L24,20.2 L26,20.2 L28,20.4 L30,20.6 L32,20.4 L34,20.3 L36,10.3 L38,14.3 L40,17.2 L42,14.0 L44,14.5 L46,15.5 L48,18.2 L50,18.7 L52,18.0 L54,17.1 L56,17.4 L58,18.7 L60,18.7 L62,15.9 L64,14.8 L66,15.7 L68,16.5 L70,15.7 L72,12.1 L74,10.2 L76,9.6 L78,14.0 L80,10.4 L82,4.5 L84,6.0 L86,9.5 L88,13.6 L90,9.2 L92,20.3 L94,20.1 L96,20.4 L98,20.6 L100,20.5 L102,20.2 L104,20.5 L106,20.6 L108,20.6 L110,20.6 L112,20.6 L114,20.6 L116,18.1 L118,18.6 L120,17.5 L120,24.5 L118,23.4 L116,23.9 L114,21.4 L112,21.4 L110,21.4 L108,21.4 L106,21.4 L104,21.5 L102,21.8 L100,21.5 L98,21.4 L96,21.6 L94,21.9 L92,21.7 L90,32.8 L88,28.4 L86,32.5 L84,36.0 L82,37.5 L80,31.6 L78,28.0 L76,32.4 L74,31.8 L72,29.9 L70,26.3 L68,25.5 L66,26.3 L64,27.2 L62,26.1 L60,23.3 L58,23.3 L56,24.6 L54,24.9 L52,24.0 L50,23.3 L48,23.8 L46,26.5 L44,27.5 L42,28.0 L40,24.8 L38,27.7 L36,31.7 L34,21.7 L32,21.6 L30,21.4 L28,21.6 L26,21.8 L24,21.8 L22,21.6 L20,21.4 L18,21.6 L16,22.0 L14,21.7 L12,21.6 L10,21.4 L8,33.2 L6,33.6 L4,33.8 L2,28.9 L0,24.6 Z" fill="#6fe6ea"/></svg></div>
+      </div>
+    </div>
+
+    <div class="playhead" style="left:740px"></div>
+
+  </div>
+  <div class="tl-foot"><div class="hscroll"></div></div>
+</section>
+
+  <footer class="statusbar">
+  <span class="ok"><svg class="i s14" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> All proxies ready</span>
+  <span>9 media files</span>
+  <span>Preview: proxy 640×360</span>
+  <span class="spacer" style="flex:1"></span>
+  <span><svg class="i s14" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Autosaved 10:42</span>
+</footer>
+
+</div>
+</body></html>

@@ -1,0 +1,32 @@
+<!--@XF_SEL: sel-->
+<!--@PH: <div class="playhead" style="left:524px"></div>-->
+<!--@TC: 00:12.20-->
+<!--@SCREEN: <div class="screen sc-lake2"><div class="sc-lake" style="position:absolute;inset:0;opacity:.5"></div><span class="badge" style="left:10px;top:10px;bottom:auto">Dissolve · 50%</span></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>05 Transitions</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>05 · Video mode — transitions</b> — pick a transition between two clips and set its duration (V9)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:toolbar-video}}
+  <div class="workspace">
+    {{include:bin}}
+    {{include:preview}}
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div class="insp-head"><div class="thumb" style="background:linear-gradient(90deg,#9cc6e8,#6aa0b8)"></div><div><div class="t1">Transition</div><div class="t2">Naivasha1 → Naivasha2</div></div></div>
+      <div class="sec">
+        <div class="sec-h">{{i:transition:s14}} Type <span class="syl">11.1 transitions</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="tgrid"><div class="tile on"><div class="tv"><div class="a"></div><div class="b" style="opacity:.5"></div></div>Dissolve</div><div class="tile"><div class="tv"><div class="a" style="background:linear-gradient(90deg,#3f7fe0,#000 50%,#d8873a)"></div></div>Fade via black</div><div class="tile"><div class="tv"><div class="a" style="background:linear-gradient(90deg,#3f7fe0,#fff 50%,#d8873a)"></div></div>Fade via white</div><div class="tile"><div class="tv"><div class="a"></div><div class="b" style="left:50%"></div></div>Wipe left</div><div class="tile"><div class="tv"><div class="a"></div><div class="b" style="top:50%"></div></div>Wipe up</div><div class="tile"><div class="tv"><div class="a"></div><div class="b" style="left:35%;box-shadow:-4px 0 8px rgba(0,0,0,.5)"></div></div>Slide</div><div class="tile"><div class="tv"><div class="a" style="right:55%"></div><div class="b" style="left:45%"></div></div>Push</div><div class="tile"><div class="tv"><div class="a"></div><div class="b" style="inset:8px 28%;border-radius:50%"></div></div>Circle</div><div class="tile"><div class="tv"><div class="a"></div><div class="b" style="inset:12px 22%;border-radius:2px"></div></div>Zoom</div></div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="row" style="margin:0"><span class="lbl" style="width:64px">Duration</span><div class="field focus" style="width:80px">2.00<span class="u">s</span></div><div class="btnrow" style="flex:1"><span class="btn sm">0.5</span><span class="btn sm">1</span><span class="btn sm">1.5</span><span class="btn sm on">2</span></div></div>
+        <div class="row"><span class="btn sm" style="flex:1">Apply to all cuts</span><span class="btn sm danger">{{i:x:s14}} Remove</span></div>
+      </div>
+    </aside>
+  </div>
+  {{include:timeline}}
+  {{include:statusbar}}
+</div>
+</body></html>

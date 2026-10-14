@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mini Video Editor — UI prototype</title>
+{{include:head}}
+<style>
+  body { padding: 48px; max-width: 980px; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .sub { color: var(--tx-2); margin-bottom: 28px; }
+  .list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .list a { display: block; padding: 14px 16px; border-radius: 10px; background: var(--bg-1); border: 1px solid var(--line); color: var(--tx-1); text-decoration: none; }
+  .list a:hover { border-color: var(--accent); }
+  .list a b { display: block; margin-bottom: 4px; }
+  .list a span { color: var(--tx-3); font-size: 12px; }
+  h2 { font-size: 15px; margin: 32px 0 10px; }
+  ol { color: var(--tx-2); padding-left: 20px; line-height: 1.8; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--bg-2); padding: 1px 5px; border-radius: 4px; color: var(--tx-1); }
+</style></head>
+<body>
+<h1>Mini Video Editor — UI prototype</h1>
+<p class="sub">High-fidelity screens for Figma. Each screen is one 1440 × 900 desktop frame. Requirement IDs (V1, A12, T2…) refer to the project README.</p>
+<div class="list">
+  <a href="01-video-editor.html"><b>01 · Video — clip selected</b><span>Media bin, preview, inspector (trim, speed, sound), timeline</span></a>
+  <a href="02-video-caption.html"><b>02 · Video — caption</b><span>Text, font, position, readability, timing</span></a>
+  <a href="03-title-slide.html"><b>03 · Video — title slide</b><span>Text-based slide, background image, animation</span></a>
+  <a href="04-credits.html"><b>04 · Video — scrolling credits</b><span>Source information, blank lines, scroll up</span></a>
+  <a href="05-transitions.html"><b>05 · Video — transitions</b><span>Dissolve, fades, wipes, slide, push… with duration</span></a>
+  <a href="06-fades-filters.html"><b>06 · Video — fades &amp; filters</b><span>Fade to black / white, filters, colour correction</span></a>
+  <a href="07-pan-zoom.html"><b>07 · Video — still image, pan &amp; zoom</b><span>Presets and Start / End frames</span></a>
+  <a href="08-audio-in-video.html"><b>08 · Video — audio in a video</b><span>Start, trim, volume, fades, lower under voiceover</span></a>
+  <a href="09-snapshot.html"><b>09 · Snapshot</b><span>Extract a still: frame, format, size, add to timeline</span></a>
+  <a href="10-image-crop.html"><b>10 · Resize &amp; crop still image</b><span>Constrain proportions, anchor crop to 16:9</span></a>
+  <a href="11-project-settings.html"><b>11 · Project settings</b><span>Aspect ratio, resolution, frame rate</span></a>
+  <a href="12-export-video.html"><b>12 · Export video</b><span>Presets, container, lossy / lossless, size, pros / cons</span></a>
+  <a href="13-audio-editor.html"><b>13 · Audio — Effect menu</b><span>Waveforms, selection, Effect menu</span></a>
+  <a href="14-audio-tracks-menu.html"><b>14 · Audio — Tracks menu</b><span>Add / move / align, mix and render, stereo to mono</span></a>
+  <a href="15-audio-recording.html"><b>15 · Audio — recording a voiceover</b><span>Overdubbing with microphone and count-in</span></a>
+  <a href="16-audio-effects-echo-noise.html"><b>16 · Audio — echo &amp; noise reduction</b><span>Echo, two-step noise reduction</span></a>
+  <a href="17-audio-effects-volume-filters.html"><b>17 · Audio — volume &amp; filters</b><span>Normalise + DC offset, amplify, high-/low-pass</span></a>
+  <a href="18-audio-compressor.html"><b>18 · Audio — compressor (dynamic range)</b><span>Threshold, ratio, attack, release; vs file compression</span></a>
+  <a href="19-audio-effects-time-space.html"><b>19 · Audio — time, pitch &amp; space</b><span>Speed, pitch (key to key), reverb, delay</span></a>
+  <a href="20-eq-and-audio-export.html"><b>20 · Audio — EQ &amp; export</b><span>Graphic EQ, sample rate, bit rate, pros / cons</span></a>
+  <a href="21-learn-sampling.html"><b>21 · Learn — inspector &amp; sampling</b><span>Media inspector, file-size calculator, sampling, audio compression</span></a>
+  <a href="22-learn-formats.html"><b>22 · Learn — formats &amp; video compression</b><span>Format pros / cons, resolution and quality</span></a>
+  <a href="23-design-system.html"><b>23 · Design system</b><span>Colours, type, controls, timeline items, icons</span></a>
+</div>
+<h2>Import into Figma</h2>
+<ol>
+  <li>Install the free <b>html.to.design</b> plugin in Figma, and its Chrome extension.</li>
+  <li>Serve this folder locally: <code>python3 -m http.server 8000 --directory design/screens</code></li>
+  <li>Open a screen in Chrome (e.g. <code>http://localhost:8000/01-video-editor.html</code>) and import it with the extension; or paste the URL into the plugin if it can reach it.</li>
+  <li>Set the import viewport to <b>1520 px</b> wide so each 1440 × 900 frame comes in whole.</li>
+  <li>Import <b>23 · Design system</b> first; turn its colours and text styles into Figma styles, then import the other screens.</li>
+</ol>
+<h2>Editing the screens</h2>
+<ol>
+  <li>Edit the templates in <code>design/src/</code> (shared parts are in <code>design/src/partials/</code>, colours in <code>styles.css</code>).</li>
+  <li>Rebuild: <code>python3 design/build.py</code> → output goes to <code>design/screens/</code>.</li>
+</ol>
+</body></html>

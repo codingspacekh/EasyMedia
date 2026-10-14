@@ -1,0 +1,38 @@
+<!--@SEL_M: sel-->
+<!--@HANDLES_M: <span class="handle l"></span><span class="handle r"></span>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>08 Audio in a video</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>08 · Video mode — adding and editing audio in a video</b> — start time, trim, volume, fades and automatic lowering under a voiceover; effects open in Audio mode (V13)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:toolbar-video}}
+  <div class="workspace">
+    {{include:bin}}
+    {{include:preview}}
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div class="insp-head"><div class="thumb sc-audio">{{i:music:s14}}</div><div><div class="t1">Task_11e_audio.mp3</div><div class="t2">Music · Audio 1 · stereo 44.1 kHz</div></div></div>
+      <div class="sec">
+        <div class="sec-h">{{i:music:s14}} Position &amp; trim <span class="syl">11.1 adding audio</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="row"><span class="lbl">Starts at</span><div class="field grow focus">5.00<span class="u">s</span></div><span class="btn sm icon" title="Set to playhead">{{i:skipb:s14}}</span></div>
+        <div class="row"><span class="lbl">Trim</span><div class="field grow">0.00<span class="u">s</span></div><span style="color:var(--tx-3)">–</span><div class="field grow">35.70<span class="u">s</span></div></div>
+        <div class="hint">Plays <b>5.00 – 40.70 s</b>, ending with the video</div>
+      </div>
+      <div class="sec">
+        <div class="sec-h">{{i:vol:s14}} Volume &amp; fades <span class="syl">11.1 editing audio</span></div>
+        <div class="row"><span class="lbl">Volume</span><div class="slider"><i style="width:80%"></i><b style="left:80%"></b></div><span style="font:500 11.5px var(--mono);width:34px;text-align:right">80%</span></div>
+        <div class="row"><span class="lbl" style="width:56px">Fade in</span><div class="field grow">0.00<span class="u">s</span></div><span class="lbl" style="width:auto">Out</span><div class="field grow">3.00<span class="u">s</span></div></div>
+        <div class="row"><span class="toggle on"></span><span style="font-size:12px">Lower under voiceover (−6 dB)</span></div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="row" style="margin:0"><span class="btn sm" style="flex:1">{{i:wave:s14}} Edit in Audio mode</span><span class="btn sm">{{i:volx:s14}} Mute</span></div>
+        <div class="hint">Echo, EQ, noise reduction and pitch are in Audio mode.</div>
+      </div>
+    </aside>
+  </div>
+  {{include:timeline}}
+  {{include:statusbar}}
+</div>
+</body></html>

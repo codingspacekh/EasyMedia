@@ -1,0 +1,59 @@
+<!--@SELECTION: <div class="selection" style="left:248px;width:240px"></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>16 Echo and noise reduction</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>16 · Audio effects: echo &amp; noise reduction</b> — every effect dialog is generated from the same template: settings, Preview, and a "why" explanation (Echo A10, Noise reduction A13)</p>
+<div class="frame">
+  {{include:titlebar-audio}}
+  {{include:ghost-audio}}
+  <div class="dim" style="align-items:flex-start;padding-top:70px">
+    <div class="dialog" style="width:460px">
+      <div class="dlg-h">{{i:sparkle:s20}}<h2>Echo</h2><span class="syl">11.2 delay / echo</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+      <div class="dlg-b">
+        <div class="hint" style="margin:0 0 14px">Applies to <b>10.00 – 20.00 s</b> on Task_11p_audio</div>
+        <div class="row"><span class="lbl">Delay time</span><div class="slider"><i style="width:10%"></i><b style="left:10%"></b></div><div class="field focus" style="width:86px">0.50<span class="u">s</span></div></div>
+        <div class="row" style="margin-top:14px"><span class="lbl">Decay factor</span><div class="slider"><i style="width:80%"></i><b style="left:80%"></b></div><div class="field" style="width:86px">0.80<span class="u"></span></div></div>
+        <div class="card" style="margin-top:16px;padding:12px 14px">
+          <div style="color:var(--tx-3);font-size:11.5px;margin-bottom:8px">What you will hear</div>
+          <svg viewBox="0 0 400 90" width="400" height="90" style="display:block">
+            <line x1="0" y1="80" x2="400" y2="80" stroke="#3a414e"/>
+            <rect x="10" y="10" width="26" height="70" rx="3" fill="#4f8cff"/>
+            <rect x="90" y="24" width="26" height="56" rx="3" fill="#4f8cff" opacity=".8"/>
+            <rect x="170" y="35" width="26" height="45" rx="3" fill="#4f8cff" opacity=".64"/>
+            <rect x="250" y="44" width="26" height="36" rx="3" fill="#4f8cff" opacity=".51"/>
+            <rect x="330" y="51" width="26" height="29" rx="3" fill="#4f8cff" opacity=".41"/>
+            <text x="10" y="8" fill="#a9b0bc" font-size="10" font-family="Inter">original</text>
+            <text x="52" y="74" fill="#737b89" font-size="10" font-family="Inter">0.5 s</text>
+            <text x="90" y="20" fill="#737b89" font-size="10" font-family="Inter">×0.8</text>
+          </svg>
+        </div>
+        <div class="why-box" style="margin-top:14px">{{i:info}}<div><b>Why use echo?</b> An echo repeats the sound after a short <b>delay</b>, and each repeat is quieter by the <b>decay</b> factor. It makes a sound more distinctive or suggests a large space.</div></div>
+      </div>
+      <div class="dlg-f"><span class="btn">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn">Cancel</span><span class="btn primary">Apply</span></div>
+    </div>
+
+    <div class="dialog" style="width:540px">
+      <div class="dlg-h">{{i:sparkle:s20}}<h2>Noise reduction</h2><span class="syl">11.2 noise reduction</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+      <div class="dlg-b">
+        <div class="card" style="display:flex;gap:12px">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--success);color:#04170d;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">{{i:check:s14}}</div>
+          <div style="flex:1"><div style="font-weight:650">Step 1 · Get a noise profile</div><div style="color:var(--tx-2);font-size:12px;margin:4px 0 10px">Select a part that has <b style="color:var(--tx-1)">only</b> background noise (hiss, hum, fan), then click the button.</div>
+            <div class="row" style="margin:0"><span class="btn sm">{{i:wave:s14}} Get noise profile</span><span style="color:var(--success);font-size:12px">{{i:check:s14}} Profile taken from 3.30 – 8.09 s</span></div></div>
+        </div>
+        <div class="card on" style="display:flex;gap:12px;margin-top:10px">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">2</div>
+          <div style="flex:1"><div style="font-weight:650">Step 2 · Select all the audio, then reduce</div>
+            <div class="row" style="margin-top:12px"><span class="lbl" style="width:120px">Noise reduction</span><div class="slider"><i style="width:40%"></i><b style="left:40%"></b></div><div class="field" style="width:76px">12<span class="u">dB</span></div></div>
+            <div class="row"><span class="lbl" style="width:120px">Sensitivity</span><div class="slider"><i style="width:25%"></i><b style="left:25%"></b></div><div class="field" style="width:76px">6.00<span class="u"></span></div></div>
+            <div class="row"><span class="lbl" style="width:120px">Freq. smoothing</span><div class="slider"><i style="width:25%"></i><b style="left:25%"></b></div><div class="field" style="width:76px">3<span class="u">bands</span></div></div>
+            <div class="row" style="margin-top:12px"><span class="radio on"></span><span style="font-size:12.5px">Reduce noise</span><span class="radio" style="margin-left:14px"></span><span style="font-size:12.5px">Hear only what is removed</span></div>
+          </div>
+        </div>
+        <div class="why-box" style="margin-top:14px">{{i:info}}<div><b>When does it work?</b> It removes <b>constant</b> background noise such as hiss, hum, buzzing or fan noise. It cannot remove irregular sounds like traffic, clicks or an audience. Apply it <b>before</b> a high-pass filter.</div></div>
+      </div>
+      <div class="dlg-f"><span class="btn">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn">Cancel</span><span class="btn primary">Apply</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

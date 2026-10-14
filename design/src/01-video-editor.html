@@ -1,0 +1,37 @@
+<!--@SEL_N1: sel-->
+<!--@HANDLES_N1: <span class="handle l"></span><span class="handle r"></span>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>01 Video editor — clip selected</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>01 · Video mode</b> — video clip selected (Naivasha1, trimmed 0–6.3 s, 1.5× speed, muted)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:toolbar-video}}
+  <div class="workspace">
+    {{include:bin}}
+    {{include:preview}}
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div class="insp-head"><div class="thumb sc-lake2"></div><div><div class="t1">Naivasha1</div><div class="t2">Video clip · from Lake_Naivasha.mp4</div></div></div>
+      <div style="padding:10px 12px 0"><div class="seg small" style="width:100%"><button class="on" style="flex:1">Clip</button><button style="flex:1">Audio</button><button style="flex:1">Effects</button></div></div>
+      <div class="sec">
+        <div class="sec-h">{{i:trim:s14}} Trim <span class="syl">11.1</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="row"><span class="lbl">Start point</span><div class="field grow">0.00<span class="u">s</span></div><span class="btn sm icon" title="Set to playhead">{{i:skipb:s14}}</span></div>
+        <div class="row"><span class="lbl">End point</span><div class="field grow focus">6.30<span class="u">s</span></div><span class="btn sm icon" title="Set to playhead">{{i:skipf:s14}}</span></div>
+      </div>
+      <div class="sec">
+        <div class="sec-h">{{i:gauge:s14}} Speed <span class="syl">11.1</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="btnrow"><span class="btn sm">0.25×</span><span class="btn sm">0.5×</span><span class="btn sm">1×</span><span class="btn sm on">1.5×</span><span class="btn sm">2×</span><span class="btn sm">4×</span></div>
+        <div class="hint">Source 6.30 s ÷ 1.5 = <b>4.20 s on the timeline</b></div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="sec-h">{{i:volx:s14}} Clip sound <span class="syl">11.1</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="row"><span class="lbl">Mute</span><span class="toggle on"></span><span class="spacer" style="flex:1"></span><span class="btn sm">{{i:unlink:s14}} Unlink audio</span></div>
+      </div>
+    </aside>
+  </div>
+  {{include:timeline}}
+  {{include:statusbar}}
+</div>
+</body></html>

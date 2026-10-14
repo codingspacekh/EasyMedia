@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>22 Learn — formats and video compression</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>22 · Learn mode — formats &amp; video compression</b> — advantages and disadvantages of every export format (T7) and how compression and resolution affect video quality and file size (11.1 theory)</p>
+<div class="frame">
+  {{include:titlebar}}
+  <div class="toolbar">
+    <div class="seg"><button>{{i:film}} Video</button><button>{{i:wave}} Audio</button><button class="on">{{i:book}} Learn</button></div>
+    <div class="vsep"></div>
+    <div class="seg small"><button>Inspector &amp; sampling</button><button class="on">Formats &amp; compression</button></div>
+    <div class="spacer"></div>
+    <span class="btn">{{i:help:s14}} Glossary</span>
+  </div>
+  <div class="learn" style="grid-template-columns:1.15fr 1fr">
+    <div class="lcard">
+      <div class="lh">{{i:file}}<h3>Export format guide</h3><span class="spacer" style="flex:1"></span><span class="syl">advantages · disadvantages</span></div>
+      <div class="lb">
+        <table class="fmt">
+          <tr><th>Format</th><th>Compression</th><th>Advantages</th><th>Disadvantages</th><th>Best for</th></tr>
+          <tr class="grp"><td colspan="5">Video</td></tr>
+          <tr><td>MP4</td><td>Lossy (H.264)</td><td>Plays almost everywhere; small files</td><td>Quality lost; worse each re-export</td><td>Web, phones</td></tr>
+          <tr><td>MOV</td><td>Lossy or lossless</td><td>High quality; good for editing</td><td>Large files; Apple-first</td><td>Editing, Mac</td></tr>
+          <tr><td>AVI</td><td>Lossy or lossless</td><td>Simple; can be uncompressed</td><td>Very large; poor for streaming</td><td>Archive, editing</td></tr>
+          <tr><td>WMV</td><td>Lossy</td><td>Small; plays well on Windows</td><td>Weak support on Mac, phones, web</td><td>Windows PCs</td></tr>
+          <tr><td>MPG</td><td>Lossy (MPEG-2)</td><td>Works in DVD players</td><td>Bigger than MP4 for same quality</td><td>DVD</td></tr>
+          <tr class="grp"><td colspan="5">Audio</td></tr>
+          <tr><td>MP3</td><td>Lossy</td><td>Plays everywhere; small</td><td>Quality lost; less efficient than AAC</td><td>Music players</td></tr>
+          <tr><td>M4A / AAC</td><td>Lossy</td><td>Better sound than MP3 at same size</td><td>Some old devices can't play it</td><td>Phones, streaming</td></tr>
+          <tr><td>WAV</td><td>Usually none</td><td>Exact quality; easy to edit</td><td>Very large files</td><td>Recording, editing</td></tr>
+          <tr><td>FLAC</td><td>Lossless</td><td>Exact quality, ~half WAV size</td><td>Larger than MP3; less support</td><td>Archiving</td></tr>
+        </table>
+        <div class="why-box" style="margin-top:14px">{{i:info}}<div><b>Files vs containers.</b> MP4, MOV, AVI and WAV are <b>containers</b>: they hold compressed streams plus information about them. The <b>codec</b> inside decides whether the data is lossy or lossless.</div></div>
+      </div>
+    </div>
+    <div class="lcard">
+      <div class="lh">{{i:monitor}}<h3>Video compression &amp; quality</h3><span class="spacer" style="flex:1"></span><span class="syl">11.1 compression</span></div>
+      <div class="lb">
+        <div class="hint" style="margin:0 0 10px">The same 40.7 s video, shown at the same size on screen:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div><div class="sc-lakebird" style="width:284px;height:160px;border-radius:4px"></div><div class="row" style="margin-top:6px;justify-content:space-between"><span style="font-size:12px"><b>Lossless</b> · 1920×1080</span><span style="font:600 12px var(--mono)">≈ 1 GB</span></div></div>
+          <div><div class="sc-lakebird" style="width:284px;height:160px;border-radius:4px"></div><div class="row" style="margin-top:6px;justify-content:space-between"><span style="font-size:12px"><b>MP4 high</b> · 1920×1080</span><span style="font:600 12px var(--mono)">25 MB</span></div></div>
+          <div>{{pixscene:284:160:10}}<div class="row" style="margin-top:6px;justify-content:space-between"><span style="font-size:12px"><b>MP4</b> · 640×360</span><span style="font:600 12px var(--mono)">4 MB</span></div></div>
+          <div>{{pixscene:284:160:20}}<div class="row" style="margin-top:6px;justify-content:space-between"><span style="font-size:12px"><b>MP4</b> · 426×240 on a big screen</span><span style="font:600 12px var(--mono)">1.5 MB</span></div></div>
+        </div>
+        <div class="label-s" style="margin-top:16px">What makes a video file bigger?</div>
+        <div class="bars">
+          <div class="bar-row" style="grid-template-columns:150px 1fr 90px"><span>SD 720 × 480</span><div class="b" style="width:4.2%"></div><span class="v">345 600 px</span></div>
+          <div class="bar-row" style="grid-template-columns:150px 1fr 90px"><span>HD 1920 × 1080</span><div class="b" style="width:25%"></div><span class="v">2 073 600 px</span></div>
+          <div class="bar-row" style="grid-template-columns:150px 1fr 90px"><span>4K 3840 × 2160</span><div class="b" style="width:100%"></div><span class="v">8 294 400 px</span></div>
+        </div>
+        <div class="hint">More <b>pixels per frame</b>, more <b>frames per second</b> (30 fps needs twice the data of 15 fps) and a longer <b>duration</b> all increase the size. Lossy compression shrinks it, but too much causes blocky, blurred pictures.</div>
+      </div>
+    </div>
+  </div>
+  <footer class="statusbar"><span>Learn mode does not change your project</span></footer>
+</div>
+</body></html>

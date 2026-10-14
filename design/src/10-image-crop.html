@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>10 Resize and crop still image</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>10 · Resize &amp; crop a still image</b> — make a photo match the video's aspect ratio without distortion (V11, replaces Photoshop in the coursebook)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:ghost-video}}
+  <div class="dim">
+    <div class="dialog" style="width:1000px">
+      <div class="dlg-h">{{i:crop:s20}}<h2>Resize &amp; crop image</h2><span class="syl">11.1 resizing and cropping a still</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+      <div class="dlg-b" style="display:grid;grid-template-columns:1fr 320px;gap:22px">
+        <div>
+          <div style="position:relative;width:600px;height:493px;margin:0 auto;border-radius:6px;overflow:hidden" class="sc-eagle">
+            <div style="position:absolute;left:0;right:0;top:0;height:155px;background:rgba(0,0,0,.6)"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;top:155px;border:2px solid #fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.4)">
+              <div style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 33.2%,rgba(255,255,255,.35) 33.3% 33.5%,transparent 33.6% 66.5%,rgba(255,255,255,.35) 66.6% 66.8%,transparent 66.9%),linear-gradient(180deg,transparent 33.2%,rgba(255,255,255,.35) 33.3% 33.6%,transparent 33.7% 66.4%,rgba(255,255,255,.35) 66.5% 66.8%,transparent 66.9%)"></div>
+              <span class="badge" style="left:8px;top:8px;bottom:auto">16:9 · 1920 × 1080</span>
+            </div>
+          </div>
+          <div style="text-align:center;color:var(--tx-3);font-size:12px;margin-top:8px">Drag the frame to choose which part to keep. Darker area will be removed.</div>
+        </div>
+        <div>
+          <div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><div style="color:var(--tx-3);font-size:11.5px">Original</div><div style="font:600 14px var(--mono)">3764 × 3092</div></div><div style="text-align:right"><div style="color:var(--tx-3);font-size:11.5px">Project</div><div style="font:600 14px var(--mono)">1920 × 1080</div></div></div>
+          <div class="btn primary" style="width:100%;margin-top:10px">{{i:sparkle:s14}} Fit to project (16:9)</div>
+
+          <div class="label-s" style="margin-top:18px">Step 1 · Resize</div>
+          <div class="row"><span class="lbl" style="width:52px">Width</span><div class="field grow">1920<span class="u">px</span></div></div>
+          <div class="row"><span class="lbl" style="width:52px">Height</span><div class="field grow">1577<span class="u">px</span></div></div>
+          <div class="row"><span class="check on">{{i:check:s14}}</span><span style="font-size:12.5px">Constrain proportions (no stretching)</span></div>
+
+          <div class="label-s" style="margin-top:18px">Step 2 · Crop to 16:9</div>
+          <div class="row" style="align-items:flex-start;gap:14px">
+            <div><div style="font-size:11.5px;color:var(--tx-3);margin-bottom:6px">Keep</div><div class="grid9"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="on"></span></div></div>
+            <div style="flex:1"><div style="font-size:11.5px;color:var(--tx-3);margin-bottom:6px">New height</div><div class="field">1080<span class="u">px</span></div><div class="hint" style="margin-top:6px">Removes 497 px from the top</div></div>
+          </div>
+
+          <div class="hint" style="color:var(--success);margin-top:14px">{{i:check:s14}} Result 1920 × 1080 matches the project</div>
+          <div class="label-s" style="margin-top:14px">Save as new file</div>
+          <div class="field txt">Fish_Eagle1.jpg<span class="u">original kept</span></div>
+        </div>
+      </div>
+      <div class="dlg-f"><span class="check on">{{i:check:s14}}</span><span style="font-size:12.5px">Add to timeline at playhead</span><span class="spacer"></span><span class="btn">Cancel</span><span class="btn primary">Save image</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

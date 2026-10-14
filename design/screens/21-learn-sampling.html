@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>21 Learn mode</title>
+<meta name="viewport" content="width=1520">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<p class="frame-label"><b>21 · Learn mode</b> — media inspector (T1), file-size calculator (T2), sampling visualiser (T4) and compression comparison (T3)</p>
+<div class="frame">
+  <header class="titlebar">
+  <div class="lights"><span></span><span></span><span></span></div>
+  <div class="title"><b>Lake_Naivasha.mve</b> — Mini Video Editor</div>
+</header>
+
+  <div class="toolbar">
+    <div class="seg"><button><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M3 12h18M3 16.5h4M17 7.5h4M17 16.5h4"/></svg> Video</button><button><svg class="i" viewBox="0 0 24 24"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h0"/></svg> Audio</button><button class="on"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg> Learn</button></div>
+    <div class="vsep"></div>
+    <div class="seg small"><button class="on">Inspector &amp; sampling</button><button>Formats &amp; compression</button></div>
+    <div class="spacer"></div>
+    <span class="btn"><svg class="i s14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> Glossary</span>
+  </div>
+  <div class="learn" style="grid-template-columns:400px 1fr 1fr">
+    <div class="lcard">
+      <div class="lh"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><h3>Media inspector</h3><span class="spacer" style="flex:1"></span><span class="syl">containers · codecs</span></div>
+      <div class="lb">
+        <div class="card" style="display:flex;gap:12px;align-items:center"><div class="sc-lake" style="width:72px;height:40px;border-radius:4px;flex:none"></div><div style="flex:1"><div style="font-weight:600">Task_11e.mp4</div><div style="color:var(--tx-3);font-size:11.5px">Drop any file here to inspect it</div></div><b style="font-family:var(--mono)">25.3 MB</b></div>
+        <table class="props" style="margin-top:10px">
+          <tr><td>Container</td><td class="v">MP4</td></tr>
+          <tr><td>Video codec</td><td class="v">H.264 <span class="chip" style="height:18px;font-size:10.5px;color:var(--warn)">lossy</span></td></tr>
+          <tr><td>Resolution</td><td class="v">1920 × 1080 (16:9)</td></tr>
+          <tr><td>Frame rate</td><td class="v">30 fps</td></tr>
+          <tr><td>Video bit rate</td><td class="v">4.8 Mbit/s</td></tr>
+          <tr><td>Audio codec</td><td class="v">AAC <span class="chip" style="height:18px;font-size:10.5px;color:var(--warn)">lossy</span></td></tr>
+          <tr><td>Sample rate</td><td class="v">44 100 Hz</td></tr>
+          <tr><td>Channels</td><td class="v">2 (stereo)</td></tr>
+          <tr><td>Duration</td><td class="v">40.70 s</td></tr>
+        </table>
+        <div class="why-box" style="margin-top:14px"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><div><b>File vs container.</b> MP4 is a <b>container</b>: a box that holds the video stream, the audio stream and information about them. A <b>codec</b> (here H.264 and AAC) is the method used to compress and decompress each stream. A player needs the right codec to play what is inside the box.</div></div>
+      </div>
+    </div>
+
+    <div class="lcard">
+      <div class="lh"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h8"/></svg><h3>Audio file-size calculator</h3><span class="spacer" style="flex:1"></span><span class="syl">sampling rate · resolution</span></div>
+      <div class="lb">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div class="label-s">Sample rate</div><div class="field select">44 100 Hz <svg class="i s14" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div></div>
+          <div><div class="label-s">Sample resolution</div><div class="seg small"><button>8</button><button class="on">16</button><button>24</button><button>32-bit</button></div></div>
+          <div><div class="label-s">Channels</div><div class="seg small"><button class="on">1 · mono</button><button>2 · stereo</button></div></div>
+          <div><div class="label-s">Length</div><div class="field">120<span class="u">s (2 min)</span></div></div>
+        </div>
+        <div class="label-s" style="margin-top:18px">Working</div>
+        <div class="calc-step"><span>Bits each second</span><span>44 100 × 16 × 1 = 705 600 bits</span></div>
+        <div class="calc-step"><span>× length</span><span>705 600 × 120 = 84 672 000 bits</span></div>
+        <div class="calc-step"><span>÷ 8 → bytes</span><span>10 584 000 bytes</span></div>
+        <div class="calc-step"><span>÷ 1 000 000 → MB</span><span>10.58 MB</span></div>
+        <div class="result"><span style="color:var(--tx-2)">File size</span><span class="big">≈ 10.6 MB</span></div>
+        <div class="label-s" style="margin-top:18px">What if…</div>
+        <div class="bars">
+          <div class="bar-row"><span>16-bit (now)</span><div class="b" style="width:50%"></div><span class="v">10.6 MB</span></div>
+          <div class="bar-row"><span>32-bit</span><div class="b" style="width:100%;background:var(--warn)"></div><span class="v">21.2 MB</span></div>
+          <div class="bar-row"><span>22 050 Hz</span><div class="b" style="width:25%;background:var(--success)"></div><span class="v">5.3 MB</span></div>
+        </div>
+        <div class="hint">Doubling the sample rate <b>or</b> the resolution doubles the file size.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-height:0">
+      <div class="lcard">
+        <div class="lh"><svg class="i" viewBox="0 0 24 24"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h0"/></svg><h3>Sampling visualiser</h3><span class="spacer" style="flex:1"></span><span class="syl">11.2 sampling</span></div>
+        <div class="lb">
+          <div class="card" style="padding:10px"><svg viewBox="0 0 420 180" width="420" height="180" style="display:block"><line x1="0" x2="420" y1="170.0" y2="170.0" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="147.1" y2="147.1" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="124.3" y2="124.3" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="101.4" y2="101.4" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="78.6" y2="78.6" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="55.7" y2="55.7" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="32.9" y2="32.9" stroke="#2c323d" stroke-width="1"/><line x1="0" x2="420" y1="10.0" y2="10.0" stroke="#2c323d" stroke-width="1"/><path d="M0,71.2 L3,66.0 L6,61.6 L9,58.0 L12,55.4 L15,53.6 L18,52.6 L21,52.5 L24,53.1 L27,54.2 L30,55.8 L33,57.8 L36,59.9 L39,62.0 L42,64.1 L45,65.9 L48,67.3 L51,68.3 L54,68.7 L57,68.5 L60,67.8 L63,66.4 L66,64.5 L69,62.1 L72,59.3 L75,56.2 L78,53.0 L81,49.8 L84,46.8 L87,44.0 L90,41.7 L93,40.1 L96,39.1 L99,38.9 L102,39.7 L105,41.4 L108,44.0 L111,47.6 L114,52.1 L117,57.5 L120,63.6 L123,70.2 L126,77.4 L129,84.8 L132,92.3 L135,99.8 L138,107.0 L141,113.8 L144,120.1 L147,125.7 L150,130.5 L153,134.4 L156,137.4 L159,139.4 L162,140.5 L165,140.6 L168,139.9 L171,138.5 L174,136.4 L177,133.8 L180,130.9 L183,127.8 L186,124.6 L189,121.5 L192,118.7 L195,116.2 L198,114.2 L201,112.7 L204,111.8 L207,111.4 L210,111.7 L213,112.6 L216,113.9 L219,115.6 L222,117.7 L225,119.8 L228,122.0 L231,124.1 L234,125.8 L237,127.2 L240,127.9 L243,128.0 L246,127.4 L249,125.9 L252,123.5 L255,120.2 L258,116.1 L261,111.1 L264,105.5 L267,99.2 L270,92.4 L273,85.2 L276,77.9 L279,70.6 L282,63.4 L285,56.6 L288,50.3 L291,44.6 L294,39.8 L297,35.8 L300,32.7 L303,30.7 L306,29.7 L309,29.7 L312,30.7 L315,32.5 L318,35.1 L321,38.3 L324,42.1 L327,46.2 L330,50.5 L333,54.8 L336,59.1 L339,63.0 L342,66.6 L345,69.7 L348,72.2 L351,74.1 L354,75.4 L357,76.1 L360,76.2 L363,75.7 L366,74.8 L369,73.6 L372,72.2 L375,70.8 L378,69.4 L381,68.3 L384,67.6 L387,67.3 L390,67.7 L393,68.8 L396,70.6 L399,73.2 L402,76.7 L405,80.9 L408,85.8 L411,91.4 L414,97.5 L417,103.9 L420,110.6" fill="none" stroke="#a9b0bc" stroke-width="2" stroke-dasharray="5 4"/><path d="M0.0,78.6 L0.0,78.6 L35.0,78.6 L35.0,55.7 L70.0,55.7 L70.0,55.7 L105.0,55.7 L105.0,32.9 L140.0,32.9 L140.0,101.4 L175.0,101.4 L175.0,124.3 L210.0,124.3 L210.0,101.4 L245.0,101.4 L245.0,124.3 L280.0,124.3 L280.0,78.6 L315.0,78.6 L315.0,32.9 L350.0,32.9 L350.0,78.6 L385.0,78.6 L385.0,78.6 L420.0,78.6" fill="none" stroke="#4f8cff" stroke-width="2.5"/><circle cx="0.0" cy="78.6" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="35.0" cy="55.7" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="70.0" cy="55.7" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="105.0" cy="32.9" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="140.0" cy="101.4" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="175.0" cy="124.3" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="210.0" cy="101.4" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="245.0" cy="124.3" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="280.0" cy="78.6" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="315.0" cy="32.9" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="350.0" cy="78.6" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="385.0" cy="78.6" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/><circle cx="420.0" cy="101.4" r="3.5" fill="#4f8cff" stroke="#101216" stroke-width="1.5"/></svg></div>
+          <div class="row" style="margin-top:12px"><span class="lbl" style="width:110px">Sample rate</span><div class="slider"><i style="width:25%"></i><b style="left:25%"></b></div><span style="font:500 12px var(--mono);width:120px;text-align:right">12 samples</span></div>
+          <div class="row"><span class="lbl" style="width:110px">Resolution</span><div class="slider"><i style="width:20%"></i><b style="left:20%"></b></div><span style="font:500 12px var(--mono);width:120px;text-align:right">3-bit · 8 levels</span></div>
+          <div class="hint"><span style="color:var(--tx-2)">- - -</span> original analogue sound · <span style="color:var(--accent)">━</span> what is stored. Move the sliders right and the blue line gets closer to the original, but the file gets bigger.</div>
+        </div>
+      </div>
+      <div class="lcard" style="flex:1">
+        <div class="lh"><svg class="i" viewBox="0 0 24 24"><path d="M12 14 16 9"/><path d="M3.3 19a10 10 0 1 1 17.4 0z"/></svg><h3>Compression comparison</h3><span class="spacer" style="flex:1"></span><span class="syl">lossy · lossless</span></div>
+        <div class="lb">
+          <div class="hint" style="margin:0 0 10px">Same 2-minute stereo clip, exported 5 ways. Press play to compare.</div>
+          <div class="bars">
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><span>WAV · lossless</span><div class="b" style="width:100%"></div><span class="v">21.2 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><span>FLAC · lossless</span><div class="b" style="width:55%"></div><span class="v">≈11.6 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><span>MP3 192 kbps</span><div class="b" style="width:13.6%;background:var(--warn)"></div><span class="v">2.9 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><span>MP3 128 kbps</span><div class="b" style="width:9%;background:var(--warn)"></div><span class="v">1.9 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost"><svg class="i s14" viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M7 4.5v15l12.5-7.5z"/></svg></span><span>MP3 64 kbps</span><div class="b" style="width:4.5%;background:var(--warn)"></div><span class="v">0.96 MB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer class="statusbar"><span>Learn mode does not change your project</span></footer>
+</div>
+</body></html>

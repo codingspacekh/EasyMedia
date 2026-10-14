@@ -1,0 +1,40 @@
+<!--@SEL_T0: sel-->
+<!--@HANDLES_T0: <span class="handle l"></span><span class="handle r"></span>-->
+<!--@PH: <div class="playhead" style="left:248px"></div>-->
+<!--@TC: 00:03.00-->
+<!--@SCREEN: <div class="screen sc-eagle"><div class="safe"></div><div class="ov-text sel" style="left:40px;top:30px;font-size:30px;color:#1b2a6b;text-shadow:none;font-family:Inter,sans-serif;line-height:1.15">Lake Naivasha,<br>Kenya</div></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>03 Title slide</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>03 · Video mode — title slide</b> — a text-based slide with its own background colour, image or video; font, size, colour, alignment, duration and text animation (V4, V12)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:toolbar-video}}
+  <div class="workspace">
+    {{include:bin}}
+    {{include:preview}}
+    <aside class="panel inspector">
+      <div class="panel-h">Inspector</div>
+      <div class="insp-head"><div class="thumb sc-eagle"></div><div><div class="t1">Title slide</div><div class="t2">Text-based slide · main track</div></div></div>
+      <div class="sec">
+        <div class="sec-h">{{i:title:s14}} Text <span class="syl">11.1 titles</span><span class="spacer"></span><span class="why">?</span></div>
+        <div class="field txt" style="height:34px">Lake Naivasha, Kenya</div>
+        <div class="row" style="margin-top:8px"><div class="field select grow txt">Inter (sans-serif) {{i:chev:s14}}</div><div class="field" style="width:62px">60<span class="u">pt</span></div><span class="swatch" style="background:#1b2a6b;width:28px;height:28px;border-radius:4px"></span></div>
+        <div class="row"><div class="btnrow" style="flex:1"><span class="btn sm on"><b>B</b></span><span class="btn sm"><i>I</i></span><span class="btn sm on">Left</span><span class="btn sm">Centre</span><span class="btn sm">Right</span></div></div>
+      </div>
+      <div class="sec">
+        <div class="sec-h">{{i:image:s14}} Background <span class="syl">11.1 inserting a still</span></div>
+        <div class="seg small" style="width:100%"><button style="flex:1">Colour</button><button class="on" style="flex:1">Image</button><button style="flex:1">Video</button></div>
+        <div class="row" style="margin-top:8px"><div class="sc-eagle" style="width:46px;height:26px;border-radius:3px;flex:none"></div><div style="flex:1;min-width:0"><div style="font-size:12px">Fish_Eagle1.jpg</div><div style="font-size:11px;color:var(--success)">1920 × 1080 · fits 16:9</div></div><span class="btn sm">{{i:crop:s14}} Crop…</span></div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="sec-h">Timing &amp; animation</div>
+        <div class="row"><div class="field focus" style="width:92px">8.00<span class="u">s</span></div><div class="field select grow txt">Text: fly in from left {{i:chev:s14}}</div></div>
+      </div>
+    </aside>
+  </div>
+  {{include:timeline}}
+  {{include:statusbar}}
+</div>
+</body></html>

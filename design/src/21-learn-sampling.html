@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>21 Learn mode</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>21 · Learn mode</b> — media inspector (T1), file-size calculator (T2), sampling visualiser (T4) and compression comparison (T3)</p>
+<div class="frame">
+  {{include:titlebar}}
+  <div class="toolbar">
+    <div class="seg"><button>{{i:film}} Video</button><button>{{i:wave}} Audio</button><button class="on">{{i:book}} Learn</button></div>
+    <div class="vsep"></div>
+    <div class="seg small"><button class="on">Inspector &amp; sampling</button><button>Formats &amp; compression</button></div>
+    <div class="spacer"></div>
+    <span class="btn">{{i:help:s14}} Glossary</span>
+  </div>
+  <div class="learn" style="grid-template-columns:400px 1fr 1fr">
+    <div class="lcard">
+      <div class="lh">{{i:search}}<h3>Media inspector</h3><span class="spacer" style="flex:1"></span><span class="syl">containers · codecs</span></div>
+      <div class="lb">
+        <div class="card" style="display:flex;gap:12px;align-items:center"><div class="sc-lake" style="width:72px;height:40px;border-radius:4px;flex:none"></div><div style="flex:1"><div style="font-weight:600">Task_11e.mp4</div><div style="color:var(--tx-3);font-size:11.5px">Drop any file here to inspect it</div></div><b style="font-family:var(--mono)">25.3 MB</b></div>
+        <table class="props" style="margin-top:10px">
+          <tr><td>Container</td><td class="v">MP4</td></tr>
+          <tr><td>Video codec</td><td class="v">H.264 <span class="chip" style="height:18px;font-size:10.5px;color:var(--warn)">lossy</span></td></tr>
+          <tr><td>Resolution</td><td class="v">1920 × 1080 (16:9)</td></tr>
+          <tr><td>Frame rate</td><td class="v">30 fps</td></tr>
+          <tr><td>Video bit rate</td><td class="v">4.8 Mbit/s</td></tr>
+          <tr><td>Audio codec</td><td class="v">AAC <span class="chip" style="height:18px;font-size:10.5px;color:var(--warn)">lossy</span></td></tr>
+          <tr><td>Sample rate</td><td class="v">44 100 Hz</td></tr>
+          <tr><td>Channels</td><td class="v">2 (stereo)</td></tr>
+          <tr><td>Duration</td><td class="v">40.70 s</td></tr>
+        </table>
+        <div class="why-box" style="margin-top:14px">{{i:info}}<div><b>File vs container.</b> MP4 is a <b>container</b>: a box that holds the video stream, the audio stream and information about them. A <b>codec</b> (here H.264 and AAC) is the method used to compress and decompress each stream. A player needs the right codec to play what is inside the box.</div></div>
+      </div>
+    </div>
+
+    <div class="lcard">
+      <div class="lh">{{i:calc}}<h3>Audio file-size calculator</h3><span class="spacer" style="flex:1"></span><span class="syl">sampling rate · resolution</span></div>
+      <div class="lb">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div class="label-s">Sample rate</div><div class="field select">44 100 Hz {{i:chev:s14}}</div></div>
+          <div><div class="label-s">Sample resolution</div><div class="seg small"><button>8</button><button class="on">16</button><button>24</button><button>32-bit</button></div></div>
+          <div><div class="label-s">Channels</div><div class="seg small"><button class="on">1 · mono</button><button>2 · stereo</button></div></div>
+          <div><div class="label-s">Length</div><div class="field">120<span class="u">s (2 min)</span></div></div>
+        </div>
+        <div class="label-s" style="margin-top:18px">Working</div>
+        <div class="calc-step"><span>Bits each second</span><span>44 100 × 16 × 1 = 705 600 bits</span></div>
+        <div class="calc-step"><span>× length</span><span>705 600 × 120 = 84 672 000 bits</span></div>
+        <div class="calc-step"><span>÷ 8 → bytes</span><span>10 584 000 bytes</span></div>
+        <div class="calc-step"><span>÷ 1 000 000 → MB</span><span>10.58 MB</span></div>
+        <div class="result"><span style="color:var(--tx-2)">File size</span><span class="big">≈ 10.6 MB</span></div>
+        <div class="label-s" style="margin-top:18px">What if…</div>
+        <div class="bars">
+          <div class="bar-row"><span>16-bit (now)</span><div class="b" style="width:50%"></div><span class="v">10.6 MB</span></div>
+          <div class="bar-row"><span>32-bit</span><div class="b" style="width:100%;background:var(--warn)"></div><span class="v">21.2 MB</span></div>
+          <div class="bar-row"><span>22 050 Hz</span><div class="b" style="width:25%;background:var(--success)"></div><span class="v">5.3 MB</span></div>
+        </div>
+        <div class="hint">Doubling the sample rate <b>or</b> the resolution doubles the file size.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-height:0">
+      <div class="lcard">
+        <div class="lh">{{i:wave}}<h3>Sampling visualiser</h3><span class="spacer" style="flex:1"></span><span class="syl">11.2 sampling</span></div>
+        <div class="lb">
+          <div class="card" style="padding:10px">{{sampling:420:180:12:3}}</div>
+          <div class="row" style="margin-top:12px"><span class="lbl" style="width:110px">Sample rate</span><div class="slider"><i style="width:25%"></i><b style="left:25%"></b></div><span style="font:500 12px var(--mono);width:120px;text-align:right">12 samples</span></div>
+          <div class="row"><span class="lbl" style="width:110px">Resolution</span><div class="slider"><i style="width:20%"></i><b style="left:20%"></b></div><span style="font:500 12px var(--mono);width:120px;text-align:right">3-bit · 8 levels</span></div>
+          <div class="hint"><span style="color:var(--tx-2)">- - -</span> original analogue sound · <span style="color:var(--accent)">━</span> what is stored. Move the sliders right and the blue line gets closer to the original, but the file gets bigger.</div>
+        </div>
+      </div>
+      <div class="lcard" style="flex:1">
+        <div class="lh">{{i:gauge}}<h3>Compression comparison</h3><span class="spacer" style="flex:1"></span><span class="syl">lossy · lossless</span></div>
+        <div class="lb">
+          <div class="hint" style="margin:0 0 10px">Same 2-minute stereo clip, exported 5 ways. Press play to compare.</div>
+          <div class="bars">
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost">{{i:play:s14}}</span><span>WAV · lossless</span><div class="b" style="width:100%"></div><span class="v">21.2 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost">{{i:play:s14}}</span><span>FLAC · lossless</span><div class="b" style="width:55%"></div><span class="v">≈11.6 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost">{{i:play:s14}}</span><span>MP3 192 kbps</span><div class="b" style="width:13.6%;background:var(--warn)"></div><span class="v">2.9 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost">{{i:play:s14}}</span><span>MP3 128 kbps</span><div class="b" style="width:9%;background:var(--warn)"></div><span class="v">1.9 MB</span></div>
+            <div class="bar-row" style="grid-template-columns:24px 128px 1fr 64px"><span class="btn sm icon ghost">{{i:play:s14}}</span><span>MP3 64 kbps</span><div class="b" style="width:4.5%;background:var(--warn)"></div><span class="v">0.96 MB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer class="statusbar"><span>Learn mode does not change your project</span></footer>
+</div>
+</body></html>

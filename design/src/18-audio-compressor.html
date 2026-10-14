@@ -1,0 +1,58 @@
+<!--@SELECTION: <div class="selection" style="left:8px;width:960px"></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>18 Compressor (dynamic range)</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>18 · Audio effects: compressor (dynamic range)</b> — evens out loud and quiet parts; explains how this differs from file compression (A19, 11.2 effects of compression on audio)</p>
+<div class="frame">
+  {{include:titlebar-audio}}
+  {{include:ghost-audio}}
+  <div class="dim">
+    <div class="dialog" style="width:1000px">
+      <div class="dlg-h">{{i:gauge:s20}}<h2>Compressor</h2><span class="syl">11.2 compression · dynamic range</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+      <div class="dlg-b" style="display:grid;grid-template-columns:400px 1fr;gap:24px">
+        <div>
+          <div class="hint" style="margin:0 0 12px">Applies to <b>0.00 – 40.00 s</b> on Task_11p_audio</div>
+          <div class="pills" style="margin-bottom:14px"><span class="pill">Gentle</span><span class="pill on">Voice</span><span class="pill">Music</span><span class="pill">Strong</span></div>
+          <div class="row"><span class="lbl" style="width:104px">Threshold</span><div class="slider"><i style="width:55%"></i><b style="left:55%"></b></div><div class="field focus" style="width:84px">−20<span class="u">dB</span></div></div>
+          <div class="row"><span class="lbl" style="width:104px">Ratio</span><div class="slider"><i style="width:20%"></i><b style="left:20%"></b></div><div class="field" style="width:84px">3 : 1</div></div>
+          <div class="row"><span class="lbl" style="width:104px">Attack time</span><div class="slider"><i style="width:10%"></i><b style="left:10%"></b></div><div class="field" style="width:84px">0.20<span class="u">s</span></div></div>
+          <div class="row"><span class="lbl" style="width:104px">Release time</span><div class="slider"><i style="width:30%"></i><b style="left:30%"></b></div><div class="field" style="width:84px">1.00<span class="u">s</span></div></div>
+          <div class="row" style="margin-top:12px"><span class="check on">{{i:check:s14}}</span><span style="font-size:12.5px">Make-up gain: raise to 0 dB after compressing</span></div>
+          <div class="hint">Sounds louder than <b>−20 dB</b> are reduced: every 3 dB above the threshold comes out as 1 dB.</div>
+        </div>
+        <div>
+          <div class="card" style="display:grid;grid-template-columns:1fr 190px;gap:16px;align-items:center">
+            <div>
+              <div style="font-size:11px;color:var(--tx-3);margin-bottom:4px">Before · big difference between loud and quiet</div>
+              <div style="position:relative;height:70px">{{wave:cmp:360:70:#f5b942:dyn:x}}</div>
+              <div style="font-size:11px;color:var(--tx-3);margin:10px 0 4px">After · more even, quiet parts easier to hear</div>
+              <div style="position:relative;height:70px">{{wave:cmp:360:70:#3ccf8e:dyncomp:x}}</div>
+            </div>
+            <div>
+              <svg viewBox="0 0 190 170" width="190" height="170" style="display:block">
+                <rect x="20" y="0" width="170" height="150" fill="#101216" stroke="#2c323d"/>
+                <line x1="20" y1="150" x2="190" y2="0" stroke="#3a414e" stroke-dasharray="4 3"/>
+                <line x1="105" y1="0" x2="105" y2="150" stroke="#4f8cff" stroke-dasharray="3 3" opacity=".6"/>
+                <path d="M20 150 L105 75 L190 50" fill="none" stroke="#4f8cff" stroke-width="2.5"/>
+                <circle cx="105" cy="75" r="4" fill="#4f8cff"/>
+                <text x="110" y="92" fill="#a9b0bc" font-size="9.5" font-family="Inter">threshold</text>
+                <text x="140" y="44" fill="#a9b0bc" font-size="9.5" font-family="Inter">3 : 1</text>
+                <text x="60" y="165" fill="#737b89" font-size="9.5" font-family="Inter">input level →</text>
+                <text x="12" y="110" fill="#737b89" font-size="9.5" font-family="Inter" transform="rotate(-90 12 110)">output →</text>
+              </svg>
+            </div>
+          </div>
+          <div class="label-s" style="margin-top:16px">Two meanings of "compression"</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="card on" style="padding:12px"><div style="font-weight:650;margin-bottom:4px">Dynamic range compression</div><div style="font-size:12px;color:var(--tx-2);line-height:1.5">This effect. Makes the loudest parts quieter so the whole clip sounds more even. <b style="color:var(--tx-1)">File size does not change.</b></div></div>
+            <div class="card" style="padding:12px"><div style="font-weight:650;margin-bottom:4px">File compression</div><div style="font-size:12px;color:var(--tx-2);line-height:1.5">Happens when you <b style="color:var(--tx-1)">export</b> (MP3, AAC, FLAC). Makes the file smaller: <b style="color:var(--tx-1)">lossy</b> removes data for ever, <b style="color:var(--tx-1)">lossless</b> keeps it all.</div></div>
+          </div>
+          <div class="why-box" style="margin-top:12px">{{i:info}}<div><b>Why compress dynamic range?</b> A voiceover with some words very loud and others very quiet is hard to follow. Compression evens it out, so it can be heard clearly over music or in a noisy place. Too much makes it sound flat and lifeless.</div></div>
+        </div>
+      </div>
+      <div class="dlg-f"><span class="btn">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn">Cancel</span><span class="btn primary">Apply</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>12 Export video</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>12 · Export video</b> — choose where it will be played, the file format and compression; see the estimated file size and the advantages / disadvantages of the format before exporting (V16, V17, T7)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:ghost-video}}
+  <div class="dim">
+    <div class="dialog" style="width:1080px">
+      <div class="dlg-h">{{i:export:s20}}<h2>Export video</h2><span class="syl">11.1 exporting · compressing</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+      <div class="dlg-b" style="display:grid;grid-template-columns:270px 1fr 300px;gap:22px">
+        <div>
+          <div class="label-s">Where will it be played?</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="card on" style="display:flex;gap:10px;align-items:center;padding:10px">{{i:globe:s20}}<div><div style="font-weight:600">Internet / YouTube</div><div style="color:var(--tx-3);font-size:11.5px">1920×1080 · MP4</div></div></div>
+            <div class="card" style="display:flex;gap:10px;align-items:center;padding:10px">{{i:phone:s20}}<div><div style="font-weight:600">Mobile phone (medium)</div><div style="color:var(--tx-3);font-size:11.5px">960×540 · MP4</div></div></div>
+            <div class="card" style="display:flex;gap:10px;align-items:center;padding:10px">{{i:phone:s20}}<div><div style="font-weight:600">Mobile phone (small)</div><div style="color:var(--tx-3);font-size:11.5px">640×360 · MP4</div></div></div>
+            <div class="card" style="display:flex;gap:10px;align-items:center;padding:10px">{{i:disc:s20}}<div><div style="font-weight:600">DVD player</div><div style="color:var(--tx-3);font-size:11.5px">720×576 · MPEG-2</div></div></div>
+            <div class="card" style="display:flex;gap:10px;align-items:center;padding:10px">{{i:monitor:s20}}<div><div style="font-weight:600">Blu-ray / HD television</div><div style="color:var(--tx-3);font-size:11.5px">1920×1080 · high quality</div></div></div>
+            <div class="card" style="display:flex;gap:10px;align-items:center;padding:10px">{{i:sliders:s20}}<div><div style="font-weight:600">Custom</div><div style="color:var(--tx-3);font-size:11.5px">Choose every setting</div></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="label-s">File format (container)</div>
+          <div class="seg" style="width:max-content"><button class="on">MP4</button><button>MOV</button><button>AVI</button><button>WMV</button><button>MPG</button></div>
+          <div class="label-s" style="margin-top:18px">Compression</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="card on" style="padding:12px"><div class="row" style="margin:0"><span class="radio on"></span><b>Lossy</b></div><div style="color:var(--tx-3);font-size:12px;margin-top:6px">Removes detail you are unlikely to notice. Much smaller file.</div></div>
+            <div class="card" style="padding:12px;opacity:.55"><div class="row" style="margin:0"><span class="radio"></span><b>Lossless</b></div><div style="color:var(--tx-3);font-size:12px;margin-top:6px">Keeps every pixel. Available in MOV and AVI.</div></div>
+          </div>
+          <div class="label-s" style="margin-top:18px">Settings</div>
+          <div class="row"><span class="lbl">Resolution</span><div class="field select grow">1920 × 1080 (Full HD) {{i:chev:s14}}</div></div>
+          <div class="row"><span class="lbl">Frame rate</span><div class="field select grow">30 fps (same as project) {{i:chev:s14}}</div></div>
+          <div class="row"><span class="lbl">Codec</span><div class="field grow" style="color:var(--tx-2);font-family:var(--font)">Video H.264 · Audio AAC 192 kbps</div></div>
+          <div class="row" style="margin-top:14px"><span class="lbl">Quality</span><span style="font-size:11.5px;color:var(--tx-3)">Smaller</span><div class="slider"><i style="width:70%"></i><b style="left:70%"></b></div><span style="font-size:11.5px;color:var(--tx-3)">Better</span></div>
+        </div>
+        <div>
+          <div class="label-s">Save as</div>
+          <div class="field txt grow" style="margin-bottom:6px">Task_11e.mp4</div>
+          <div class="field txt grow" style="color:var(--tx-2)">{{i:folder:s14}} Documents › IT › Chapter 11</div>
+          <div class="card" style="margin-top:14px">
+            <div style="color:var(--tx-3);font-size:12px">Estimated file size · 40.7 s</div>
+            <div style="font:700 30px var(--mono);margin:4px 0 12px">≈ 25 MB</div>
+            <div class="bars">
+              <div class="bar-row" style="grid-template-columns:96px 1fr 58px"><span>This export</span><div class="b" style="width:3%"></div><span class="v">25 MB</span></div>
+              <div class="bar-row" style="grid-template-columns:96px 1fr 58px"><span style="color:var(--tx-3)">Mobile small</span><div class="b" style="width:1%;background:var(--tx-3)"></div><span class="v">4 MB</span></div>
+              <div class="bar-row" style="grid-template-columns:96px 1fr 58px"><span style="color:var(--tx-3)">DVD</span><div class="b" style="width:4%;background:var(--tx-3)"></div><span class="v">31 MB</span></div>
+              <div class="bar-row" style="grid-template-columns:96px 1fr 58px"><span style="color:var(--tx-3)">Lossless AVI</span><div class="b" style="width:100%;background:var(--warn)"></div><span class="v">≈1 GB</span></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px;padding:10px 12px">
+            <div style="font-size:12px;color:var(--tx-2);margin-bottom:6px"><b style="color:var(--tx-1)">MP4</b> container · H.264 video (lossy)</div>
+            <div class="pc" style="grid-template-columns:1fr">
+              <ul><li><span class="plus">+</span>Plays on almost all devices and websites</li><li><span class="plus">+</span>Small file: quick to upload, stream or share</li></ul>
+              <ul><li><span class="minus">−</span>Lossy: some detail is lost for ever</li><li><span class="minus">−</span>Exporting again and again loses more quality</li></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dlg-f"><span class="check on">{{i:check:s14}}</span><span style="font-size:12.5px">Also save the project (.mve) so I can edit it later</span><span class="spacer"></span><span class="btn">Cancel</span><span class="btn primary">{{i:export:s14}} Export</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>09 Extract a still image</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>09 · Snapshot — extract a still image</b> — choose the exact frame, hide text overlays, pick an image format and size, optionally add it to the timeline (V10)</p>
+<div class="frame">
+  {{include:titlebar}}
+  {{include:ghost-video}}
+  <div class="dim">
+    <div class="dialog" style="width:900px">
+      <div class="dlg-h">{{i:camera:s20}}<h2>Snapshot</h2><span class="syl">11.1 extracting a still image</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+      <div class="dlg-b" style="display:grid;grid-template-columns:480px 1fr;gap:22px">
+        <div>
+          <div class="sc-lake2" style="position:relative;width:480px;height:270px;border-radius:6px"><span class="badge" style="left:10px;top:10px;bottom:auto">00:16.66 · last frame of Naivasha2</span></div>
+          <div class="row" style="margin-top:10px;justify-content:center"><span class="btn sm">{{i:skipb:s14}} Previous frame</span><span class="tc" style="font-size:13px;margin:0 8px">00:16.66</span><span class="btn sm">Next frame {{i:skipf:s14}}</span></div>
+          <div class="row" style="justify-content:center"><span class="check on">{{i:check:s14}}</span><span style="font-size:12.5px">Hide text overlays (captions, titles, credits)</span></div>
+        </div>
+        <div>
+          <div class="label-s">Image format</div>
+          <div class="seg" style="width:max-content"><button class="on">PNG</button><button>JPG</button><button>BMP</button><button>TIFF</button></div>
+          <div class="hint">PNG is lossless, good for re-using in the video. JPG is smaller but lossy. TIFF is high quality but large.</div>
+          <div class="label-s" style="margin-top:16px">Size</div>
+          <div class="seg small" style="width:max-content"><button class="on">Project · 1920 × 1080</button><button>Original clip size</button></div>
+          <div class="label-s" style="margin-top:16px">Save as</div>
+          <div class="field txt">Snapshot_n2end.png</div>
+          <div class="field txt" style="margin-top:6px;color:var(--tx-2)">{{i:folder:s14}} Documents › IT › Chapter 11</div>
+          <div class="row" style="margin-top:14px"><span class="check on">{{i:check:s14}}</span><span style="font-size:12.5px">Add to timeline at playhead for</span><div class="field" style="width:84px">10.00<span class="u">s</span></div></div>
+          <div class="why-box" style="margin-top:14px">{{i:info}}<div><b>Why extract a still?</b> To hold an important moment on screen, to use it as a background for captions or credits, or to edit it in an image editor and put it back into the video.</div></div>
+        </div>
+      </div>
+      <div class="dlg-f"><span class="spacer"></span><span class="btn">Cancel</span><span class="btn primary">{{i:camera:s14}} Save snapshot</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

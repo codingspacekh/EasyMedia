@@ -1,0 +1,33 @@
+<!--@TRACKS_ON: primary-->
+<!--@SELECTION: <div class="selection" style="left:8px;width:960px"></div>-->
+<!--@SELECTION2: <div class="selection" style="left:8px;width:960px"></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>14 Audio tracks menu</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>14 · Audio mode — Tracks menu</b> — add, move and align tracks, then mix and render them into one clip (A1, A2, A6, A15)</p>
+<div class="frame">
+  {{include:titlebar-audio}}
+  {{include:toolbar-audio}}
+  {{include:audio-body}}
+  <div class="menu" style="top:92px;right:262px;width:280px">
+    <div class="mh">2 tracks selected</div>
+    <div class="mi">{{i:plus:s14}} Add new track<span class="k">mono / stereo</span></div>
+    <div class="mi">{{i:import:s14}} Import audio as new track…<span class="k">11.2</span></div>
+    <div class="mi">{{i:mic:s14}} Record into new track<span class="k">R</span></div>
+    <div class="ms"></div>
+    <div class="mi">Move track up</div>
+    <div class="mi">Move track down</div>
+    <div class="ms"></div><div class="mh">Align</div>
+    <div class="mi">Align end to end<span class="k">splice</span></div>
+    <div class="mi">Start to cursor / selection start</div>
+    <div class="mi">Start to zero</div>
+    <div class="ms"></div><div class="mh">Mix</div>
+    <div class="mi">{{i:mono:s14}} Mix stereo down to mono<span class="k">11.2</span></div>
+    <div class="mi">Mix and render</div>
+    <div class="mi hl">Mix and render to new track</div>
+    <div class="ms"></div>
+    <div class="mi" style="color:var(--danger)">{{i:x:s14}} Remove track</div>
+  </div>
+</div>
+</body></html>

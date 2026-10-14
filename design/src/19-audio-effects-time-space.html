@@ -1,0 +1,63 @@
+<!--@SELECTION: <div class="selection" style="left:8px;width:456px"></div>-->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>19 Speed, pitch, reverb, delay</title>
+{{include:head}}</head>
+<body>
+<p class="frame-label"><b>19 · Audio effects: time, pitch &amp; space</b> — Change speed (A8), Change pitch from key to key (A9), Reverb (A11), Delay with three types (A10)</p>
+<div class="frame">
+  {{include:titlebar-audio}}
+  {{include:ghost-audio}}
+  <div class="dim">
+    <div class="dlg-grid" style="grid-template-columns:560px 560px">
+      <div class="dialog compact">
+        <div class="dlg-h">{{i:gauge:s20}}<h2>Change speed</h2><span class="syl">11.2 altering speed</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+        <div class="dlg-b">
+          <div class="row"><span class="lbl">Speed multiplier</span><div class="slider"><i style="width:47%"></i><b style="left:47%"></b></div><div class="field focus" style="width:84px">1.400<span class="u">×</span></div></div>
+          <div class="row"><span class="lbl">Percent change</span><div class="field grow">+40.0<span class="u">%</span></div><span class="lbl" style="width:auto">Length</span><div class="field grow" style="color:var(--tx-2)">45.00 → 32.14<span class="u">s</span></div></div>
+          <div class="why-box" style="margin-top:12px">{{i:info}}<div>Speeding up makes the clip shorter <b>and higher pitched</b>, like playing a record faster. Use <b>Change pitch</b> if you want to keep the length.</div></div>
+        </div>
+        <div class="dlg-f"><span class="btn sm">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn sm">Cancel</span><span class="btn sm primary">Apply</span></div>
+      </div>
+
+      <div class="dialog compact">
+        <div class="dlg-h">{{i:music:s20}}<h2>Change pitch</h2><span class="syl">11.2 changing the pitch</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+        <div class="dlg-b">
+          <div class="row"><span class="lbl">From key</span><div class="field select grow">C {{i:chev:s14}}</div><span style="color:var(--tx-3)">→</span><div class="field select grow focus">F {{i:chev:s14}}</div><div class="seg small"><button class="on">Up</button><button>Down</button></div></div>
+          <div class="row"><span class="lbl">Semitones</span><div class="field grow">+5.00</div><span class="lbl" style="width:auto">Percent</span><div class="field grow">+33.48<span class="u">%</span></div></div>
+          <div class="row"><span class="lbl">Frequency</span><div class="field grow" style="color:var(--tx-2)">261.6 → 349.2<span class="u">Hz</span></div></div>
+          <div class="hint">Length stays the same. Not musical? Use <b>Percent</b> or drag the slider instead of keys.</div>
+        </div>
+        <div class="dlg-f"><span class="btn sm">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn sm">Cancel</span><span class="btn sm primary">Apply</span></div>
+      </div>
+
+      <div class="dialog compact">
+        <div class="dlg-h">{{i:sparkle:s20}}<h2>Reverb</h2><span class="syl">11.2 reverberation</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+        <div class="dlg-b">
+          <div class="pills" style="margin-bottom:10px"><span class="pill">Small room</span><span class="pill on">Vocal</span><span class="pill">Hall</span><span class="pill">Cathedral</span></div>
+          <div class="row"><span class="lbl">Room size</span><div class="slider"><i style="width:60%"></i><b style="left:60%"></b></div><div class="field" style="width:76px">60<span class="u">%</span></div></div>
+          <div class="row"><span class="lbl">Reverberance</span><div class="slider"><i style="width:40%"></i><b style="left:40%"></b></div><div class="field focus" style="width:76px">40<span class="u">%</span></div></div>
+          <div class="row"><span class="lbl">Damping</span><div class="slider"><i style="width:50%"></i><b style="left:50%"></b></div><div class="field" style="width:76px">50<span class="u">%</span></div></div>
+          <div class="row"><span class="lbl">Wet / dry</span><div class="slider"><i style="width:30%"></i><b style="left:30%"></b></div><div class="field" style="width:76px">30<span class="u">% wet</span></div></div>
+          <div class="why-box" style="margin-top:12px">{{i:info}}<div><b>Reverb</b> makes a sound seem to be played in a larger room. A small amount gives a voice a fuller, richer feel.</div></div>
+        </div>
+        <div class="dlg-f"><span class="btn sm">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn sm">Cancel</span><span class="btn sm primary">Apply</span></div>
+      </div>
+
+      <div class="dialog compact">
+        <div class="dlg-h">{{i:sparkle:s20}}<h2>Delay</h2><span class="syl">11.2 delay / echo</span><span class="spacer"></span><span class="btn ghost sm icon">{{i:x:s14}}</span></div>
+        <div class="dlg-b">
+          <div class="row"><span class="lbl">Type</span><div class="seg small"><button class="on">Regular</button><button>Bouncing ball</button><button>Reverse bouncing ball</button></div></div>
+          <div class="row"><span class="lbl">Delay time</span><div class="field grow">0.50<span class="u">s</span></div><span class="lbl" style="width:auto">Echoes</span><div class="field grow focus">5</div></div>
+          <div class="row"><span class="lbl">Decay</span><div class="field grow">6<span class="u">dB per echo</span></div></div>
+          <div class="card" style="margin-top:10px;padding:8px 12px;font-size:11px;color:var(--tx-3)">
+            <div class="row" style="margin:0"><span style="width:150px">Regular · equal gaps</span><svg viewBox="0 0 300 16" width="300" height="16"><g fill="#4f8cff"><rect x="0" y="2" width="6" height="12"/><rect x="50" y="3" width="6" height="10" opacity=".8"/><rect x="100" y="4" width="6" height="8" opacity=".65"/><rect x="150" y="5" width="6" height="6" opacity=".5"/><rect x="200" y="6" width="6" height="4" opacity=".4"/></g></svg></div>
+            <div class="row" style="margin-top:4px"><span style="width:150px">Bouncing ball · closer</span><svg viewBox="0 0 300 16" width="300" height="16"><g fill="#a9b0bc"><rect x="0" y="2" width="6" height="12"/><rect x="90" y="3" width="6" height="10"/><rect x="150" y="4" width="6" height="8"/><rect x="185" y="5" width="6" height="6"/><rect x="205" y="6" width="6" height="4"/></g></svg></div>
+            <div class="row" style="margin-top:4px"><span style="width:150px">Reverse · further apart</span><svg viewBox="0 0 300 16" width="300" height="16"><g fill="#a9b0bc"><rect x="0" y="2" width="6" height="12"/><rect x="20" y="3" width="6" height="10"/><rect x="55" y="4" width="6" height="8"/><rect x="115" y="5" width="6" height="6"/><rect x="205" y="6" width="6" height="4"/></g></svg></div>
+          </div>
+        </div>
+        <div class="dlg-f"><span class="btn sm">{{i:play:s14}} Preview</span><span class="spacer"></span><span class="btn sm">Cancel</span><span class="btn sm primary">Apply</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
