@@ -30,7 +30,6 @@ export function testApp(
     exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
-    saveImage: vi.fn<Dialogs['saveImage']>(async () => null),
   };
   const disk = new Map<string, string>();
   const app = createApp({
@@ -46,7 +45,7 @@ export function testApp(
     text: {
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
-    paths: { proxies: '/cache', recovery: '/cache/recovery.mve' },
+    paths: { proxies: '/cache', recovery: '/cache/recovery.mve', snapshots: '/cache/snapshots' },
   });
   const importFiles = async (...paths: string[]) => {
     dialogs.openMedia.mockResolvedValueOnce(paths);

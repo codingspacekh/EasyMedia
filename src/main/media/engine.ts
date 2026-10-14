@@ -1,9 +1,9 @@
 // MediaEngine implemented with the bundled ffprobe/ffmpeg (ARCHITECTURE §8).
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, readFile, rm } from 'node:fs/promises';
+import { access, mkdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Seconds } from '../../core/model/time.ts';
 import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
@@ -17,6 +17,11 @@ import { computePeaks, frameArgs, proxyArgs, thumbnailArgs, waveformArgs } from 
 import { parseProbe, type FfprobeJson } from './probe.ts';
 
 const execFileAsync = promisify(execFile);
+const exists = (path: string) =>
+  access(path).then(
+    () => true,
+    () => false,
+  );
 
 export function createNodeMediaEngine(
   binaries: BinaryPaths,
@@ -77,11 +82,6 @@ export function createNodeMediaEngine(
 
     async resizeCropImage(input, plan) {
       const filter = resizeCropFilter(plan);
-      const exists = (p: string) =>
-        access(p).then(
-          () => true,
-          () => false,
-        );
       let n = 1;
       while (await exists(numberedPath(input, n))) n++;
       const path = numberedPath(input, n);
@@ -93,14 +93,18 @@ export function createNodeMediaEngine(
       return path;
     },
 
-    async renderFrame(project, time, output, { projectDir, textImages }) {
+    async renderFrame(project, time, wanted, { projectDir, textImages }) {
       const plan = compileProject(project, {
         mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
         frameAt: time,
         ...(textImages ? { textImages } : {}),
       });
+      await mkdir(dirname(wanted), { recursive: true });
+      let output = wanted;
+      for (let n = 2; await exists(output); n++) output = numberedPath(wanted, n);
       const jpeg = /\.jpe?g$/i.test(output) ? ['-q:v', '2'] : [];
       await queue.run({ label: 'Snapshot', args: [...plan.args, ...jpeg], output }).done;
+      return output;
     },
 
     renderVideo(project, output, { projectDir, quality, textImages }) {

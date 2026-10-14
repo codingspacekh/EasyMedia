@@ -78,7 +78,11 @@ void app.whenReady().then(async () => {
       sendToWindow(mainWindow, event, payload),
     engine,
     allow,
-    paths: { proxies, recovery: join(app.getPath('userData'), 'recovery.mve') },
+    paths: {
+      proxies,
+      recovery: join(app.getPath('userData'), 'recovery.mve'),
+      snapshots: join(app.getPath('userData'), 'snapshots'),
+    },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
   });

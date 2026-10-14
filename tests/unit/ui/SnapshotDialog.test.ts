@@ -24,16 +24,17 @@ describe('snapshot dialog (V10, screen 09)', () => {
     expect(app.store.get().playhead).toBeCloseTo(6 - 1 / 30, 10);
   });
 
-  it('saves a TIFF with text hidden and puts it on the timeline for 10 s (Book A 11.11, Task 11d)', async () => {
-    const { app, dialogs } = await open();
-    dialogs.saveImage.mockResolvedValueOnce('/m/still.tiff');
+  it('adds a TIFF with text hidden straight to the media and the timeline for 10 s (Book A 11.11, Task 11d)', async () => {
+    const { app } = await open();
     expect((screen.getByLabelText(/hide text/i) as HTMLInputElement).checked).toBe(true);
     await fireEvent.click(screen.getByLabelText('TIFF'));
     await fireEvent.click(screen.getByLabelText(/add to the timeline/i));
     await fireEvent.change(screen.getByLabelText('Show it for'), { target: { value: '10' } });
-    await fireEvent.click(screen.getByRole('button', { name: 'Save snapshot' }));
-    await screen.findByText('Saved still.tiff.');
-    expect(dialogs.saveImage).toHaveBeenCalledWith('Snapshot_6.00s.tiff');
+    await fireEvent.click(screen.getByRole('button', { name: 'Add to media' }));
+    await screen.findByText('Added Snapshot_6.00s.tiff to the media.');
+    expect(app.store.get().history.present.media.map((m) => m.path)).toContain(
+      '/cache/snapshots/Snapshot_6.00s.tiff',
+    );
     const main = app.store.get().history.present.timeline.main;
     expect(main.map((m) => m.type)).toEqual(['video', 'image']);
     expect(main[1]).toMatchObject({ duration: 10 });

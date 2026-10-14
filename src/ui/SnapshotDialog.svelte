@@ -100,6 +100,13 @@
       />
     {/if}
 
+    <p class="hint">
+      The picture goes straight into the media bin (Images). It is kept in a Snapshots folder next
+      to the project{$store.projectPath
+        ? ''
+        : ' once you save it — until then, in EasyMedia’s own folder'}.
+    </p>
+
     <details class="why" open>
       <summary>Why extract a still?</summary>
       <p>{WHY.snapshot}</p>
@@ -107,7 +114,7 @@
 
     <div class="actions">
       <button onclick={onclose}>Cancel</button>
-      <button class="primary" disabled={saving} onclick={save}>Save snapshot</button>
+      <button class="primary" disabled={saving} onclick={save}>Add to media</button>
     </div>
   </div>
 </div>

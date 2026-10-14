@@ -85,9 +85,9 @@ export function registerIpc(s: MainServices): void {
       return path;
     },
     'media:snapshot': async (project, time, output, options) => {
-      await s.engine.renderFrame(project, time, output, options);
-      s.allow.add(output);
-      return null;
+      const path = await s.engine.renderFrame(project, time, output, options);
+      s.allow.add(path);
+      return path;
     },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),
@@ -102,7 +102,6 @@ export function registerIpc(s: MainServices): void {
     'dialog:exportVideo': (name) => s.dialogs.exportVideo(name),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
     'dialog:chooseFolder': (title) => s.dialogs.chooseFolder(title),
-    'dialog:saveImage': (name) => s.dialogs.saveImage(name),
     'project:read': (path) => s.files.read(path),
     'project:write': async (path, text) => {
       await s.files.write(path, text);

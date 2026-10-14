@@ -73,19 +73,6 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return r.response === 0;
     },
-    async saveImage(name) {
-      const r = await dialog.showSaveDialog(win(), {
-        title: 'Save snapshot',
-        defaultPath: name,
-        filters: [
-          { name: 'PNG picture (lossless)', extensions: ['png'] },
-          { name: 'JPG picture (smaller)', extensions: ['jpg', 'jpeg'] },
-          { name: 'BMP picture', extensions: ['bmp'] },
-          { name: 'TIFF picture (high quality)', extensions: ['tif', 'tiff'] },
-        ],
-      });
-      return r.canceled ? null : (r.filePath ?? null);
-    },
     async chooseFolder(title) {
       const r = await dialog.showOpenDialog(win(), {
         title,

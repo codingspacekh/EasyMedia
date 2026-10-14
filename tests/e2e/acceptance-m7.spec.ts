@@ -120,23 +120,23 @@ test('Book A 11.07: an 8 s clip zooms in from 5 s to its end', async () => {
 });
 
 test('Book A 11.11 + 11.12: a TIFF still without text at the end, with a box blur', async () => {
-  const { app, window: page } = await launchApp();
-  const still = join(dir, 'BeeStill.tiff');
+  const { app, window: page, userData } = await launchApp();
+  // Snapshots of an unsaved project are kept in the app's own snapshots folder.
+  const still = join(userData, 'snapshots', 'Snapshot_0.00s.tiff');
   const output = join(dir, 'blurred.mp4');
   await answerDialogs(app, { open: [join(dir, BEE)], exportTo: output });
   await importAndAdd(page, [BEE]);
   await page.getByRole('button', { name: 'Add caption' }).click(); // text over the clip at 0 s
-  await app.evaluate(({ dialog }, path) => {
-    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as never;
-  }, still);
   await item(page, 0).click();
   await page.getByRole('button', { name: 'Snapshot' }).click();
   const snap = page.getByRole('dialog', { name: 'Snapshot' });
   await expect(snap.getByLabel(/hide text/i)).toBeChecked();
   await snap.getByLabel('TIFF').check();
   await snap.getByLabel(/add to the timeline/i).check();
-  await snap.getByRole('button', { name: 'Save snapshot' }).click();
-  await expect(page.locator('.bin').getByText('BeeStill.tiff', { exact: true })).toBeVisible();
+  await snap.getByRole('button', { name: 'Add to media' }).click();
+  await expect(
+    page.locator('.bin').getByText('Snapshot_0.00s.tiff', { exact: true }),
+  ).toBeVisible();
   expect((await measure(still)).width).toBe(1920);
   // No caption on the still: it matches the clip's own frame at the same moment.
   expect(await difference([still, 0], [join(dir, BEE), 0])).toBeLessThan(4);
@@ -175,7 +175,6 @@ test('Book B Task 11g: a 2-second transition between Naivasha1 (4.2 s) and Naiva
 
 test('Book B Tasks 11h + 11i: zoom in right, a zoomed snapshot, a cold cyan tone, fade to black, 7 s of credits', async () => {
   const { app, window: page } = await launchApp();
-  const snapshot = join(dir, 'balloon_end.png');
   const output = join(dir, 'Task_11i.mp4');
   await answerDialogs(app, { open: [join(dir, BEE)], exportTo: output });
   await importAndAdd(page, [BEE]);
@@ -184,16 +183,13 @@ test('Book B Tasks 11h + 11i: zoom in right, a zoomed snapshot, a cold cyan tone
   await openTab(page, 'Effects');
   await page.getByLabel('Pan and zoom', { exact: true }).selectOption('zoom-in-right');
   // 11h: a snapshot of the final frame, zoomed in.
-  await app.evaluate(({ dialog }, path) => {
-    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as never;
-  }, snapshot);
   await toEnd(page, 10);
   await page.getByRole('button', { name: 'Snapshot' }).click();
   const snap = page.getByRole('dialog', { name: 'Snapshot' });
   await expect(snap).toContainText('00:09.97'); // the last frame (10 s − 1/30 s)
   await snap.getByLabel(/add to the timeline/i).check();
-  await snap.getByRole('button', { name: 'Save snapshot' }).click();
-  await expect(page.locator('.bin').getByText('balloon_end.png', { exact: true })).toBeVisible();
+  await snap.getByRole('button', { name: 'Add to media' }).click();
+  await expect(page.locator('.bin').getByText('Snapshot_9.97s.png', { exact: true })).toBeVisible();
   await item(page, 1).click();
   await openTab(page, 'Effects');
   await page.getByLabel('Pan and zoom', { exact: true }).selectOption('zoom-in');
@@ -231,7 +227,6 @@ test('Book B Tasks 11h + 11i: zoom in right, a zoomed snapshot, a cold cyan tone
 
 test('Book B Task 11d: the last frame of Naivasha2 as a 10 s background for captions, then credits', async () => {
   const { app, window: page } = await launchApp();
-  const still = join(dir, 'Naivasha2_end.png');
   const output = join(dir, 'Task_11d.mp4');
   await answerDialogs(app, { open: [join(dir, BEE), join(dir, LAKE)], exportTo: output });
   await importAndAdd(page, [BEE, LAKE]);
@@ -242,17 +237,14 @@ test('Book B Task 11d: the last frame of Naivasha2 as a 10 s background for capt
   await setTime(page, 'Start point', '8');
   await setTime(page, 'End point', '12.5');
   // Snapshot of the final frame, on the timeline for 10 s.
-  await app.evaluate(({ dialog }, path) => {
-    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as never;
-  }, still);
   await toEnd(page, 8.7);
   await page.getByRole('button', { name: 'Snapshot' }).click();
   const snap = page.getByRole('dialog', { name: 'Snapshot' });
   await expect(snap).toContainText('00:08.67');
   await snap.getByLabel(/add to the timeline/i).check();
   await setTime(page, 'Show it for', '10');
-  await snap.getByRole('button', { name: 'Save snapshot' }).click();
-  await expect(page.locator('.bin').getByText('Naivasha2_end.png', { exact: true })).toBeVisible();
+  await snap.getByRole('button', { name: 'Add to media' }).click();
+  await expect(page.locator('.bin').getByText('Snapshot_8.67s.png', { exact: true })).toBeVisible();
   // Two captions over the still.
   for (const [text, start] of [
     ['Over 400 species of birds are seen in the Great Rift Valley', '9'],

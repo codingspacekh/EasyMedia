@@ -354,8 +354,10 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       format?: 'png' | 'jpg' | 'bmp' | 'tiff';
     }): Promise<Id | null> {
       const { time, hideText, addToTimeline, duration, format = 'png' } = options;
-      const output = await dialogs.saveImage(`Snapshot_${time.toFixed(2)}s.${format}`);
-      if (!output) return null;
+      const { projectPath } = store.get();
+      // Saved straight away: next to a saved project (so it travels with it), else in the app's folder.
+      const folder = projectPath ? `${dirOf(projectPath)}/Snapshots` : paths.snapshots;
+      const wanted = `${folder}/Snapshot_${time.toFixed(2)}s.${format}`;
       const current = present();
       const project: Project = hideText
         ? {
@@ -367,9 +369,8 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
             },
           }
         : current;
-      const { projectPath } = store.get();
       try {
-        await engine.renderFrame(project, time, output, {
+        const output = await engine.renderFrame(project, time, wanted, {
           projectDir: projectPath ? dirOf(projectPath) : '/',
           textImages: await drawTextImages(project),
         });
@@ -382,7 +383,7 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
           const clip = setItemDuration(createImageClip(made), duration);
           run(addMainItem(clip, at ? at.index + 1 : undefined));
         }
-        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.` } });
+        patch({ message: { kind: 'info', text: `Added ${fileNameOf(output)} to the media.` } });
         return made.id;
       } catch (error) {
         showError(error);
