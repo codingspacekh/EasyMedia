@@ -38,9 +38,11 @@ export interface Channels {
   'dialog:saveProject': { args: [suggestedName: string]; result: string | null };
   'dialog:exportVideo': { args: [suggestedName: string]; result: string | null };
   'dialog:confirm': { args: [message: string]; result: boolean };
+  'dialog:chooseFolder': { args: [title: string]; result: string | null };
   'project:read': { args: [path: string]; result: string };
   'project:write': { args: [path: string, text: string]; result: null };
   'project:remove': { args: [path: string]; result: null };
+  'project:copy': { args: [from: string, to: string]; result: null };
 }
 
 export type Channel = keyof Channels;
@@ -59,15 +61,18 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:saveProject',
   'dialog:exportVideo',
   'dialog:confirm',
+  'dialog:chooseFolder',
   'project:read',
   'project:write',
   'project:remove',
+  'project:copy',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */
 export type Reply<T> = { ok: true; value: T } | { ok: false; error: WireError };
 
-export type MenuAction = 'new' | 'open' | 'save' | 'saveAs' | 'import' | 'export' | 'undo' | 'redo';
+export type MenuAction =
+  'new' | 'open' | 'save' | 'saveAs' | 'import' | 'export' | 'package' | 'undo' | 'redo';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

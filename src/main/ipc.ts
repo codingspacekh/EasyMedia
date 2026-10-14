@@ -88,6 +88,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:saveProject': (name) => s.dialogs.saveProject(name),
     'dialog:exportVideo': (name) => s.dialogs.exportVideo(name),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
+    'dialog:chooseFolder': (title) => s.dialogs.chooseFolder(title),
     'project:read': (path) => s.files.read(path),
     'project:write': async (path, text) => {
       await s.files.write(path, text);
@@ -95,6 +96,11 @@ export function registerIpc(s: MainServices): void {
     },
     'project:remove': async (path) => {
       await s.files.remove(path);
+      return null;
+    },
+    'project:copy': async (from, to) => {
+      if (!s.allow.has(from)) throw new Error('Only files opened in EasyMedia can be copied.');
+      await s.files.copy(from, to);
       return null;
     },
   };

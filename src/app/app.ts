@@ -1,6 +1,11 @@
 // App use cases (ARCHITECTURE §3, P3): what every button and menu item does. The UI only
 // calls these and shows the store. Errors never escape: they become a message for the student.
-import { addMainItem, importMedia as importMediaCommand, removeItem } from './commands.ts';
+import {
+  addMainItem,
+  importMedia as importMediaCommand,
+  relinkMedia,
+  removeItem,
+} from './commands.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
 import { proxyPathFor } from './proxy-path.ts';
 import { createStore, type Store } from './store.ts';
@@ -230,6 +235,21 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
       }
     },
 
+    /** P6: asks where a missing file is now and points the project to it. */
+    async locate(assetId: Id): Promise<void> {
+      const [path] = await dialogs.openMedia();
+      if (!path) return;
+      try {
+        const info = await engine.probe(path);
+        const replacement = assetFromProbe(path, info, { id: assetId });
+        const before = present();
+        run(relinkMedia(assetId, replacement));
+        if (present() !== before) await prepare(replacement, info);
+      } catch (error) {
+        showError(error);
+      }
+    },
+
     addToTimeline(assetId: Id): void {
       const asset = present().media.find((m) => m.id === assetId);
       if (!asset) return;
@@ -245,6 +265,16 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
       run(addMainItem(asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset)));
     },
 
+    /** For inspector fields: applies the edit, or returns why it is not allowed (shown by the field). */
+    edit(command: Command): string | null {
+      try {
+        store.update((s) => ({ ...s, history: execute(s.history, command) }));
+        return null;
+      } catch (error) {
+        return error instanceof EditError ? error.message : UNEXPECTED;
+      }
+    },
+
     select: (id: Id | null) => patch({ selection: id }),
 
     removeSelected(): void {
@@ -258,6 +288,42 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
     redo: () => patch({ history: redo(store.get().history) }),
     setPlayhead: (time: Seconds) => patch({ playhead: Math.max(0, time) }),
     dismissMessage: () => patch({ message: null }),
+
+    /** P2: copies the project and all its media into one folder, for handing in or moving. */
+    async packageProject(): Promise<void> {
+      const s = store.get();
+      const project = present();
+      if (project.media.some((m) => s.assets[m.id]?.state === 'failed')) {
+        patch({
+          message: {
+            kind: 'error',
+            text: 'Locate the missing files before packaging the project.',
+          },
+        });
+        return;
+      }
+      const dir = await dialogs.chooseFolder('Choose an empty folder for the packaged project');
+      if (!dir) return;
+      const name = s.projectPath ? fileNameOf(s.projectPath).replace(/\.mve$/i, '') : project.name;
+      try {
+        const used = new Set<string>();
+        const media: MediaAsset[] = [];
+        for (const asset of project.media) {
+          const file = uniqueName(fileNameOf(asset.path), used);
+          await files.copy(asset.path, `${dir}/media/${file}`);
+          media.push({ ...asset, path: `media/${file}` });
+        }
+        await files.write(`${dir}/${name}.mve`, serializeProject({ ...project, media }));
+        patch({
+          message: {
+            kind: 'info',
+            text: `Packaged into ${dir}. Open ${name}.mve there on any computer.`,
+          },
+        });
+      } catch (error) {
+        showError(error);
+      }
+    },
 
     async exportVideo(): Promise<void> {
       const project = present();
@@ -328,3 +394,13 @@ export function createApp({ engine, dialogs, files, paths, autosaveMs = 60_000 }
 }
 
 export type App = ReturnType<typeof createApp>;
+
+/** "clip.mp4", then "clip-2.mp4", "clip-3.mp4"… for files with the same name. */
+function uniqueName(file: string, used: Set<string>): string {
+  const dot = file.lastIndexOf('.');
+  const [base, ext] = dot > 0 ? [file.slice(0, dot), file.slice(dot)] : [file, ''];
+  let name = file;
+  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base}-${n}${ext}`;
+  used.add(name.toLowerCase());
+  return name;
+}

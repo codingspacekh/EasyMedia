@@ -1,8 +1,10 @@
 <script lang="ts">
   import { projectTitle, type App } from '../app/app.ts';
   import { canRedo, canUndo } from '../app/history.ts';
+  import Inspector from './Inspector.svelte';
   import MediaBin from './MediaBin.svelte';
   import Preview from './Preview.svelte';
+  import ProjectSettings from './ProjectSettings.svelte';
   import StatusBar from './StatusBar.svelte';
   import Timeline from './Timeline.svelte';
 
@@ -10,6 +12,8 @@
   const store = $derived(app.store);
   const modes = ['Video', 'Audio', 'Learn'] as const;
   let mode: (typeof modes)[number] = $state('Video');
+  let settingsOpen = $state(false);
+  const settings = $derived($store.history.present.settings);
 
   $effect.pre(() => {
     document.title = projectTitle($store);
@@ -29,6 +33,11 @@
     <button disabled={!canRedo($store.history)} onclick={() => app.redo()}>Redo</button>
     <button onclick={() => app.save()}>Save</button>
     <span class="spacer"></span>
+    <button class="chip" onclick={() => (settingsOpen = true)}>
+      {settings.aspect === 'custom' ? 'Custom' : settings.aspect} · {settings.width} × {settings.height}
+      ·
+      {settings.fps} fps
+    </button>
     <button
       class="primary"
       disabled={$store.exporting.state === 'running'}
@@ -41,6 +50,7 @@
     <main class="workspace">
       <MediaBin {app} />
       <Preview {app} />
+      <Inspector {app} />
     </main>
     <Timeline {app} />
   {:else}
@@ -49,6 +59,7 @@
     </main>
   {/if}
   <StatusBar {app} />
+  {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
 </div>
 
 <style>
@@ -88,6 +99,11 @@
   }
   .spacer {
     flex: 1;
+  }
+  .chip {
+    border-radius: 999px;
+    color: var(--tx-2);
+    font-size: 12px;
   }
   .workspace {
     flex: 1;

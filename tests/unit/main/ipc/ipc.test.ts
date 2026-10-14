@@ -67,6 +67,7 @@ describe('P2 main-process IPC handlers', () => {
         saveProject: async (name) => `/p/${name}.mve`,
         exportVideo: async (name) => `/p/${name}.mp4`,
         confirm: async () => true,
+        chooseFolder: async () => '/usb',
       },
     });
     expect(await api.invoke('dialog:saveProject', 'Task_11b')).toEqual({
@@ -85,5 +86,24 @@ describe('P2 main-process IPC handlers', () => {
       ok: true,
       value: { proxies: '/cache/proxies', recovery: '/cache/recovery.mve' },
     });
+  });
+
+  it('P2 copies only files the app has opened (never arbitrary files)', async () => {
+    const copied: string[] = [];
+    const { api } = inProcessBridge(createMockMediaEngine({ '/m/a.mp4': clip }), {
+      files: {
+        read: async () => '',
+        write: async () => {},
+        remove: async () => {},
+        copy: async (from, to) => void copied.push(`${from}→${to}`),
+      },
+    });
+    expect(await api.invoke('project:copy', '/etc/passwd', '/usb/x')).toMatchObject({ ok: false });
+    await api.invoke('media:probe', '/m/a.mp4');
+    expect(await api.invoke('project:copy', '/m/a.mp4', '/usb/media/a.mp4')).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(copied).toEqual(['/m/a.mp4→/usb/media/a.mp4']);
   });
 });

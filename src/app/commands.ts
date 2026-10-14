@@ -38,6 +38,34 @@ export function importMedia(asset: MediaAsset): Command {
   };
 }
 
+/** P6: points a moved or renamed media file to its new place. Clips keep their edits. */
+export function relinkMedia(assetId: Id, replacement: MediaAsset): Command {
+  return {
+    label: 'Locate file',
+    apply: (p) => {
+      const old = requireAsset(p, assetId);
+      if (replacement.kind !== old.kind)
+        throw new EditError(`Choose ${old.kind === 'image' ? 'an image' : `a ${old.kind}`} file.`);
+      const usedUpTo = Math.max(
+        0,
+        ...p.timeline.main.flatMap((m) =>
+          m.type === 'video' && m.assetId === assetId ? [m.out] : [],
+        ),
+        ...p.timeline.audio.flat().flatMap((a) => (a.assetId === assetId ? [a.out] : [])),
+      );
+      if ((replacement.duration ?? Infinity) + 1e-9 < usedUpTo) {
+        throw new EditError(
+          'This file is shorter than the part used on the timeline. Choose the original file.',
+        );
+      }
+      return {
+        ...p,
+        media: p.media.map((m) => (m.id === assetId ? { ...replacement, id: assetId } : m)),
+      };
+    },
+  };
+}
+
 export function addMainItem(item: MainItem, index?: number): Command {
   return {
     label: item.type === 'title' ? 'Add title' : 'Add clip',

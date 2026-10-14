@@ -16,6 +16,8 @@
   $effect(() => {
     if (!video || frame.kind !== 'video') return;
     video.playbackRate = frame.rate;
+    video.volume = frame.volume;
+    video.muted = frame.volume === 0;
     if (!playing || Math.abs(video.currentTime - frame.mediaTime) > 0.3)
       video.currentTime = frame.mediaTime;
     if (playing) void video.play().catch(() => {});
@@ -50,7 +52,10 @@
   <div class="stage">
     <div class="screen" data-preview={frame.kind}>
       {#if frame.kind === 'video'}
-        <video bind:this={video} src={frame.src} muted={false} preload="auto"></video>
+        <!-- The student's own clip in a live preview: a captions track does not apply here.
+             (Captions and subtitles the student adds are drawn on top, from M6.) -->
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video bind:this={video} src={frame.src} preload="auto"></video>
       {:else if frame.kind === 'image'}
         <img src={frame.src} alt="" />
       {:else if frame.kind === 'colour'}

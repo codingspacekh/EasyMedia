@@ -10,6 +10,7 @@ export function createElectronDialogs(api: MveApi): Dialogs {
     saveProject: (name) => unwrap(api.invoke('dialog:saveProject', name)),
     exportVideo: (name) => unwrap(api.invoke('dialog:exportVideo', name)),
     confirm: (message) => unwrap(api.invoke('dialog:confirm', message)),
+    chooseFolder: (title) => unwrap(api.invoke('dialog:chooseFolder', title)),
   };
 }
 
@@ -18,6 +19,7 @@ export function createElectronProjectFiles(api: MveApi): ProjectFiles {
     read: (path) => unwrap(api.invoke('project:read', path)),
     write: async (path, text) => void (await unwrap(api.invoke('project:write', path, text))),
     remove: async (path) => void (await unwrap(api.invoke('project:remove', path))),
+    copy: async (from, to) => void (await unwrap(api.invoke('project:copy', from, to))),
   };
 }
 

@@ -25,6 +25,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       saveProject: async () => null,
       exportVideo: async () => null,
       confirm: async () => false,
+      chooseFolder: async () => null,
     },
     files: {
       read: async (path) => {
@@ -34,6 +35,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       },
       write: async (path, text) => void files.set(path, text),
       remove: async (path) => void files.delete(path),
+      copy: async () => {},
     },
     ...overrides,
   });

@@ -1,7 +1,8 @@
 // Real file dialogs and project-file I/O for the main process.
 import { dialog, type BrowserWindow } from 'electron';
 import type { Dialogs, ProjectFiles } from '../core/ports.ts';
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -72,6 +73,13 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return r.response === 0;
     },
+    async chooseFolder(title) {
+      const r = await dialog.showOpenDialog(win(), {
+        title,
+        properties: ['openDirectory', 'createDirectory', 'promptToCreate'],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
   };
 }
 
@@ -88,4 +96,8 @@ export const projectFiles: ProjectFiles = {
     }
   },
   remove: (path) => rm(path, { force: true }),
+  async copy(from, to) {
+    await mkdir(dirname(to), { recursive: true });
+    await copyFile(from, to);
+  },
 };
