@@ -6,7 +6,7 @@
 </script>
 
 <main>
-  <h1>Mini Video Editor</h1>
+  <h1>EasyMedia</h1>
   <nav aria-label="Mode">
     {#each modes as m (m)}
       <button type="button" aria-pressed={mode === m} onclick={() => (mode = m)}>{m}</button>

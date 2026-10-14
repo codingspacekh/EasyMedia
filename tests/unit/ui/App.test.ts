@@ -5,7 +5,7 @@ import App from '../../../src/ui/App.svelte';
 describe('App shell', () => {
   it('shows the app name', () => {
     render(App);
-    expect(screen.getByRole('heading', { name: 'Mini Video Editor' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'EasyMedia' })).toBeTruthy();
   });
 
   it('starts in Video mode with three modes to choose from', () => {

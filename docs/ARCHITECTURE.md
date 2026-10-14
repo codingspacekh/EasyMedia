@@ -1,4 +1,4 @@
-# Mini Video Editor — System Design
+# EasyMedia — System Design
 
 This document describes **how** the app is built. For **what** it must do, see [`../README.md`](../README.md); requirement IDs (V1, A3, T2, X1…) refer to that file.
 
@@ -84,7 +84,7 @@ Security defaults: `contextIsolation: true`, `nodeIntegration: false`, `sandbox:
 ## 4. Folder structure
 
 ```
-minivideoeditor/
+EasyMedia/
 ├─ README.md                  requirements
 ├─ docs/ARCHITECTURE.md       this file
 ├─ src/

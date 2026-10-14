@@ -1,4 +1,4 @@
-# Mini Video Editor — Milestones & TDD Workflow
+# EasyMedia — Milestones & TDD Workflow
 
 How the app is built, **in what order**, and **how each part is proven to work** before the next one starts.
 

@@ -1,4 +1,4 @@
-# Mini Video Editor — System Requirements
+# EasyMedia — System Requirements
 
 A lightweight, offline desktop video and audio editor built for teaching **Cambridge International AS & A Level Information Technology (9626), Chapter 11: Video and audio editing** (syllabus 2025–2027).
 
