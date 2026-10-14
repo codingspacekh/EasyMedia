@@ -79,26 +79,27 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
     });
 
     it('resizeCropImage makes a new picture of the crop size and never overwrites (V11)', async () => {
-      const { engine, image, out } = setup();
+      const { engine, image } = setup();
       const info = await engine.probe(image);
       const plan = planResizeCrop(info.video!, { width: 320, height: 180 }, 'bottom');
-      const first = await engine.resizeCropImage(image, out('Eagle1.jpg'), plan);
-      expect(first).toBe(out('Eagle1.jpg'));
+      const first = await engine.resizeCropImage(image, plan);
+      expect(first).toBe(image.replace(/\.jpg$/, '1.jpg'));
       expect(await engine.probe(first)).toMatchObject({
         kind: 'image',
         video: { width: 320, height: 180 },
       });
-      // The name is taken now, so the next one is numbered on.
-      expect(await engine.resizeCropImage(image, out('Eagle1.jpg'), plan)).toBe(out('Eagle2.jpg'));
+      // That name is taken now, so the next copy is numbered on; the original is kept.
+      expect(await engine.resizeCropImage(image, plan)).toBe(image.replace(/\.jpg$/, '2.jpg'));
+      expect((await engine.probe(image)).video).toMatchObject(info.video!);
     });
 
     it('resizeCropImage refuses a crop outside the resized picture', async () => {
-      const { engine, image, out } = setup();
+      const { engine, image } = setup();
       const bad = {
         resize: { width: 100, height: 100 },
         crop: { x: 50, y: 0, width: 100, height: 100 },
       };
-      await expect(engine.resizeCropImage(image, out('bad.jpg'), bad)).rejects.toThrow(EditError);
+      await expect(engine.resizeCropImage(image, bad)).rejects.toThrow(EditError);
     });
 
     it('extractFrame saves one full-size frame as an image (V10)', async () => {

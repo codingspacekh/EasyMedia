@@ -101,11 +101,12 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       });
     },
 
-    async resizeCropImage(input, output, plan) {
+    async resizeCropImage(input, plan) {
       resizeCropFilter(plan);
       const src = find(input);
-      let path = output;
-      for (let n = 2; files.has(path); n++) path = numberedPath(output, n);
+      let n = 1;
+      while (files.has(numberedPath(input, n))) n++;
+      const path = numberedPath(input, n);
       const ext = path.split('.').pop() ?? 'jpg';
       files.set(path, {
         kind: 'image',

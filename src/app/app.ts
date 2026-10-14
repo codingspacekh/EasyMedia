@@ -36,7 +36,6 @@ import type {
 } from '../core/ports.ts';
 import type { TextImage } from '../core/render/compile.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
-import { numberedPath } from '../core/project/paths.ts';
 import { planResizeCrop, type Anchor } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
@@ -298,7 +297,7 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       const { width, height } = present().settings;
       try {
         const plan = planResizeCrop(size, { width, height }, anchor);
-        const path = await engine.resizeCropImage(asset.path, numberedPath(asset.path, 1), plan);
+        const path = await engine.resizeCropImage(asset.path, plan);
         const info = await engine.probe(path);
         const made = assetFromProbe(path, info);
         run(importMediaCommand(made));

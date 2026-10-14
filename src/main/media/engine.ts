@@ -75,15 +75,16 @@ export function createNodeMediaEngine(
       await queue.run({ label: 'Snapshot', args: frameArgs(input, time), output }).done;
     },
 
-    async resizeCropImage(input, output, plan) {
+    async resizeCropImage(input, plan) {
       const filter = resizeCropFilter(plan);
       const exists = (p: string) =>
         access(p).then(
           () => true,
           () => false,
         );
-      let path = output;
-      for (let n = 2; await exists(path); n++) path = numberedPath(output, n);
+      let n = 1;
+      while (await exists(numberedPath(input, n))) n++;
+      const path = numberedPath(input, n);
       await queue.run({
         label: 'Resize & crop',
         args: ['-i', input, '-vf', filter, '-frames:v', '1', '-update', '1', '-q:v', '2'],

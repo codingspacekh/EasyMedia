@@ -22,7 +22,7 @@ export interface Channels {
   };
   'media:waveform': { args: [input: string, buckets: number]; result: number[] };
   'media:frame': { args: [input: string, time: number, output: string]; result: null };
-  'media:resizeCrop': { args: [input: string, output: string, plan: ResizeCrop]; result: string };
+  'media:resizeCrop': { args: [input: string, plan: ResizeCrop]; result: string };
   'media:render': {
     args: [jobKey: string, project: Project, output: string, options: RenderVideoOptions];
     result: null;

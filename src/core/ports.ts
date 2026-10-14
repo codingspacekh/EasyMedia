@@ -60,10 +60,10 @@ export interface MediaEngine {
   /** Saves one frame as an image; the format follows the output's extension (V10). */
   extractFrame(input: string, time: Seconds, output: string): Promise<void>;
   /**
-   * V11: saves a resized and cropped copy of a picture. Never overwrites: if `output` is taken,
-   * the next free numbered name is used. Resolves with the path actually written.
+   * V11: saves a resized and cropped copy beside the picture, as the first free numbered name
+   * (Fish_Eagle.jpg → Fish_Eagle1.jpg, then Fish_Eagle2.jpg…). Never overwrites. Resolves with its path.
    */
-  resizeCropImage(input: string, output: string, plan: ResizeCrop): Promise<string>;
+  resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
   /** Exports the project as an MP4 (V16). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;

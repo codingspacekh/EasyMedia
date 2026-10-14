@@ -26,12 +26,12 @@ function isAbsolute(path: string): boolean {
 }
 
 /** Absolute media path → the path to store in the project file. */
-/** The `n`th name in a series: Eagle1.jpg → Eagle2.jpg, photo.jpg → photo2.jpg. */
+/** A numbered copy's name beside the original: Fish_Eagle.jpg, 1 → Fish_Eagle1.jpg. */
 export function numberedPath(path: string, n: number): string {
   const dot = path.lastIndexOf('.');
   const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
   const [base, ext] = dot > slash ? [path.slice(0, dot), path.slice(dot)] : [path, ''];
-  return `${base.replace(/\d+$/, '')}${n}${ext}`;
+  return `${base}${n}${ext}`;
 }
 
 export function toProjectPath(projectDir: string, filePath: string): string {

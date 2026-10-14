@@ -77,10 +77,10 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(output);
       return null;
     },
-    'media:resizeCrop': async (input, output, plan) => {
+    'media:resizeCrop': async (input, plan) => {
       resizeCropFilter(plan); // explains a bad crop before anything else
       if (!s.allow.has(input)) throw new Error('Only pictures opened in EasyMedia can be cropped.');
-      const path = await s.engine.resizeCropImage(input, output, plan);
+      const path = await s.engine.resizeCropImage(input, plan);
       s.allow.add(path);
       return path;
     },

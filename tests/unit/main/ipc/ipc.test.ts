@@ -150,11 +150,11 @@ describe('P2 main-process IPC handlers', () => {
       resize: { width: 160, height: 120 },
       crop: { x: 0, y: 30, width: 160, height: 90 },
     };
-    expect(await api.invoke('media:resizeCrop', '/etc/x.jpg', '/m/x1.jpg', plan)).toMatchObject({
+    expect(await api.invoke('media:resizeCrop', '/etc/x.jpg', plan)).toMatchObject({
       ok: false,
     });
     await api.invoke('media:probe', '/m/p.jpg');
-    expect(await api.invoke('media:resizeCrop', '/m/p.jpg', '/m/p1.jpg', plan)).toEqual({
+    expect(await api.invoke('media:resizeCrop', '/m/p.jpg', plan)).toEqual({
       ok: true,
       value: '/m/p1.jpg',
     });
