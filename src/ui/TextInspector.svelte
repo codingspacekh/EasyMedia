@@ -73,7 +73,11 @@
   <div class="grid2">
     <label class="stack">
       Font
-      <select aria-label="Font" value={item.style.font} onchange={(e) => style({ font: e.currentTarget.value })}>
+      <select
+        aria-label="Font"
+        value={item.style.font}
+        onchange={(e) => style({ font: e.currentTarget.value })}
+      >
         {#each FONTS as font (font.name)}
           <option value={font.name}>{font.label}</option>
         {/each}
