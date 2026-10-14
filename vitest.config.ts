@@ -23,6 +23,15 @@ export default defineConfig({
       },
       {
         test: {
+          name: 'acceptance',
+          include: ['tests/acceptance/**/*.test.ts'],
+          environment: 'node',
+          testTimeout: 180_000,
+          hookTimeout: 180_000,
+        },
+      },
+      {
+        test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],
           environment: 'node',
@@ -41,6 +50,7 @@ export default defineConfig({
         functions: 85,
         statements: 85,
         'src/core/**': { lines: 90, branches: 90, functions: 90, statements: 90 },
+        'src/app/**': { lines: 85, branches: 85, functions: 85, statements: 85 },
       },
     },
   },
