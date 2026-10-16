@@ -1,19 +1,30 @@
 // MediaEngine implemented with the bundled ffprobe/ffmpeg (ARCHITECTURE §8).
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, mkdir, readFile, rm } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Seconds } from '../../core/model/time.ts';
+import { deinterleave, interleave } from '../../core/audio/pcm.ts';
+import { MediaError } from '../../core/model/errors.ts';
 import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
+import { audioCodecArgs, validateAudioExport } from '../../core/render/audio-formats.ts';
 import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
 import type { BinaryPaths } from '../ffmpeg/paths.ts';
 import { explainFfmpegError } from '../ffmpeg/errors.ts';
 import { createJobQueue, type RunProcess } from '../jobs/queue.ts';
-import { computePeaks, frameArgs, proxyArgs, thumbnailArgs, waveformArgs } from './jobs.ts';
+import {
+  computePeaks,
+  decodeArgs,
+  frameArgs,
+  proxyArgs,
+  rawInputArgs,
+  thumbnailArgs,
+  waveformArgs,
+} from './jobs.ts';
 import { parseProbe, type FfprobeJson } from './probe.ts';
 
 const execFileAsync = promisify(execFile);
@@ -122,12 +133,64 @@ export function createNodeMediaEngine(
       return queue.run({ label: 'Export', args: plan.args, output, duration: plan.duration });
     },
 
+    async decodeAudio(input, sampleRate) {
+      const info = await probe(input);
+      if (!info.audio) throw new MediaError(NO_SOUND);
+      const count = Math.min(2, info.audio.channels);
+      const rate = sampleRate ?? info.audio.sampleRate;
+      const raw = join(tmpdir(), `easymedia-decode-${randomUUID()}.f32`);
+      try {
+        await queue.run({
+          label: 'Opening sound',
+          args: decodeArgs(input, count, rate),
+          output: raw,
+          ...(info.duration ? { duration: info.duration } : {}),
+        }).done;
+        const bytes = await readFile(raw);
+        // Copy into an aligned buffer: Float32Array needs a 4-byte aligned offset.
+        const samples = new Float32Array(
+          bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+        );
+        return {
+          sampleRate: rate,
+          channels: deinterleave(samples, count),
+          ...(info.audio.bitDepth ? { bits: info.audio.bitDepth } : {}),
+        };
+      } finally {
+        await rm(raw, { force: true });
+      }
+    },
+
+    encodeAudio(audio, output, settings) {
+      try {
+        validateAudioExport(settings);
+      } catch (error) {
+        return failedJob(error as Error);
+      }
+      const raw = join(tmpdir(), `easymedia-export-${randomUUID()}.f32`);
+      const data = interleave(audio.channels);
+      return queue.run({
+        label: 'Export audio',
+        args: [
+          ...rawInputArgs(raw, audio.sampleRate, audio.channels.length),
+          ...audioCodecArgs(settings),
+        ],
+        output,
+        duration: (audio.channels[0]?.length ?? 0) / audio.sampleRate,
+        prepare: () =>
+          writeFile(raw, new Uint8Array(data.buffer, data.byteOffset, data.byteLength)),
+        cleanUp: () => rm(raw, { force: true }),
+      });
+    },
+
     onJobEvent: (listener) => queue.onEvent(listener),
 
     /** Stops every FFmpeg job, e.g. when the app quits, so nothing keeps running afterwards. */
     cancelAll: () => queue.cancelAll(),
   };
 }
+
+const NO_SOUND = 'This file has no sound to edit.';
 
 /** A job that could not start (e.g. the project cannot be exported): `done` rejects at once. */
 function failedJob(error: Error): JobHandle {

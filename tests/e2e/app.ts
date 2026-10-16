@@ -41,7 +41,7 @@ export async function answerDialogs(
       filePaths: a.open ?? [],
     })) as typeof dialog.showOpenDialog;
     dialog.showSaveDialog = (async (_w: unknown, options: { title?: string }) => {
-      const path = options?.title === 'Export video' ? a.exportTo : a.save;
+      const path = options?.title?.startsWith('Export') ? a.exportTo : a.save;
       return { canceled: !path, filePath: path ?? '' };
     }) as unknown as typeof dialog.showSaveDialog;
   }, answers);

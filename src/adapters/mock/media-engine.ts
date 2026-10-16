@@ -6,6 +6,12 @@ import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../../core/render/formats.ts';
+import {
+  AUDIO_FORMATS,
+  estimateAudioSize,
+  validateAudioExport,
+  type AudioExportSettings,
+} from '../../core/render/audio-formats.ts';
 
 const PROXY_HEIGHT = 360;
 const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -172,12 +178,62 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       });
     },
 
+    async decodeAudio(path, sampleRate) {
+      const info = find(path);
+      if (!info.audio) throw new MediaError('This file has no sound to edit.');
+      const rate = sampleRate ?? info.audio.sampleRate;
+      const length = Math.round((info.duration ?? 0) * rate);
+      // A quiet tone, different on each side: enough to see and edit.
+      const channels = Array.from({ length: Math.min(2, info.audio.channels) }, (_, ch) => {
+        const c = new Float32Array(length);
+        const step = (2 * Math.PI * (220 + 110 * ch)) / rate;
+        for (let i = 0; i < length; i++) c[i] = 0.5 * Math.sin(i * step);
+        return c;
+      });
+      return {
+        sampleRate: rate,
+        channels,
+        ...(info.audio.bitDepth ? { bits: info.audio.bitDepth } : {}),
+      };
+    },
+
+    encodeAudio(audio, output, settings) {
+      try {
+        validateAudioExport(settings);
+      } catch (error) {
+        const done = Promise.reject(error as Error);
+        done.catch(() => {});
+        return { id: 'not-started', done, cancel: () => {} };
+      }
+      const duration = audio.channels[0]!.length / audio.sampleRate;
+      return job('Export audio', output, () => ({
+        kind: 'audio',
+        container: AUDIO_FORMATS[settings.format].extension,
+        duration,
+        sizeBytes: Math.round(estimateAudioSize(settings, duration).bytes),
+        audio: {
+          codec: audioCodecOf(settings),
+          sampleRate: settings.sampleRate,
+          channels: settings.channels,
+          ...(settings.format === 'wav' || settings.format === 'flac'
+            ? { bitDepth: settings.bitDepth }
+            : {}),
+        },
+      }));
+    },
+
     onJobEvent(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
   };
   return engine;
+}
+
+/** The audio codec ffprobe reports for each audio export (A17). */
+function audioCodecOf(e: AudioExportSettings): string {
+  if (e.format === 'wav') return { 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
+  return { mp3: 'mp3', m4a: 'aac', aac: 'aac', flac: 'flac' }[e.format];
 }
 
 /** The codec names ffprobe reports for each format (V16). */

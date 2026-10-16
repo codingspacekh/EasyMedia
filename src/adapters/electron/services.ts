@@ -9,6 +9,7 @@ export function createElectronDialogs(api: MveApi): Dialogs {
     openProject: () => unwrap(api.invoke('dialog:openProject')),
     saveProject: (name) => unwrap(api.invoke('dialog:saveProject', name)),
     exportVideo: (name, container) => unwrap(api.invoke('dialog:exportVideo', name, container)),
+    exportAudio: (name, format) => unwrap(api.invoke('dialog:exportAudio', name, format)),
     confirm: (message) => unwrap(api.invoke('dialog:confirm', message)),
     chooseFolder: (title) => unwrap(api.invoke('dialog:chooseFolder', title)),
   };

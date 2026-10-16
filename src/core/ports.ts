@@ -4,6 +4,7 @@ import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
 import type { TextImage } from './render/compile.ts';
 import type { Container, ExportSettings } from './render/formats.ts';
+import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
 import type { ResizeCrop } from './image/crop.ts';
 
@@ -47,6 +48,14 @@ export interface RenderVideoOptions {
   textImages?: Record<string, TextImage>;
 }
 
+/** A1: a sound decoded for editing — one array of samples (−1…1) per channel. */
+export interface DecodedAudio {
+  sampleRate: number;
+  channels: Float32Array[];
+  /** Sample resolution of the file, when it has one (WAV, FLAC). */
+  bits?: number;
+}
+
 export interface MediaEngine {
   probe(path: string): Promise<ProbeInfo>;
   /** 360 px tall preview copy used for smooth playback (ARCHITECTURE §10.2). `duration` is the source length. */
@@ -80,6 +89,17 @@ export interface MediaEngine {
     output: string,
     options: RenderVideoOptions,
   ): Promise<string>;
+  /**
+   * A1: the sound of an audio or video file as samples, mono or stereo (more channels are mixed
+   * to stereo), at the file's own sample rate or at `sampleRate`.
+   */
+  decodeAudio(path: string, sampleRate?: number): Promise<DecodedAudio>;
+  /** A16, A17: saves samples as an audio file in the chosen format, in the background. */
+  encodeAudio(
+    audio: { sampleRate: number; channels: readonly Float32Array[] },
+    output: string,
+    settings: AudioExportSettings,
+  ): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }
 
@@ -90,6 +110,8 @@ export interface Dialogs {
   saveProject(suggestedName: string): Promise<string | null>;
   /** Where to save the exported video; the file type follows the chosen container (V16). */
   exportVideo(suggestedName: string, container: Container): Promise<string | null>;
+  /** Where to save exported sound; the file type follows the chosen format (A17). */
+  exportAudio(suggestedName: string, format: AudioFormat): Promise<string | null>;
   /** A yes / no question, e.g. "Discard unsaved changes?". */
   confirm(message: string): Promise<boolean>;
   /** A folder (it can be created in the dialog), e.g. to package a project into. */

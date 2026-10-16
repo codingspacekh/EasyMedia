@@ -91,6 +91,11 @@ export function registerIpc(s: MainServices): void {
     },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),
+    'media:decodeAudio': (path, sampleRate) => s.engine.decodeAudio(path, sampleRate),
+    'media:encodeAudio': async (key, audio, output, settings) =>
+      track(key, 'Export audio', s.engine.encodeAudio(audio, output, settings), () =>
+        s.allow.add(output),
+      ),
     'job:cancel': async (key) => {
       jobs.get(key)?.cancel();
       return null;
@@ -100,6 +105,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:openProject': () => s.dialogs.openProject(),
     'dialog:saveProject': (name) => s.dialogs.saveProject(name),
     'dialog:exportVideo': (name, container) => s.dialogs.exportVideo(name, container),
+    'dialog:exportAudio': (name, format) => s.dialogs.exportAudio(name, format),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
     'dialog:chooseFolder': (title) => s.dialogs.chooseFolder(title),
     'project:read': (path) => s.files.read(path),

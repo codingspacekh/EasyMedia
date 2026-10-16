@@ -56,6 +56,7 @@ function setup(
     openProject: vi.fn<Dialogs['openProject']>(async () => null),
     saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
     exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
+    exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
   };

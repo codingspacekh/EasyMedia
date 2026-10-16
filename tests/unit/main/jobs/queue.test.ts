@@ -174,4 +174,73 @@ describe('N12 background job queue', () => {
     queue.run({ label: 'A', args: [], output: out });
     expect(seen).toEqual([]);
   });
+
+  it('A17 prepares the input just before ffmpeg starts and cleans up afterwards', async () => {
+    const { queue, runs } = setup();
+    const steps: string[] = [];
+    const job = queue.run({
+      label: 'Export audio',
+      args: [],
+      output: out,
+      prepare: async () => void steps.push('prepare'),
+      cleanUp: async () => void steps.push('clean up'),
+    });
+    await tick();
+    expect([steps, runs.length]).toEqual([['prepare'], 1]);
+    runs[0]!.finish(0);
+    await job.done;
+    expect(steps).toEqual(['prepare', 'clean up']);
+  });
+
+  it('a failed preparation fails the job without running ffmpeg, and still cleans up', async () => {
+    const { queue, runs, events } = setup();
+    let cleaned = false;
+    const job = queue.run({
+      label: 'Export audio',
+      args: [],
+      output: out,
+      prepare: async () => {
+        throw new MediaError('There is not enough space on the disk.');
+      },
+      cleanUp: async () => void (cleaned = true),
+    });
+    await expect(job.done).rejects.toThrow(/not enough space/);
+    expect([runs.length, cleaned]).toEqual([0, true]);
+    expect(events).toEqual(['queued', 'started', 'error']);
+    // the queue carries on with the next job
+    queue.run({ label: 'B', args: [], output: join('/out', 'b.mp4') });
+    await tick();
+    expect(runs).toHaveLength(1);
+  });
+
+  it('a cancelled job is cleaned up too', async () => {
+    const { queue } = setup();
+    let cleaned = 0;
+    const job = queue.run({
+      label: 'A',
+      args: [],
+      output: out,
+      cleanUp: async () => void cleaned++,
+    });
+    await tick();
+    job.cancel();
+    await expect(job.done).rejects.toThrow(JobCancelledError);
+    const waiting = queue.run({
+      label: 'B',
+      args: [],
+      output: out,
+      cleanUp: async () => void cleaned++,
+    });
+    const later = queue.run({
+      label: 'C',
+      args: [],
+      output: out,
+      cleanUp: async () => void cleaned++,
+    });
+    later.cancel();
+    await expect(later.done).rejects.toThrow(JobCancelledError);
+    waiting.cancel();
+    await expect(waiting.done).rejects.toThrow(JobCancelledError);
+    expect(cleaned).toBe(3);
+  });
 });

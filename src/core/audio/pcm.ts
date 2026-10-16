@@ -73,6 +73,28 @@ export function concatChannels(...parts: Channels[]): Float32Array[] {
   });
 }
 
+/** Channels → one array with the samples side by side (L R L R…), as FFmpeg reads and writes. */
+export function interleave(channels: Channels): Float32Array {
+  const count = channels.length;
+  const length = channels[0]!.length;
+  const out = new Float32Array(length * count);
+  for (let ch = 0; ch < count; ch++) {
+    const c = channels[ch]!;
+    for (let i = 0; i < length; i++) out[i * count + ch] = c[i]!;
+  }
+  return out;
+}
+
+/** The opposite of interleave. */
+export function deinterleave(data: Float32Array, count: number): Float32Array[] {
+  const length = Math.floor(data.length / count);
+  return Array.from({ length: count }, (_, ch) => {
+    const c = new Float32Array(length);
+    for (let i = 0; i < length; i++) c[i] = data[i * count + ch]!;
+    return c;
+  });
+}
+
 /** The same sound with `count` channels: mono is copied to both sides, stereo is averaged. */
 export function matchChannels(channels: Channels, count: number): Float32Array[] {
   if (channels.length === count) return [...channels];

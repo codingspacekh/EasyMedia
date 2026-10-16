@@ -66,6 +66,7 @@ describe('P2 main-process IPC handlers', () => {
         openProject: async () => '/p/task.mve',
         saveProject: async (name) => `/p/${name}.mve`,
         exportVideo: async (name, container) => `/p/${name}.${container}`,
+        exportAudio: async (name, format) => `/p/${name}.${format}`,
         confirm: async () => true,
         chooseFolder: async () => '/usb',
       },
@@ -77,6 +78,10 @@ describe('P2 main-process IPC handlers', () => {
     expect(await api.invoke('project:write', '/p/t.mve', '{}')).toEqual({ ok: true, value: null });
     expect(await api.invoke('project:read', '/p/t.mve')).toEqual({ ok: true, value: '{}' });
     expect(await api.invoke('dialog:confirm', 'Discard?')).toEqual({ ok: true, value: true });
+    expect(await api.invoke('dialog:exportAudio', 'Task_11j', 'mp3')).toEqual({
+      ok: true,
+      value: '/p/Task_11j.mp3',
+    });
     expect(await api.invoke('project:remove', '/p/t.mve')).toEqual({ ok: true, value: null });
     expect(await api.invoke('project:read', '/p/t.mve')).toMatchObject({
       ok: false,

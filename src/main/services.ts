@@ -2,6 +2,7 @@
 import { dialog, type BrowserWindow } from 'electron';
 import type { Dialogs, ProjectFiles } from '../core/ports.ts';
 import { CONTAINERS } from '../core/render/formats.ts';
+import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
@@ -62,6 +63,15 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         title: 'Export video',
         defaultPath: `${name}.${extension}`,
         filters: [{ name: `${label} video`, extensions: [extension] }],
+      });
+      return r.canceled ? null : (r.filePath ?? null);
+    },
+    async exportAudio(name, format) {
+      const { label, extension } = AUDIO_FORMATS[format] ?? AUDIO_FORMATS.mp3;
+      const r = await dialog.showSaveDialog(win(), {
+        title: 'Export audio',
+        defaultPath: `${name}.${extension}`,
+        filters: [{ name: `${label} audio`, extensions: [extension] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },

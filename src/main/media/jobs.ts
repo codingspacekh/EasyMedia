@@ -39,6 +39,28 @@ export function waveformArgs(input: string): string[] {
   return ['-i', input, '-vn', '-ac', '1', '-ar', String(WAVEFORM_SAMPLE_RATE), '-f', 'f32le'];
 }
 
+/** A1: the sound as 32-bit float samples side by side, mono or stereo, at `rate`. */
+export function decodeArgs(input: string, channels: number, rate: number): string[] {
+  return [
+    '-i',
+    input,
+    '-vn',
+    '-map',
+    '0:a:0',
+    '-ac',
+    String(channels),
+    '-ar',
+    String(rate),
+    '-f',
+    'f32le',
+  ];
+}
+
+/** Reads raw samples written by FFmpeg (f32le, side by side). */
+export function rawInputArgs(path: string, rate: number, channels: number): string[] {
+  return ['-f', 'f32le', '-ar', String(rate), '-ac', String(channels), '-i', path];
+}
+
 /** One frame at `time`; the image format follows the output file's extension (V10). */
 export function frameArgs(input: string, time: Seconds): string[] {
   return ['-ss', String(time), '-i', input, '-frames:v', '1', '-update', '1', '-q:v', '2'];

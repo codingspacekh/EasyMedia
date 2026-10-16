@@ -61,6 +61,9 @@ export function createElectronMediaEngine(api: MveApi): MediaEngine {
       unwrap(api.invoke('media:snapshot', project, time, output, options)),
     renderVideo: (project, output, options) =>
       startJob((k) => api.invoke('media:render', k, project, output, options)),
+    decodeAudio: (path, sampleRate) => unwrap(api.invoke('media:decodeAudio', path, sampleRate)),
+    encodeAudio: (audio, output, settings) =>
+      startJob((k) => api.invoke('media:encodeAudio', k, audio, output, settings)),
     onJobEvent(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

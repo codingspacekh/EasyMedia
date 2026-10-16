@@ -2,7 +2,7 @@
 // Output is written to a temporary file and renamed only on success (ARCHITECTURE §9).
 import { spawn } from 'node:child_process';
 import { rename, rm } from 'node:fs/promises';
-import { JobCancelledError } from '../../core/model/errors.ts';
+import { JobCancelledError, MediaError } from '../../core/model/errors.ts';
 import type { Seconds } from '../../core/model/time.ts';
 import type { JobEvent, JobHandle } from '../../core/ports.ts';
 import { explainFfmpegError } from '../ffmpeg/errors.ts';
@@ -16,6 +16,10 @@ export interface JobSpec {
   output: string;
   /** Length of the result, for progress. */
   duration?: Seconds;
+  /** Runs just before FFmpeg starts, e.g. to write its input file; if it fails, so does the job. */
+  prepare?: () => Promise<void>;
+  /** Runs once the job has ended in any way (before `done` settles), e.g. to remove that input. */
+  cleanUp?: () => Promise<void>;
 }
 
 export type RunProcess = (
@@ -99,6 +103,35 @@ export function createJobQueue({
     job.state = 'running';
     active.add(job);
     emit({ type: 'started', ...base(job) });
+    try {
+      if (job.spec.prepare) {
+        try {
+          await job.spec.prepare();
+        } catch (error) {
+          const e =
+            error instanceof MediaError
+              ? error
+              : new MediaError('The job could not be prepared. Please try again.', String(error));
+          emit({ type: 'error', ...base(job), message: e.message });
+          job.reject(e);
+          return;
+        }
+        if (job.cancelled) {
+          emit({ type: 'cancelled', ...base(job) });
+          job.reject(new JobCancelledError());
+          return;
+        }
+      }
+      await runFfmpeg(job);
+    } finally {
+      job.state = 'finished';
+      running--;
+      active.delete(job);
+      pump();
+    }
+  }
+
+  async function runFfmpeg(job: Job): Promise<void> {
     const temp = tempPathFor(job.spec.output, job.id);
     let last = 0;
     const progress = (ratio: number) => {
@@ -112,27 +145,20 @@ export function createJobQueue({
     );
     job.kill = child.kill;
     const { code, stderr } = await child.done;
-    try {
-      if (job.cancelled) {
-        await fs.rm(temp);
-        emit({ type: 'cancelled', ...base(job) });
-        job.reject(new JobCancelledError());
-      } else if (code === 0) {
-        await fs.rename(temp, job.spec.output);
-        if (last < 1) progress(1);
-        emit({ type: 'done', ...base(job) });
-        job.resolve();
-      } else {
-        await fs.rm(temp);
-        const error = explainFfmpegError(stderr);
-        emit({ type: 'error', ...base(job), message: error.message });
-        job.reject(error);
-      }
-    } finally {
-      job.state = 'finished';
-      running--;
-      active.delete(job);
-      pump();
+    if (job.cancelled) {
+      await fs.rm(temp);
+      emit({ type: 'cancelled', ...base(job) });
+      job.reject(new JobCancelledError());
+    } else if (code === 0) {
+      await fs.rename(temp, job.spec.output);
+      if (last < 1) progress(1);
+      emit({ type: 'done', ...base(job) });
+      job.resolve();
+    } else {
+      await fs.rm(temp);
+      const error = explainFfmpegError(stderr);
+      emit({ type: 'error', ...base(job), message: error.message });
+      job.reject(error);
     }
   }
 
@@ -154,13 +180,16 @@ export function createJobQueue({
       let reject!: (error: Error) => void;
       const done = new Promise<void>((res, rej) => ((resolve = res), (reject = rej)));
       done.catch(() => {}); // callers that never await must not cause unhandled rejections
+      // The clean-up runs before `done` settles, however the job ends.
+      const settle = (then: () => void) =>
+        void (spec.cleanUp ? spec.cleanUp().catch(() => {}) : Promise.resolve()).then(then);
       const job: Job = {
         id: `job-${nextId++}`,
         spec,
         state: 'waiting',
         cancelled: false,
-        resolve,
-        reject,
+        resolve: () => settle(resolve),
+        reject: (error) => settle(() => reject(error)),
       };
       waiting.push(job);
       emit({ type: 'queued', ...base(job) });
