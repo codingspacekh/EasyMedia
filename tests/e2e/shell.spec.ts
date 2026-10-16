@@ -105,7 +105,8 @@ test('quitting while previews are being made stops FFmpeg and closes at once (re
   expect(closed, 'the app closed within 15 s').toBe(true);
   expect(() => process.kill(pid, 0), 'the app process is gone').toThrow();
   if (process.platform !== 'win32') {
-    const left = execSync(`pgrep -f "ffmpeg.*${dir}" || true`).toString().trim();
+    // -l shows the command, so a failure says whether it was ffmpeg or ffprobe.
+    const left = execSync(`pgrep -lf "ffmpeg.*${dir}" || true`).toString().trim();
     expect(left, 'no FFmpeg left running').toBe('');
   }
   await rm(dir, { recursive: true, force: true });

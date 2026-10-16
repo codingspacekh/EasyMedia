@@ -44,16 +44,23 @@ export function createNodeMediaEngine(
 ): MediaEngine & { cancelAll(): void } {
   const queue = createJobQueue({ ffmpeg: binaries.ffmpeg, concurrency, ...(run ? { run } : {}) });
 
+  /** File checks still running: quitting stops them too (they are not queue jobs). */
+  const checks = new Set<{ kill(): boolean }>();
+
   async function probe(path: string): Promise<ProbeInfo> {
     let stdout: string;
+    const running = execFileAsync(
+      binaries.ffprobe,
+      ['-v', 'error', '-show_format', '-show_streams', '-of', 'json', path],
+      { maxBuffer: 16 * 1024 * 1024, windowsHide: true },
+    );
+    checks.add(running.child);
     try {
-      ({ stdout } = await execFileAsync(
-        binaries.ffprobe,
-        ['-v', 'error', '-show_format', '-show_streams', '-of', 'json', path],
-        { maxBuffer: 16 * 1024 * 1024, windowsHide: true },
-      ));
+      ({ stdout } = await running);
     } catch (e) {
       throw explainFfmpegError((e as { stderr?: string }).stderr || String(e));
+    } finally {
+      checks.delete(running.child);
     }
     return parseProbe(JSON.parse(stdout) as FfprobeJson);
   }
@@ -200,7 +207,10 @@ export function createNodeMediaEngine(
     onJobEvent: (listener) => queue.onEvent(listener),
 
     /** Stops every FFmpeg job, e.g. when the app quits, so nothing keeps running afterwards. */
-    cancelAll: () => queue.cancelAll(),
+    cancelAll: () => {
+      queue.cancelAll();
+      for (const check of checks) check.kill();
+    },
   };
 }
 
