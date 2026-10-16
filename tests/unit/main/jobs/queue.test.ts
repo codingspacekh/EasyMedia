@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { JobCancelledError, MediaError } from '../../../../src/core/model/errors.ts';
 import type { JobEvent } from '../../../../src/core/ports.ts';
-import { createJobQueue, type RunProcess } from '../../../../src/main/jobs/queue.ts';
+import { createJobQueue, spawnProcess, type RunProcess } from '../../../../src/main/jobs/queue.ts';
 
 /** A fake ffmpeg process the test controls by hand. */
 function fakeRunner() {
@@ -242,5 +242,18 @@ describe('N12 background job queue', () => {
     waiting.cancel();
     await expect(waiting.done).rejects.toThrow(JobCancelledError);
     expect(cleaned).toBe(3);
+  });
+
+  it('cancelling stops the process at once, even one that ignores a polite stop (quit, Cancel)', async () => {
+    const child = spawnProcess(
+      process.execPath,
+      ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
+      () => {},
+    );
+    await new Promise((r) => setTimeout(r, 300)); // let it start and set up its handler
+    const started = Date.now();
+    child.kill();
+    await child.done;
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 });

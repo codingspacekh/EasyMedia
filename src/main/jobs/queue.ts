@@ -65,7 +65,9 @@ export const spawnProcess: RunProcess = (bin, args, onStdout) => {
     child.on('error', (e) => resolve({ code: -1, stderr: e.message }));
     child.on('close', (code) => resolve({ code: code ?? -1, stderr }));
   });
-  return { done, kill: () => child.kill() };
+  // A cancelled job's output is thrown away, so FFmpeg is stopped at once: a polite stop
+  // (SIGTERM) lets it finish writing the file first, which can take seconds (quit, Cancel).
+  return { done, kill: () => child.kill('SIGKILL') };
 };
 
 const nodeFiles: FileOps = {
