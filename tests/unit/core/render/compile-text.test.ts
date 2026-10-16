@@ -48,8 +48,24 @@ describe('M6 text in the export (V4–V7)', () => {
       project([{ ...clip, out: 20 }], [caption]),
       options({ c1: full('/tmp/c1.png') }),
     );
-    expect(args.join(' ')).toContain('-loop 1 -framerate 30 -t 21.7 -i /tmp/c1.png');
+    // Fed until the video ends at 20 s (the caption itself is set to end at 21.7 s).
+    expect(args.join(' ')).toContain('-loop 1 -framerate 30 -t 20 -i /tmp/c1.png');
     expect(graph(args)).toContain("[vbase][t0]overlay=x=0:y=0:enable='between(t,16.7,21.7)'[vout]");
+  });
+
+  it('regression (Activity 11d): text running past the end of the video does not make it longer', () => {
+    // Transitions shortened the video to 20 s; the credits still say 15–25 s.
+    const credits = setItemDuration(createTextItem('credits', 'Made by', 15, { id: 'cr' }), 10);
+    const late = createTextItem('caption', 'After the end', 22, { id: 'late' });
+    const { args, duration } = compileProject(
+      project([{ ...clip, out: 20 }], [credits, late]),
+      options({ cr: { path: '/tmp/cr.png', width: 1920, height: 400 }, late: full('/tmp/l.png') }),
+    );
+    expect(duration).toBe(20);
+    // The picture of the credits is only fed until the video ends…
+    expect(args.join(' ')).toContain('-loop 1 -framerate 30 -t 20 -i /tmp/cr.png');
+    // …and text that starts after the end is left out.
+    expect(args).not.toContain('/tmp/l.png');
   });
 
   it('text fades in and out by fading its transparency', () => {

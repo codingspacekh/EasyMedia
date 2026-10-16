@@ -77,8 +77,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
   }
   // V13: music and voiceover heard before the video ends (a snapshot has no sound).
   const tracks = frameAt === undefined ? heardAudio(project.timeline.audio, total) : [];
-  const hasAudio =
-    frameAt === undefined && (project.timeline.main.some(soundOf) || tracks.length > 0);
+  const hasAudio = frameAt === undefined && projectHasSound(project);
   const mainAudio = tracks.length ? '[amain]' : '[aout]';
 
   const inputs: string[] = [];
@@ -162,7 +161,8 @@ export function compileProject(project: Project, options: RenderOptions): Render
 
   const main = project.timeline.main;
   const n = main.length;
-  const texts = project.timeline.text;
+  // Text shown after the video has ended is left out; it must never make the video longer.
+  const texts = project.timeline.text.filter((t) => t.start < total - 1e-6);
   const videoEnd = texts.length ? '[vbase]' : '[vout]';
   if (main.every((_, i) => transitionOverlap(main, i) === 0)) {
     const segments = main.map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`).join('');
@@ -236,7 +236,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
     const image = textImage(item.id);
     const start = item.start;
     const end = item.start + item.duration;
-    const k = loopImage(num(end), image.path);
+    const k = loopImage(num(Math.min(end, total)), image.path);
     filters.push(`[${k}:v]format=rgba${fades(start, end, item)}[t${j}]`);
     const position =
       item.kind === 'credits' && item.scroll !== false
@@ -302,6 +302,18 @@ function outputFilter(e: ExportSettings, s: ProjectSettings): string {
   }
   if (e.fps !== s.fps) parts.push(`fps=${fpsValue(e.fps)}`);
   return parts.join(',');
+}
+
+/** Whether the exported file will have a sound track: a clip with sound, or music / voiceover heard. */
+export function projectHasSound(project: Project): boolean {
+  const { main, audio } = project.timeline;
+  const clipSound = main.some(
+    (item) =>
+      item.type === 'video' &&
+      !item.muted &&
+      project.media.find((m) => m.id === item.assetId)?.hasAudio === true,
+  );
+  return clipSound || heardAudio(audio, mainTrackDuration(main)).length > 0;
 }
 
 function assertExportable(project: Project): void {
