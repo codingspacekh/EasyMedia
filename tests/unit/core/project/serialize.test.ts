@@ -100,6 +100,20 @@ describe('P1 / P11 project files (.mve)', () => {
     expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
   });
 
+  it('V13: keeps "lower under voiceover" on music and rejects one that is not true or false', () => {
+    const p = fullProject();
+    const ducked = {
+      ...p,
+      timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, duck: true }], []] },
+    } as Project;
+    expect(deserializeProject(serializeProject(ducked))).toEqual(ducked);
+    const bad = JSON.stringify({
+      ...p,
+      timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, duck: 'yes' }], []] },
+    });
+    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+  });
+
   it('explains when a project comes from a newer version of the app', () => {
     const future = JSON.stringify({ ...fullProject(), schemaVersion: CURRENT_SCHEMA + 1 });
     expect(() => deserializeProject(future)).toThrow(/newer version of EasyMedia/i);

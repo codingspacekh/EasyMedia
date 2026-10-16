@@ -1,6 +1,7 @@
 // App use cases (ARCHITECTURE §3, P3): what every button and menu item does. The UI only
 // calls these and shows the store. Errors never escape: they become a message for the student.
 import {
+  addAudioItem,
   addMainItem,
   addTextItem,
   importMedia as importMediaCommand,
@@ -18,6 +19,7 @@ import {
 } from '../core/model/errors.ts';
 import {
   assetFromProbe,
+  createAudioItem,
   createImageClip,
   createProject,
   createTextItem,
@@ -51,6 +53,8 @@ export interface AssetStatus {
   fps?: number;
   /** One small frame of a video, for the media bin and the timeline. */
   thumbPath?: string;
+  /** Loudness peaks (0–1) of a sound file, 10 per second, for drawing its waveform (V13). */
+  peaks?: number[];
   message?: string;
 }
 
@@ -87,6 +91,7 @@ export const isDirty = (s: AppState): boolean => s.history.present !== s.saved;
 export const projectTitle = (s: AppState): string =>
   `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — EasyMedia`;
 
+const PEAKS_PER_SECOND = 10;
 const DISCARD = 'You have unsaved changes. Discard them and';
 const UNEXPECTED = 'Something went wrong. Please try again.';
 const NEW_TEXT: Record<TextItem['kind'], string> = {
@@ -158,6 +163,20 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     };
     if (asset.kind !== 'video') {
       setAsset(asset.id, { state: 'ready', progress: 1, ...facts });
+      if (asset.kind === 'audio') {
+        try {
+          const buckets = Math.max(1, Math.round((asset.duration ?? 0) * PEAKS_PER_SECOND));
+          const peaks = await engine.waveformPeaks(asset.path, buckets);
+          store.update((s) => {
+            const current = s.assets[asset.id];
+            return current
+              ? { ...s, assets: { ...s.assets, [asset.id]: { ...current, peaks } } }
+              : s;
+          });
+        } catch {
+          // no waveform is not a problem: the clip is drawn plain
+        }
+      }
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
@@ -243,6 +262,26 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     }
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
+
+  /** V13: a sound at the playhead on the music track, or the voiceover track if music is there. */
+  function placeSound(asset: MediaAsset): void {
+    const item = createAudioItem(asset, store.get().playhead);
+    for (const track of [0, 1] as const) {
+      try {
+        store.update((s) => ({ ...s, history: execute(s.history, addAudioItem(item, track)) }));
+        patch({ selection: item.id });
+        return;
+      } catch {
+        // busy here: try the other track
+      }
+    }
+    patch({
+      message: {
+        kind: 'error',
+        text: 'There is no free space on the music or voiceover track at the playhead. Move the playhead or delete a sound first.',
+      },
+    });
+  }
 
   /** One picture per title slide with words and per caption, subtitle or credits item. */
   async function drawTextImages(project: Project): Promise<Record<Id, TextImage>> {
@@ -410,15 +449,32 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       const asset = present().media.find((m) => m.id === assetId);
       if (!asset) return;
       if (asset.kind === 'audio') {
-        patch({
-          message: {
-            kind: 'info',
-            text: 'Sound files go on the music track, which arrives in a later version.',
-          },
-        });
+        placeSound(asset);
         return;
       }
       run(addMainItem(asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset)));
+    },
+
+    /** V13 "Add music at the current point": choose a sound file; it starts at the playhead. */
+    async addMusic(): Promise<void> {
+      const [path] = await dialogs.openMedia();
+      if (!path) return;
+      try {
+        let asset = present().media.find((m) => m.path === path);
+        if (!asset) {
+          const info = await engine.probe(path);
+          if (info.kind !== 'audio') {
+            patch({ message: { kind: 'error', text: 'Choose a sound file, such as an MP3.' } });
+            return;
+          }
+          asset = assetFromProbe(path, info);
+          run(importMediaCommand(asset));
+          void prepare(asset, info);
+        }
+        placeSound(asset);
+      } catch (error) {
+        showError(error);
+      }
     },
 
     /** For inspector fields: applies the edit, or returns why it is not allowed (shown by the field). */

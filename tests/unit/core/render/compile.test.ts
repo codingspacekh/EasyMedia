@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createAudioItem,
   createImageClip,
   createMediaAsset,
   createProject,
@@ -210,11 +209,6 @@ describe('V1–V3, V12–V14, V16 render compiler', () => {
   describe('things that cannot be exported (yet) are refused, never silently dropped', () => {
     it.each([
       ['an empty project', project([]), /add a clip/i],
-      [
-        'music and voiceover tracks (M8)',
-        project([clip()], { audio: [[createAudioItem(music, 0)], []] }),
-        /music and voiceover/i,
-      ],
       [
         'a clip whose file is not in the project',
         project([createVideoClip({ ...lake, id: 'gone' })]),

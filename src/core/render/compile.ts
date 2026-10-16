@@ -5,6 +5,7 @@ import type { Seconds } from '../model/time.ts';
 import { itemDuration, mainTrackDuration, transitionOverlap } from '../model/timeline.ts';
 import { filtersFor, transitionById } from '../effects/registry.ts';
 import type {
+  AudioItem,
   Entrance,
   MainItem,
   MediaAsset,
@@ -48,6 +49,7 @@ export interface RenderPlan {
 const CRF: Record<Quality, string> = { high: '18', medium: '23', low: '28' };
 const BITS_PER_PIXEL: Record<Quality, number> = { high: 0.1, medium: 0.06, low: 0.035 };
 const AUDIO_RATE: Record<Quality, string> = { high: '192k', medium: '160k', low: '128k' };
+const SAMPLE_RATE = 48000;
 const SILENCE = 'anullsrc=r=48000:cl=stereo';
 const AUDIO_FORMAT = 'aformat=sample_rates=48000:channel_layouts=stereo';
 
@@ -69,7 +71,11 @@ export function compileProject(project: Project, options: RenderOptions): Render
   if (frameAt !== undefined && !(frameAt >= 0 && frameAt < total)) {
     throw new EditError('Move the playhead onto the video to take a snapshot.');
   }
-  const hasAudio = frameAt === undefined && project.timeline.main.some(soundOf);
+  // V13: music and voiceover heard before the video ends (a snapshot has no sound).
+  const tracks = frameAt === undefined ? heardAudio(project.timeline.audio, total) : [];
+  const hasAudio =
+    frameAt === undefined && (project.timeline.main.some(soundOf) || tracks.length > 0);
+  const mainAudio = tracks.length ? '[amain]' : '[aout]';
 
   const inputs: string[] = [];
   const filters: string[] = [];
@@ -157,7 +163,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
   if (main.every((_, i) => transitionOverlap(main, i) === 0)) {
     const segments = main.map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`).join('');
     filters.push(
-      `${segments}concat=n=${n}:v=1:a=${hasAudio ? 1 : 0}${videoEnd}${hasAudio ? '[aout]' : ''}`,
+      `${segments}concat=n=${n}:v=1:a=${hasAudio ? 1 : 0}${videoEnd}${hasAudio ? mainAudio : ''}`,
     );
   } else {
     // V9: join the items one by one — a cut is a concat of two, a transition is an xfade.
@@ -167,7 +173,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
     for (let i = 1; i < n; i++) {
       const last = i === n - 1;
       const vNext = last ? videoEnd : `[x${i}]`;
-      const aNext = last ? '[aout]' : `[xa${i}]`;
+      const aNext = last ? mainAudio : `[xa${i}]`;
       const overlap = transitionOverlap(main, i);
       if (overlap > 0) {
         const kind = transitionById(main[i]!.transitionIn!.effectId);
@@ -190,6 +196,35 @@ export function compileProject(project: Project, options: RenderOptions): Render
       audio = aNext;
       length += itemDuration(main[i]!) - overlap;
     }
+  }
+
+  // V13: each music / voiceover clip is read, shaped in its own time, moved to its start
+  // (exact to the sample) and mixed over the clips' sound, which sets the length.
+  const voiceover = tracks.filter((t) => t.track === 1);
+  tracks.forEach(({ item, heard }, j) => {
+    const k = inputIndex++;
+    inputs.push(
+      '-ss',
+      num(item.in),
+      '-t',
+      num(heard),
+      '-i',
+      options.mediaPath(assetOf(item.assetId)),
+    );
+    const volume = item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
+    const fadeIn = item.fadeIn > 0 ? `,afade=t=in:st=0:d=${num(item.fadeIn)}` : '';
+    const fadeOut =
+      item.fadeOut > 0 ? `,afade=t=out:st=${num(heard - item.fadeOut)}:d=${num(item.fadeOut)}` : '';
+    const ducking = item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
+    filters.push(
+      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${ducking}[m${j}]`,
+    );
+  });
+  if (tracks.length) {
+    const mixed = tracks.map((_, j) => `[m${j}]`).join('');
+    filters.push(
+      `[amain]${mixed}amix=inputs=${tracks.length + 1}:duration=first:normalize=0[aout]`,
+    );
   }
 
   // Captions, subtitles and credits are laid over the joined video at their own times.
@@ -242,11 +277,36 @@ export function compileProject(project: Project, options: RenderOptions): Render
 }
 
 function assertExportable(project: Project): void {
-  const { main, audio } = project.timeline;
-  if (main.length === 0) throw new EditError('Add a clip to the timeline before exporting.');
-  if (audio[0].length > 0 || audio[1].length > 0) {
-    throw new EditError('Exporting music and voiceover tracks is not available yet.');
-  }
+  if (project.timeline.main.length === 0)
+    throw new EditError('Add a clip to the timeline before exporting.');
+}
+
+interface HeardAudio {
+  item: AudioItem;
+  track: 0 | 1;
+  /** How long it plays: its own length, or until the video ends. */
+  heard: Seconds;
+}
+
+/** Music and voiceover in mixing order; anything starting after the video ends is left out. */
+function heardAudio(audio: Project['timeline']['audio'], total: Seconds): HeardAudio[] {
+  return audio.flatMap((items, track) =>
+    items
+      .map((item) => ({
+        item,
+        track: track as 0 | 1,
+        heard: Math.min(item.out - item.in, total - item.start),
+      }))
+      .filter((a) => a.heard > 1e-6),
+  );
+}
+
+/** V13: −6 dB while any voiceover clip plays (timeline time). */
+function duckFilter(voiceover: HeardAudio[]): string {
+  const when = voiceover
+    .map(({ item, heard }) => `between(t,${num(item.start)},${num(item.start + heard)})`)
+    .join('+');
+  return `volume=-6dB:enable='${when}'`;
 }
 
 /** Pan & zoom, filters and fade of one item, or '' when it has none (V7, V8, V15). */

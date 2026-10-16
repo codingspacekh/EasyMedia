@@ -62,7 +62,12 @@
         disabled={$store.history.present.timeline.main.length === 0}
         onclick={() => (snapshotOpen = true)}><Icon name="snapshot" />Snapshot</button
       >
-      <button class="tool" disabled title="Music and voiceover tracks arrive in the next version">
+      <button
+        class="tool"
+        aria-label="Add music"
+        title="Add music at the current point (the playhead)"
+        onclick={() => app.addMusic()}
+      >
         <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
       </button>
     </div>

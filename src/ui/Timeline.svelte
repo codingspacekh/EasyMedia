@@ -19,7 +19,7 @@
     mainTrackDuration,
     type LaidOutItem,
   } from '../core/model/timeline.ts';
-  import type { MainItem, TextItem } from '../core/model/types.ts';
+  import type { AudioItem, MainItem } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import Icon from './Icon.svelte';
@@ -64,8 +64,12 @@
   const total = $derived(mainTrackDuration(project.timeline.main));
   /** The lanes are as wide as the video plus some room to add more. */
   const contentSeconds = $derived(
-    Math.max(total, ...project.timeline.text.map((t) => t.start + t.duration), $store.playhead) +
-      20,
+    Math.max(
+      total,
+      ...project.timeline.text.map((t) => t.start + t.duration),
+      ...project.timeline.audio.flat().map((a) => a.start + a.out - a.in),
+      $store.playhead,
+    ) + 20,
   );
   /** Ruler labels every 1, 5, 10 or 30 s, so they never crowd. */
   const step = $derived([1, 2, 5, 10, 30, 60].find((s) => s * pxPerSecond >= 70) ?? 120);
@@ -84,6 +88,23 @@
     if (item.type === 'image') return asset ? { image: toMediaUrl(asset.path) } : {};
     const thumb = $store.assets[item.assetId]?.thumbPath;
     return thumb ? { image: toMediaUrl(thumb) } : {};
+  }
+
+  function soundName(item: AudioItem): string {
+    const asset = project.media.find((m) => m.id === item.assetId);
+    return asset ? fileNameOf(asset.path) : 'Missing file';
+  }
+
+  /** The waveform of the part of the sound that is used, mirrored around the middle (V13). */
+  function waveform(item: AudioItem): { width: number; path: string } | null {
+    const peaks = $store.assets[item.assetId]?.peaks;
+    if (!peaks?.length) return null;
+    const perSecond = 10; // the app stores 10 peaks per second
+    const part = peaks.slice(Math.floor(item.in * perSecond), Math.ceil(item.out * perSecond));
+    if (!part.length) return null;
+    const top = part.map((p, i) => `${i},${(50 - p * 48).toFixed(1)}`);
+    const bottom = part.map((p, i) => `${i},${(50 + p * 48).toFixed(1)}`).reverse();
+    return { width: Math.max(1, part.length - 1), path: `M${top.join('L')}L${bottom.join('L')}Z` };
   }
 
   function showTransition(id: string): void {
@@ -127,14 +148,26 @@
   /** Live position of a caption being dragged along the text track. */
   let moving: { id: string; start: number } | null = $state(null);
 
-  /** Drag a caption, subtitle or credits along the text track (V5); it snaps like the trim handles. */
-  function startMove(event: MouseEvent, item: TextItem): void {
+  /** A caption, subtitle, credits, music or voiceover clip: where it starts and how long it lasts. */
+  interface Timed {
+    id: string;
+    start: number;
+    duration: number;
+  }
+  const timedAudio = (a: AudioItem): Timed => ({
+    id: a.id,
+    start: a.start,
+    duration: a.out - a.in,
+  });
+
+  /** Drag a text or sound clip along its track (V5, V13); it snaps like the trim handles. */
+  function startMove(event: MouseEvent, item: Timed): void {
     event.preventDefault();
     const startX = event.clientX;
     const targets = [
       $store.playhead,
       ...layout.flatMap((l) => [l.start, l.end]),
-      ...project.timeline.text
+      ...[...project.timeline.text, ...project.timeline.audio.flat().map(timedAudio)]
         .filter((t) => t.id !== item.id)
         .flatMap((t) => [t.start, t.start + t.duration]),
     ];
@@ -364,12 +397,48 @@
           {/each}
         </div>
 
-        <div class="lane track audio-lane">
-          <p class="empty">Music arrives in the next version (M8).</p>
-        </div>
-        <div class="lane track audio-lane">
-          <p class="empty">Voiceover arrives in the next version (M8).</p>
-        </div>
+        {#each [0, 1] as track (track)}
+          <div
+            class="lane track audio-lane"
+            aria-label={track === 0 ? 'Music track' : 'Voiceover track'}
+          >
+            {#each project.timeline.audio[track]! as item (item.id)}
+              {@const timed = timedAudio(item)}
+              {@const name = soundName(item)}
+              {@const wave = waveform(item)}
+              <button
+                class="clip sound {track === 0 ? 'music' : 'voice'}"
+                aria-label="{name} {timed.duration.toFixed(2)} s"
+                aria-pressed={$store.selection === item.id}
+                class:moving={moving?.id === item.id}
+                style:left="{(moving?.id === item.id ? moving.start : item.start) * pxPerSecond}px"
+                style:width="{timed.duration * pxPerSecond}px"
+                onmousedown={(e) => startMove(e, timed)}
+                onclick={() => app.select(item.id)}
+              >
+                {#if wave}
+                  <svg
+                    class="wave"
+                    viewBox="0 0 {wave.width} 100"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"><path d={wave.path} /></svg
+                  >
+                {/if}
+                <span class="sl">
+                  <Icon name={track === 0 ? 'music' : 'mic'} size={12} />
+                  <span class="name">{name}</span>
+                  <span class="len">starts {item.start.toFixed(2)} s</span>
+                </span>
+                {#if item.fadeIn}<span class="fade-in" style:width="{item.fadeIn * pxPerSecond}px"
+                  ></span>{/if}
+                {#if item.fadeOut}<span
+                    class="fade-out"
+                    style:width="{item.fadeOut * pxPerSecond}px"
+                  ></span>{/if}
+              </button>
+            {/each}
+          </div>
+        {/each}
 
         <div class="playhead" style:left="{$store.playhead * pxPerSecond}px"></div>
       </div>
@@ -646,6 +715,54 @@
   .clip.text.moving {
     cursor: grabbing;
     outline: 2px dashed #fff;
+  }
+  .clip.sound {
+    top: 5px;
+    bottom: 5px;
+    flex-direction: row;
+    align-items: flex-start;
+    color: #06241a;
+  }
+  .clip.sound.music {
+    background: color-mix(in srgb, var(--c-music) 35%, var(--bg-1));
+  }
+  .clip.sound.voice {
+    background: color-mix(in srgb, var(--c-voice) 35%, var(--bg-1));
+  }
+  .clip.sound.moving {
+    cursor: grabbing;
+    outline: 2px dashed #fff;
+  }
+  .sl {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-weight: 600;
+    color: #fff;
+    overflow: hidden;
+  }
+  .sl .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wave {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .clip.sound.music .wave path {
+    fill: var(--c-music);
+  }
+  .clip.sound.voice .wave path {
+    fill: var(--c-voice);
+  }
+  .clip.sound .fade-in,
+  .clip.sound .fade-out {
+    top: 0;
   }
   .xfade {
     position: absolute;

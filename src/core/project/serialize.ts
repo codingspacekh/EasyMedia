@@ -121,6 +121,7 @@ function isTextItem(t: Obj): boolean {
 function isAudioItem(a: Obj): boolean {
   return (
     has(a, ['id', 'assetId'], isString) &&
-    has(a, ['start', 'in', 'out', 'volume', 'fadeIn', 'fadeOut'], isNumber)
+    has(a, ['start', 'in', 'out', 'volume', 'fadeIn', 'fadeOut'], isNumber) &&
+    (a.duck === undefined || typeof a.duck === 'boolean')
   );
 }
