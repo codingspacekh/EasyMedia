@@ -11,11 +11,13 @@
   import SnapshotDialog from './SnapshotDialog.svelte';
   import StatusBar from './StatusBar.svelte';
   import Timeline from './Timeline.svelte';
+  import AudioMode from './audio/AudioMode.svelte';
+  import AudioStatusBar from './audio/AudioStatusBar.svelte';
+  import AudioToolbar from './audio/AudioToolbar.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const modes = ['Video', 'Audio', 'Learn'] as const;
-  let mode: (typeof modes)[number] = $state('Video');
   let settingsOpen = $state(false);
   let snapshotOpen = $state(false);
   let exportOpen = $state(false);
@@ -31,107 +33,115 @@
     <h1 class="visually-hidden">EasyMedia</h1>
     <nav class="seg" aria-label="Mode">
       {#each modes as m (m)}
-        <button type="button" aria-pressed={mode === m} onclick={() => (mode = m)}>
+        <button type="button" aria-pressed={ui.mode === m} onclick={() => (ui.mode = m)}>
           <Icon name={m === 'Video' ? 'video' : m === 'Audio' ? 'audio' : 'learn'} />
           {m}
         </button>
       {/each}
     </nav>
     <span class="vsep"></span>
-    <div class="tools">
-      <button class="tool" onclick={() => app.importMedia()}><Icon name="import" />Import</button>
+    {#if ui.mode === 'Audio'}
+      <AudioToolbar {app} />
+    {:else}
+      <div class="tools">
+        <button class="tool" onclick={() => app.importMedia()}><Icon name="import" />Import</button>
+        <button
+          class="tool"
+          aria-label="Add title"
+          onclick={() => {
+            app.addTitle();
+            ui.inspectorTab = 'text'; // a new title opens where its words are typed
+          }}
+        >
+          <Icon name="title" />Title
+        </button>
+        <button class="tool" aria-label="Add caption" onclick={() => app.addText('caption')}>
+          <Icon name="caption" />Caption
+        </button>
+        <button class="tool" aria-label="Add subtitle" onclick={() => app.addText('subtitle')}>
+          <Icon name="subtitle" />Subtitle
+        </button>
+        <button class="tool" aria-label="Add credits" onclick={() => app.addText('credits')}>
+          <Icon name="credits" />Credits
+        </button>
+        <button
+          class="tool"
+          disabled={$store.history.present.timeline.main.length === 0}
+          onclick={() => (snapshotOpen = true)}><Icon name="snapshot" />Snapshot</button
+        >
+        <button
+          class="tool"
+          aria-label="Add music"
+          title="Add music at the current point (the playhead)"
+          onclick={() => app.addMusic()}
+        >
+          <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
+        </button>
+      </div>
+      <span class="spacer"></span>
       <button
-        class="tool"
-        aria-label="Add title"
+        class="chip"
+        aria-label="Project settings: {settings.aspect === 'custom'
+          ? 'Custom'
+          : settings.aspect} · {settings.width} × {settings.height} · {settings.fps} fps"
+        onclick={() => (settingsOpen = true)}
+      >
+        <Icon name="screen" size={14} />
+        <b>{settings.aspect === 'custom' ? 'Custom' : settings.aspect}</b>
+        <span class="detail">· {settings.width} × {settings.height} · {settings.fps} fps</span>
+        <Icon name="chevron" size={14} />
+      </button>
+      <button
+        class="ghost icon-only"
+        aria-label="Save"
+        title="Save (Ctrl/Cmd + S)"
+        onclick={() => app.save()}
+      >
+        <Icon name="save" />
+      </button>
+      <button
+        class="ghost icon-only"
+        aria-label="Undo"
+        title="Undo"
+        disabled={!canUndo($store.history)}
+        onclick={() => app.undo()}><Icon name="undo" /></button
+      >
+      <button
+        class="ghost icon-only"
+        aria-label="Redo"
+        title="Redo"
+        disabled={!canRedo($store.history)}
+        onclick={() => app.redo()}><Icon name="redo" /></button
+      >
+      <button
+        class="primary"
+        disabled={$store.exporting.state === 'running'}
         onclick={() => {
-          app.addTitle();
-          ui.inspectorTab = 'text'; // a new title opens where its words are typed
+          if ($store.history.present.timeline.main.length === 0) void app.exportVideo();
+          else exportOpen = true;
         }}
       >
-        <Icon name="title" />Title
+        <Icon name="export" /> Export
       </button>
-      <button class="tool" aria-label="Add caption" onclick={() => app.addText('caption')}>
-        <Icon name="caption" />Caption
-      </button>
-      <button class="tool" aria-label="Add subtitle" onclick={() => app.addText('subtitle')}>
-        <Icon name="subtitle" />Subtitle
-      </button>
-      <button class="tool" aria-label="Add credits" onclick={() => app.addText('credits')}>
-        <Icon name="credits" />Credits
-      </button>
-      <button
-        class="tool"
-        disabled={$store.history.present.timeline.main.length === 0}
-        onclick={() => (snapshotOpen = true)}><Icon name="snapshot" />Snapshot</button
-      >
-      <button
-        class="tool"
-        aria-label="Add music"
-        title="Add music at the current point (the playhead)"
-        onclick={() => app.addMusic()}
-      >
-        <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
-      </button>
-    </div>
-    <span class="spacer"></span>
-    <button
-      class="chip"
-      aria-label="Project settings: {settings.aspect === 'custom'
-        ? 'Custom'
-        : settings.aspect} · {settings.width} × {settings.height} · {settings.fps} fps"
-      onclick={() => (settingsOpen = true)}
-    >
-      <Icon name="screen" size={14} />
-      <b>{settings.aspect === 'custom' ? 'Custom' : settings.aspect}</b>
-      <span class="detail">· {settings.width} × {settings.height} · {settings.fps} fps</span>
-      <Icon name="chevron" size={14} />
-    </button>
-    <button
-      class="ghost icon-only"
-      aria-label="Save"
-      title="Save (Ctrl/Cmd + S)"
-      onclick={() => app.save()}
-    >
-      <Icon name="save" />
-    </button>
-    <button
-      class="ghost icon-only"
-      aria-label="Undo"
-      title="Undo"
-      disabled={!canUndo($store.history)}
-      onclick={() => app.undo()}><Icon name="undo" /></button
-    >
-    <button
-      class="ghost icon-only"
-      aria-label="Redo"
-      title="Redo"
-      disabled={!canRedo($store.history)}
-      onclick={() => app.redo()}><Icon name="redo" /></button
-    >
-    <button
-      class="primary"
-      disabled={$store.exporting.state === 'running'}
-      onclick={() => {
-        if ($store.history.present.timeline.main.length === 0) void app.exportVideo();
-        else exportOpen = true;
-      }}
-    >
-      <Icon name="export" /> Export
-    </button>
+    {/if}
   </header>
-  {#if mode === 'Video'}
+  {#if ui.mode === 'Video'}
     <main class="workspace">
       <MediaBin {app} />
       <Preview {app} />
       <Inspector {app} />
     </main>
     <Timeline {app} />
+  {:else if ui.mode === 'Audio'}
+    <main class="workspace">
+      <AudioMode {app} />
+    </main>
   {:else}
     <main class="workspace later">
-      <p>{mode} mode arrives in a later milestone.</p>
+      <p>{ui.mode} mode arrives in a later milestone.</p>
     </main>
   {/if}
-  <StatusBar {app} />
+  {#if ui.mode === 'Audio'}<AudioStatusBar {app} />{:else}<StatusBar {app} />{/if}
   {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}

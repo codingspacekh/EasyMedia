@@ -431,8 +431,9 @@ export function createAudioApp({ engine, dialogs, output }: AudioDeps) {
     trimToSelection: () =>
       run(`Trim to ${range(selection())}`, (tx) => trimToSelection(tx, selection())),
 
-    insertSilence: (length: Seconds) =>
-      run(`Insert ${length.toFixed(2)} s of silence`, (tx) =>
+    /** Returns why it cannot be done, or null (for the Insert silence dialog). */
+    insertSilence: (length: Seconds): string | null =>
+      tryEdit(`Insert ${length.toFixed(2)} s of silence`, (tx) =>
         insertSilence(tx, selection(), length),
       ),
 
