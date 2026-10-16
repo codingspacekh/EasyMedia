@@ -721,6 +721,7 @@
     bottom: 5px;
     flex-direction: row;
     align-items: flex-start;
+    justify-content: flex-start;
     color: #06241a;
   }
   .clip.sound.music {
