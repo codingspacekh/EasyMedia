@@ -1,6 +1,7 @@
 // App use cases (ARCHITECTURE §3, P3): what every button and menu item does. The UI only
 // calls these and shows the store. Errors never escape: they become a message for the student.
 import {
+  addAudioItem,
   addMainItem,
   addTextItem,
   importMedia as importMediaCommand,
@@ -18,6 +19,7 @@ import {
 } from '../core/model/errors.ts';
 import {
   assetFromProbe,
+  createAudioItem,
   createImageClip,
   createProject,
   createTextItem,
@@ -25,7 +27,7 @@ import {
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
-import { findMainItemAt, setItemDuration } from '../core/model/timeline.ts';
+import { findMainItemAt, mainTrackDuration, setItemDuration } from '../core/model/timeline.ts';
 import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
 import type {
   AppPaths,
@@ -35,7 +37,8 @@ import type {
   ProjectFiles,
   TextRenderer,
 } from '../core/ports.ts';
-import type { TextImage } from '../core/render/compile.ts';
+import { projectHasSound, type TextImage } from '../core/render/compile.ts';
+import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
 import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
@@ -51,6 +54,8 @@ export interface AssetStatus {
   fps?: number;
   /** One small frame of a video, for the media bin and the timeline. */
   thumbPath?: string;
+  /** Loudness peaks (0–1) of a sound file, 10 per second, for drawing its waveform (V13). */
+  peaks?: number[];
   message?: string;
 }
 
@@ -87,6 +92,7 @@ export const isDirty = (s: AppState): boolean => s.history.present !== s.saved;
 export const projectTitle = (s: AppState): string =>
   `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — EasyMedia`;
 
+const PEAKS_PER_SECOND = 10;
 const DISCARD = 'You have unsaved changes. Discard them and';
 const UNEXPECTED = 'Something went wrong. Please try again.';
 const NEW_TEXT: Record<TextItem['kind'], string> = {
@@ -158,6 +164,20 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     };
     if (asset.kind !== 'video') {
       setAsset(asset.id, { state: 'ready', progress: 1, ...facts });
+      if (asset.kind === 'audio') {
+        try {
+          const buckets = Math.max(1, Math.round((asset.duration ?? 0) * PEAKS_PER_SECOND));
+          const peaks = await engine.waveformPeaks(asset.path, buckets);
+          store.update((s) => {
+            const current = s.assets[asset.id];
+            return current
+              ? { ...s, assets: { ...s.assets, [asset.id]: { ...current, peaks } } }
+              : s;
+          });
+        } catch {
+          // no waveform is not a problem: the clip is drawn plain
+        }
+      }
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
@@ -223,6 +243,12 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     }
   }
 
+  async function save(): Promise<void> {
+    const { projectPath } = store.get();
+    if (projectPath) await writeProject(projectPath);
+    else await saveAs();
+  }
+
   async function saveAs(): Promise<void> {
     const current = store.get().projectPath;
     const name = current ? fileNameOf(current).replace(/\.mve$/i, '') : present().name;
@@ -243,6 +269,26 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     }
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
+
+  /** V13: a sound at the playhead on the music track, or the voiceover track if music is there. */
+  function placeSound(asset: MediaAsset): void {
+    const item = createAudioItem(asset, store.get().playhead);
+    for (const track of [0, 1] as const) {
+      try {
+        store.update((s) => ({ ...s, history: execute(s.history, addAudioItem(item, track)) }));
+        patch({ selection: item.id });
+        return;
+      } catch {
+        // busy here: try the other track
+      }
+    }
+    patch({
+      message: {
+        kind: 'error',
+        text: 'There is no free space on the music or voiceover track at the playhead. Move the playhead or delete a sound first.',
+      },
+    });
+  }
 
   /** One picture per title slide with words and per caption, subtitle or credits item. */
   async function drawTextImages(project: Project): Promise<Record<Id, TextImage>> {
@@ -410,15 +456,32 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       const asset = present().media.find((m) => m.id === assetId);
       if (!asset) return;
       if (asset.kind === 'audio') {
-        patch({
-          message: {
-            kind: 'info',
-            text: 'Sound files go on the music track, which arrives in a later version.',
-          },
-        });
+        placeSound(asset);
         return;
       }
       run(addMainItem(asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset)));
+    },
+
+    /** V13 "Add music at the current point": choose a sound file; it starts at the playhead. */
+    async addMusic(): Promise<void> {
+      const [path] = await dialogs.openMedia();
+      if (!path) return;
+      try {
+        let asset = present().media.find((m) => m.path === path);
+        if (!asset) {
+          const info = await engine.probe(path);
+          if (info.kind !== 'audio') {
+            patch({ message: { kind: 'error', text: 'Choose a sound file, such as an MP3.' } });
+            return;
+          }
+          asset = assetFromProbe(path, info);
+          run(importMediaCommand(asset));
+          void prepare(asset, info);
+        }
+        placeSound(asset);
+      } catch (error) {
+        showError(error);
+      }
     },
 
     /** For inspector fields: applies the edit, or returns why it is not allowed (shown by the field). */
@@ -497,22 +560,33 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       }
     },
 
-    async exportVideo(): Promise<void> {
+    /**
+     * V16, V17: exports in the chosen format (default: the project as MP4) to a file the student
+     * names; optionally saves the project too, so it can be edited later.
+     */
+    async exportVideo(
+      options: { format?: ExportSettings; alsoSaveProject?: boolean } = {},
+    ): Promise<void> {
       const project = present();
       if (project.timeline.main.length === 0) {
         patch({ message: { kind: 'error', text: 'Add a clip to the timeline before exporting.' } });
         return;
       }
+      const format = options.format ?? defaultExport(project.settings);
       const { projectPath } = store.get();
       const output = await dialogs.exportVideo(
         projectPath ? fileNameOf(projectPath).replace(/\.mve$/i, '') : project.name,
+        format.container,
       );
       if (!output) return;
+      if (options.alsoSaveProject) await save();
       patch({ exporting: { state: 'running', progress: 0, output } });
       try {
+        const dir = store.get().projectPath;
         const job = engine.renderVideo(project, output, {
-          projectDir: projectPath ? dirOf(projectPath) : '/',
+          projectDir: dir ? dirOf(dir) : '/',
           textImages: await drawTextImages(project),
+          format,
         });
         exportJob = job;
         await job.done;
@@ -531,13 +605,17 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       }
     },
 
+    /** V17: what the export dialog shows before exporting. */
+    exportSummary(format: ExportSettings) {
+      const project = present();
+      const duration = mainTrackDuration(project.timeline.main);
+      const hasAudio = projectHasSound(project);
+      return { duration, hasAudio, ...estimateSize(format, duration, hasAudio) };
+    },
+
     cancelExport: () => exportJob?.cancel(),
 
-    async save(): Promise<void> {
-      const { projectPath } = store.get();
-      if (projectPath) await writeProject(projectPath);
-      else await saveAs();
-    },
+    save,
 
     saveAs,
 

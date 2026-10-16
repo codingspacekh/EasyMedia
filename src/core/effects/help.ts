@@ -7,6 +7,10 @@ export const WHY = {
     'Filters change the look of a clip: correct colours that are wrong, make clips match, or create a mood — black and white for the past, a cyan tone for cold, blur to hide details.',
   snapshot:
     'A still holds an important moment on screen, can be a background for captions or credits, or can be edited in an image editor and put back into the video.',
+  export:
+    'Not every device plays every format, so choose the one the audience will use: MP4 for the web and phones, WMV for Windows, MPG for a DVD player. A smaller size and lossy compression make the file quick to send or stream; lossless keeps a perfect master copy that is much bigger.',
+  audio:
+    'Sound gets an emotional response from the viewer: music sets the mood, a voiceover (narration) explains what is happening, and sound effects emphasise the action. Lowering the music under the voice keeps the words clear.',
   transition:
     'A transition decides how one clip changes into the next. A plain cut is quick; dissolves and fades are smoother. Too many different transitions distract the audience.',
 } as const;

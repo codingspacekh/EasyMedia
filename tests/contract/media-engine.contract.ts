@@ -8,6 +8,7 @@ import { trimVideo } from '../../src/core/model/timeline.ts';
 import { planResizeCrop } from '../../src/core/image/crop.ts';
 import type { MediaAsset, Project, VideoClip } from '../../src/core/model/types.ts';
 import type { JobEvent, MediaEngine } from '../../src/core/ports.ts';
+import { defaultExport } from '../../src/core/render/formats.ts';
 
 export interface ContractSetup {
   engine: MediaEngine;
@@ -168,6 +169,34 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         expect(info.duration).toBeCloseTo(4.5, 1);
         expect(info.audio).toBeDefined();
       });
+
+      it.each([
+        [{ container: 'wmv', compression: 'lossy' }, 'wmv', 'wmv2', 'wmav2'],
+        [{ container: 'avi', compression: 'lossless' }, 'avi', 'ffv1', 'pcm_s16le'],
+        [
+          { container: 'mpg', compression: 'lossy', width: 720, height: 576, fps: 25 },
+          'mpg',
+          'mpeg2video',
+          'ac3',
+        ],
+      ] as const)(
+        'exports in the chosen format: %o → %s with %s and %s (V16, V17)',
+        async (change, container, videoCodec, audioCodec) => {
+          const { engine, video, out } = setup();
+          const p = await twoTrimmedClips(engine, video);
+          const format = { ...defaultExport(p.settings), width: 640, height: 360, ...change };
+          const file = out(`format.${container}`);
+          await engine.renderVideo(p, file, { projectDir: '/', format }).done;
+          const info = await engine.probe(file);
+          expect(info).toMatchObject({
+            kind: 'video',
+            container,
+            video: { codec: videoCodec, width: format.width, height: format.height },
+            audio: { codec: audioCodec },
+          });
+          expect(info.duration).toBeCloseTo(4.5, 0);
+        },
+      );
 
       it('has no audio stream when every clip is muted', async () => {
         const { engine, video, out } = setup();

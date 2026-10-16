@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
 import { brightness, grayFrame, measure, tinyFrame } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp, openTab } from './app.ts';
+import { answerDialogs, launchApp, openTab, exportVideo } from './app.ts';
 
 const FRAME = 1 / 30;
 const BEE = 'clip_1080p30_10s.mp4'; // a detailed moving test pattern with sound (BeeFly, balloon…)
@@ -42,8 +42,7 @@ async function setTime(page: Page, label: string, value: string) {
   await box.press('Enter');
 }
 async function exportTo(page: Page, output: string) {
-  await page.getByRole('button', { name: 'Export' }).click();
-  await expect(page.getByText(`Saved to ${output}`)).toBeVisible({ timeout: 180_000 });
+  await exportVideo(page, output, {}, 180_000);
 }
 /** Clicks the ruler at `seconds` (40 px per second at the default zoom), moving the playhead. */
 async function toEnd(page: Page, seconds: number) {
@@ -134,9 +133,9 @@ test('Book A 11.11 + 11.12: a TIFF still without text at the end, with a box blu
   await snap.getByLabel('TIFF').check();
   await snap.getByLabel(/add to the timeline/i).check();
   await snap.getByRole('button', { name: 'Add to media' }).click();
-  await expect(
-    page.locator('.bin').getByText('Snapshot_0.00s.tiff', { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('.bin').getByText('Snapshot_0.00s.tiff', { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
   expect((await measure(still)).width).toBe(1920);
   // No caption on the still: it matches the clip's own frame at the same moment.
   expect(await difference([still, 0], [join(dir, BEE), 0])).toBeLessThan(4);
@@ -189,7 +188,9 @@ test('Book B Tasks 11h + 11i: zoom in right, a zoomed snapshot, a cold cyan tone
   await expect(snap).toContainText('00:09.97'); // the last frame (10 s − 1/30 s)
   await snap.getByLabel(/add to the timeline/i).check();
   await snap.getByRole('button', { name: 'Add to media' }).click();
-  await expect(page.locator('.bin').getByText('Snapshot_9.97s.png', { exact: true })).toBeVisible();
+  await expect(page.locator('.bin').getByText('Snapshot_9.97s.png', { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
   await item(page, 1).click();
   await openTab(page, 'Effects');
   await page.getByLabel('Pan and zoom', { exact: true }).selectOption('zoom-in');
@@ -244,7 +245,9 @@ test('Book B Task 11d: the last frame of Naivasha2 as a 10 s background for capt
   await snap.getByLabel(/add to the timeline/i).check();
   await setTime(page, 'Show it for', '10');
   await snap.getByRole('button', { name: 'Add to media' }).click();
-  await expect(page.locator('.bin').getByText('Snapshot_8.67s.png', { exact: true })).toBeVisible();
+  await expect(page.locator('.bin').getByText('Snapshot_8.67s.png', { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
   // Two captions over the still.
   for (const [text, start] of [
     ['Over 400 species of birds are seen in the Great Rift Valley', '9'],

@@ -6,13 +6,18 @@
     moveTimedItem,
     setClipMuted,
     setClipSpeed,
+    setClipVolume,
     setDuration,
     trimClip,
+    unlinkClipSound,
   } from '../app/commands.ts';
+  import { newId } from '../core/model/factory.ts';
   import { itemDuration, layoutMain } from '../core/model/timeline.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import { toMediaUrl } from '../core/media-url.ts';
+  import AudioInspector from './AudioInspector.svelte';
   import ClipLookInspector from './ClipLookInspector.svelte';
+  import PercentField from './PercentField.svelte';
   import Icon from './Icon.svelte';
   import { ui, type InspectorTab } from './ui-state.svelte.ts';
   import TextInspector from './TextInspector.svelte';
@@ -28,6 +33,21 @@
   );
   const item = $derived(laid?.item);
   const textItem = $derived(project.timeline.text.find((t) => t.id === $store.selection));
+  /** A selected music or voiceover clip, with its track. */
+  const sound = $derived.by(() => {
+    for (const track of [0, 1] as const) {
+      const found = project.timeline.audio[track].find((a) => a.id === $store.selection);
+      if (found) return { item: found, track };
+    }
+    return null;
+  });
+
+  /** V13: the clip's sound goes onto an audio track, which is then selected. */
+  function separateSound(clipId: string): void {
+    const id = newId();
+    actionError = app.edit(unlinkClipSound(clipId, id));
+    if (!actionError) app.select(id);
+  }
   const TEXT_KINDS = { caption: 'Caption', subtitle: 'Subtitle', credits: 'Credits' };
   const asset = $derived(
     item && item.type !== 'title' ? project.media.find((m) => m.id === item.assetId) : undefined,
@@ -92,7 +112,9 @@
 
 <aside class="inspector">
   <div class="panel-h">Inspector</div>
-  {#if textItem}
+  {#if sound}
+    {#key sound.item.id}<AudioInspector {app} item={sound.item} track={sound.track} />{/key}
+  {:else if textItem}
     <div class="head">
       <div class="thumb text">
         <Icon name={textItem.kind === 'credits' ? 'credits' : 'caption'} />
@@ -218,8 +240,21 @@
           />
           Remove sound
         </label>
+        {#if !item.muted}
+          <PercentField
+            label="Volume"
+            value={item.volume}
+            commit={(v) => app.edit(setClipVolume(item.id, v))}
+          />
+        {/if}
+      </section>
+      <section>
+        <h3>Separate sound <span class="syl">11.1</span></h3>
+        <button onclick={() => separateSound(item.id)}>Separate sound onto an audio track</button>
+        {#if actionError}<p class="error" role="alert">{actionError}</p>{/if}
         <p class="hint">
-          Volume and separating the sound onto its own track come with the music tracks.
+          The sound becomes its own clip on the voiceover (or music) track, so it can be moved,
+          trimmed or deleted without the picture.
         </p>
       </section>
     {:else if item.type === 'image' && tab === 'clip'}

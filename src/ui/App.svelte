@@ -7,6 +7,7 @@
   import Icon from './Icon.svelte';
   import { ui } from './ui-state.svelte.ts';
   import ProjectSettings from './ProjectSettings.svelte';
+  import ExportDialog from './ExportDialog.svelte';
   import SnapshotDialog from './SnapshotDialog.svelte';
   import StatusBar from './StatusBar.svelte';
   import Timeline from './Timeline.svelte';
@@ -17,6 +18,7 @@
   let mode: (typeof modes)[number] = $state('Video');
   let settingsOpen = $state(false);
   let snapshotOpen = $state(false);
+  let exportOpen = $state(false);
   const settings = $derived($store.history.present.settings);
 
   $effect.pre(() => {
@@ -62,7 +64,12 @@
         disabled={$store.history.present.timeline.main.length === 0}
         onclick={() => (snapshotOpen = true)}><Icon name="snapshot" />Snapshot</button
       >
-      <button class="tool" disabled title="Music and voiceover tracks arrive in the next version">
+      <button
+        class="tool"
+        aria-label="Add music"
+        title="Add music at the current point (the playhead)"
+        onclick={() => app.addMusic()}
+      >
         <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
       </button>
     </div>
@@ -104,7 +111,10 @@
     <button
       class="primary"
       disabled={$store.exporting.state === 'running'}
-      onclick={() => app.exportVideo()}
+      onclick={() => {
+        if ($store.history.present.timeline.main.length === 0) void app.exportVideo();
+        else exportOpen = true;
+      }}
     >
       <Icon name="export" /> Export
     </button>
@@ -124,6 +134,7 @@
   <StatusBar {app} />
   {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
+  {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
 </div>
 
 <style>

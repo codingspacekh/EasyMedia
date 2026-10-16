@@ -154,13 +154,61 @@ export function joinMainItems(a: MainItem, b: MainItem): MainItem {
   );
 }
 
+/** How long a music or voiceover clip plays on the timeline. */
+export function audioDuration(item: AudioItem): Seconds {
+  return (item.out - item.in) / (item.speed ?? 1);
+}
+
+/** V13: a sound's speed, like a video clip's (V14); 1× is stored as no speed. */
+export function setAudioSpeed(item: AudioItem, speed: number): AudioItem {
+  if (!(speed >= MIN_SPEED && speed <= MAX_SPEED)) {
+    throw new EditError(`Speed must be between ${MIN_SPEED}× and ${MAX_SPEED}×.`);
+  }
+  assertMinDuration((item.out - item.in) / speed);
+  const changed: AudioItem = { ...item, speed };
+  if (speed === 1) delete changed.speed;
+  return changed;
+}
+
+/** Splits a sound `offset` seconds after its start (timeline time). */
+export function splitAudioItem(
+  item: AudioItem,
+  offset: Seconds,
+  [idA, idB]: [Id, Id],
+): [AudioItem, AudioItem] {
+  assertMinDuration(offset);
+  assertMinDuration(audioDuration(item) - offset);
+  const cut = item.in + offset * (item.speed ?? 1);
+  return [
+    { ...item, id: idA, out: cut, fadeOut: 0 },
+    { ...item, id: idB, start: item.start + offset, in: cut, fadeIn: 0 },
+  ];
+}
+
+/** Joins two sounds that came from splitting one and still play one after the other. */
+export function joinAudioItems(a: AudioItem, b: AudioItem): AudioItem {
+  const continues =
+    a.assetId === b.assetId &&
+    (a.speed ?? 1) === (b.speed ?? 1) &&
+    a.volume === b.volume &&
+    a.duck === b.duck &&
+    Math.abs(a.out - b.in) < EPSILON &&
+    Math.abs(a.start + audioDuration(a) - b.start) < EPSILON;
+  if (!continues) {
+    throw new EditError(
+      'Only parts of the same sound that were split, and still play one after the other, can be joined.',
+    );
+  }
+  return { ...a, out: b.out, fadeOut: b.fadeOut };
+}
+
 /** Items on one audio track may touch but must not overlap. */
 export function assertFitsInTrack(track: readonly AudioItem[], item: AudioItem): void {
-  const end = item.start + (item.out - item.in);
+  const end = item.start + audioDuration(item);
   const clash = track.find(
     (o) =>
       o.id !== item.id &&
-      item.start < o.start + (o.out - o.in) - EPSILON &&
+      item.start < o.start + audioDuration(o) - EPSILON &&
       o.start < end - EPSILON,
   );
   if (clash) {

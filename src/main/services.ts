@@ -1,6 +1,7 @@
 // Real file dialogs and project-file I/O for the main process.
 import { dialog, type BrowserWindow } from 'electron';
 import type { Dialogs, ProjectFiles } from '../core/ports.ts';
+import { CONTAINERS } from '../core/render/formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
@@ -55,11 +56,12 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
-    async exportVideo(name) {
+    async exportVideo(name, container) {
+      const { label, extension } = CONTAINERS[container] ?? CONTAINERS.mp4;
       const r = await dialog.showSaveDialog(win(), {
         title: 'Export video',
-        defaultPath: `${name}.mp4`,
-        filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
+        defaultPath: `${name}.${extension}`,
+        filters: [{ name: `${label} video`, extensions: [extension] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },

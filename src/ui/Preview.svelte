@@ -1,18 +1,20 @@
 <script lang="ts">
   import type { App } from '../app/app.ts';
-  import { previewAt, textLayersAt } from '../app/preview.ts';
+  import { previewAt, soundsAt, textLayersAt } from '../app/preview.ts';
   import { formatTime } from '../core/model/time.ts';
   import { mainTrackDuration } from '../core/model/timeline.ts';
   import { drawText } from '../core/text/draw.ts';
   import { cssFont } from '../core/text/layout.ts';
   import Icon from './Icon.svelte';
   import PreviewLayer from './PreviewLayer.svelte';
+  import PreviewSound from './PreviewSound.svelte';
   import { ui } from './ui-state.svelte.ts';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
 
   const frame = $derived(previewAt($store, $store.playhead));
+  const sounds = $derived(soundsAt($store, $store.playhead));
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
   let textCanvas: HTMLCanvasElement | undefined = $state();
@@ -120,6 +122,7 @@
         aria-hidden="true"
       ></canvas>
       {#if ui.safeArea}<div class="safe" aria-hidden="true"></div>{/if}
+      {#each sounds as sound (sound.itemId)}<PreviewSound {sound} {playing} />{/each}
     </div>
   </div>
   <div class="transport">

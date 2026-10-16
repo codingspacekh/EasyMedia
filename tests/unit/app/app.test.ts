@@ -16,6 +16,7 @@ import {
   createTitleSlide,
 } from '../../../src/core/model/factory.ts';
 import type { Dialogs, JobEvent, ProbeInfo, TextRenderer } from '../../../src/core/ports.ts';
+import { defaultExport, estimateSize } from '../../../src/core/render/formats.ts';
 
 const video = (sizeBytes = 7_000_000): ProbeInfo => ({
   kind: 'video',
@@ -130,6 +131,12 @@ describe('M4 app use cases', () => {
       expect(events.filter((e) => e.type === 'queued')).toHaveLength(0);
     });
 
+    it('V13: a sound file gets its loudness peaks (10 per second) for drawing its waveform', async () => {
+      const { state, importFiles } = setup();
+      await importFiles('/m/music.mp3');
+      await vi.waitFor(() => expect(Object.values(state().assets)[0]!.peaks).toHaveLength(300));
+    });
+
     it('reuses a proxy made earlier for the same file', async () => {
       const { engine, events, state, importFiles } = setup();
       const existing = proxyPathFor('/cache', '/m/clip.mp4', 7_000_000);
@@ -180,12 +187,50 @@ describe('M4 app use cases', () => {
       expect(project().timeline.main.map((m) => m.type)).toEqual(['video', 'image']);
     });
 
-    it('explains that sound files go on the music track (coming later)', async () => {
+    it('V13: a sound file goes on the music track at the playhead, and is selected', async () => {
       const { app, state, project, importFiles } = setup();
       await importFiles('/m/music.mp3');
+      app.setPlayhead(5);
       app.addToTimeline(idOf(state(), '/m/music.mp3'));
       expect(project().timeline.main).toEqual([]);
-      expect(state().message?.text).toMatch(/music track/i);
+      const [music] = project().timeline.audio[0];
+      expect(music).toMatchObject({ start: 5, in: 0, out: 30 });
+      expect(state().selection).toBe(music!.id);
+    });
+
+    it('V13: if the music track is busy there, the sound goes on the voiceover track; if both are, it says so', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/music.mp3');
+      const id = idOf(state(), '/m/music.mp3');
+      app.addToTimeline(id);
+      app.addToTimeline(id);
+      expect(project().timeline.audio.map((t) => t.length)).toEqual([1, 1]);
+      app.addToTimeline(id);
+      expect(state().message?.text).toMatch(/no free space/i);
+    });
+
+    it('V13 "Add music at the current point": imports the chosen sound and places it at the playhead', async () => {
+      const { app, state, project, dialogs } = setup();
+      app.setPlayhead(5);
+      dialogs.openMedia.mockResolvedValueOnce(['/m/music.mp3']);
+      await app.addMusic();
+      expect(project().media.map((m) => m.path)).toEqual(['/m/music.mp3']);
+      expect(project().timeline.audio[0]).toMatchObject([{ start: 5 }]);
+      // A file already in the media bin is not imported twice.
+      app.setPlayhead(40);
+      dialogs.openMedia.mockResolvedValueOnce(['/m/music.mp3']);
+      await app.addMusic();
+      expect(project().media).toHaveLength(1);
+      expect(project().timeline.audio[0].map((a) => a.start)).toEqual([5, 40]);
+      expect(state().message).toBeNull();
+    });
+
+    it('"Add music" refuses a file that is not a sound', async () => {
+      const { app, state, project, dialogs } = setup();
+      dialogs.openMedia.mockResolvedValueOnce(['/m/photo.jpg']);
+      await app.addMusic();
+      expect(project().timeline.audio[0]).toEqual([]);
+      expect(state().message?.text).toMatch(/choose a sound file/i);
     });
 
     it('selects, deletes, and undoes / redoes', async () => {
@@ -421,6 +466,40 @@ describe('M4 app use cases', () => {
       expect(states).toContain('running');
       expect(state().exporting).toEqual({ state: 'done', output: '/out/Untitled.mp4' });
       expect((await engine.probe('/out/Untitled.mp4')).duration).toBe(10);
+    });
+
+    it('V16: asks for a file name with the extension of the chosen format, and exports in it', async () => {
+      const { app, state, engine, dialogs } = await withClip();
+      dialogs.exportVideo.mockResolvedValueOnce('/out/Task_11e.wmv');
+      const format = {
+        ...defaultExport(state().history.present.settings),
+        container: 'wmv' as const,
+      };
+      await app.exportVideo({ format });
+      expect(dialogs.exportVideo).toHaveBeenCalledWith('Untitled', 'wmv');
+      expect(await engine.probe('/out/Task_11e.wmv')).toMatchObject({
+        container: 'wmv',
+        video: { codec: 'wmv2' },
+      });
+    });
+
+    it('can also save the project, so it can be edited later', async () => {
+      const { app, state, dialogs } = await withClip();
+      dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+      dialogs.saveProject.mockResolvedValueOnce('/work/x.mve');
+      await app.exportVideo({ alsoSaveProject: true });
+      expect(state().projectPath).toBe('/work/x.mve');
+      expect(state().exporting).toEqual({ state: 'done', output: '/out/x.mp4' });
+    });
+
+    it('V17: the export summary gives the length, whether there is sound, and the estimated size', async () => {
+      const { app, state } = await withClip();
+      const format = defaultExport(state().history.present.settings);
+      expect(app.exportSummary(format)).toEqual({
+        duration: 10,
+        hasAudio: true,
+        ...estimateSize(format, 10, true),
+      });
     });
 
     it('can be cancelled', async () => {

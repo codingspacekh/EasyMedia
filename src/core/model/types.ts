@@ -156,6 +156,7 @@ export interface TextItem extends TextEffects {
   scroll?: boolean;
 }
 
+/** A sound file on the music or voiceover track: plays the source from `in` to `out` from `start` (V13). */
 export interface AudioItem {
   id: Id;
   assetId: Id;
@@ -165,6 +166,10 @@ export interface AudioItem {
   volume: number;
   fadeIn: Seconds;
   fadeOut: Seconds;
+  /** Music only: 6 dB quieter while the voiceover plays. */
+  duck?: boolean;
+  /** 0.25–4, pitch kept; missing = 1 (V13 like V14). */
+  speed?: number;
 }
 
 export interface Project {

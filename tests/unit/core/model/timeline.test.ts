@@ -8,13 +8,17 @@ import {
 } from '../../../../src/core/model/factory.ts';
 import {
   assertFitsInTrack,
+  audioDuration,
   findMainItemAt,
   itemDuration,
+  joinAudioItems,
   joinMainItems,
   layoutMain,
   mainTrackDuration,
+  setAudioSpeed,
   setItemDuration,
   setVideoSpeed,
+  splitAudioItem,
   splitMainItem,
   transitionOverlap,
   trimVideo,
@@ -224,5 +228,57 @@ describe('splitting and joining keep a clip’s effects (V7, V9, V15)', () => {
   it('joining the parts back gives the original look', () => {
     const [a, b] = splitMainItem(looked, 3, ['a', 'b']);
     expect(joinMainItems(a, b)).toEqual({ ...looked, id: 'a' });
+  });
+});
+
+describe('V13 sound clips: speed, split and join (like video clips)', () => {
+  const sound = {
+    ...createAudioItem(music, 5, { id: 'm' }),
+    in: 2,
+    out: 12,
+    fadeIn: 1,
+    fadeOut: 2,
+  };
+
+  it('a sound lasts (out − in) ÷ speed on the timeline; no speed means 1×', () => {
+    expect(audioDuration(sound)).toBe(10);
+    expect(audioDuration({ ...sound, speed: 2 })).toBe(5);
+    expect(audioDuration({ ...sound, speed: 0.5 })).toBe(20);
+  });
+
+  it('a faster sound takes less room on its track', () => {
+    const later = createAudioItem(music, 12, { id: 'later' }); // 12 s onwards
+    expect(() => assertFitsInTrack([later], sound)).toThrow(/overlaps/); // 5–15 s
+    expect(() => assertFitsInTrack([later], { ...sound, speed: 2 })).not.toThrow(); // 5–10 s
+  });
+
+  it('splits at a timeline offset: the first part keeps the fade in, the second the fade out', () => {
+    const [a, b] = splitAudioItem({ ...sound, speed: 2 }, 3, ['a', 'b']);
+    // 3 s into the clip at 2× is 6 s into the source: 2 + 6 = 8.
+    expect(a).toMatchObject({ id: 'a', start: 5, in: 2, out: 8, fadeIn: 1, fadeOut: 0, speed: 2 });
+    expect(b).toMatchObject({ id: 'b', start: 8, in: 8, out: 12, fadeIn: 0, fadeOut: 2, speed: 2 });
+  });
+
+  it('refuses a split that leaves a part shorter than 0.10 s', () => {
+    expect(() => splitAudioItem(sound, 0.05, ['a', 'b'])).toThrow(/at least 0.10 s/);
+    expect(() => splitAudioItem(sound, 9.95, ['a', 'b'])).toThrow(/at least 0.10 s/);
+  });
+
+  it('joins two parts that were split, back into one', () => {
+    const [a, b] = splitAudioItem(sound, 4, ['a', 'b']);
+    expect(joinAudioItems(a, b)).toEqual({ ...sound, id: 'a' });
+  });
+
+  it('refuses to join sounds that do not continue each other', () => {
+    const [a, b] = splitAudioItem(sound, 4, ['a', 'b']);
+    expect(() => joinAudioItems(a, { ...b, start: b.start + 1 })).toThrow(/split/); // moved apart
+    expect(() => joinAudioItems(a, { ...b, volume: 0.5 })).toThrow(/split/);
+    expect(() => joinAudioItems(a, { ...b, assetId: 'other' })).toThrow(/split/);
+  });
+
+  it('speed 0.25×–4×, and the sound must still last at least 0.10 s', () => {
+    expect(setAudioSpeed(sound, 1.5).speed).toBe(1.5);
+    expect(setAudioSpeed({ ...sound, speed: 2 }, 1)).not.toHaveProperty('speed');
+    expect(() => setAudioSpeed(sound, 5)).toThrow(/0.25× and 4×/);
   });
 });

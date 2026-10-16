@@ -152,3 +152,21 @@ export async function countPixels(
     if (test(stdout[i]!, stdout[i + 1]!, stdout[i + 2]!)) n++;
   return n;
 }
+
+/** Loudness (root mean square, 0–1) of the mixed-down sound between `from` and `to` seconds. */
+export async function rms(file: string, from: number, to: number): Promise<number> {
+  const { stdout } = await execBuffer(
+    bundledFfmpeg().ffmpeg,
+    [
+      ...['-v', 'error', '-ss', String(from), '-t', String(to - from), '-i', file],
+      ...['-vn', '-ac', '1', '-ar', '8000', '-f', 'f32le', 'pipe:1'],
+    ],
+    { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 },
+  );
+  const samples = new Float32Array(
+    stdout.buffer.slice(stdout.byteOffset, stdout.byteOffset + stdout.byteLength),
+  );
+  let sum = 0;
+  for (const s of samples) sum += s * s;
+  return samples.length ? Math.sqrt(sum / samples.length) : 0;
+}

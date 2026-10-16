@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
 import { measure } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp, menu } from './app.ts';
+import { answerDialogs, launchApp, menu, exportVideo } from './app.ts';
 
 let dir: string;
 const CLIP = 'clip_1080p30_10s.mp4';
@@ -43,8 +43,7 @@ test('import → timeline → preview → export', async () => {
   await expect(window.locator('.transport .tc')).not.toHaveText(/^00:00\.00/, { timeout: 5_000 });
   await window.getByRole('button', { name: 'Pause' }).click();
 
-  await window.getByRole('button', { name: 'Export' }).click();
-  await expect(window.getByText(`Saved to ${output}`)).toBeVisible({ timeout: 120_000 });
+  await exportVideo(window, output, {}, 120_000);
   const m = await measure(output);
   expect([m.width, m.height]).toEqual([1920, 1080]);
   expect(m.videoDuration).toBeCloseTo(10, 1);

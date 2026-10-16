@@ -13,12 +13,17 @@ import {
 import type { Seconds } from '../core/model/time.ts';
 import {
   assertFitsInTrack,
+  audioDuration,
   findMainItemAt,
   itemDuration,
+  layoutMain,
   MIN_DURATION,
+  joinAudioItems,
   joinMainItems,
+  setAudioSpeed,
   setItemDuration,
   setVideoSpeed,
+  splitAudioItem,
   splitMainItem,
   trimVideo,
 } from '../core/model/timeline.ts';
@@ -155,6 +160,194 @@ export function setClipMuted(id: Id, muted: boolean): Command {
         if (item.type !== 'video') throw new EditError('Only video clips have sound to remove.');
         return { ...item, muted };
       }),
+  };
+}
+
+/** V13: how loud a video clip's own sound is, 0–200 %. */
+export function setClipVolume(id: Id, volume: number): Command {
+  return {
+    label: 'Change volume',
+    apply: (p) => {
+      assertVolume(volume);
+      return updateMain(p, id, (item) => {
+        if (item.type !== 'video') throw new EditError('Only video clips have sound.');
+        return { ...item, volume };
+      });
+    },
+  };
+}
+
+/**
+ * V13 unlink: the clip's sound moves onto an audio track (the voiceover track, or the music track
+ * if that is busy) at the same time, keeping its trim, volume and fades; the clip becomes silent.
+ */
+export function unlinkClipSound(id: Id, audioId: Id = newId()): Command {
+  return {
+    label: 'Separate sound',
+    apply: (p) => {
+      const laid = layoutMain(p.timeline.main).find((l) => l.item.id === id);
+      if (!laid)
+        throw new EditError('This item could not be found. It may already have been deleted.');
+      const clip = laid.item;
+      if (clip.type !== 'video') throw new EditError('Only video clips have sound to separate.');
+      if (clip.muted || requireAsset(p, clip.assetId).hasAudio !== true) {
+        throw new EditError('This clip has no sound to separate.');
+      }
+      const sound: AudioItem = {
+        id: audioId,
+        assetId: clip.assetId,
+        start: laid.start,
+        in: clip.in,
+        out: clip.out,
+        volume: clip.volume,
+        fadeIn: clip.fade?.in ?? 0,
+        fadeOut: clip.fade?.out ?? 0,
+        ...(clip.speed !== 1 ? { speed: clip.speed } : {}),
+      };
+      const track = ([1, 0] as const).find((t) => fits(p.timeline.audio[t], sound));
+      if (track === undefined) {
+        throw new EditError(
+          'There is no free space on the music or voiceover track at this time. Move or delete a sound first.',
+        );
+      }
+      const silent = updateMain(p, id, (item) => ({ ...item, muted: true }));
+      return withAudio(silent, track, [...p.timeline.audio[track], sound]);
+    },
+  };
+}
+
+/** V13: plays only part of a music or voiceover file. */
+export function trimAudio(id: Id, range: { in: Seconds; out: Seconds }): Command {
+  return {
+    label: 'Trim',
+    apply: (p) =>
+      updateAudio(p, id, (item) => {
+        const length = requireAsset(p, item.assetId).duration ?? 0;
+        if (range.in < 0) throw new EditError('The start point cannot be before 0.00 s.');
+        if (range.out <= range.in)
+          throw new EditError('The end point must be after the start point.');
+        if (range.out > length + 1e-9) {
+          throw new EditError(
+            `The end point cannot be after the end of the sound (${length.toFixed(2)} s).`,
+          );
+        }
+        if ((range.out - range.in) / (item.speed ?? 1) < MIN_DURATION - 1e-9) {
+          throw new EditError(`A sound must last at least ${MIN_DURATION.toFixed(2)} s.`);
+        }
+        return { ...item, in: range.in, out: range.out };
+      }),
+  };
+}
+
+export function setAudioVolume(id: Id, volume: number): Command {
+  return {
+    label: 'Change volume',
+    apply: (p) => {
+      assertVolume(volume);
+      return updateAudio(p, id, (item) => ({ ...item, volume }));
+    },
+  };
+}
+
+export function setAudioFades(id: Id, fades: { in: Seconds; out: Seconds }): Command {
+  return {
+    label: 'Change fade',
+    apply: (p) =>
+      updateAudio(p, id, (item) => {
+        if (!(fades.in >= 0 && fades.out >= 0)) throw new EditError('Fades cannot be negative.');
+        if (fades.in + fades.out > audioDuration(item) + 1e-9) {
+          throw new EditError('The fades are longer than the sound. Make them shorter.');
+        }
+        return { ...item, fadeIn: fades.in, fadeOut: fades.out };
+      }),
+  };
+}
+
+/** V13: the music is 6 dB quieter while the voiceover plays. */
+export function setDucking(id: Id, duck: boolean): Command {
+  return {
+    label: duck ? 'Lower under voiceover' : 'Do not lower under voiceover',
+    apply: (p) => {
+      if (!p.timeline.audio[0].some((a) => a.id === id)) {
+        throw new EditError('Only sound on the music track can be lowered under the voiceover.');
+      }
+      return updateAudio(p, id, (item) => {
+        if (duck) return { ...item, duck };
+        const copy = { ...item };
+        delete copy.duck;
+        return copy;
+      });
+    },
+  };
+}
+
+/** V13 like V14: a sound plays faster or slower (pitch kept); its length changes. */
+export function setSoundSpeed(id: Id, speed: number): Command {
+  return {
+    label: 'Change speed',
+    apply: (p) => updateAudio(p, id, (item) => setAudioSpeed(item, speed)),
+  };
+}
+
+/** Splits the sound `id` at the playhead `time`. */
+export function splitSound(time: Seconds, id: Id, ids: [Id, Id] = [newId(), newId()]): Command {
+  return {
+    label: 'Split',
+    apply: (p) => {
+      const track = audioTrackOf(p, id);
+      const items = p.timeline.audio[track];
+      const index = items.findIndex((a) => a.id === id);
+      const item = items[index]!;
+      const offset = time - item.start;
+      if (!(offset > 0 && offset < audioDuration(item))) {
+        throw new EditError('Move the playhead over the sound to split it.');
+      }
+      const next = [...items];
+      next.splice(index, 1, ...splitAudioItem(item, offset, ids));
+      return withAudio(p, track, next);
+    },
+  };
+}
+
+/** Joins a sound with the part that starts where it ends on the same track. */
+export function joinSoundWithNext(id: Id): Command {
+  return {
+    label: 'Join',
+    apply: (p) => {
+      const track = audioTrackOf(p, id);
+      const items = p.timeline.audio[track];
+      const item = items.find((a) => a.id === id)!;
+      const end = item.start + audioDuration(item);
+      const next = items.find((a) => a.id !== id && Math.abs(a.start - end) < 1e-6);
+      if (!next) throw new EditError('There is no sound after this one to join.');
+      const joined = joinAudioItems(item, next);
+      return withAudio(
+        p,
+        track,
+        items.filter((a) => a.id !== next.id).map((a) => (a.id === id ? joined : a)),
+      );
+    },
+  };
+}
+
+/** Moves a sound between the music (0) and voiceover (1) tracks, at the same time. */
+export function moveAudioToTrack(id: Id, track: AudioTrack): Command {
+  return {
+    label: track === 0 ? 'Move to music track' : 'Move to voiceover track',
+    apply: (p) => {
+      const from = audioTrackOf(p, id);
+      if (from === track) return p;
+      const item = p.timeline.audio[from].find((a) => a.id === id)!;
+      assertFitsInTrack(p.timeline.audio[track], item);
+      const moved: AudioItem = { ...item };
+      if (track === 1) delete moved.duck;
+      const removed = withAudio(
+        p,
+        from,
+        p.timeline.audio[from].filter((a) => a.id !== id),
+      );
+      return withAudio(removed, track, [...p.timeline.audio[track], moved]);
+    },
   };
 }
 
@@ -478,6 +671,38 @@ function requireAsset(p: Project, assetId: Id): MediaAsset {
   const asset = p.media.find((m) => m.id === assetId);
   if (!asset) throw new EditError('Import the file into the media bin first.');
   return asset;
+}
+
+function assertVolume(volume: number): void {
+  if (!(volume >= 0 && volume <= 2)) throw new EditError('Volume must be between 0 % and 200 %.');
+}
+
+function fits(track: readonly AudioItem[], item: AudioItem): boolean {
+  try {
+    assertFitsInTrack(track, item);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function audioTrackOf(p: Project, id: Id): AudioTrack {
+  const track = p.timeline.audio.findIndex((tr) => tr.some((a) => a.id === id));
+  if (track < 0)
+    throw new EditError('This item could not be found. It may already have been deleted.');
+  return track as AudioTrack;
+}
+
+function updateAudio(p: Project, id: Id, change: (item: AudioItem) => AudioItem): Project {
+  const track = audioTrackOf(p, id);
+  const items = p.timeline.audio[track];
+  const changed = change(items.find((a) => a.id === id)!);
+  assertFitsInTrack(items, changed);
+  return withAudio(
+    p,
+    track,
+    items.map((a) => (a.id === id ? changed : a)),
+  );
 }
 
 function backgroundAsset(item: Extract<MainItem, { type: 'title' }>): Id | undefined {

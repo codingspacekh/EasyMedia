@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg, run } from '../integration/helpers/ffmpeg.ts';
 import { countPixels, grayFrame, measure, tinyFrame } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp } from './app.ts';
+import { answerDialogs, launchApp, exportVideo } from './app.ts';
 
 const FRAME = 1 / 30;
 const BEE = 'clip_1080p30_10s.mp4'; // stand-in for 11.01 BeeFly.mov
@@ -49,8 +49,7 @@ async function setSize(page: Page, size: string) {
   await box.blur();
 }
 async function exportTo(page: Page, output: string) {
-  await page.getByRole('button', { name: 'Export' }).click();
-  await expect(page.getByText(`Saved to ${output}`)).toBeVisible({ timeout: 180_000 });
+  await exportVideo(page, output, {}, 180_000);
 }
 /** Box around the opaque pixels of the preview's text canvas (project pixels). */
 function previewTextBox(page: Page) {

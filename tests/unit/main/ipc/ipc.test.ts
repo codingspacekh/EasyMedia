@@ -65,7 +65,7 @@ describe('P2 main-process IPC handlers', () => {
         openMedia: async () => ['/m/a.mp4'],
         openProject: async () => '/p/task.mve',
         saveProject: async (name) => `/p/${name}.mve`,
-        exportVideo: async (name) => `/p/${name}.mp4`,
+        exportVideo: async (name, container) => `/p/${name}.${container}`,
         confirm: async () => true,
         chooseFolder: async () => '/usb',
       },

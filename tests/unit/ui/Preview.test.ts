@@ -104,3 +104,37 @@ describe('preview player', () => {
     expect(document.querySelectorAll('img')).toHaveLength(2);
   });
 });
+
+describe('V13 music in the preview (Task 11e: "test the audio plays when the video is played")', () => {
+  it('plays the music file from the right moment while the playhead is over it', async () => {
+    const t = testApp({
+      '/m/photo.jpg': {
+        kind: 'image',
+        container: 'jpg',
+        sizeBytes: 1,
+        video: { codec: 'mjpeg', width: 100, height: 100 },
+      },
+      '/m/music.mp3': {
+        kind: 'audio',
+        container: 'mp3',
+        duration: 30,
+        sizeBytes: 1,
+        audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+      },
+    });
+    await t.importFiles('/m/photo.jpg', '/m/music.mp3');
+    const [photo, music] = t.app.store.get().history.present.media;
+    t.app.addToTimeline(photo!.id); // 5 s
+    t.app.setPlayhead(2);
+    t.app.addToTimeline(music!.id); // from 2 s
+    t.app.setPlayhead(1);
+    render(Preview, { props: { app: t.app } });
+    expect(document.querySelector('audio')).toBeNull();
+    t.app.setPlayhead(3);
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    const audio = document.querySelector('audio')!;
+    expect(audio.getAttribute('src')).toBe(toMediaUrl('/m/music.mp3'));
+    expect(audio.currentTime).toBeCloseTo(1, 5);
+  });
+});

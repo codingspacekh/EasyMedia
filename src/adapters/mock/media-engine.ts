@@ -5,6 +5,7 @@ import type { JobEvent, JobHandle, MediaEngine, ProbeInfo } from '../../core/por
 import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
+import { defaultExport, estimateSize, type ExportSettings } from '../../core/render/formats.ts';
 
 const PROXY_HEIGHT = 360;
 const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -141,28 +142,32 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       return output;
     },
 
-    renderVideo(project, output, { projectDir, textImages }) {
+    renderVideo(project, output, { projectDir, textImages, format }) {
       let plan: ReturnType<typeof compileProject>;
       try {
         plan = compileProject(project, {
           mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
           ...(textImages ? { textImages } : {}),
+          ...(format ? { format } : {}),
         });
       } catch (error) {
         const done = Promise.reject(error as Error);
         done.catch(() => {});
         return { id: 'not-started', done, cancel: () => {} };
       }
-      const { width, height, fps } = project.settings;
+      const f = format ?? defaultExport(project.settings);
+      const [videoCodec, audioCodec] = codecsOf(f);
       return job('Export', output, () => {
         for (const asset of project.media) find(fromProjectPath(projectDir, asset.path));
         return {
           kind: 'video',
-          container: 'mp4',
+          container: f.container,
           duration: plan.duration,
-          sizeBytes: Math.round(plan.duration * 750_000),
-          video: { codec: 'h264', width, height, fps },
-          ...(plan.hasAudio ? { audio: { codec: 'aac', sampleRate: 48000, channels: 2 } } : {}),
+          sizeBytes: Math.round(estimateSize(f, plan.duration, plan.hasAudio).bytes),
+          video: { codec: videoCodec, width: f.width, height: f.height, fps: f.fps },
+          ...(plan.hasAudio
+            ? { audio: { codec: audioCodec, sampleRate: 48000, channels: 2 } }
+            : {}),
         };
       });
     },
@@ -173,4 +178,16 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
     },
   };
   return engine;
+}
+
+/** The codec names ffprobe reports for each format (V16). */
+function codecsOf(f: ExportSettings): [string, string] {
+  if (f.compression === 'lossless') return [f.container === 'mov' ? 'png' : 'ffv1', 'pcm_s16le'];
+  return {
+    mp4: ['h264', 'aac'],
+    mov: ['h264', 'aac'],
+    avi: ['mpeg4', 'mp3'],
+    wmv: ['wmv2', 'wmav2'],
+    mpg: ['mpeg2video', 'ac3'],
+  }[f.container] as [string, string];
 }

@@ -4,9 +4,11 @@
 import { toMediaUrl } from '../core/media-url.ts';
 import type { Seconds } from '../core/model/time.ts';
 import {
+  audioDuration,
   findMainItemAt,
   itemDuration,
   layoutMain,
+  mainTrackDuration,
   transitionOverlap,
 } from '../core/model/timeline.ts';
 import type { Id, MainItem, PanZoomFrame, TextStyle } from '../core/model/types.ts';
@@ -168,4 +170,54 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
     layers.push({ id: t.id, text: t.text, style: t.style, mode, ...motion });
   }
   return layers;
+}
+
+/** A music or voiceover clip heard at this moment (V13). */
+export interface PreviewSound {
+  itemId: Id;
+  src: string;
+  /** Where in the sound file we are. */
+  mediaTime: Seconds;
+  /** Playback speed (V13 like V14). */
+  rate: number;
+  /** Its volume with fades and lowering under the voiceover, as in the export. */
+  volume: number;
+}
+
+/** -6 dB as a factor. */
+const DUCK = 10 ** (-6 / 20);
+
+/** The music and voiceover heard at `time`; like the export, they stop when the video ends. */
+export function soundsAt(state: AppState, time: Seconds): PreviewSound[] {
+  const project = state.history.present;
+  const end = mainTrackDuration(project.timeline.main);
+  const heard = (start: Seconds, length: Seconds) => Math.min(length, end - start);
+  const playing = (start: Seconds, length: Seconds) =>
+    time >= start && time < start + heard(start, length);
+  const voiceover = project.timeline.audio[1].some((a) => playing(a.start, audioDuration(a)));
+  return project.timeline.audio.flatMap((items, track) =>
+    items.flatMap((item) => {
+      const length = audioDuration(item);
+      if (!playing(item.start, length)) return [];
+      const asset = project.media.find((m) => m.id === item.assetId);
+      if (!asset) return [];
+      const offset = time - item.start;
+      const until = heard(item.start, length);
+      const gain = Math.min(
+        item.fadeIn > 0 ? offset / item.fadeIn : 1,
+        item.fadeOut > 0 ? (until - offset) / item.fadeOut : 1,
+        1,
+      );
+      const ducked = track === 0 && item.duck && voiceover ? DUCK : 1;
+      return [
+        {
+          itemId: item.id,
+          src: toMediaUrl(asset.path),
+          mediaTime: item.in + offset * (item.speed ?? 1),
+          rate: item.speed ?? 1,
+          volume: Math.max(0, item.volume * gain * ducked),
+        },
+      ];
+    }),
+  );
 }

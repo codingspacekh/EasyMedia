@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deserializeProject } from '../src/core/project/serialize.ts';
-import type { Quality } from '../src/core/render/compile.ts';
+import { defaultExport, type Quality } from '../src/core/render/formats.ts';
 import { detectHardwareEncoder, encoderTester, videoEncoder } from '../src/main/ffmpeg/hardware.ts';
 import { binaryPaths, platformKey } from '../src/main/ffmpeg/paths.ts';
 import { createNodeMediaEngine } from '../src/main/media/engine.ts';
@@ -45,7 +45,7 @@ try {
   const target = resolve(output);
   await engine.renderVideo(project, target, {
     projectDir: dirname(resolve(projectFile)),
-    quality: quality as Quality,
+    format: { ...defaultExport(project.settings), quality: quality as Quality },
   }).done;
   console.log(`\nExported ${target} (${videoEncoder(hardware)}, ${quality} quality)`);
 } catch (error) {

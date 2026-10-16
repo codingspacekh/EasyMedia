@@ -99,7 +99,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:openMedia': () => s.dialogs.openMedia(),
     'dialog:openProject': () => s.dialogs.openProject(),
     'dialog:saveProject': (name) => s.dialogs.saveProject(name),
-    'dialog:exportVideo': (name) => s.dialogs.exportVideo(name),
+    'dialog:exportVideo': (name, container) => s.dialogs.exportVideo(name, container),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
     'dialog:chooseFolder': (title) => s.dialogs.chooseFolder(title),
     'project:read': (path) => s.files.read(path),
