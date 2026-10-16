@@ -20,7 +20,7 @@
 
   const HEADER = 190;
   const LABEL = 18;
-  const heightOf = (t: AudioTrack) => (t.channels.length === 2 ? 132 : 104);
+  const heightOf = (t: AudioTrack) => (t.channels.length === 2 ? 136 : 128);
 
   let scroller: HTMLDivElement | undefined = $state();
   let scrollLeft = $state(0);
@@ -361,6 +361,7 @@
   }
   .scroller {
     flex: 1;
+    min-width: 0;
     overflow: auto;
   }
   .content {
@@ -483,12 +484,14 @@
   .slider input {
     flex: 1;
     min-width: 0;
+    accent-color: var(--accent);
   }
   .a-lane {
     position: relative;
     flex: none;
     cursor: text;
-    overflow: hidden;
+    /* clip, not hidden: hidden would make the lane the sticky canvas's scroll box */
+    overflow: clip;
   }
   .a-lane.shift {
     cursor: ew-resize;

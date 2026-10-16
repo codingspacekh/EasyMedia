@@ -109,10 +109,12 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
   }
   .a-body {
     flex: 1;
     display: flex;
     min-height: 0;
+    min-width: 0;
   }
 </style>
