@@ -121,6 +121,35 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 8, audio: { codec: 'pcm_s16le', channels: 1, sampleRate: 44100 } },
   },
   {
+    // Stand-in for 11.05 Piano_track.mp3 (Book A 11.16–11.19): a louder burst at 39–40 s is the
+    // "sound wave section" that is copied and pasted at 16 s.
+    name: 'piano_stereo_60s.mp3',
+    group: 'test',
+    inputs: tone(
+      '(0.3+0.5*between(t,39,40))*sin(2*PI*262*t)|(0.3+0.5*between(t,39,40))*sin(2*PI*330*t)',
+      60,
+    ),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 60, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Task_11j_audio_1.mp3 / Activity_11e_audio_1.mp3: quiet, sitting 0.2 above zero
+    // (a DC offset to remove, Book B 11.2.2).
+    name: 'song_dc_offset_90s.mp3',
+    group: 'test',
+    inputs: tone('0.15*sin(2*PI*440*t)+0.2|0.15*sin(2*PI*554*t)+0.2', 90),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 90, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Task_11j_audio_2.mp3 / Activity_11e_audio_2.mp3.
+    name: 'song_48s.mp3',
+    group: 'test',
+    inputs: tone('0.5*sin(2*PI*349*t)|0.5*sin(2*PI*440*t)', 48),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 48, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',
