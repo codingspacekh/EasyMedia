@@ -57,7 +57,7 @@ Why this matters for a single-maintainer, teaching project:
                 │
 ┌───────────────┴─ Renderer (UI) ──────────────────┐
 │ Svelte app + store + core                        │
-│   └─ Web Worker: audio DSP (never blocks the UI) │
+│   └─ Web Worker: audio DSP (from M10, see §7.5)  │
 └──────────────────────────────────────────────────┘
         ffmpeg / ffprobe  = separate OS processes
 ```
@@ -72,9 +72,9 @@ Security defaults: `contextIsolation: true`, `nodeIntegration: false`, `sandbox:
 | P2 | **Facade** | `preload.ts` → `window.mve` | One small, typed surface between UI and system |
 | P3 | **Single store, one-way data flow** | `app/store.ts` | State always lives in one place: *UI → command → store → UI re-renders*. Easy to debug. |
 | P4 | **Command** | `app/commands.ts`, `app/history.ts` | Every edit (trim, move, add title…) is a `Command` whose `apply()` returns a **new** project. Projects are immutable, so `History` keeps the previous project and undo restores it exactly: no per-command undo code, unlimited undo/redo |
-| P5 | **Memento** | `core/audio/history.ts` | Audio effects change samples in place; undo stores a snapshot of **only the changed region** |
+| P5 | **Memento** | `core/audio/history.ts` | Audio edits change samples; undo stores **only what was removed** (the changed region, a track's old settings, a removed track). Every operation returns its inverse while it is applied, so undo and redo are the same mechanism. Sample arrays are never changed once made |
 | P6 | **Strategy + Registry** | `core/effects/registry.ts` | Each effect, transition, filter and export preset is one self-describing object. Adding a feature = adding one file. |
-| P7 | **Schema-driven UI** | `ui/components/EffectDialog.svelte` | Effect dialogs (Echo, Reverb, Normalise…) are **generated** from each effect's parameter schema. No hand-built dialog per effect. |
+| P7 | **Schema-driven UI** | `ui/EffectParams.svelte`, `ui/audio/EffectDialog.svelte` | Effect dialogs (Echo, Reverb, Normalise…) are **generated** from each effect's parameter schema. No hand-built dialog per effect. |
 | P8 | **Compiler / Builder** | `core/render/compile.ts` | Project → *RenderPlan* → FFmpeg arguments. Pure function, snapshot-tested. |
 | P9 | **Job queue (producer/consumer)** | `main/jobs/JobQueue.ts` | Proxies, thumbnails, waveforms and exports run in the background, limited to 1–2 at a time, cancellable (N12) |
 | P10 | **Observer / event bus** | `JobEvents` port | Progress bars and "proxy ready" badges subscribe to job events |
@@ -95,18 +95,22 @@ EasyMedia/
 │  │  │  ├─ video/            fade.ts, panzoom.ts, colour.ts, blur.ts, speed.ts …
 │  │  │  ├─ transitions/      dissolve.ts, wipe.ts …
 │  │  │  └─ audio/            normalise.ts, compressor.ts, echo.ts, reverb.ts, eq.ts, noise.ts …
-│  │  ├─ render/              compile.ts (project → RenderPlan → ffmpeg args), presets.ts
+│  │  ├─ render/              compile.ts (project → RenderPlan → ffmpeg args), formats.ts (V16, V17),
+│  │  │                       audio-formats.ts (A16, A17: formats, rates, size, pros and cons)
 │  │  ├─ text/                layout.ts (wrap, place, contrast), draw.ts (one drawing for preview + export),
 │  │  │                       motion.ts (fades, fly-ins, credits scroll), fonts.ts
 │  │  ├─ image/               crop.ts (V11 resize with constrained proportions + 9-point crop)
-│  │  ├─ audio/               pcm.ts, dsp/*.ts, history.ts (memento)
+│  │  ├─ audio/               pcm.ts (tracks), edit.ts (cut/paste/align/mix), history.ts (memento),
+│  │  │                       peaks.ts (waveform columns), dsp/ (volume, speed, channels)
 │  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts
-│  ├─ ui/                     Svelte: App.svelte, screens/, components/, dialogs/
+│  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13, 14, 20);
+│  │                          menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts)
+│  │  ├─ webaudio/            output.ts (AudioOutput: Audio mode playback)
 │  │  └─ mock/                fake media, fake jobs (browser + tests)
 │  ├─ workers/                audio.worker.ts
 │  ├─ main/                   Electron main: index.ts, ipc.ts, menu.ts, services.ts (dialogs, files), perf.ts
@@ -189,7 +193,7 @@ interface AudioItem {
 interface EffectInstance { effectId: string; params: Record<string, number | string | boolean>; }
 ```
 
-The audio editor (Audio mode) uses a separate, simpler model: a list of `AudioTrack { name, channels, sampleRate, pcm: Float32Array[] }`. Because effects change samples in place (Audacity model), it uses the Memento pattern (P5) instead of commands.
+The audio editor (Audio mode) uses a separate, simpler model (`core/audio/pcm.ts`): an `AudioDoc { rate, tracks }` where every `AudioTrack { id, name, offset, channels: Float32Array[], gain, pan, bits? }` shares the project rate (the first imported file's rate; later files are decoded at it). Edits work on a selection `{ start, end, tracks }` (Audacity model) and use the Memento pattern (P5) instead of commands. Mute and solo only change what is heard and are not edits. The Audio mode session is not saved in the `.mve` file yet: the work leaves EasyMedia by **Export audio**.
 
 ## 6. Effect registry (P6 + P7)
 
@@ -290,14 +294,28 @@ Sound of a clip with audio goes through `asetpts → atempo (chained in 0.5–2�
 
 The compiler is **snapshot-tested** (stored commands in `tests/unit/core/render/__snapshots__/`), and every feature is checked by **rendering real files**: length within one frame, sound length, fit-mode pixels, and — for the coursebook tasks — which moment of the source each frame came from.
 
-### 7.5 Audio effect (audio mode)
+### 7.5 Audio mode (M9)
 
 ```
-Select 4.00–6.00 s ─► Effect ▸ Reverb… ─► dialog generated from schema
-  ─► Preview: worker processes a copy, plays via Web Audio
-  ─► OK: history.saveRegion(4–6 s)  (Memento)
-        worker.apply(reverb, region) ─► new samples ─► waveform redraw
+Import audio ─► MediaEngine.probe ─► media:decodeAudio: FFmpeg writes f32 samples to a temp file
+  ─► the page fetches it once through media:// (allow-listed), splits it into channels,
+     then media:release deletes it (the samples never sit in the main process)
+  ─► editAudio('Import …', tx ⇒ tx.addTrack(…))                         (one undo step)
+
+Select 19.10–40.00 s ─► Effect ▸ Amplify… ─► dialog generated from the registry schema (P7),
+  settings suggested from the selection (largest gain without clipping)
+  ─► Preview: the effect on (at most 6 s of) a copy, played through Web Audio
+  ─► Apply: editAudio('Amplify 19.10 – 40.00 s', tx ⇒ applyToSelection(…))
+        Memento keeps only the 20.9 s that were replaced ─► waveform redrawn (visible part only)
+
+Export ─► mix of what is heard (mute / solo, gain, pan, clipped) from 0 s at the chosen channels
+  ─► MediaEngine.encodeAudio ─► the main process writes the samples to a temp file just before
+     FFmpeg starts (job queue prepare / clean-up) ─► MP3 / M4A / AAC / WAV / FLAC with tags
 ```
+
+In M9 the DSP runs in the page: every M9 effect on a 3-minute stereo clip takes well under N3's
+3 s (change speed 0.65–1.5 s, the slowest). The Web Worker arrives with M10's heavy effects
+(noise reduction, reverb, pitch).
 
 ## 8. Ports and IPC contract
 
@@ -317,10 +335,13 @@ interface MediaEngine {
 interface JobHandle { id: string; done: Promise<void>; cancel(): void }      // done rejects JobCancelledError / MediaError
 interface TextRenderer { draw(text, style, frame, mode: 'frame' | 'block'): Promise<{ png, width, height }> } // §7.3
 
-// Planned for later milestones:
-//   decodeAudio / encodeAudio (M9, A16–A17), export jobs (M3/M8)
+decodeAudio(path, sampleRate?): Promise<DecodedAudio>;                    // A1: { sampleRate, channels: Float32Array[], bits? }
+decodeAudioToFile(path, sampleRate?): Promise<DecodedAudioFile>;        // the same, left in a temp f32 file (used over IPC)
+releaseDecoded(raw): Promise<void>;
+encodeAudio({ sampleRate, channels }, output, AudioExportSettings): JobHandle; // A16, A17
+interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): number }  // app/audio.ts; Web Audio adapter
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
-interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; }
+interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
 interface Recorder { start(deviceId?): Promise<void>; stop(): Promise<Float32Array[]>; }  // A14 (uses getUserMedia)
 ```
 
@@ -335,19 +356,21 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:render` | invoke | start an export job |
 | `media:waveform` / `media:frame` | invoke | peaks / still frame |
 | `media:snapshot` | invoke | V10: one frame of the project through the compiler, saved as PNG/JPG/BMP/TIFF without a dialog (a `Snapshots` folder next to the project, or the app's own folder before the first save); never overwrites; returns the path, which is then allowed for `media://` |
+| `media:decodeAudio` / `media:release` | invoke | A1: decode to a temp f32 file the page may read once through `media://`; then delete it |
+| `media:encodeAudio` | invoke | A16, A17: start an audio export job (samples written to a temp file just before FFmpeg starts) |
 | `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
 | `app:paths` | invoke | proxy folder and recovery file |
-| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `confirm` / `chooseFolder` | invoke | native dialogs |
+| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` | invoke | native dialogs |
 | `project:read` / `project:write` / `project:remove` | invoke | `.mve` files (write = temp file + rename) |
 | `project:copy` | invoke | Package Project (P2): copies a media file — only files in the allow-list |
 | `project:saveImage` | invoke | a text PNG by plain name into the app's own `text` folder (never the student's folders) |
-| `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, package, undo, redo) |
+| `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, exportAudio, package, undo, redo, selectAll); undo, redo, import and Select All act on the mode that is showing (`ui/menu-actions.ts`) |
 
 Local files reach the page only through the **`media://` protocol** (`src/main/protocol/`): range requests for seeking, and an **allow-list** of files the app probed or created — the page can never read arbitrary files.
 
-Planned for later milestones: `media:decode-audio` / `media:encode-audio` (M9).
+The `media://` scheme is CORS-enabled so the page can `fetch()` decoded sound; the allow-list stays the gate.
 
 ## 9. Error handling
 
