@@ -56,6 +56,18 @@ export interface DecodedAudio {
   bits?: number;
 }
 
+/**
+ * Decoded sound written to a temporary file of 32-bit float samples side by side (L R L R…),
+ * so the samples can go straight to the page without passing through the main process memory.
+ */
+export interface DecodedAudioFile {
+  sampleRate: number;
+  /** Number of channels: 1 or 2. */
+  count: number;
+  bits?: number;
+  raw: string;
+}
+
 export interface MediaEngine {
   probe(path: string): Promise<ProbeInfo>;
   /** 360 px tall preview copy used for smooth playback (ARCHITECTURE §10.2). `duration` is the source length. */
@@ -94,6 +106,10 @@ export interface MediaEngine {
    * to stereo), at the file's own sample rate or at `sampleRate`.
    */
   decodeAudio(path: string, sampleRate?: number): Promise<DecodedAudio>;
+  /** Like decodeAudio, but leaves the samples in a temporary file (see DecodedAudioFile). */
+  decodeAudioToFile(path: string, sampleRate?: number): Promise<DecodedAudioFile>;
+  /** Deletes a file made by decodeAudioToFile. */
+  releaseDecoded(raw: string): Promise<void>;
   /** A16, A17: saves samples as an audio file in the chosen format, in the background. */
   encodeAudio(
     audio: { sampleRate: number; channels: readonly Float32Array[] },

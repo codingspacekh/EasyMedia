@@ -24,6 +24,8 @@ type Handlers = {
 
 export function registerIpc(s: MainServices): void {
   const jobs = new Map<string, JobHandle>();
+  /** Temporary files of decoded sound the page has not read yet. */
+  const decoded = new Set<string>();
   const keyOf = new Map<string, string>();
 
   // Progress comes from engine events; the outcome from the job's promise.
@@ -91,7 +93,19 @@ export function registerIpc(s: MainServices): void {
     },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),
-    'media:decodeAudio': (path, sampleRate) => s.engine.decodeAudio(path, sampleRate),
+    // A1: the samples are left in a file the page reads once through media://, then releases.
+    'media:decodeAudio': async (path, sampleRate) => {
+      const file = await s.engine.decodeAudioToFile(path, sampleRate);
+      decoded.add(file.raw);
+      s.allow.add(file.raw);
+      return file;
+    },
+    'media:release': async (raw) => {
+      if (!decoded.delete(raw)) return null;
+      s.allow.remove(raw);
+      await s.engine.releaseDecoded(raw);
+      return null;
+    },
     'media:encodeAudio': async (key, audio, output, settings) =>
       track(key, 'Export audio', s.engine.encodeAudio(audio, output, settings), () =>
         s.allow.add(output),

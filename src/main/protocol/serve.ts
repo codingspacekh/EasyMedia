@@ -48,6 +48,8 @@ export async function serveMediaFile(
       'Content-Type': type,
       'Content-Length': String(end - start + 1),
       'Accept-Ranges': 'bytes',
+      // The page (file://) reads decoded sound with fetch(); the allow-list above is the gate.
+      'Access-Control-Allow-Origin': '*',
       ...(range ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}),
     },
   });

@@ -24,7 +24,13 @@ if (process.env.EASYMEDIA_USER_DATA) app.setPath('userData', process.env.EASYMED
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'media',
-    privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true },
+    privileges: {
+      standard: true,
+      secure: true,
+      stream: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
   },
 ]);
 

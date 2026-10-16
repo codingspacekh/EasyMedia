@@ -30,7 +30,9 @@ mediaEngineContract('Electron adapter over IPC', () => {
     },
   });
   return {
-    engine: createElectronMediaEngine(inProcessBridge(backend).api),
+    engine: createElectronMediaEngine(inProcessBridge(backend).api, {
+      readFile: async (raw) => backend.readRaw(raw),
+    }),
     video: '/media/clip.mp4',
     image: '/media/photo.jpg',
     audio: '/media/music.mp3',

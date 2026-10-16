@@ -58,6 +58,26 @@ export function createNodeMediaEngine(
     return parseProbe(JSON.parse(stdout) as FfprobeJson);
   }
 
+  async function decodeAudioToFile(input: string, sampleRate?: number) {
+    const info = await probe(input);
+    if (!info.audio) throw new MediaError(NO_SOUND);
+    const count = Math.min(2, info.audio.channels);
+    const rate = sampleRate ?? info.audio.sampleRate;
+    const raw = join(tmpdir(), `easymedia-decode-${randomUUID()}.f32`);
+    await queue.run({
+      label: 'Opening sound',
+      args: decodeArgs(input, count, rate),
+      output: raw,
+      ...(info.duration ? { duration: info.duration } : {}),
+    }).done;
+    return {
+      sampleRate: rate,
+      count,
+      raw,
+      ...(info.audio.bitDepth ? { bits: info.audio.bitDepth } : {}),
+    };
+  }
+
   return {
     probe,
 
@@ -133,33 +153,27 @@ export function createNodeMediaEngine(
       return queue.run({ label: 'Export', args: plan.args, output, duration: plan.duration });
     },
 
+    decodeAudioToFile,
+
     async decodeAudio(input, sampleRate) {
-      const info = await probe(input);
-      if (!info.audio) throw new MediaError(NO_SOUND);
-      const count = Math.min(2, info.audio.channels);
-      const rate = sampleRate ?? info.audio.sampleRate;
-      const raw = join(tmpdir(), `easymedia-decode-${randomUUID()}.f32`);
+      const decoded = await decodeAudioToFile(input, sampleRate);
       try {
-        await queue.run({
-          label: 'Opening sound',
-          args: decodeArgs(input, count, rate),
-          output: raw,
-          ...(info.duration ? { duration: info.duration } : {}),
-        }).done;
-        const bytes = await readFile(raw);
+        const bytes = await readFile(decoded.raw);
         // Copy into an aligned buffer: Float32Array needs a 4-byte aligned offset.
         const samples = new Float32Array(
           bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
         );
         return {
-          sampleRate: rate,
-          channels: deinterleave(samples, count),
-          ...(info.audio.bitDepth ? { bits: info.audio.bitDepth } : {}),
+          sampleRate: decoded.sampleRate,
+          channels: deinterleave(samples, decoded.count),
+          ...(decoded.bits ? { bits: decoded.bits } : {}),
         };
       } finally {
-        await rm(raw, { force: true });
+        await rm(decoded.raw, { force: true });
       }
     },
+
+    releaseDecoded: (raw) => rm(raw, { force: true }),
 
     encodeAudio(audio, output, settings) {
       try {

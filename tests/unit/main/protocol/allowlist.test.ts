@@ -16,4 +16,11 @@ describe('only files the app imported or created can be served to the page', () 
     expect(allow.has('/media/x/../clip.mp4')).toBe(true);
     expect(allow.has('/media/clip.mp4/../../etc/passwd')).toBe(false);
   });
+
+  it('a file can be taken off the list again', () => {
+    const allow = createAllowList();
+    allow.add('/tmp/decoded.f32');
+    allow.remove('/tmp/decoded.f32');
+    expect(allow.has('/tmp/decoded.f32')).toBe(false);
+  });
 });

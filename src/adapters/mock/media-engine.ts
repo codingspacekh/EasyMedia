@@ -4,6 +4,7 @@ import { FILE_NOT_FOUND, JobCancelledError, MediaError } from '../../core/model/
 import type { JobEvent, JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
 import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
+import { interleave } from '../../core/audio/pcm.ts';
 import { compileProject } from '../../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../../core/render/formats.ts';
 import {
@@ -19,6 +20,8 @@ const even = (n: number) => 2 * Math.round(n / 2);
 
 export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = {}) {
   const files = new Map(Object.entries(initialFiles));
+  /** Decoded sound "on disk" (decodeAudioToFile). */
+  const raws = new Map<string, Uint8Array>();
   const listeners = new Set<(event: JobEvent) => void>();
   let nextId = 1;
   const emit = (event: JobEvent) => listeners.forEach((listener) => listener(event));
@@ -60,8 +63,18 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
     return { id, done, cancel: () => (cancelled = true) };
   }
 
-  const engine: MediaEngine & { addFile(path: string, info: ProbeInfo): void } = {
+  const engine: MediaEngine & {
+    addFile(path: string, info: ProbeInfo): void;
+    readRaw(raw: string): Uint8Array;
+  } = {
     addFile: (path, info) => void files.set(path, info),
+
+    /** The bytes of a decodeAudioToFile result (what the page would fetch). */
+    readRaw(raw) {
+      const bytes = raws.get(raw);
+      if (!bytes) throw new MediaError(FILE_NOT_FOUND);
+      return bytes;
+    },
 
     probe: async (path) => structuredClone(find(path)),
 
@@ -195,6 +208,18 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
         channels,
         ...(info.audio.bitDepth ? { bits: info.audio.bitDepth } : {}),
       };
+    },
+
+    async decodeAudioToFile(path, sampleRate) {
+      const { channels, ...rest } = await engine.decodeAudio(path, sampleRate);
+      const data = interleave(channels);
+      const raw = `/tmp/mock-decode-${nextId++}.f32`;
+      raws.set(raw, new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+      return { ...rest, count: channels.length, raw };
+    },
+
+    async releaseDecoded(raw) {
+      raws.delete(raw);
     },
 
     encodeAudio(audio, output, settings) {

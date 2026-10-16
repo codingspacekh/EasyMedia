@@ -3,7 +3,7 @@
 import type { Project } from '../core/model/types.ts';
 import type {
   AppPaths,
-  DecodedAudio,
+  DecodedAudioFile,
   JobEvent,
   ProbeInfo,
   RenderVideoOptions,
@@ -39,7 +39,8 @@ export interface Channels {
     args: [jobKey: string, project: Project, output: string, options: RenderVideoOptions];
     result: null;
   };
-  'media:decodeAudio': { args: [path: string, sampleRate?: number]; result: DecodedAudio };
+  'media:decodeAudio': { args: [path: string, sampleRate?: number]; result: DecodedAudioFile };
+  'media:release': { args: [raw: string]; result: null };
   'media:encodeAudio': {
     args: [
       jobKey: string,
@@ -83,6 +84,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:snapshot',
   'media:render',
   'media:decodeAudio',
+  'media:release',
   'media:encodeAudio',
   'job:cancel',
   'app:paths',
