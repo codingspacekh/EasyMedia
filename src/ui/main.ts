@@ -7,7 +7,8 @@ import {
   createElectronProjectFiles,
   getAppPaths,
 } from '../adapters/electron/services.ts';
-import type { MenuAction } from '../preload/api.ts';
+import { createWebAudioOutput } from '../adapters/webaudio/output.ts';
+import { menuActions } from './menu-actions.ts';
 import App from './App.svelte';
 import './fonts.css';
 import './theme.css';
@@ -24,18 +25,9 @@ if (!window.mve) {
     files: createElectronProjectFiles(api),
     text: createCanvasTextRenderer(),
     paths: await getAppPaths(api),
+    audioOutput: createWebAudioOutput(),
   });
-  const actions: Record<MenuAction, () => unknown> = {
-    new: app.newProject,
-    open: app.open,
-    save: app.save,
-    saveAs: app.saveAs,
-    import: app.importMedia,
-    export: app.exportVideo,
-    package: app.packageProject,
-    undo: app.undo,
-    redo: app.redo,
-  };
+  const actions = menuActions(app);
   api.on('menu:action', (action) => void actions[action]());
   mount(App, { target, props: { app } });
   void app.start();

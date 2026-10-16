@@ -29,6 +29,7 @@ export function menuTemplate(
         { type: 'separator' },
         item('Import Media…', 'CmdOrCtrl+I', 'import'),
         item('Export Video…', 'CmdOrCtrl+E', 'export'),
+        item('Export Audio…', 'CmdOrCtrl+Shift+E', 'exportAudio'),
         item('Package Project…', 'CmdOrCtrl+Shift+P', 'package'),
         ...(mac ? [] : [{ type: 'separator' } as const, { role: 'quit', label: 'Exit' } as const]),
       ],
@@ -39,10 +40,12 @@ export function menuTemplate(
         item('Undo', 'CmdOrCtrl+Z', 'undo'),
         item('Redo', mac ? 'Shift+CmdOrCtrl+Z' : 'Ctrl+Y', 'redo'),
         { type: 'separator' },
+        // Cut, copy and paste work in text boxes and, in Audio mode, on the selected sound
+        // (the page listens for the clipboard events). Select All is decided by the page too.
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'selectAll' },
+        item('Select All', 'CmdOrCtrl+A', 'selectAll'),
       ],
     },
     {

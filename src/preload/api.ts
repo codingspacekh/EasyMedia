@@ -104,7 +104,17 @@ export const CHANNELS: readonly Channel[] = [
 export type Reply<T> = { ok: true; value: T } | { ok: false; error: WireError };
 
 export type MenuAction =
-  'new' | 'open' | 'save' | 'saveAs' | 'import' | 'export' | 'package' | 'undo' | 'redo';
+  | 'new'
+  | 'open'
+  | 'save'
+  | 'saveAs'
+  | 'import'
+  | 'export'
+  | 'exportAudio'
+  | 'package'
+  | 'undo'
+  | 'redo'
+  | 'selectAll';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

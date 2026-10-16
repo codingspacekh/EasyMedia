@@ -21,6 +21,7 @@ describe('X3 native menus', () => {
     ['Save As…', 'CmdOrCtrl+Shift+S', 'saveAs'],
     ['Import Media…', 'CmdOrCtrl+I', 'import'],
     ['Export Video…', 'CmdOrCtrl+E', 'export'],
+    ['Export Audio…', 'CmdOrCtrl+Shift+E', 'exportAudio'],
     ['Package Project…', 'CmdOrCtrl+Shift+P', 'package'],
   ])('File ▸ %s (%s) sends "%s" to the page', (label, accelerator, action) => {
     const send = vi.fn<(a: MenuAction) => void>();
@@ -44,14 +45,24 @@ describe('X3 native menus', () => {
     expect(redo('win32').accelerator).toBe('Ctrl+Y');
   });
 
-  it('Edit keeps cut / copy / paste for text boxes', () => {
+  it('Edit keeps cut / copy / paste (text boxes, and sound in Audio mode)', () => {
     const roles = items(
       find(
         menuTemplate('win32', () => {}, false),
         'Edit',
       ),
     ).map((i) => i.role);
-    expect(roles).toEqual(expect.arrayContaining(['cut', 'copy', 'paste', 'selectAll']));
+    expect(roles).toEqual(expect.arrayContaining(['cut', 'copy', 'paste']));
+  });
+
+  it('Edit ▸ Select All (CmdOrCtrl+A) goes to the page: a text box, or all the sound (A5)', () => {
+    const send = vi.fn<(a: MenuAction) => void>();
+    const item = items(find(menuTemplate('darwin', send, false), 'Edit')).find(
+      (i) => i.label === 'Select All',
+    )!;
+    expect(item.accelerator).toBe('CmdOrCtrl+A');
+    (item.click as () => void)();
+    expect(send).toHaveBeenCalledWith('selectAll');
   });
 
   it('Windows has Exit in the File menu; macOS quits from the app menu', () => {
