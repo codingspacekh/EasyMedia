@@ -8,14 +8,25 @@ import type { AudioDoc, AudioTrack, Channels } from './pcm.ts';
 
 type Meta = Partial<Pick<AudioTrack, 'name' | 'offset' | 'gain' | 'pan'>>;
 
+/** Samples an undo step keeps on disk instead of in memory (as Audacity; see stored.ts). */
+export interface StoredSamples {
+  stored: string;
+  count: number;
+  length: number;
+}
+/** Samples of an undo step: in memory, or on disk. */
+export type Samples = Channels | StoredSamples;
+/** A track kept by an undo step (its samples may be on disk). */
+export type OpTrack = Omit<AudioTrack, 'channels'> & { channels: Samples };
+
 export type AudioOp =
   /** Removes `remove` samples at `at` and puts `insert` there (one array per channel). */
-  | { type: 'splice'; track: Id; at: number; remove: number; insert: Channels }
+  | { type: 'splice'; track: Id; at: number; remove: number; insert: Samples }
   | { type: 'meta'; track: Id; set: Meta }
-  | { type: 'insert'; index: number; track: AudioTrack }
+  | { type: 'insert'; index: number; track: OpTrack }
   | { type: 'remove'; track: Id }
   | { type: 'move'; track: Id; to: number }
-  | { type: 'channels'; track: Id; channels: Channels }
+  | { type: 'channels'; track: Id; channels: Samples }
   | { type: 'rate'; rate: number };
 
 export interface AudioChange {
@@ -116,19 +127,27 @@ function withTrack(doc: AudioDoc, index: number, track: AudioTrack): AudioDoc {
   return { ...doc, tracks: doc.tracks.map((t, i) => (i === index ? track : t)) };
 }
 
+/** Samples in memory; samples still on disk are a mistake of the caller (load them first). */
+function need(samples: Samples): Channels {
+  if (!Array.isArray(samples))
+    throw new Error('This undo step is on disk: load it (loadChange) before applying it.');
+  return samples as Channels;
+}
+
 function applyOp(doc: AudioDoc, op: AudioOp): { doc: AudioDoc; inverse: AudioOp } {
   switch (op.type) {
     case 'splice': {
       const index = indexOf(doc, op.track);
       const track = doc.tracks[index]!;
       const length = track.channels[0]!.length;
-      if (op.insert.length !== track.channels.length)
+      const insert = need(op.insert);
+      if (insert.length !== track.channels.length)
         throw new RangeError('A splice needs one array per channel.');
       if (op.at < 0 || op.remove < 0 || op.at + op.remove > length)
         throw new RangeError('A splice must stay inside the track.');
       const removed = track.channels.map((c) => c.slice(op.at, op.at + op.remove));
       const channels = track.channels.map((c, ch) => {
-        const added = op.insert[ch]!;
+        const added = insert[ch]!;
         const out = new Float32Array(length - op.remove + added.length);
         out.set(c.subarray(0, op.at), 0);
         out.set(added, op.at);
@@ -141,7 +160,7 @@ function applyOp(doc: AudioDoc, op: AudioOp): { doc: AudioDoc; inverse: AudioOp 
           type: 'splice',
           track: op.track,
           at: op.at,
-          remove: op.insert[0]!.length,
+          remove: insert[0]!.length,
           insert: removed,
         },
       };
@@ -159,7 +178,7 @@ function applyOp(doc: AudioDoc, op: AudioOp): { doc: AudioDoc; inverse: AudioOp 
     }
     case 'insert': {
       const tracks = [...doc.tracks];
-      tracks.splice(op.index, 0, op.track);
+      tracks.splice(op.index, 0, { ...op.track, channels: need(op.track.channels) });
       return { doc: { ...doc, tracks }, inverse: { type: 'remove', track: op.track.id } };
     }
     case 'remove': {
@@ -180,7 +199,7 @@ function applyOp(doc: AudioDoc, op: AudioOp): { doc: AudioDoc; inverse: AudioOp 
       const index = indexOf(doc, op.track);
       const track = doc.tracks[index]!;
       return {
-        doc: withTrack(doc, index, { ...track, channels: op.channels }),
+        doc: withTrack(doc, index, { ...track, channels: need(op.channels) }),
         inverse: { type: 'channels', track: op.track, channels: track.channels },
       };
     }

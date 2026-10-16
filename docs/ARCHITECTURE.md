@@ -72,7 +72,7 @@ Security defaults: `contextIsolation: true`, `nodeIntegration: false`, `sandbox:
 | P2 | **Facade** | `preload.ts` → `window.mve` | One small, typed surface between UI and system |
 | P3 | **Single store, one-way data flow** | `app/store.ts` | State always lives in one place: *UI → command → store → UI re-renders*. Easy to debug. |
 | P4 | **Command** | `app/commands.ts`, `app/history.ts` | Every edit (trim, move, add title…) is a `Command` whose `apply()` returns a **new** project. Projects are immutable, so `History` keeps the previous project and undo restores it exactly: no per-command undo code, unlimited undo/redo |
-| P5 | **Memento** | `core/audio/history.ts` | Audio edits change samples; undo stores **only what was removed** (the changed region, a track's old settings, a removed track). Every operation returns its inverse while it is applied, so undo and redo are the same mechanism. Sample arrays are never changed once made |
+| P5 | **Memento** | `core/audio/history.ts`, `stored.ts` | Audio edits change samples; undo stores **only what was removed** (the changed region, a track's old settings, a removed track). Every operation returns its inverse while it is applied, so undo and redo are the same mechanism. Sample arrays are never changed once made. As Audacity, the samples of undo steps are kept **on disk** (`UndoStore` port, IndexedDB in the app) and loaded back for undo / redo, so memory does not grow with the history (N4) |
 | P6 | **Strategy + Registry** | `core/effects/registry.ts` | Each effect, transition, filter and export preset is one self-describing object. Adding a feature = adding one file. |
 | P7 | **Schema-driven UI** | `ui/EffectParams.svelte`, `ui/audio/EffectDialog.svelte` | Effect dialogs (Echo, Reverb, Normalise…) are **generated** from each effect's parameter schema. No hand-built dialog per effect. |
 | P8 | **Compiler / Builder** | `core/render/compile.ts` | Project → *RenderPlan* → FFmpeg arguments. Pure function, snapshot-tested. |
@@ -111,6 +111,7 @@ EasyMedia/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts)
 │  │  ├─ webaudio/            output.ts (AudioOutput: Audio mode playback)
+│  │  ├─ indexeddb/           undo-store.ts (UndoStore: Audio mode undo steps on disk)
 │  │  └─ mock/                fake media, fake jobs (browser + tests)
 │  ├─ workers/                audio.worker.ts
 │  ├─ main/                   Electron main: index.ts, ipc.ts, menu.ts, services.ts (dialogs, files), perf.ts
@@ -307,6 +308,8 @@ Select 19.10–40.00 s ─► Effect ▸ Amplify… ─► dialog generated from
   ─► Preview: the effect on (at most 6 s of) a copy, played through Web Audio
   ─► Apply: editAudio('Amplify 19.10 – 40.00 s', tx ⇒ applyToSelection(…))
         Memento keeps only the 20.9 s that were replaced ─► waveform redrawn (visible part only)
+        ─► shortly after, those samples move to disk (UndoStore); Undo loads them back first
+UI blocks keep labels and ids, never tracks or steps: a block holding one keeps its samples alive.
 
 Export ─► mix of what is heard (mute / solo, gain, pan, clipped) from 0 s at the chosen channels
   ─► MediaEngine.encodeAudio ─► the main process writes the samples to a temp file just before
@@ -340,6 +343,7 @@ decodeAudioToFile(path, sampleRate?): Promise<DecodedAudioFile>;        // the s
 releaseDecoded(raw): Promise<void>;
 encodeAudio({ sampleRate, channels }, output, AudioExportSettings): JobHandle; // A16, A17
 interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): number }  // app/audio.ts; Web Audio adapter
+interface UndoStore { save(channels): Promise<key>; load(key): Promise<Float32Array[]>; keepOnly(keys): Promise<void> } // IndexedDB
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
 interface Recorder { start(deviceId?): Promise<void>; stop(): Promise<Float32Array[]>; }  // A14 (uses getUserMedia)

@@ -10,6 +10,9 @@
   const store = $derived(app.audio.store);
   const doc = $derived($store.history.present);
   const track = $derived(doc.tracks.find((t) => $store.selection.tracks.includes(t.id)));
+  // Labels only: holding the steps themselves would keep their samples in memory (N4).
+  const past = $derived($store.history.past.map((c) => c.label));
+  const future = $derived($store.history.future.map((c) => c.label));
   const group = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const facts = $derived.by(() => {
     if (!track) return null;
@@ -57,15 +60,15 @@
   </div>
   <div class="panel-h">History</div>
   <ol class="hist">
-    {#each $store.history.past as change, i (i)}
-      <li class:cur={i === $store.history.past.length - 1}>
-        <Icon name="check" size={12} />{change.label}
+    {#each past as label, i (i)}
+      <li class:cur={i === past.length - 1}>
+        <Icon name="check" size={12} />{label}
       </li>
     {/each}
-    {#each $store.history.future as change, i (i)}
-      <li class="fut">{change.label}</li>
+    {#each future as label, i (i)}
+      <li class="fut">{label}</li>
     {/each}
-    {#if $store.history.past.length + $store.history.future.length === 0}
+    {#if past.length + future.length === 0}
       <li class="none">Nothing done yet.</li>
     {/if}
   </ol>

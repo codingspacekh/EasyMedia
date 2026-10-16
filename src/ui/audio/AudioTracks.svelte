@@ -30,6 +30,7 @@
   /** A track being dragged with the time shift tool, before the move is committed. */
   let shifted: { id: string; offset: number } | null = $state(null);
 
+  const trackIds = $derived(doc.tracks.map((t) => t.id));
   const duration = $derived(docDuration(doc));
   const contentWidth = $derived(
     Math.ceil(Math.max(duration, sel.end, $store.position) * pps + viewWidth * 0.5),
@@ -101,10 +102,14 @@
 
   const offsetOf = (t: AudioTrack) => (shifted?.id === t.id ? shifted.offset : t.offset);
 
-  /** Draws the visible part of a track's waveform. */
-  function drawWave(canvas: HTMLCanvasElement, t: AudioTrack): void {
+  /**
+   * Draws the visible part of a track's waveform. Takes the id, not the track: a drawing
+   * effect holding a track would keep its old samples in memory after every edit (N4).
+   */
+  function drawWave(canvas: HTMLCanvasElement, id: string): void {
+    const t = doc.tracks.find((x) => x.id === id);
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!t || !ctx) return;
     const width = Math.max(1, Math.floor(viewWidth));
     const height = heightOf(t);
     const dpr = window.devicePixelRatio || 1;
@@ -240,7 +245,9 @@
         </div>
       </div>
 
-      {#each doc.tracks as t (t.id)}
+      <!-- By id: blocks holding track objects would keep old samples in memory (N4). -->
+      {#each trackIds as id (id)}
+        {@const t = doc.tracks.find((x) => x.id === id)!}
         {@const selected = sel.tracks.includes(t.id)}
         <div class="row" style:height="{heightOf(t)}px">
           <div class="a-th" class:selected role="group" aria-label="Track {t.name}">
@@ -315,7 +322,7 @@
             <canvas
               style:width="{viewWidth}px"
               style:height="{heightOf(t)}px"
-              {@attach (canvas) => drawWave(canvas, t)}
+              {@attach (canvas) => drawWave(canvas, t.id)}
             ></canvas>
             {#if t.channels[0]!.length > 0}
               <div

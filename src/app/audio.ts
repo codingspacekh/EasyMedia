@@ -46,7 +46,15 @@ import { EditError, JobCancelledError, MediaError } from '../core/model/errors.t
 import { newId } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
 import type { Id } from '../core/model/types.ts';
-import type { Dialogs, MediaEngine } from '../core/ports.ts';
+import type { Dialogs, MediaEngine, UndoStore } from '../core/ports.ts';
+import {
+  changeRefs,
+  hasLooseSamples,
+  historyRefs,
+  loadChange,
+  replaceChange,
+  stashChange,
+} from '../core/audio/stored.ts';
 import {
   AUDIO_FORMATS,
   estimateAudioSize,
@@ -95,7 +103,12 @@ export interface AudioDeps {
   engine: MediaEngine;
   dialogs: Pick<Dialogs, 'openMedia' | 'exportAudio'>;
   output: AudioOutput;
+  /** Keeps undo steps on disk (as Audacity). Without it they stay in memory. */
+  undoStore?: UndoStore;
 }
+
+/** Undo steps with at least this many samples (all channels) go to disk: about 1 s of mono. */
+export const DISK_MIN_SAMPLES = 44100;
 
 /** How much of the selection an effect's Preview plays (as Audacity). */
 export const PREVIEW_SECONDS = 6;
@@ -109,7 +122,7 @@ const baseName = (path: string) => fileNameOf(path).replace(/\.[^.]+$/, '');
 /** A silent output, for when no speakers are wired up. */
 export const SILENT_OUTPUT: AudioOutput = { play: () => {}, stop: () => {}, elapsed: () => 0 };
 
-export function createAudioApp({ engine, dialogs, output }: AudioDeps) {
+export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps) {
   const store: Store<AudioState> = createStore<AudioState>({
     history: createAudioHistory(emptyDoc()),
     selection: { start: 0, end: 0, tracks: [] },
@@ -132,10 +145,72 @@ export function createAudioApp({ engine, dialogs, output }: AudioDeps) {
   const showError = (error: unknown) =>
     patch({ message: { kind: 'error', text: errorText(error) } });
 
+  // ---- undo steps on disk (A18 + N4) ----
+  // Disk work runs one job at a time: moving new steps to disk, deleting steps nobody can
+  // reach any more, and loading a step back for undo / redo.
+  let work: Promise<void> = Promise.resolve();
+  const serial = (job: () => Promise<void>): Promise<void> =>
+    (work = work.then(job).catch(() => {}));
+
+  async function moveStepsToDisk(): Promise<void> {
+    const { history } = store.get();
+    for (const step of [...history.past, ...history.future]) {
+      if (!hasLooseSamples(step, DISK_MIN_SAMPLES)) continue;
+      try {
+        const stored = await stashChange(step, (c) => undoStore!.save(c), DISK_MIN_SAMPLES);
+        store.update((s) => ({ ...s, history: replaceChange(s.history, step, stored) }));
+      } catch {
+        // the disk cannot be written: the step simply stays in memory
+      }
+    }
+    await undoStore!.keepOnly(historyRefs(store.get().history)).catch(() => {});
+  }
+
+  /** After every change of the history: big new steps go to disk, unreachable ones are deleted. */
+  function historyChanged(): void {
+    if (undoStore) void serial(moveStepsToDisk);
+  }
+
+  if (undoStore) void serial(() => undoStore.keepOnly([])); // what an earlier session left behind
+
+  function navigate(direction: 'undo' | 'redo'): Promise<void> {
+    const apply = direction === 'undo' ? undoAudio : redoAudio;
+    const stepOf = (h: AudioHistory) => (direction === 'undo' ? h.past.at(-1) : h.future[0]);
+    if (!undoStore) {
+      patch({ history: apply(store.get().history) });
+      return Promise.resolve();
+    }
+    return serial(async () => {
+      const step = stepOf(store.get().history);
+      if (!step) return;
+      let ready = step;
+      if (changeRefs(step).length) {
+        try {
+          ready = await loadChange(step, (key) => undoStore.load(key));
+        } catch {
+          patch({
+            message: {
+              kind: 'error',
+              text: 'This step could not be undone: its saved sound is missing.',
+            },
+          });
+          return;
+        }
+      }
+      store.update((s) => {
+        // An edit made while the step was loading means this undo / redo no longer applies.
+        if (stepOf(s.history) !== step) return s;
+        return { ...s, history: apply(replaceChange(s.history, step, ready)) };
+      });
+      historyChanged();
+    });
+  }
+
   /** Runs an edit as one undoable step; returns why it was refused, or null. */
   function tryEdit(label: string, edit: (tx: AudioEdit) => void): string | null {
     try {
-      const history = editAudio(store.get().history, label, edit);
+      const before = store.get().history;
+      const history = editAudio(before, label, edit);
       const ids = new Set(history.present.tracks.map((t) => t.id));
       store.update((s) => ({
         ...s,
@@ -143,6 +218,7 @@ export function createAudioApp({ engine, dialogs, output }: AudioDeps) {
         selection: { ...s.selection, tracks: s.selection.tracks.filter((id) => ids.has(id)) },
         message: null,
       }));
+      if (history !== before) historyChanged();
       return null;
     } catch (error) {
       return errorText(error);
@@ -490,8 +566,18 @@ export function createAudioApp({ engine, dialogs, output }: AudioDeps) {
 
     // ---- undo (A18) ----
 
-    undo: () => patch({ history: undoAudio(store.get().history) }),
-    redo: () => patch({ history: redoAudio(store.get().history) }),
+    /** Undo / redo; a step kept on disk is loaded first (then the promise resolves). */
+    undo: () => navigate('undo'),
+    redo: () => navigate('redo'),
+
+    /** Resolves when no disk work is waiting (for tests and before quitting). */
+    async settled(): Promise<void> {
+      let current: Promise<void>;
+      do {
+        current = work;
+        await current;
+      } while (current !== work);
+    },
     canUndo: () => canUndoAudio(store.get().history),
     canRedo: () => canRedoAudio(store.get().history),
 

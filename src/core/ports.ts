@@ -119,6 +119,17 @@ export interface MediaEngine {
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }
 
+/**
+ * A18 + N4: where Audio mode keeps the samples of its undo steps — on disk, as Audacity, so
+ * memory does not grow with the history (IndexedDB in the app).
+ */
+export interface UndoStore {
+  save(channels: readonly Float32Array[]): Promise<string>;
+  load(key: string): Promise<Float32Array[]>;
+  /** Deletes every step except `keep` (steps that can no longer be undone or redone). */
+  keepOnly(keep: readonly string[]): Promise<void>;
+}
+
 /** Native file dialogs (P1). `null` / `[]` means the student cancelled. */
 export interface Dialogs {
   openMedia(): Promise<string[]>;

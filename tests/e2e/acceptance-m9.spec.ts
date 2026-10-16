@@ -60,6 +60,21 @@ async function applyEffect(page: Page, item: string, title: string) {
   await dialog.getByRole('button', { name: 'Apply' }).click();
   await expect(dialog).toBeHidden();
 }
+/** How many undo steps keep their sound in the app's IndexedDB. */
+const stepsOnDisk = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const r = indexedDB.open('easymedia-undo');
+        r.onsuccess = () => {
+          const count = r.result.transaction('steps').objectStore('steps').count();
+          count.onsuccess = () => resolve(count.result);
+          count.onerror = () => reject(count.error);
+        };
+        r.onerror = () => reject(r.error);
+      }),
+  );
+
 async function exportAudio(
   app: ElectronApplication,
   page: Page,
@@ -152,6 +167,16 @@ test('Book A 11.16–11.19, 11.27, 11.29: trim to 41 s, paste the 39 s section a
   await headers.nth(0).getByRole('button', { name: 'piano_stereo_60s', exact: true }).click();
   await select(page, '41', '60');
   await page.getByRole('button', { name: 'Cut' }).click();
+  // A18 + N4: the cut sound goes to disk (IndexedDB); Undo brings it back, Redo cuts it again.
+  const length = page
+    .getByRole('complementary', { name: 'Selected track' })
+    .getByText(/^\d+\.\d\d s$/);
+  await expect(length).toHaveText('41.00 s');
+  await expect.poll(() => stepsOnDisk(page)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(length).toHaveText('42.00 s');
+  await page.getByRole('button', { name: 'Redo' }).click();
+  await expect(length).toHaveText('41.00 s');
   await select(page, '36', '41');
   await menuItem(page, 'Effect', 'Fade out');
   await menuItem(page, 'Tracks', 'Mix stereo down to mono');

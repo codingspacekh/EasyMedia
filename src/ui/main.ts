@@ -8,6 +8,7 @@ import {
   getAppPaths,
 } from '../adapters/electron/services.ts';
 import { createWebAudioOutput } from '../adapters/webaudio/output.ts';
+import { createIndexedDbUndoStore } from '../adapters/indexeddb/undo-store.ts';
 import { menuActions } from './menu-actions.ts';
 import App from './App.svelte';
 import './fonts.css';
@@ -26,6 +27,7 @@ if (!window.mve) {
     text: createCanvasTextRenderer(),
     paths: await getAppPaths(api),
     audioOutput: createWebAudioOutput(),
+    audioUndoStore: createIndexedDbUndoStore(),
   });
   const actions = menuActions(app);
   api.on('menu:action', (action) => void actions[action]());

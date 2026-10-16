@@ -54,7 +54,9 @@ describe('A18 / P5 audio history (Memento)', () => {
     const h = editAudio(createAudioHistory(docWith([ramp(1000)])), 'Fade', (tx) =>
       tx.splice('t0', 10, 5, [new Float32Array(5)]),
     );
-    const kept = h.past[0]!.undo.flatMap((op) => (op.type === 'splice' ? op.insert : []));
+    const kept = h.past[0]!.undo.flatMap((op) =>
+      op.type === 'splice' ? (op.insert as Float32Array[]) : [],
+    );
     expect(kept.reduce((n, a) => n + a.length, 0)).toBe(5);
   });
 

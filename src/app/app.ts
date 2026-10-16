@@ -37,6 +37,7 @@ import type {
   ProbeInfo,
   ProjectFiles,
   TextRenderer,
+  UndoStore,
 } from '../core/ports.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
@@ -87,6 +88,8 @@ export interface AppDeps {
   paths: AppPaths;
   /** Speakers for Audio mode (Web Audio in the app). */
   audioOutput?: AudioOutput;
+  /** Where Audio mode keeps its undo steps (on disk in the app; in memory without it). */
+  audioUndoStore?: UndoStore;
   autosaveMs?: number;
 }
 
@@ -111,6 +114,7 @@ export function createApp({
   text,
   paths,
   audioOutput = SILENT_OUTPUT,
+  audioUndoStore,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -327,7 +331,12 @@ export function createApp({
   }
 
   /** Audio mode (A1–A18): its own tracks, selection and undo history. */
-  const audio = createAudioApp({ engine, dialogs, output: audioOutput });
+  const audio = createAudioApp({
+    engine,
+    dialogs,
+    output: audioOutput,
+    ...(audioUndoStore ? { undoStore: audioUndoStore } : {}),
+  });
 
   return {
     store,
