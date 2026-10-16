@@ -9,9 +9,10 @@
     setAudioFades,
     setAudioVolume,
     setDucking,
+    setSoundSpeed,
     trimAudio,
   } from '../app/commands.ts';
-  import { mainTrackDuration } from '../core/model/timeline.ts';
+  import { audioDuration, mainTrackDuration } from '../core/model/timeline.ts';
   import type { AudioItem } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import Icon from './Icon.svelte';
@@ -23,7 +24,9 @@
   const project = $derived($store.history.present);
   const asset = $derived(project.media.find((m) => m.id === item.assetId));
   const videoEnd = $derived(mainTrackDuration(project.timeline.main));
-  const length = $derived(item.out - item.in);
+  const length = $derived(audioDuration(item));
+  const speed = $derived(item.speed ?? 1);
+  const SPEEDS = [0.25, 0.5, 1, 1.5, 2, 4];
   const end = $derived(Math.min(item.start + length, videoEnd));
   let actionError: string | null = $state(null);
 </script>
@@ -74,6 +77,22 @@
         ? ', ending with the video'
         : ''}.
     {/if}
+  </p>
+</section>
+
+<section>
+  <h3><Icon name="speed" size={14} /> Speed <span class="syl">11.1</span></h3>
+  <div class="speeds">
+    {#each SPEEDS as s (s)}
+      <button
+        aria-pressed={speed === s}
+        onclick={() => (actionError = app.edit(setSoundSpeed(item.id, s)))}>{s}×</button
+      >
+    {/each}
+  </div>
+  <p class="hint">
+    {(item.out - item.in).toFixed(2)} s ÷ {speed} = {length.toFixed(2)} s on the timeline. The pitch stays
+    the same.
   </p>
 </section>
 
@@ -200,6 +219,19 @@
   .row button {
     padding: 4px 8px;
     font-size: 12px;
+  }
+  .speeds {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .speeds button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .speeds button[aria-pressed='true'] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
   }
   .hint {
     color: var(--tx-3);

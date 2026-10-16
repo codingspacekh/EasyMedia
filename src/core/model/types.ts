@@ -168,6 +168,8 @@ export interface AudioItem {
   fadeOut: Seconds;
   /** Music only: 6 dB quieter while the voiceover plays. */
   duck?: boolean;
+  /** 0.25–4, pitch kept; missing = 1 (V13 like V14). */
+  speed?: number;
 }
 
 export interface Project {

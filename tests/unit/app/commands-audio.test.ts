@@ -4,7 +4,10 @@ import {
   setAudioFades,
   setAudioVolume,
   setClipVolume,
+  joinSoundWithNext,
   setDucking,
+  setSoundSpeed,
+  splitSound,
   trimAudio,
   unlinkClipSound,
 } from '../../../src/app/commands.ts';
@@ -175,19 +178,56 @@ describe('V13 audio commands', () => {
       refuses(unlinkClipSound('v', 'u'), /no free space/i, busy);
     });
 
-    it('refuses clips with no sound, muted clips, titles, and clips not at normal speed', () => {
+    it('refuses clips with no sound, muted clips and titles', () => {
       refuses(unlinkClipSound('s', 'u'), /no sound/i);
       refuses(unlinkClipSound('t', 'u'), /only video clips/i);
       refuses(unlinkClipSound('v', 'u'), /no sound/i, muteLake());
+    });
+
+    it('a clip at another speed keeps that speed on its separated sound', () => {
       const p = run(sample(), removeVoiceover());
-      const slow = {
+      const fast = {
         ...p,
         timeline: {
           ...p.timeline,
           main: p.timeline.main.map((m) => (m.id === 'v' ? { ...m, speed: 2 } : m)),
         },
       };
-      refuses(unlinkClipSound('v', 'u'), /1×/, slow);
+      const u = audio(run(fast, unlinkClipSound('v', 'u')), 'u');
+      expect(u).toMatchObject({ start: 8, in: 0, out: 20, speed: 2 }); // plays 8–18 s, like the clip
+    });
+  });
+
+  describe('speed, split and join of a sound (like a video clip)', () => {
+    it('speed: the music (5–8 s) at 2× plays 5–6.5 s; slowing it into the next sound is refused', () => {
+      const p = run(sample(), setSoundSpeed('m', 2));
+      expect(audio(p, 'm').speed).toBe(2);
+      const shared = run(sample(), moveAudioToTrack('m', 1)); // 5–8 s, voiceover at 10 s
+      refuses(setSoundSpeed('m', 0.25), /overlaps/i, shared); // would play 5–17 s
+      refuses(setSoundSpeed('m', 8), /0.25× and 4×/);
+    });
+
+    it('split at the playhead makes two parts; join puts them back', () => {
+      const p = run(sample(), splitSound(6.5, 'm', ['m1', 'm2'])); // music 5–8 s
+      expect(p.timeline.audio[0]).toMatchObject([
+        { id: 'm1', start: 5, in: 0, out: 1.5 },
+        { id: 'm2', start: 6.5, in: 1.5, out: 3 },
+      ]);
+      const joined = run(p, joinSoundWithNext('m1'));
+      expect(joined.timeline.audio[0]).toEqual([{ ...audio(sample(), 'm'), id: 'm1' }]);
+    });
+
+    it('split needs the playhead over the sound; join needs a split part after it', () => {
+      refuses(splitSound(9, 'm', ['m1', 'm2']), /playhead over the sound/i);
+      refuses(joinSoundWithNext('m'), /no sound after this one/i);
+    });
+
+    it.each<[string, Command]>([
+      ['setSoundSpeed', setSoundSpeed('m', 1.5)],
+      ['splitSound', splitSound(6, 'm', ['m1', 'm2'])],
+    ])('%s is undone exactly', (_name, command) => {
+      const base = deepFreeze(sample());
+      expect(undo(execute(createHistory(base), command)).present).toBe(base);
     });
   });
 });

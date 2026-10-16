@@ -115,6 +115,18 @@ describe('V13 music and voiceover tracks in the export', () => {
     expect(m.indexOf('adelay')).toBeLessThan(m.indexOf('volume=-6dB')); // in timeline time
   });
 
+  it('speed: music at 2× from 5 s reads 30 s of the file for the 15 s it is heard, pitch kept', () => {
+    const item = { ...createAudioItem(music, 5, { id: 'm' }), speed: 2, fadeOut: 3 };
+    const { args } = compileProject(project([clip()], [[item], []]), options);
+    const at = args.indexOf('/media/Task_11e_audio.mp3');
+    expect(args.slice(at - 5, at - 1)).toEqual(['-ss', '0', '-t', '30']);
+    const m = chain(args, '[m0]');
+    expect(m).toContain('atempo=2');
+    // Fades are timed on the timeline, so they come after the speed change.
+    expect(m).toContain('afade=t=out:st=12:d=3');
+    expect(m.indexOf('atempo')).toBeLessThan(m.indexOf('afade'));
+  });
+
   it('music that starts after the video has ended is left out', () => {
     const p = project([clip()], [[createAudioItem(music, 25, { id: 'm' })], []]);
     const { args } = compileProject(p, options);

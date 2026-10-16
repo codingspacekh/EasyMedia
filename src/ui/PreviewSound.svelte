@@ -8,6 +8,7 @@
   $effect(() => {
     if (!audio) return;
     audio.volume = Math.min(1, sound.volume); // a browser cannot play louder than 100 %
+    audio.playbackRate = sound.rate;
     if (!playing || Math.abs(audio.currentTime - sound.mediaTime) > 0.3)
       audio.currentTime = sound.mediaTime;
     if (playing) void audio.play()?.catch(() => {});

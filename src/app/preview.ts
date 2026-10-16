@@ -4,6 +4,7 @@
 import { toMediaUrl } from '../core/media-url.ts';
 import type { Seconds } from '../core/model/time.ts';
 import {
+  audioDuration,
   findMainItemAt,
   itemDuration,
   layoutMain,
@@ -177,6 +178,8 @@ export interface PreviewSound {
   src: string;
   /** Where in the sound file we are. */
   mediaTime: Seconds;
+  /** Playback speed (V13 like V14). */
+  rate: number;
   /** Its volume with fades and lowering under the voiceover, as in the export. */
   volume: number;
 }
@@ -191,10 +194,10 @@ export function soundsAt(state: AppState, time: Seconds): PreviewSound[] {
   const heard = (start: Seconds, length: Seconds) => Math.min(length, end - start);
   const playing = (start: Seconds, length: Seconds) =>
     time >= start && time < start + heard(start, length);
-  const voiceover = project.timeline.audio[1].some((a) => playing(a.start, a.out - a.in));
+  const voiceover = project.timeline.audio[1].some((a) => playing(a.start, audioDuration(a)));
   return project.timeline.audio.flatMap((items, track) =>
     items.flatMap((item) => {
-      const length = item.out - item.in;
+      const length = audioDuration(item);
       if (!playing(item.start, length)) return [];
       const asset = project.media.find((m) => m.id === item.assetId);
       if (!asset) return [];
@@ -210,7 +213,8 @@ export function soundsAt(state: AppState, time: Seconds): PreviewSound[] {
         {
           itemId: item.id,
           src: toMediaUrl(asset.path),
-          mediaTime: item.in + offset,
+          mediaTime: item.in + offset * (item.speed ?? 1),
+          rate: item.speed ?? 1,
           volume: Math.max(0, item.volume * gain * ducked),
         },
       ];

@@ -289,11 +289,34 @@ describe('V13 music and voiceover heard in the preview', () => {
   it('plays each sound from the right moment of its file, with its volume and fades', () => {
     expect(soundsAt(withSound(), 0.5)).toEqual([]); // the music starts at 1 s
     const [m] = soundsAt(withSound(), 2);
-    expect(m).toEqual({ itemId: 'm', src: toMediaUrl('/m/music.mp3'), mediaTime: 11, volume: 0.4 });
+    expect(m).toEqual({
+      itemId: 'm',
+      src: toMediaUrl('/m/music.mp3'),
+      mediaTime: 11,
+      rate: 1,
+      volume: 0.4,
+    });
     expect(soundsAt(withSound(), 5.5).map((x) => x.itemId)).toEqual(['m', 'vo']);
     // The music is cut where the video ends (7 s), so its fade out happens 6–7 s.
     expect(soundsAt(withSound(), 6.5)[0]!.volume).toBeCloseTo(0.4, 5);
     expect(soundsAt(withSound(), 7.2)).toEqual([]);
+  });
+
+  it('a sound at 2× plays its file twice as fast, from the matching moment', () => {
+    const s = withSound();
+    const project = s.history.present;
+    const fast = {
+      ...project,
+      timeline: {
+        ...project.timeline,
+        audio: [
+          [{ ...project.timeline.audio[0][0]!, speed: 2, fadeIn: 0 }],
+          project.timeline.audio[1],
+        ] as typeof project.timeline.audio,
+      },
+    };
+    const [m] = soundsAt({ ...s, history: createHistory(fast) }, 2); // 1 s in → 2 s into the file
+    expect(m).toMatchObject({ mediaTime: 12, rate: 2 });
   });
 
   it('lowers the music by 6 dB while the voiceover plays', () => {

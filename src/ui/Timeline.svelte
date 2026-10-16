@@ -4,16 +4,19 @@
   // Track layout as in screen 01: headers on the left, ruler and lanes on the right.
   import type { App } from '../app/app.ts';
   import {
+    joinSoundWithNext,
     joinWithNext,
     moveMainItem,
     moveTimedItem,
     setDuration,
     splitAtTime,
+    splitSound,
     trimClip,
   } from '../app/commands.ts';
   import { handleDrag, moveDrag } from '../app/timeline-edit.ts';
   import { formatTime } from '../core/model/time.ts';
   import {
+    audioDuration,
     findMainItemAt,
     layoutMain,
     mainTrackDuration,
@@ -36,9 +39,28 @@
 
   const project = $derived($store.history.present);
   const layout = $derived(layoutMain(project.timeline.main));
-  const canSplit = $derived(findMainItemAt(project.timeline.main, $store.playhead) !== null);
   const selectedIndex = $derived(project.timeline.main.findIndex((m) => m.id === $store.selection));
-  const canJoin = $derived(selectedIndex >= 0 && selectedIndex < project.timeline.main.length - 1);
+  /** A selected music or voiceover clip: Split and Join then work on it (V13). */
+  const selectedSound = $derived(
+    project.timeline.audio.flat().find((a) => a.id === $store.selection),
+  );
+  const canSplit = $derived(
+    selectedSound
+      ? $store.playhead > selectedSound.start &&
+          $store.playhead < selectedSound.start + audioDuration(selectedSound)
+      : findMainItemAt(project.timeline.main, $store.playhead) !== null,
+  );
+  const canJoin = $derived(
+    selectedSound
+      ? project.timeline.audio
+          .flat()
+          .some(
+            (a) =>
+              a.id !== selectedSound.id &&
+              Math.abs(a.start - (selectedSound.start + audioDuration(selectedSound))) < 1e-6,
+          )
+      : selectedIndex >= 0 && selectedIndex < project.timeline.main.length - 1,
+  );
 
   function label(item: MainItem): string {
     if (item.type === 'title') return item.text || 'Title';
@@ -67,7 +89,7 @@
     Math.max(
       total,
       ...project.timeline.text.map((t) => t.start + t.duration),
-      ...project.timeline.audio.flat().map((a) => a.start + a.out - a.in),
+      ...project.timeline.audio.flat().map((a) => a.start + audioDuration(a)),
       $store.playhead,
     ) + 20,
   );
@@ -157,7 +179,7 @@
   const timedAudio = (a: AudioItem): Timed => ({
     id: a.id,
     start: a.start,
-    duration: a.out - a.in,
+    duration: audioDuration(a),
   });
 
   /** Drag a text or sound clip along its track (V5, V13); it snaps like the trim handles. */
@@ -203,14 +225,20 @@
     <button
       class="sm"
       disabled={!canSplit}
-      onclick={() => (error = app.edit(splitAtTime($store.playhead)))}
-      ><Icon name="split" size={14} /> Split</button
+      onclick={() =>
+        (error = app.edit(
+          selectedSound
+            ? splitSound($store.playhead, selectedSound.id)
+            : splitAtTime($store.playhead),
+        ))}><Icon name="split" size={14} /> Split</button
     >
     <button
       class="sm"
       disabled={!canJoin}
-      onclick={() => (error = app.edit(joinWithNext($store.selection!)))}
-      ><Icon name="join" size={14} /> Join</button
+      onclick={() =>
+        (error = app.edit(
+          selectedSound ? joinSoundWithNext(selectedSound.id) : joinWithNext($store.selection!),
+        ))}><Icon name="join" size={14} /> Join</button
     >
     <button
       class="sm"

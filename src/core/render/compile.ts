@@ -2,7 +2,12 @@
 // processes. The job queue adds progress flags and the output path.
 import { EditError } from '../model/errors.ts';
 import type { Seconds } from '../model/time.ts';
-import { itemDuration, mainTrackDuration, transitionOverlap } from '../model/timeline.ts';
+import {
+  audioDuration,
+  itemDuration,
+  mainTrackDuration,
+  transitionOverlap,
+} from '../model/timeline.ts';
 import { filtersFor, transitionById } from '../effects/registry.ts';
 import type {
   AudioItem,
@@ -207,21 +212,25 @@ export function compileProject(project: Project, options: RenderOptions): Render
   const voiceover = tracks.filter((t) => t.track === 1);
   tracks.forEach(({ item, heard }, j) => {
     const k = inputIndex++;
+    const speed = item.speed ?? 1;
     inputs.push(
       '-ss',
       num(item.in),
       '-t',
-      num(heard),
+      num(heard * speed),
       '-i',
       options.mediaPath(assetOf(item.assetId)),
     );
+    const tempo = atempoChain(speed)
+      .map((t) => `,atempo=${num(t)}`)
+      .join('');
     const volume = item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
     const fadeIn = item.fadeIn > 0 ? `,afade=t=in:st=0:d=${num(item.fadeIn)}` : '';
     const fadeOut =
       item.fadeOut > 0 ? `,afade=t=out:st=${num(heard - item.fadeOut)}:d=${num(item.fadeOut)}` : '';
     const ducking = item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
     filters.push(
-      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${ducking}[m${j}]`,
+      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${tempo}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${ducking}[m${j}]`,
     );
   });
   if (tracks.length) {
@@ -324,7 +333,7 @@ function assertExportable(project: Project): void {
 interface HeardAudio {
   item: AudioItem;
   track: 0 | 1;
-  /** How long it plays: its own length, or until the video ends. */
+  /** How long it plays on the timeline: its own length, or until the video ends. */
   heard: Seconds;
 }
 
@@ -335,7 +344,7 @@ function heardAudio(audio: Project['timeline']['audio'], total: Seconds): HeardA
       .map((item) => ({
         item,
         track: track as 0 | 1,
-        heard: Math.min(item.out - item.in, total - item.start),
+        heard: Math.min(audioDuration(item), total - item.start),
       }))
       .filter((a) => a.heard > 1e-6),
   );

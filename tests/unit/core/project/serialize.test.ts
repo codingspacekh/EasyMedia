@@ -114,6 +114,20 @@ describe('P1 / P11 project files (.mve)', () => {
     expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
   });
 
+  it('V13: keeps the speed of a sound and rejects one that is not a number', () => {
+    const p = fullProject();
+    const fast = {
+      ...p,
+      timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, speed: 1.5 }], []] },
+    } as Project;
+    expect(deserializeProject(serializeProject(fast))).toEqual(fast);
+    const bad = JSON.stringify({
+      ...p,
+      timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, speed: 'fast' }], []] },
+    });
+    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+  });
+
   it('explains when a project comes from a newer version of the app', () => {
     const future = JSON.stringify({ ...fullProject(), schemaVersion: CURRENT_SCHEMA + 1 });
     expect(() => deserializeProject(future)).toThrow(/newer version of EasyMedia/i);

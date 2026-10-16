@@ -58,6 +58,31 @@ describe('V13 music and voiceover on the timeline', () => {
   });
 });
 
+describe('V13 split, join and speed of a sound (like a video clip)', () => {
+  it('Split cuts the selected sound at the playhead; Join puts it back', async () => {
+    const { app, project } = await withMusic(); // music 5–35 s, selected
+    app.setPlayhead(12);
+    render(Timeline, { props: { app } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Split' }));
+    expect(project().timeline.audio[0].map((a) => [a.start, a.in, a.out])).toEqual([
+      [5, 0, 7],
+      [12, 7, 30],
+    ]);
+    expect(project().timeline.main).toHaveLength(1); // the video clip under the playhead is not cut
+    app.select(project().timeline.audio[0][0]!.id);
+    await fireEvent.click(await screen.findByRole('button', { name: 'Join' }));
+    expect(project().timeline.audio[0]).toHaveLength(1);
+  });
+
+  it('speed buttons change the sound speed and its length on the timeline', async () => {
+    const { app, sound } = await withMusic();
+    render(Inspector, { props: { app } });
+    await fireEvent.click(screen.getByRole('button', { name: '2×' }));
+    expect(sound().speed).toBe(2);
+    expect(screen.getByText(/30\.00 s ÷ 2 = 15\.00 s on the timeline/)).toBeTruthy();
+  });
+});
+
 describe('V13 audio inspector (screen 08)', () => {
   it('shows where the music plays: it ends with the video', async () => {
     const { app } = await withMusic();

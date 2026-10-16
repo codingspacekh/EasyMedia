@@ -13,13 +13,17 @@ import {
 import type { Seconds } from '../core/model/time.ts';
 import {
   assertFitsInTrack,
+  audioDuration,
   findMainItemAt,
   itemDuration,
   layoutMain,
   MIN_DURATION,
+  joinAudioItems,
   joinMainItems,
+  setAudioSpeed,
   setItemDuration,
   setVideoSpeed,
+  splitAudioItem,
   splitMainItem,
   trimVideo,
 } from '../core/model/timeline.ts';
@@ -189,9 +193,6 @@ export function unlinkClipSound(id: Id, audioId: Id = newId()): Command {
       if (clip.muted || requireAsset(p, clip.assetId).hasAudio !== true) {
         throw new EditError('This clip has no sound to separate.');
       }
-      if (clip.speed !== 1) {
-        throw new EditError('Set the speed back to 1× before separating the sound.');
-      }
       const sound: AudioItem = {
         id: audioId,
         assetId: clip.assetId,
@@ -201,6 +202,7 @@ export function unlinkClipSound(id: Id, audioId: Id = newId()): Command {
         volume: clip.volume,
         fadeIn: clip.fade?.in ?? 0,
         fadeOut: clip.fade?.out ?? 0,
+        ...(clip.speed !== 1 ? { speed: clip.speed } : {}),
       };
       const track = ([1, 0] as const).find((t) => fits(p.timeline.audio[t], sound));
       if (track === undefined) {
@@ -229,7 +231,7 @@ export function trimAudio(id: Id, range: { in: Seconds; out: Seconds }): Command
             `The end point cannot be after the end of the sound (${length.toFixed(2)} s).`,
           );
         }
-        if (range.out - range.in < MIN_DURATION - 1e-9) {
+        if ((range.out - range.in) / (item.speed ?? 1) < MIN_DURATION - 1e-9) {
           throw new EditError(`A sound must last at least ${MIN_DURATION.toFixed(2)} s.`);
         }
         return { ...item, in: range.in, out: range.out };
@@ -253,7 +255,7 @@ export function setAudioFades(id: Id, fades: { in: Seconds; out: Seconds }): Com
     apply: (p) =>
       updateAudio(p, id, (item) => {
         if (!(fades.in >= 0 && fades.out >= 0)) throw new EditError('Fades cannot be negative.');
-        if (fades.in + fades.out > item.out - item.in + 1e-9) {
+        if (fades.in + fades.out > audioDuration(item) + 1e-9) {
           throw new EditError('The fades are longer than the sound. Make them shorter.');
         }
         return { ...item, fadeIn: fades.in, fadeOut: fades.out };
@@ -275,6 +277,55 @@ export function setDucking(id: Id, duck: boolean): Command {
         delete copy.duck;
         return copy;
       });
+    },
+  };
+}
+
+/** V13 like V14: a sound plays faster or slower (pitch kept); its length changes. */
+export function setSoundSpeed(id: Id, speed: number): Command {
+  return {
+    label: 'Change speed',
+    apply: (p) => updateAudio(p, id, (item) => setAudioSpeed(item, speed)),
+  };
+}
+
+/** Splits the sound `id` at the playhead `time`. */
+export function splitSound(time: Seconds, id: Id, ids: [Id, Id] = [newId(), newId()]): Command {
+  return {
+    label: 'Split',
+    apply: (p) => {
+      const track = audioTrackOf(p, id);
+      const items = p.timeline.audio[track];
+      const index = items.findIndex((a) => a.id === id);
+      const item = items[index]!;
+      const offset = time - item.start;
+      if (!(offset > 0 && offset < audioDuration(item))) {
+        throw new EditError('Move the playhead over the sound to split it.');
+      }
+      const next = [...items];
+      next.splice(index, 1, ...splitAudioItem(item, offset, ids));
+      return withAudio(p, track, next);
+    },
+  };
+}
+
+/** Joins a sound with the part that starts where it ends on the same track. */
+export function joinSoundWithNext(id: Id): Command {
+  return {
+    label: 'Join',
+    apply: (p) => {
+      const track = audioTrackOf(p, id);
+      const items = p.timeline.audio[track];
+      const item = items.find((a) => a.id === id)!;
+      const end = item.start + audioDuration(item);
+      const next = items.find((a) => a.id !== id && Math.abs(a.start - end) < 1e-6);
+      if (!next) throw new EditError('There is no sound after this one to join.');
+      const joined = joinAudioItems(item, next);
+      return withAudio(
+        p,
+        track,
+        items.filter((a) => a.id !== next.id).map((a) => (a.id === id ? joined : a)),
+      );
     },
   };
 }

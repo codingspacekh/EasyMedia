@@ -74,4 +74,10 @@ describe('V13 audio tracks rendered by FFmpeg', () => {
     expect(await rms(file, 6, 7.5)).toBeCloseTo(full, 1); // back up after the voiceover
     expect(await rms(file, 9.9, 10)).toBeLessThan(full / 10); // faded out with the video
   });
+
+  it('speed: 4 s of music at 2× plays for 2 s, then the rest is silent', async () => {
+    const file = await render('fast', [[{ ...createAudioItem(music, 0), out: 4, speed: 2 }], []]);
+    expect(await rms(file, 0.1, 1.9)).toBeGreaterThan(0.2);
+    expect(await rms(file, 2.1, 9.9)).toBeLessThan(0.001);
+  });
 });
