@@ -14,15 +14,22 @@ import type {
   TextEffects,
 } from '../model/types.ts';
 import { atempoChain, fitFilter, num } from './filters.ts';
-
-export type Quality = 'high' | 'medium' | 'low';
+import {
+  codecArgs,
+  defaultExport,
+  fpsValue,
+  isDvd,
+  validateExport,
+  type ExportSettings,
+} from './formats.ts';
 
 export interface RenderOptions {
   /** Absolute path of a media file (the caller resolves project-relative paths). */
   mediaPath(asset: MediaAsset): string;
-  /** libx264 (default) or a detected hardware encoder. */
+  /** libx264 (default) or a detected hardware encoder, for H.264 in MP4 and MOV. */
   videoEncoder?: string;
-  quality?: Quality;
+  /** Container, codecs, size, frame rate and quality (V16, V17). Default: the project as MP4. */
+  format?: ExportSettings;
   /**
    * Text drawn by the app's canvas (ARCHITECTURE §7.3), one PNG per title slide with words and
    * per caption / subtitle / credits item. Full-frame PNGs, except scrolling credits (text block only).
@@ -46,9 +53,6 @@ export interface RenderPlan {
   hasAudio: boolean;
 }
 
-const CRF: Record<Quality, string> = { high: '18', medium: '23', low: '28' };
-const BITS_PER_PIXEL: Record<Quality, number> = { high: 0.1, medium: 0.06, low: 0.035 };
-const AUDIO_RATE: Record<Quality, string> = { high: '192k', medium: '160k', low: '128k' };
 const SAMPLE_RATE = 48000;
 const SILENCE = 'anullsrc=r=48000:cl=stereo';
 const AUDIO_FORMAT = 'aformat=sample_rates=48000:channel_layouts=stereo';
@@ -257,23 +261,47 @@ export function compileProject(project: Project, options: RenderOptions): Render
       hasAudio: false,
     };
   }
-  const quality = options.quality ?? 'high';
+  const format = options.format ?? defaultExport(settings);
+  validateExport(format);
+  const resize = outputFilter(format, settings);
+  if (resize) filters.push(`[vout]${resize}[vexp]`);
   return {
     args: [
       ...inputs,
       '-filter_complex',
       filters.join(';'),
       '-map',
-      '[vout]',
+      resize ? '[vexp]' : '[vout]',
       ...(hasAudio ? ['-map', '[aout]'] : []),
-      ...videoCodec(options.videoEncoder ?? 'libx264', quality, settings),
-      ...(hasAudio ? ['-c:a', 'aac', '-b:a', AUDIO_RATE[quality]] : ['-an']),
-      '-movflags',
-      '+faststart',
+      ...codecArgs(format, {
+        hasAudio,
+        ...(options.videoEncoder ? { videoEncoder: options.videoEncoder } : {}),
+      }),
     ],
     duration: total,
     hasAudio,
   };
+}
+
+/**
+ * V17: the finished picture at the export size and frame rate, or '' when they are the
+ * project's. A DVD stores 720 × 576 (or × 480) pixels shown at the project's shape; any other
+ * size of a different shape is letterboxed.
+ */
+function outputFilter(e: ExportSettings, s: ProjectSettings): string {
+  const parts: string[] = [];
+  if (e.width !== s.width || e.height !== s.height) {
+    const sameShape = Math.abs(e.width / e.height - s.width / s.height) < 0.01;
+    const g = gcd(s.width, s.height);
+    if (isDvd(e)) parts.push(`scale=${e.width}:${e.height},setdar=${s.width / g}/${s.height / g}`);
+    else if (sameShape) parts.push(`scale=${e.width}:${e.height},setsar=1`);
+    else
+      parts.push(
+        `scale=${e.width}:${e.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${e.width}:${e.height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`,
+      );
+  }
+  if (e.fps !== s.fps) parts.push(`fps=${fpsValue(e.fps)}`);
+  return parts.join(',');
 }
 
 function assertExportable(project: Project): void {
@@ -391,11 +419,6 @@ function colourFrame(s: ProjectSettings, colour: string, duration: string): stri
   return `color=c=${colour}:s=${s.width}x${s.height}:r=${s.fps}:d=${duration},setsar=1,format=yuv420p`;
 }
 
-function videoCodec(encoder: string, quality: Quality, s: ProjectSettings): string[] {
-  if (encoder === 'libx264') {
-    return ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', CRF[quality], '-pix_fmt', 'yuv420p'];
-  }
-  // Hardware encoders do not support crf: give a bit rate that suits the frame size.
-  const kbps = Math.round((s.width * s.height * s.fps * BITS_PER_PIXEL[quality]) / 1000);
-  return ['-c:v', encoder, '-b:v', `${kbps}k`, '-pix_fmt', 'yuv420p'];
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
 }

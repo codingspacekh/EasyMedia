@@ -107,13 +107,13 @@ export function createNodeMediaEngine(
       return output;
     },
 
-    renderVideo(project, output, { projectDir, quality, textImages }) {
+    renderVideo(project, output, { projectDir, format, textImages }) {
       let plan;
       try {
         plan = compileProject(project, {
           mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
           videoEncoder,
-          ...(quality ? { quality } : {}),
+          ...(format ? { format } : {}),
           ...(textImages ? { textImages } : {}),
         });
       } catch (error) {

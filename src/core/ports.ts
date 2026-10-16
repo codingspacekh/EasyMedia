@@ -2,7 +2,8 @@
 // Interfaces only. Adapters implement them: Node/FFmpeg in src/main, a fake in src/adapters/mock.
 import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
-import type { Quality, TextImage } from './render/compile.ts';
+import type { TextImage } from './render/compile.ts';
+import type { ExportSettings } from './render/formats.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
 import type { ResizeCrop } from './image/crop.ts';
 
@@ -40,7 +41,8 @@ export type JobEvent =
 
 export interface RenderVideoOptions {
   projectDir: string;
-  quality?: Quality;
+  /** Container, codecs, size and quality (V16, V17); default: the project as a high-quality MP4. */
+  format?: ExportSettings;
   /** The pictures of the project's text, by title / text item id (see TextRenderer). */
   textImages?: Record<string, TextImage>;
 }
@@ -64,7 +66,7 @@ export interface MediaEngine {
    * (Fish_Eagle.jpg → Fish_Eagle1.jpg, then Fish_Eagle2.jpg…). Never overwrites. Resolves with its path.
    */
   resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
-  /** Exports the project as an MP4 (V16). Media paths are resolved against `projectDir` (X1). */
+  /** Exports the project in the chosen format (V16, V17). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   /**
    * V10: one frame of the project as it will be exported (with its looks), saved as a picture.

@@ -10,6 +10,12 @@ import { EditError } from '../../../../src/core/model/errors.ts';
 import { setItemDuration, setVideoSpeed, trimVideo } from '../../../../src/core/model/timeline.ts';
 import type { MainItem, MediaAsset, Project } from '../../../../src/core/model/types.ts';
 import { compileProject, type RenderOptions } from '../../../../src/core/render/compile.ts';
+import {
+  codecArgs,
+  defaultExport,
+  presetSettings,
+  type ExportSettings,
+} from '../../../../src/core/render/formats.ts';
 
 const lake = createMediaAsset({
   id: 'lake',
@@ -166,43 +172,75 @@ describe('V1–V3, V12–V14, V16 render compiler', () => {
     });
   });
 
-  describe('slice 7: MP4 output and quality (V16)', () => {
-    it.each([
-      ['high', '18', '192k'],
-      ['medium', '23', '160k'],
-      ['low', '28', '128k'],
-    ] as const)('%s quality: H.264 crf %s, AAC %s, ready for the web', (quality, crf, audio) => {
-      const { args } = compileProject(project([clip()]), { ...options, quality });
-      const tail = args.slice(args.indexOf('-c:v'));
-      expect(tail).toEqual([
-        '-c:v',
-        'libx264',
-        '-preset',
-        'veryfast',
-        '-crf',
-        crf,
-        '-pix_fmt',
-        'yuv420p',
-        '-c:a',
-        'aac',
-        '-b:a',
-        audio,
-        '-movflags',
-        '+faststart',
+  describe('slice 7: export format, size and frame rate (V16, V17)', () => {
+    const hd = () => project([clip()]);
+    const fmt = (change: Partial<ExportSettings>): ExportSettings => ({
+      ...defaultExport(hd().settings),
+      ...change,
+    });
+
+    it('with no format chosen: the project as a high-quality MP4 (H.264 at a set bit rate, AAC)', () => {
+      const { args } = compileProject(hd(), options);
+      expect(args.slice(args.indexOf('-c:v'))).toEqual(
+        codecArgs(defaultExport(hd().settings), { hasAudio: true }),
+      );
+      expect(args).toContain('[vout]');
+    });
+
+    it('uses the codecs of the chosen container', () => {
+      const { args } = compileProject(hd(), { ...options, format: fmt({ container: 'wmv' }) });
+      expect(args.slice(args.indexOf('-c:v'))).toEqual(
+        codecArgs(fmt({ container: 'wmv' }), { hasAudio: true }),
+      );
+    });
+
+    it('a smaller size of the same shape scales the finished picture', () => {
+      const { args } = compileProject(hd(), {
+        ...options,
+        format: fmt({ width: 1280, height: 720 }),
+      });
+      expect(graph(args)).toContain('[vout]scale=1280:720,setsar=1[vexp]');
+      expect(args.slice(args.indexOf('-map'), args.indexOf('-map') + 2)).toEqual([
+        '-map',
+        '[vexp]',
       ]);
     });
 
-    it('a hardware encoder gets a bit rate instead of crf', () => {
-      const { args } = compileProject(project([clip()]), {
+    it('another frame rate is set after scaling (DVD NTSC is 30000/1001)', () => {
+      const { args } = compileProject(hd(), { ...options, format: fmt({ fps: 29.97 }) });
+      expect(graph(args)).toContain('[vout]fps=30000/1001[vexp]');
+    });
+
+    it('DVD: 720 × 576 pixels shown as 16:9 (widescreen DVD), at 25 fps', () => {
+      const dvd = presetSettings('dvd-pal', hd().settings);
+      const { args } = compileProject(hd(), { ...options, format: dvd });
+      expect(graph(args)).toContain('[vout]scale=720:576,setdar=16/9,fps=25[vexp]');
+    });
+
+    it('a size of another shape is letterboxed, not stretched', () => {
+      const { args } = compileProject(hd(), {
         ...options,
-        videoEncoder: 'h264_videotoolbox',
+        format: fmt({ width: 960, height: 720 }),
       });
+      expect(graph(args)).toContain(
+        '[vout]scale=960:720:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=960:720:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[vexp]',
+      );
+    });
+
+    it('a hardware H.264 encoder is passed on', () => {
+      const { args } = compileProject(hd(), { ...options, videoEncoder: 'h264_videotoolbox' });
       expect(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 4)).toEqual([
         '-c:v',
         'h264_videotoolbox',
         '-b:v',
         '6221k',
       ]);
+    });
+
+    it('a format that is not possible is refused', () => {
+      expect(() =>
+        compileProject(hd(), { ...options, format: fmt({ compression: 'lossless' }) }),
+      ).toThrow(EditError);
     });
   });
 
