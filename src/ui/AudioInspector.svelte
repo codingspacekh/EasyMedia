@@ -2,6 +2,7 @@
   // Music or voiceover in Video mode (screen 08, V13): start, trim, volume, fades, lowering the
   // music under the voiceover, and which track it is on.
   import type { App } from '../app/app.ts';
+  import { WHY } from '../core/effects/help.ts';
   import {
     moveAudioToTrack,
     moveTimedItem,
@@ -122,6 +123,10 @@
     </select>
   </div>
   <p class="hint">Echo, EQ, noise reduction and pitch will be in Audio mode (a later version).</p>
+  <details class="why">
+    <summary>Why add music or a voiceover?</summary>
+    <p>{WHY.audio}</p>
+  </details>
 </section>
 
 <style>
@@ -208,6 +213,17 @@
   .track label {
     color: var(--tx-2);
     font-size: 12px;
+  }
+  .why summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  .why p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--tx-2);
   }
   .error {
     margin: 0 0 8px;

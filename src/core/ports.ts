@@ -3,7 +3,7 @@
 import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
 import type { TextImage } from './render/compile.ts';
-import type { ExportSettings } from './render/formats.ts';
+import type { Container, ExportSettings } from './render/formats.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
 import type { ResizeCrop } from './image/crop.ts';
 
@@ -88,7 +88,8 @@ export interface Dialogs {
   openMedia(): Promise<string[]>;
   openProject(): Promise<string | null>;
   saveProject(suggestedName: string): Promise<string | null>;
-  exportVideo(suggestedName: string): Promise<string | null>;
+  /** Where to save the exported video; the file type follows the chosen container (V16). */
+  exportVideo(suggestedName: string, container: Container): Promise<string | null>;
   /** A yes / no question, e.g. "Discard unsaved changes?". */
   confirm(message: string): Promise<boolean>;
   /** A folder (it can be created in the dialog), e.g. to package a project into. */

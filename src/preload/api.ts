@@ -4,6 +4,7 @@ import type { Project } from '../core/model/types.ts';
 import type { AppPaths, JobEvent, ProbeInfo, RenderVideoOptions } from '../core/ports.ts';
 import type { WireError } from '../core/wire.ts';
 import type { ResizeCrop } from '../core/image/crop.ts';
+import type { Container } from '../core/render/formats.ts';
 
 export interface Channels {
   'media:probe': { args: [path: string]; result: ProbeInfo };
@@ -36,7 +37,10 @@ export interface Channels {
   'dialog:openMedia': { args: []; result: string[] };
   'dialog:openProject': { args: []; result: string | null };
   'dialog:saveProject': { args: [suggestedName: string]; result: string | null };
-  'dialog:exportVideo': { args: [suggestedName: string]; result: string | null };
+  'dialog:exportVideo': {
+    args: [suggestedName: string, container: Container];
+    result: string | null;
+  };
   'dialog:confirm': { args: [message: string]; result: boolean };
   'dialog:chooseFolder': { args: [title: string]; result: string | null };
   'project:read': { args: [path: string]; result: string };

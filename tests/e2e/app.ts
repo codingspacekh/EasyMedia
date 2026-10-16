@@ -1,5 +1,10 @@
 // Launches the built EasyMedia app for end-to-end tests, with its own empty user-data folder.
-import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import {
+  _electron as electron,
+  expect,
+  type ElectronApplication,
+  type Page,
+} from '@playwright/test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -60,4 +65,26 @@ export async function openTab(page: Page, name: 'Clip' | 'Audio' | 'Effects' | '
   const tab = page.getByRole('tab', { name, exact: true });
   if ((await tab.count()) && (await tab.getAttribute('aria-selected')) !== 'true')
     await tab.click();
+}
+
+/**
+ * Export through the export dialog (screen 12): optionally a destination preset, a container and
+ * lossless; the project is not saved as well. Waits until the file has been written.
+ */
+export async function exportVideo(
+  page: Page,
+  output: string,
+  choose: { preset?: RegExp; container?: string; lossless?: boolean; size?: string } = {},
+  timeout = 180_000,
+) {
+  await page.getByRole('button', { name: 'Export' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export video' });
+  if (choose.preset) await dialog.getByRole('button', { name: choose.preset }).click();
+  if (choose.container)
+    await dialog.getByRole('button', { name: choose.container, exact: true }).click();
+  if (choose.lossless) await dialog.getByLabel('Lossless').check();
+  if (choose.size) await dialog.getByLabel('Resolution').selectOption(choose.size);
+  await dialog.getByLabel(/also save the project/i).uncheck();
+  await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(page.getByText(`Saved to ${output}`)).toBeVisible({ timeout });
 }

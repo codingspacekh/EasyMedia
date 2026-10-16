@@ -16,6 +16,7 @@ import {
   createTitleSlide,
 } from '../../../src/core/model/factory.ts';
 import type { Dialogs, JobEvent, ProbeInfo, TextRenderer } from '../../../src/core/ports.ts';
+import { defaultExport, estimateSize } from '../../../src/core/render/formats.ts';
 
 const video = (sizeBytes = 7_000_000): ProbeInfo => ({
   kind: 'video',
@@ -465,6 +466,40 @@ describe('M4 app use cases', () => {
       expect(states).toContain('running');
       expect(state().exporting).toEqual({ state: 'done', output: '/out/Untitled.mp4' });
       expect((await engine.probe('/out/Untitled.mp4')).duration).toBe(10);
+    });
+
+    it('V16: asks for a file name with the extension of the chosen format, and exports in it', async () => {
+      const { app, state, engine, dialogs } = await withClip();
+      dialogs.exportVideo.mockResolvedValueOnce('/out/Task_11e.wmv');
+      const format = {
+        ...defaultExport(state().history.present.settings),
+        container: 'wmv' as const,
+      };
+      await app.exportVideo({ format });
+      expect(dialogs.exportVideo).toHaveBeenCalledWith('Untitled', 'wmv');
+      expect(await engine.probe('/out/Task_11e.wmv')).toMatchObject({
+        container: 'wmv',
+        video: { codec: 'wmv2' },
+      });
+    });
+
+    it('can also save the project, so it can be edited later', async () => {
+      const { app, state, dialogs } = await withClip();
+      dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+      dialogs.saveProject.mockResolvedValueOnce('/work/x.mve');
+      await app.exportVideo({ alsoSaveProject: true });
+      expect(state().projectPath).toBe('/work/x.mve');
+      expect(state().exporting).toEqual({ state: 'done', output: '/out/x.mp4' });
+    });
+
+    it('V17: the export summary gives the length, whether there is sound, and the estimated size', async () => {
+      const { app, state } = await withClip();
+      const format = defaultExport(state().history.present.settings);
+      expect(app.exportSummary(format)).toEqual({
+        duration: 10,
+        hasAudio: true,
+        ...estimateSize(format, 10, true),
+      });
     });
 
     it('can be cancelled', async () => {

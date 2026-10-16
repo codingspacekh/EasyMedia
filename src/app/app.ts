@@ -27,7 +27,7 @@ import {
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
-import { findMainItemAt, setItemDuration } from '../core/model/timeline.ts';
+import { findMainItemAt, mainTrackDuration, setItemDuration } from '../core/model/timeline.ts';
 import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
 import type {
   AppPaths,
@@ -37,7 +37,8 @@ import type {
   ProjectFiles,
   TextRenderer,
 } from '../core/ports.ts';
-import type { TextImage } from '../core/render/compile.ts';
+import { projectHasSound, type TextImage } from '../core/render/compile.ts';
+import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
 import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
 import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
@@ -240,6 +241,12 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     } catch (error) {
       showError(error);
     }
+  }
+
+  async function save(): Promise<void> {
+    const { projectPath } = store.get();
+    if (projectPath) await writeProject(projectPath);
+    else await saveAs();
   }
 
   async function saveAs(): Promise<void> {
@@ -553,22 +560,33 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       }
     },
 
-    async exportVideo(): Promise<void> {
+    /**
+     * V16, V17: exports in the chosen format (default: the project as MP4) to a file the student
+     * names; optionally saves the project too, so it can be edited later.
+     */
+    async exportVideo(
+      options: { format?: ExportSettings; alsoSaveProject?: boolean } = {},
+    ): Promise<void> {
       const project = present();
       if (project.timeline.main.length === 0) {
         patch({ message: { kind: 'error', text: 'Add a clip to the timeline before exporting.' } });
         return;
       }
+      const format = options.format ?? defaultExport(project.settings);
       const { projectPath } = store.get();
       const output = await dialogs.exportVideo(
         projectPath ? fileNameOf(projectPath).replace(/\.mve$/i, '') : project.name,
+        format.container,
       );
       if (!output) return;
+      if (options.alsoSaveProject) await save();
       patch({ exporting: { state: 'running', progress: 0, output } });
       try {
+        const dir = store.get().projectPath;
         const job = engine.renderVideo(project, output, {
-          projectDir: projectPath ? dirOf(projectPath) : '/',
+          projectDir: dir ? dirOf(dir) : '/',
           textImages: await drawTextImages(project),
+          format,
         });
         exportJob = job;
         await job.done;
@@ -587,13 +605,17 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
       }
     },
 
+    /** V17: what the export dialog shows before exporting. */
+    exportSummary(format: ExportSettings) {
+      const project = present();
+      const duration = mainTrackDuration(project.timeline.main);
+      const hasAudio = projectHasSound(project);
+      return { duration, hasAudio, ...estimateSize(format, duration, hasAudio) };
+    },
+
     cancelExport: () => exportJob?.cancel(),
 
-    async save(): Promise<void> {
-      const { projectPath } = store.get();
-      if (projectPath) await writeProject(projectPath);
-      else await saveAs();
-    },
+    save,
 
     saveAs,
 

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
 import { brightness, measure } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp, menu, openTab } from './app.ts';
+import { answerDialogs, launchApp, menu, openTab, exportVideo } from './app.ts';
 
 const FRAME = 1 / 30;
 const LAKE = 'lake_1080p30_20s.mp4'; // stand-in for Lake_Naivasha.mp4 (brightness rises with time)
@@ -38,8 +38,7 @@ async function setTime(page: Page, label: string, value: string) {
   await box.press('Enter');
 }
 async function exportTo(page: Page, output: string) {
-  await page.getByRole('button', { name: 'Export' }).click();
-  await expect(page.getByText(`Saved to ${output}`)).toBeVisible({ timeout: 120_000 });
+  await exportVideo(page, output, {}, 120_000);
 }
 
 test('Book B Task 11b through the UI: start after 8 s, 4.5 s long, no sound', async () => {
