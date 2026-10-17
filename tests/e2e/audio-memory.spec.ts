@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { answerDialogs, root } from './app.ts';
+import { answerDialogs, answerUnsaved, root } from './app.ts';
 
 const SONG = 'song_dc_offset_90s.mp3';
 
@@ -26,6 +26,7 @@ test('N4 five Amplify steps on 85 s of stereo do not make the page hold more sou
     env: { ...process.env, EASYMEDIA_USER_DATA: dir },
   });
   const page = await app.firstWindow();
+  await answerUnsaved(app, 'discard'); // the unsaved edits are thrown away when the test closes
   const pageMB = async () => {
     await page.evaluate(() => (globalThis as { gc?: () => void }).gc?.());
     await page.waitForTimeout(1000);

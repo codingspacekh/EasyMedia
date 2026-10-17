@@ -170,6 +170,8 @@ export interface Dialogs {
   confirm(message: string): Promise<boolean>;
   /** A folder (it can be created in the dialog), e.g. to package a project into. */
   chooseFolder(title: string): Promise<string | null>;
+  /** P7: closing with unsaved work — Save, Don't save, or Cancel (keep working). */
+  unsavedChanges(): Promise<'save' | 'discard' | 'cancel'>;
 }
 
 /** Reading and writing project (.mve) files. Writes are atomic. */

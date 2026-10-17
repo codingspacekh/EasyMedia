@@ -3,18 +3,28 @@
 import type { Project } from '../model/types.ts';
 import { fromProjectPath, toProjectPath } from './paths.ts';
 
-export function projectToDisk(project: Project, projectDir: string): Project {
+function relocate(project: Project, move: (path: string) => string): Project {
+  const { audioMode } = project;
   return {
     ...project,
-    media: project.media.map((m) => ({ ...m, path: toProjectPath(projectDir, m.path) })),
+    media: project.media.map((m) => ({ ...m, path: move(m.path) })),
+    ...(audioMode
+      ? {
+          audioMode: {
+            ...audioMode,
+            tracks: audioMode.tracks.map((t) => ({ ...t, file: move(t.file) })),
+          },
+        }
+      : {}),
   };
 }
 
+export function projectToDisk(project: Project, projectDir: string): Project {
+  return relocate(project, (path) => toProjectPath(projectDir, path));
+}
+
 export function projectFromDisk(project: Project, projectDir: string): Project {
-  return {
-    ...project,
-    media: project.media.map((m) => ({ ...m, path: fromProjectPath(projectDir, m.path) })),
-  };
+  return relocate(project, (path) => fromProjectPath(projectDir, path));
 }
 
 /** Folder part of a path ("/a/b.mve" → "/a"), for Windows or POSIX paths. */

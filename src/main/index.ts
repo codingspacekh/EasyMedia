@@ -8,6 +8,7 @@ import { detectHardwareEncoder, encoderTester, videoEncoder } from './ffmpeg/har
 import { binaryPaths, platformKey } from './ffmpeg/paths.ts';
 import { sendToWindow } from './send.ts';
 import { registerIpc } from './ipc.ts';
+import { createCloseGuard } from './close-guard.ts';
 import { menuTemplate } from './menu.ts';
 import { microphoneAccess } from './microphone.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
@@ -36,6 +37,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | undefined;
+let closeGuard: ReturnType<typeof createCloseGuard> | undefined;
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -57,6 +59,15 @@ function createWindow(): BrowserWindow {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.once('ready-to-show', () => win.show());
+  // P7: unsaved work is not lost by closing the window or quitting; the page asks first.
+  closeGuard = createCloseGuard(
+    {
+      on: (e, l) => win.on(e, l),
+      close: () => win.close(),
+      isCrashed: () => win.webContents.isCrashed(),
+    },
+    { ask: () => sendToWindow(win, 'app:closeRequested', null), quit: () => app.quit() },
+  );
   void win.loadFile(join(APP_ROOT, 'dist', 'index.html'));
   return win;
 }
@@ -76,8 +87,10 @@ void app.whenReady().then(async () => {
   });
 
   const engine = createNodeMediaEngine(binaries, { videoEncoder: videoEncoder(hardware) });
-  // Quitting stops every FFmpeg job: no preview or export keeps running after EasyMedia closes.
-  app.on('before-quit', () => engine.cancelAll());
+  // Quit asks the page first (P7); once it really quits, every FFmpeg job stops, so no preview
+  // or export keeps running after EasyMedia closes.
+  app.on('before-quit', () => closeGuard?.quitting());
+  app.on('will-quit', () => engine.cancelAll());
 
   registerIpc({
     ipc: ipcMain,
@@ -92,6 +105,7 @@ void app.whenReady().then(async () => {
     },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
+    closeAnswer: (close) => closeGuard?.answer(close),
     microphoneAccess: microphoneAccess(
       process.platform,
       systemPreferences,

@@ -45,6 +45,7 @@ function state(assets: Record<string, AssetStatus>): AppState {
     history: createHistory(project),
     projectPath: null,
     saved: project,
+    audioDirty: false,
     assets,
     playhead: 0,
     selection: null,

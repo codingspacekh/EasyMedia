@@ -44,6 +44,10 @@ if (!window.mve) {
   });
   const actions = menuActions(app);
   api.on('menu:action', (action) => void actions[action]());
+  // P7: closing or quitting with unsaved work asks Save / Don't save / Cancel first.
+  api.on('app:closeRequested', () => {
+    void app.confirmClose().then((close) => api.invoke('app:closeAnswer', close));
+  });
   mount(App, { target, props: { app } });
   void app.start();
 }

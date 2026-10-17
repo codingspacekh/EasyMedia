@@ -37,6 +37,7 @@ import {
   sliceChannels,
   toSamples,
   trackLength,
+  type AudioDoc,
   type AudioTrack,
   type Channels,
 } from '../core/audio/pcm.ts';
@@ -45,6 +46,7 @@ import { changeSpeed } from '../core/audio/dsp/speed.ts';
 import { COUNT_IN_SECONDS } from '../core/audio/recording.ts';
 import { audioEffectById, defaultParams, validateParams } from '../core/effects/registry.ts';
 import type { EffectContext, Params } from '../core/effects/types.ts';
+import type { AudioModeSession } from '../core/model/types.ts';
 import { EditError, JobCancelledError, MediaError, MicrophoneError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
@@ -67,6 +69,7 @@ import {
 } from '../core/audio/stored.ts';
 import {
   AUDIO_FORMATS,
+  defaultAudioExport,
   estimateAudioSize,
   validateAudioExport,
   wavBytes,
@@ -336,6 +339,27 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
   /** The mix that is exported: everything heard, from 0 s to the end. */
   function exportMix(channels: number) {
     return mixTracks(doc(), audible(), { from: 0, channels });
+  }
+
+  // ---- saving with the project (P1, P3, P7 for Audio mode) ----
+  /** The session as last saved or opened: anything else is unsaved work. */
+  let savedDoc: AudioDoc = doc();
+  /** Which file each track's samples were last written to (tracks never change in place). */
+  let written = new WeakMap<AudioTrack, string>();
+
+  /** Starts Audio mode over with `fresh` (opening a project, or a new one). */
+  function replaceDoc(fresh: AudioDoc, message: AudioState['message'] = null): void {
+    closeMicrophone();
+    store.update((s) => ({
+      ...s,
+      history: createAudioHistory(fresh),
+      selection: { start: 0, end: 0, tracks: [] },
+      position: 0,
+      noiseProfile: null,
+      message,
+    }));
+    savedDoc = doc();
+    historyChanged();
   }
 
   // ---- recording (A14) ----
@@ -631,6 +655,100 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
       tryEdit(`Insert ${length.toFixed(2)} s of silence`, (tx) =>
         insertSilence(tx, selection(), length),
       ),
+
+    // ---- saving with the project (P1, P3, P7) ----
+
+    /** Edits made since the session was last saved or opened. */
+    isDirty: (): boolean => doc() !== savedDoc,
+
+    /**
+     * Writes each track's sound to `folder` as an exact 32-bit WAV (only tracks that changed)
+     * and gives what the project file keeps; null when Audio mode has nothing in it.
+     */
+    async saveSession(
+      folder: string,
+      { copy = false }: { copy?: boolean } = {},
+    ): Promise<AudioModeSession | null> {
+      const current = doc();
+      if (current.tracks.length === 0) {
+        if (!copy) savedDoc = current;
+        return null;
+      }
+      const tracks = [];
+      for (const [i, track] of current.tracks.entries()) {
+        const file = `${folder}/track-${i + 1}.wav`;
+        if (written.get(track) !== file) {
+          await engine.encodeAudio({ sampleRate: current.rate, channels: track.channels }, file, {
+            ...defaultAudioExport({ rate: current.rate, channels: track.channels.length }),
+            format: 'wav',
+            bitDepth: 32,
+            sampleRate: current.rate,
+            channels: track.channels.length >= 2 ? 2 : 1,
+          }).done;
+          written.set(track, file);
+        }
+        tracks.push({
+          id: track.id,
+          name: track.name,
+          file,
+          offset: track.offset,
+          gain: track.gain,
+          pan: track.pan,
+          ...(track.bits ? { bits: track.bits } : {}),
+        });
+      }
+      // A copy (crash recovery, Package project) is not a save: the edits stay unsaved.
+      if (!copy) savedDoc = current;
+      return { rate: current.rate, tracks };
+    },
+
+    /**
+     * Opens the Audio mode work saved in a project (or none), as it was saved. `unsaved`: it was
+     * restored after a crash, so it still needs saving.
+     */
+    async openSession(
+      session: AudioModeSession | null,
+      { unsaved = false }: { unsaved?: boolean } = {},
+    ): Promise<void> {
+      written = new WeakMap();
+      if (!session) return replaceDoc(emptyDoc());
+      const tracks: AudioTrack[] = [];
+      const lost: string[] = [];
+      for (const saved of session.tracks) {
+        try {
+          const decoded = await engine.decodeAudio(saved.file);
+          const track = createTrack({
+            id: saved.id,
+            name: saved.name,
+            channels: decoded.channels,
+            offset: saved.offset,
+            gain: saved.gain,
+            pan: saved.pan,
+            ...(saved.bits ? { bits: saved.bits } : {}),
+          });
+          written.set(track, saved.file);
+          tracks.push(track);
+        } catch {
+          lost.push(saved.name);
+        }
+      }
+      replaceDoc(
+        { rate: session.rate, tracks },
+        lost.length
+          ? {
+              kind: 'error',
+              text: `The sound of the track "${lost.join('", "')}" could not be found. It may have been moved or deleted from the project's audio folder.`,
+            }
+          : null,
+      );
+      if (unsaved) savedDoc = emptyDoc(session.rate);
+    },
+
+    /** A new project: Audio mode starts empty. */
+    reset(): void {
+      written = new WeakMap();
+      replaceDoc(emptyDoc());
+    },
 
     // ---- recording (A14, X4) ----
 

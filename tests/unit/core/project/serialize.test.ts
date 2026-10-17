@@ -134,6 +134,61 @@ describe('P1 / P11 project files (.mve)', () => {
   });
 });
 
+describe('P1 for Audio mode: its tracks are saved in the project, their sound in WAV files', () => {
+  const withAudio = (): Project => ({
+    ...fullProject(),
+    audioMode: {
+      rate: 44100,
+      tracks: [
+        {
+          id: 'a1',
+          name: 'Task_11p_audio',
+          file: 'Task_11p audio/track-1.wav',
+          offset: 0,
+          gain: 0,
+          pan: 0,
+          bits: 16,
+        },
+        {
+          id: 'a2',
+          name: 'Recording 1',
+          file: 'Task_11p audio/track-2.wav',
+          offset: 11,
+          gain: -3,
+          pan: 0.5,
+        },
+      ],
+    },
+  });
+
+  it('round-trips the Audio mode tracks', () => {
+    const p = withAudio();
+    expect(deserializeProject(serializeProject(p))).toEqual(p);
+  });
+
+  it('a project without Audio mode work has no audioMode', () => {
+    expect(serializeProject(fullProject())).not.toMatch(/audioMode/);
+  });
+
+  it.each([
+    ['a rate that is not a number', { rate: 'fast', tracks: [] }],
+    [
+      'a track without its file',
+      { rate: 44100, tracks: [{ id: 'a', name: 'x', offset: 0, gain: 0, pan: 0 }] },
+    ],
+    [
+      'a pan that is not a number',
+      {
+        rate: 44100,
+        tracks: [{ id: 'a', name: 'x', file: 'f.wav', offset: 0, gain: 0, pan: 'left' }],
+      },
+    ],
+  ])('refuses Audio mode work with %s', (_, audioMode) => {
+    const text = serializeProject({ ...fullProject(), audioMode } as unknown as Project);
+    expect(() => deserializeProject(text)).toThrow(ProjectFileError);
+  });
+});
+
 describe('P11 migrations upgrade old project files step by step', () => {
   const migrations = {
     1: (old: Record<string, unknown>) => ({ ...old, schemaVersion: 2, tracks: 'renamed' }),

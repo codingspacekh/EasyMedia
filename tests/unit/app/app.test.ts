@@ -59,6 +59,7 @@ function setup(
     exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
+    unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
   };
   const copies: string[] = [];
   const files = {
@@ -93,7 +94,24 @@ function setup(
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   }
-  return { app, engine, events, disk, dialogs, copies, files, text, state, project, importFiles };
+  async function importAudio(...paths: string[]) {
+    dialogs.openMedia.mockResolvedValueOnce(paths);
+    await app.audio.importAudio();
+  }
+  return {
+    app,
+    engine,
+    events,
+    disk,
+    dialogs,
+    copies,
+    files,
+    text,
+    state,
+    project,
+    importFiles,
+    importAudio,
+  };
 }
 
 const idOf = (s: AppState, path: string) =>
@@ -670,6 +688,139 @@ describe('M4 app use cases', () => {
       await app.newProject();
       expect(dialogs.confirm).toHaveBeenCalled();
       expect(project().media).toEqual([]);
+    });
+  });
+
+  describe('P1, P3, P7 for Audio mode: one project for both modes', () => {
+    it('Save also saves Audio mode: its tracks in the .mve, their sound in "<name> audio"', async () => {
+      const { app, state, disk, dialogs, importAudio } = setup();
+      await importAudio('/m/music.mp3');
+      expect(isDirty(state())).toBe(true); // audio edits alone are unsaved work
+      expect(projectTitle(state())).toBe('Untitled • — EasyMedia');
+      dialogs.saveProject.mockResolvedValueOnce('/p/Task_11p.mve');
+      await app.save();
+      const saved = JSON.parse(disk.get('/p/Task_11p.mve')!);
+      expect(saved.audioMode).toMatchObject({
+        rate: 44100,
+        tracks: [{ name: 'music', file: 'Task_11p audio/track-1.wav' }],
+      });
+      expect(isDirty(state())).toBe(false);
+      expect(app.audio.isDirty()).toBe(false);
+    });
+
+    it('Open brings Audio mode back exactly; New empties it', async () => {
+      const first = setup();
+      await first.importAudio('/m/music.mp3');
+      first.app.audio.selectAll();
+      first.app.audio.applyEffect('audio.fadein', {});
+      first.dialogs.saveProject.mockResolvedValueOnce('/p/t.mve');
+      await first.app.save();
+      const tracks = first.app.audio.store.get().history.present.tracks;
+
+      const second = setup();
+      // The same disk and engine: the project file and its WAV files are there.
+      const engine = first.engine;
+      const app = createApp({
+        engine,
+        dialogs: { ...second.dialogs, openProject: vi.fn(async () => '/p/t.mve') },
+        files: first.files,
+        text: second.text,
+        paths: {
+          proxies: '/cache',
+          recovery: '/cache/recovery.mve',
+          snapshots: '/cache/snapshots',
+        },
+      });
+      await app.open();
+      const opened = app.audio.store.get().history.present.tracks;
+      const details = (t: (typeof tracks)[number]) => ({ ...t, channels: t.channels.length });
+      expect(opened.map(details)).toEqual(tracks.map(details));
+      // Exactly the same samples (a loop: toEqual on millions of samples is slow).
+      const same = opened.every((t, i) =>
+        t.channels.every((c, ch) => c.every((v, j) => v === tracks[i]!.channels[ch]![j])),
+      );
+      expect(same).toBe(true);
+      expect(app.store.get().history.present).not.toHaveProperty('audioMode');
+      expect(isDirty(app.store.get())).toBe(false);
+      await app.newProject();
+      expect(app.audio.store.get().history.present.tracks).toEqual([]);
+    });
+
+    it('Open asks first when only Audio mode has unsaved edits', async () => {
+      const { app, dialogs, importAudio } = setup();
+      await importAudio('/m/music.mp3');
+      dialogs.confirm.mockResolvedValueOnce(false);
+      await app.open();
+      expect(dialogs.confirm).toHaveBeenCalledWith(expect.stringMatching(/unsaved changes/i));
+    });
+
+    it('P3 autosave without a project file keeps Audio mode in the recovery copy; Restore brings it back', async () => {
+      vi.useFakeTimers();
+      const first = setup();
+      await first.importAudio('/m/music.mp3');
+      await vi.advanceTimersByTimeAsync(60_000);
+      // Writing the WAV and then the file takes a few more steps.
+      for (let i = 0; i < 10 && !first.disk.has('/cache/recovery.mve'); i++)
+        await vi.advanceTimersByTimeAsync(10);
+      const recovery = JSON.parse(first.disk.get('/cache/recovery.mve')!);
+      expect(recovery.audioMode.tracks[0].file).toBe('recovery audio/track-1.wav');
+      expect(first.app.audio.isDirty()).toBe(true); // a recovery copy is not a save
+      vi.useRealTimers();
+
+      const second = setup();
+      const app = createApp({
+        engine: first.engine,
+        dialogs: { ...second.dialogs, confirm: vi.fn(async () => true) },
+        files: first.files,
+        text: second.text,
+        paths: {
+          proxies: '/cache',
+          recovery: '/cache/recovery.mve',
+          snapshots: '/cache/snapshots',
+        },
+      });
+      await app.start();
+      expect(app.audio.store.get().history.present.tracks.map((t) => t.name)).toEqual(['music']);
+      expect(app.audio.isDirty()).toBe(true); // restored work is still unsaved
+    });
+
+    it('P2 Package project puts the Audio mode sound in the package too', async () => {
+      const { app, disk, dialogs, importAudio } = setup();
+      await importAudio('/m/music.mp3');
+      dialogs.chooseFolder.mockResolvedValueOnce('/usb/T');
+      await app.packageProject();
+      expect(JSON.parse(disk.get('/usb/T/Untitled.mve')!).audioMode.tracks[0].file).toBe(
+        'Untitled audio/track-1.wav',
+      );
+      expect(app.audio.isDirty()).toBe(true); // packaging makes a copy, not a save
+    });
+  });
+
+  describe('P7 closing the window or quitting with unsaved work', () => {
+    it('closes at once when everything is saved', async () => {
+      const { app, dialogs } = setup();
+      expect(await app.confirmClose()).toBe(true);
+      expect(dialogs.unsavedChanges).not.toHaveBeenCalled();
+    });
+
+    it("asks Save / Don't save / Cancel when there are unsaved audio or video edits", async () => {
+      const { app, dialogs, importAudio } = setup();
+      await importAudio('/m/music.mp3');
+      dialogs.unsavedChanges.mockResolvedValueOnce('cancel');
+      expect(await app.confirmClose()).toBe(false);
+      dialogs.unsavedChanges.mockResolvedValueOnce('discard');
+      expect(await app.confirmClose()).toBe(true);
+    });
+
+    it('Save saves first, then closes; a cancelled Save dialog keeps the window open', async () => {
+      const { app, dialogs, disk, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      dialogs.unsavedChanges.mockResolvedValue('save');
+      dialogs.saveProject.mockResolvedValueOnce(null);
+      expect(await app.confirmClose()).toBe(false);
+      dialogs.saveProject.mockResolvedValueOnce('/p/t.mve');
+      expect(await app.confirmClose()).toBe(true);
+      expect(disk.has('/p/t.mve')).toBe(true);
     });
   });
 

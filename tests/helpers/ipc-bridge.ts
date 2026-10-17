@@ -36,6 +36,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       exportAudio: async () => null,
       confirm: async () => false,
       chooseFolder: async () => null,
+      unsavedChanges: async () => 'cancel',
     },
     files: {
       read: async (path) => {
@@ -49,6 +50,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       saveImage: async (name) => `/cache/text/${name}.png`,
     },
     microphoneAccess: async () => true,
+    closeAnswer: () => {},
     ...overrides,
   });
   const api: MveApi = {

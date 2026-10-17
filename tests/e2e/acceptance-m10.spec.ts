@@ -1,13 +1,20 @@
 // M10 exit gate: Audio mode coursebook tasks with the M10 effects, done through the real app's UI
 // (screens 15–19) and checked on the exported files.
 import { expect, test } from '@playwright/test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { createNodeMediaEngine } from '../../src/main/media/engine.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { FAKE_MICROPHONE, launchApp, menu } from './app.ts';
+import {
+  answerDialogs,
+  answerUnsaved,
+  FAKE_MICROPHONE,
+  launchApp,
+  menu,
+  unsavedAsked,
+} from './app.ts';
 import {
   applyEffect,
   audioMode,
@@ -263,4 +270,41 @@ test('A14 overdubbing: record a voiceover over the music at the playhead (test m
   const info = await engine.probe(file);
   expect(info.duration!).toBeCloseTo(30, 1); // the music (30 s) is still all there
   await app.close();
+});
+
+test('P1 + P7 for Audio mode: saved with the project and opened again; closing with unsaved edits asks first', async () => {
+  test.setTimeout(300_000);
+  const project = join(dir, 'Task_11p.mve');
+  const first = await launchApp();
+  await audioMode(first.window);
+  await importAudio(first.app, first.window, join(dir, BEEPS), 1);
+  // Closing with unsaved Audio mode work asks; Cancel keeps the window open.
+  await answerUnsaved(first.app, 'cancel');
+  await first.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
+  await expect.poll(() => unsavedAsked(first.app)).toBe(1);
+  await expect(first.window.getByRole('button', { name: 'Import audio' })).toBeVisible();
+  expect(
+    await first.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
+  ).toBe(1);
+  // Save: the project file and, next to it, the track's sound.
+  await answerDialogs(first.app, { save: project });
+  await menu(first.app, 'File', 'Save');
+  await expect
+    .poll(() =>
+      access(join(dir, 'Task_11p audio', 'track-1.wav')).then(
+        () => true,
+        () => false,
+      ),
+    )
+    .toBe(true);
+  await expect(first.window).toHaveTitle('Task_11p.mve — EasyMedia');
+  await first.app.close();
+
+  const second = await launchApp();
+  await answerDialogs(second.app, { open: [project] });
+  await menu(second.app, 'File', 'Open…');
+  await audioMode(second.window);
+  await expect(second.window.getByRole('group', { name: 'Track beeps_30s' })).toBeVisible();
+  await expect(second.window).toHaveTitle('Task_11p.mve — EasyMedia');
+  await second.app.close();
 });

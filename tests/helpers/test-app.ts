@@ -32,6 +32,7 @@ export function testApp(
     exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
+    unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
   };
   const disk = new Map<string, string>();
   const recorder = createMockRecorder();

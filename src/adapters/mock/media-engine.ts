@@ -20,6 +20,8 @@ const even = (n: number) => 2 * Math.round(n / 2);
 
 export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = {}) {
   const files = new Map(Object.entries(initialFiles));
+  /** Sound "written" by encodeAudio, given back exactly by decodeAudio (as a 32-bit WAV is). */
+  const encoded = new Map<string, { sampleRate: number; channels: Float32Array[] }>();
   /** Decoded sound "on disk" (decodeAudioToFile). */
   const raws = new Map<string, Uint8Array>();
   const listeners = new Set<(event: JobEvent) => void>();
@@ -192,6 +194,9 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
     },
 
     async decodeAudio(path, sampleRate) {
+      const written = encoded.get(path);
+      if (written && (sampleRate === undefined || sampleRate === written.sampleRate))
+        return { sampleRate: written.sampleRate, channels: written.channels.map((c) => c.slice()) };
       const info = find(path);
       if (!info.audio) throw new MediaError('This file has no sound to edit.');
       const rate = sampleRate ?? info.audio.sampleRate;
@@ -231,6 +236,11 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
         return { id: 'not-started', done, cancel: () => {} };
       }
       const duration = audio.channels[0]!.length / audio.sampleRate;
+      if (settings.sampleRate === audio.sampleRate && settings.channels === audio.channels.length)
+        encoded.set(output, {
+          sampleRate: audio.sampleRate,
+          channels: audio.channels.map((c) => c.slice()),
+        });
       return job('Export audio', output, () => ({
         kind: 'audio',
         container: AUDIO_FORMATS[settings.format].extension,

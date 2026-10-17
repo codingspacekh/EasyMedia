@@ -76,6 +76,7 @@ describe('P2 main-process IPC handlers', () => {
         exportAudio: async (name, format) => `/p/${name}.${format}`,
         confirm: async () => true,
         chooseFolder: async () => '/usb',
+        unsavedChanges: async () => 'discard',
       },
     });
     expect(await api.invoke('dialog:saveProject', 'Task_11b')).toEqual({

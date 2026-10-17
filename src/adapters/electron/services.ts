@@ -12,6 +12,7 @@ export function createElectronDialogs(api: MveApi): Dialogs {
     exportAudio: (name, format) => unwrap(api.invoke('dialog:exportAudio', name, format)),
     confirm: (message) => unwrap(api.invoke('dialog:confirm', message)),
     chooseFolder: (title) => unwrap(api.invoke('dialog:chooseFolder', title)),
+    unsavedChanges: () => unwrap(api.invoke('dialog:unsavedChanges')),
   };
 }
 

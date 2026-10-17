@@ -184,4 +184,24 @@ export interface Project {
     /** Track 0 = music, track 1 = voiceover. */
     audio: [AudioItem[], AudioItem[]];
   };
+  /** Audio mode's work, saved with the project (P1); absent when there is none. */
+  audioMode?: AudioModeSession;
+}
+
+/** P1 for Audio mode: its tracks; each one's sound is an exact 32-bit WAV file. */
+export interface AudioModeSession {
+  /** The project rate: every track's sample rate. */
+  rate: number;
+  tracks: SavedAudioTrack[];
+}
+
+export interface SavedAudioTrack {
+  id: Id;
+  name: string;
+  /** The WAV file with the track's samples (relative to the project file on disk, X1). */
+  file: string;
+  offset: number;
+  gain: number;
+  pan: number;
+  bits?: number;
 }
