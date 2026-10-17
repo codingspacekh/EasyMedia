@@ -9,6 +9,10 @@ import { planResizeCrop } from '../../src/core/image/crop.ts';
 import type { MediaAsset, Project, VideoClip } from '../../src/core/model/types.ts';
 import type { JobEvent, MediaEngine } from '../../src/core/ports.ts';
 import { defaultExport } from '../../src/core/render/formats.ts';
+import {
+  estimateAudioSize,
+  type AudioExportSettings,
+} from '../../src/core/render/audio-formats.ts';
 
 export interface ContractSetup {
   engine: MediaEngine;
@@ -135,6 +139,128 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
     it('waveformPeaks explains a missing file', async () => {
       const { engine, missing } = setup();
       await expect(engine.waveformPeaks(missing, 10)).rejects.toThrow(/could not be found/i);
+    });
+
+    describe('decodeAudio (A1) and encodeAudio (A16, A17)', () => {
+      const tone = (seconds: number, rate = 44100, channels = 2) =>
+        Array.from({ length: channels }, (_, ch) =>
+          Float32Array.from(
+            { length: seconds * rate },
+            (_, i) => 0.5 * Math.sin((2 * Math.PI * (440 + 110 * ch) * i) / rate),
+          ),
+        );
+      const settings = (change: Partial<AudioExportSettings>): AudioExportSettings => ({
+        format: 'mp3',
+        sampleRate: 44100,
+        channels: 2,
+        bitRate: 128,
+        mode: 'cbr',
+        bitDepth: 16,
+        tags: {},
+        ...change,
+      });
+
+      it('decodes a sound file into one array of samples per channel, at its own rate', async () => {
+        const { engine, audio } = setup();
+        const decoded = await engine.decodeAudio(audio);
+        expect(decoded.sampleRate).toBe(44100);
+        expect(decoded.channels).toHaveLength(2);
+        expect(decoded.channels[0]!.length / 44100).toBeCloseTo(45, 0);
+        expect(decoded.channels[1]!.length).toBe(decoded.channels[0]!.length);
+        const loudest = decoded.channels[0]!.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+        expect(loudest).toBeGreaterThan(0.1);
+        expect(loudest).toBeLessThanOrEqual(1);
+      });
+
+      it('decodes at the project rate when asked, and the sound of a video file', async () => {
+        const { engine, audio, video } = setup();
+        const slow = await engine.decodeAudio(audio, 22050);
+        expect(slow.sampleRate).toBe(22050);
+        expect(slow.channels[0]!.length / 22050).toBeCloseTo(45, 0);
+        const fromVideo = await engine.decodeAudio(video);
+        expect(fromVideo.channels[0]!.length / fromVideo.sampleRate).toBeCloseTo(10, 0);
+      });
+
+      it('explains a file with no sound and a missing file', async () => {
+        const { engine, image, missing } = setup();
+        await expect(engine.decodeAudio(image)).rejects.toThrow(MediaError);
+        await expect(engine.decodeAudio(image)).rejects.toThrow(/no sound/i);
+        await expect(engine.decodeAudio(missing)).rejects.toThrow(/could not be found/i);
+      });
+
+      it('A16 exports a WAV at 48 kHz / 24-bit that probes with those values', async () => {
+        const { engine, out } = setup();
+        const job = engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(2) },
+          out('export.wav'),
+          settings({ format: 'wav', sampleRate: 48000, bitDepth: 24 }),
+        );
+        await job.done;
+        const info = await engine.probe(out('export.wav'));
+        expect(info).toMatchObject({
+          kind: 'audio',
+          container: 'wav',
+          audio: { sampleRate: 48000, bitDepth: 24, channels: 2 },
+        });
+        expect(info.duration).toBeCloseTo(2, 1);
+      });
+
+      it('A17 exports a mono MP3 near its estimated size', async () => {
+        const { engine, out } = setup();
+        const chosen = settings({ channels: 1 });
+        await engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(4, 44100, 1) },
+          out('mono.mp3'),
+          chosen,
+        ).done;
+        const info = await engine.probe(out('mono.mp3'));
+        expect(info.audio).toMatchObject({ codec: 'mp3', channels: 1, sampleRate: 44100 });
+        const ratio = info.sizeBytes / estimateAudioSize(chosen, 4).bytes;
+        expect(ratio).toBeGreaterThan(0.75);
+        expect(ratio).toBeLessThan(1.25);
+      });
+
+      it.each([
+        ['mp3', 'mp3', 'mp3'],
+        ['m4a', 'm4a', 'aac'],
+        ['aac', 'aac', 'aac'],
+        ['wav', 'wav', 'pcm_s16le'],
+        ['flac', 'flac', 'flac'],
+      ] as const)('A17 exports %s (container %s, codec %s)', async (format, container, codec) => {
+        const { engine, out } = setup();
+        await engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(1) },
+          out(`each.${format}`),
+          settings({ format }),
+        ).done;
+        expect(await engine.probe(out(`each.${format}`))).toMatchObject({
+          kind: 'audio',
+          container,
+          audio: { codec },
+        });
+      });
+
+      it('refuses settings a format cannot have', async () => {
+        const { engine, out } = setup();
+        const job = engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(1) },
+          out('bad.mp3'),
+          settings({ sampleRate: 96000 }),
+        );
+        await expect(job.done).rejects.toThrow(EditError);
+      });
+
+      it('a cancelled audio export leaves no file', async () => {
+        const { engine, out } = setup();
+        const job = engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(2) },
+          out('cancelled.flac'),
+          settings({ format: 'flac' }),
+        );
+        job.cancel();
+        await expect(job.done).rejects.toThrow(JobCancelledError);
+        await expect(engine.probe(out('cancelled.flac'))).rejects.toThrow(/could not be found/i);
+      });
     });
 
     describe('renderVideo (V16)', () => {

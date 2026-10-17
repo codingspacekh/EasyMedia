@@ -24,6 +24,8 @@ type Handlers = {
 
 export function registerIpc(s: MainServices): void {
   const jobs = new Map<string, JobHandle>();
+  /** Temporary files of decoded sound the page has not read yet. */
+  const decoded = new Set<string>();
   const keyOf = new Map<string, string>();
 
   // Progress comes from engine events; the outcome from the job's promise.
@@ -91,6 +93,23 @@ export function registerIpc(s: MainServices): void {
     },
     'media:render': async (key, project, output, options) =>
       track(key, 'Export', s.engine.renderVideo(project, output, options)),
+    // A1: the samples are left in a file the page reads once through media://, then releases.
+    'media:decodeAudio': async (path, sampleRate) => {
+      const file = await s.engine.decodeAudioToFile(path, sampleRate);
+      decoded.add(file.raw);
+      s.allow.add(file.raw);
+      return file;
+    },
+    'media:release': async (raw) => {
+      if (!decoded.delete(raw)) return null;
+      s.allow.remove(raw);
+      await s.engine.releaseDecoded(raw);
+      return null;
+    },
+    'media:encodeAudio': async (key, audio, output, settings) =>
+      track(key, 'Export audio', s.engine.encodeAudio(audio, output, settings), () =>
+        s.allow.add(output),
+      ),
     'job:cancel': async (key) => {
       jobs.get(key)?.cancel();
       return null;
@@ -100,6 +119,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:openProject': () => s.dialogs.openProject(),
     'dialog:saveProject': (name) => s.dialogs.saveProject(name),
     'dialog:exportVideo': (name, container) => s.dialogs.exportVideo(name, container),
+    'dialog:exportAudio': (name, format) => s.dialogs.exportAudio(name, format),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
     'dialog:chooseFolder': (title) => s.dialogs.chooseFolder(title),
     'project:read': (path) => s.files.read(path),

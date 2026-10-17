@@ -2,12 +2,18 @@
 // (text drawing is tested in core, and for real in the E2E tests).
 import { beforeEach } from 'vitest';
 import { ui } from '../../src/ui/ui-state.svelte.ts';
+import { audioUi, DEFAULT_ZOOM } from '../../src/ui/audio/audio-ui.svelte.ts';
 
 HTMLCanvasElement.prototype.getContext = () => null;
 
 // Panels share a little UI state (the inspector tab…): every test starts from the defaults.
 beforeEach(() => {
+  ui.mode = 'Video';
+  ui.audioExport = false;
   ui.inspectorTab = 'clip';
   ui.snap = true;
   ui.safeArea = false;
+  audioUi.tool = 'select';
+  audioUi.pxPerSecond = DEFAULT_ZOOM;
+  audioUi.dialog = null;
 });

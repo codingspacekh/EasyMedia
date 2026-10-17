@@ -8,6 +8,7 @@ import {
   relinkMedia,
   removeItem,
 } from './commands.ts';
+import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
 import { proxyPathFor } from './proxy-path.ts';
 import { createStore, type Store } from './store.ts';
@@ -36,6 +37,7 @@ import type {
   ProbeInfo,
   ProjectFiles,
   TextRenderer,
+  UndoStore,
 } from '../core/ports.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
@@ -84,6 +86,10 @@ export interface AppDeps {
   files: ProjectFiles;
   text: TextRenderer;
   paths: AppPaths;
+  /** Speakers for Audio mode (Web Audio in the app). */
+  audioOutput?: AudioOutput;
+  /** Where Audio mode keeps its undo steps (on disk in the app; in memory without it). */
+  audioUndoStore?: UndoStore;
   autosaveMs?: number;
 }
 
@@ -101,7 +107,16 @@ const NEW_TEXT: Record<TextItem['kind'], string> = {
   credits: 'Made by\nYour name',
 };
 
-export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60_000 }: AppDeps) {
+export function createApp({
+  engine,
+  dialogs,
+  files,
+  text,
+  paths,
+  audioOutput = SILENT_OUTPUT,
+  audioUndoStore,
+  autosaveMs = 60_000,
+}: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
   const store: Store<AppState> = createStore<AppState>({
     history: createHistory(fresh),
@@ -315,8 +330,18 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     return images;
   }
 
+  /** Audio mode (A1–A18): its own tracks, selection and undo history. */
+  const audio = createAudioApp({
+    engine,
+    dialogs,
+    output: audioOutput,
+    ...(audioUndoStore ? { undoStore: audioUndoStore } : {}),
+  });
+
   return {
     store,
+
+    audio,
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
@@ -640,6 +665,7 @@ export function createApp({ engine, dialogs, files, text, paths, autosaveMs = 60
     dispose(): void {
       clearInterval(timer);
       stopListening();
+      audio.dispose();
     },
   };
 }

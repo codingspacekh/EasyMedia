@@ -1,7 +1,14 @@
 // The typed surface the page can use (window.mve). Shared by main, preload and renderer.
 // Only the request channels listed in CHANNELS exist (P2).
 import type { Project } from '../core/model/types.ts';
-import type { AppPaths, JobEvent, ProbeInfo, RenderVideoOptions } from '../core/ports.ts';
+import type {
+  AppPaths,
+  DecodedAudioFile,
+  JobEvent,
+  ProbeInfo,
+  RenderVideoOptions,
+} from '../core/ports.ts';
+import type { AudioExportSettings, AudioFormat } from '../core/render/audio-formats.ts';
 import type { WireError } from '../core/wire.ts';
 import type { ResizeCrop } from '../core/image/crop.ts';
 import type { Container } from '../core/render/formats.ts';
@@ -32,6 +39,17 @@ export interface Channels {
     args: [jobKey: string, project: Project, output: string, options: RenderVideoOptions];
     result: null;
   };
+  'media:decodeAudio': { args: [path: string, sampleRate?: number]; result: DecodedAudioFile };
+  'media:release': { args: [raw: string]; result: null };
+  'media:encodeAudio': {
+    args: [
+      jobKey: string,
+      audio: { sampleRate: number; channels: readonly Float32Array[] },
+      output: string,
+      settings: AudioExportSettings,
+    ];
+    result: null;
+  };
   'job:cancel': { args: [jobKey: string]; result: null };
   'app:paths': { args: []; result: AppPaths };
   'dialog:openMedia': { args: []; result: string[] };
@@ -39,6 +57,10 @@ export interface Channels {
   'dialog:saveProject': { args: [suggestedName: string]; result: string | null };
   'dialog:exportVideo': {
     args: [suggestedName: string, container: Container];
+    result: string | null;
+  };
+  'dialog:exportAudio': {
+    args: [suggestedName: string, format: AudioFormat];
     result: string | null;
   };
   'dialog:confirm': { args: [message: string]; result: boolean };
@@ -61,12 +83,16 @@ export const CHANNELS: readonly Channel[] = [
   'media:resizeCrop',
   'media:snapshot',
   'media:render',
+  'media:decodeAudio',
+  'media:release',
+  'media:encodeAudio',
   'job:cancel',
   'app:paths',
   'dialog:openMedia',
   'dialog:openProject',
   'dialog:saveProject',
   'dialog:exportVideo',
+  'dialog:exportAudio',
   'dialog:confirm',
   'dialog:chooseFolder',
   'project:read',
@@ -80,7 +106,17 @@ export const CHANNELS: readonly Channel[] = [
 export type Reply<T> = { ok: true; value: T } | { ok: false; error: WireError };
 
 export type MenuAction =
-  'new' | 'open' | 'save' | 'saveAs' | 'import' | 'export' | 'package' | 'undo' | 'redo';
+  | 'new'
+  | 'open'
+  | 'save'
+  | 'saveAs'
+  | 'import'
+  | 'export'
+  | 'exportAudio'
+  | 'package'
+  | 'undo'
+  | 'redo'
+  | 'selectAll';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

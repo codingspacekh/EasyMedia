@@ -6,6 +6,7 @@ export function createAllowList() {
   return {
     add: (path: string) => void allowed.add(resolve(path)),
     has: (path: string) => allowed.has(resolve(path)),
+    remove: (path: string) => void allowed.delete(resolve(path)),
   };
 }
 

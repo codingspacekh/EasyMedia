@@ -23,17 +23,30 @@
   <div class="params">
     {#each entries as [key, spec] (key)}
       {@const id = `${def.id}-${key}`}
-      <label for={id}>{spec.label}</label>
-      <input
-        {id}
-        type="number"
-        min={spec.min}
-        max={spec.max}
-        step={spec.step}
-        value={params[key] ?? spec.default}
-        onchange={(e) => (error = onchange({ ...params, [key]: Number(e.currentTarget.value) }))}
-      />
-      <span class="unit">{spec.unit ?? ''}</span>
+      {#if spec.toggle}
+        <label class="toggle" for={id}>
+          <input
+            {id}
+            type="checkbox"
+            checked={(params[key] ?? spec.default) === 1}
+            onchange={(e) =>
+              (error = onchange({ ...params, [key]: e.currentTarget.checked ? 1 : 0 }))}
+          />
+          {spec.label}
+        </label>
+      {:else}
+        <label for={id}>{spec.label}</label>
+        <input
+          {id}
+          type="number"
+          min={spec.min}
+          max={spec.max}
+          step={spec.step}
+          value={params[key] ?? spec.default}
+          onchange={(e) => (error = onchange({ ...params, [key]: Number(e.currentTarget.value) }))}
+        />
+        <span class="unit">{spec.unit ?? ''}</span>
+      {/if}
     {/each}
   </div>
 {/if}
@@ -49,6 +62,13 @@
   }
   label {
     color: var(--tx-2);
+  }
+  .toggle {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--tx-1);
   }
   input {
     font: inherit;

@@ -33,6 +33,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       openProject: async () => null,
       saveProject: async () => null,
       exportVideo: async () => null,
+      exportAudio: async () => null,
       confirm: async () => false,
       chooseFolder: async () => null,
     },

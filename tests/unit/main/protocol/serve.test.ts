@@ -28,6 +28,11 @@ describe('media:// file server', () => {
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
   });
 
+  it('A1 lets the page fetch() it (CORS), e.g. decoded sound', async () => {
+    const res = await serveMediaFile(file, null, allow);
+    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+  });
+
   it('sends part of a file for a range request (seeking)', async () => {
     const res = await serveMediaFile(file, 'bytes=100-199', allow);
     expect(res.status).toBe(206);

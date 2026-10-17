@@ -52,6 +52,17 @@
     fade: '<path d="M3 20 21 4v16z"/>',
     filter: '<circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/>',
     panzoom: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" stroke="none"/>',
+    record: '<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/>',
+    loop: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+    cursor: '<path d="M9 4h6M9 20h6M12 4v16"/>',
+    shift: '<path d="M5 12h14"/><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    paste:
+      '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+    silence: '<path d="M3 12h4M17 12h4"/><path d="M9 8v8M15 8v8"/>',
+    tracks: '<path d="M3 6h18M3 12h18M3 18h18"/>',
+    fit: '<path d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/>',
   } as const;
   export type IconName = keyof typeof ICONS;
 </script>

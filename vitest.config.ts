@@ -46,9 +46,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,svelte}', 'scripts/lib/**/*.ts'],
-      // Electron start-up files run only inside the real app: covered by the Playwright
-      // end-to-end tests (tests/e2e), not by unit coverage.
+      // Electron start-up files and the IndexedDB undo store run only inside the real app:
+      // covered by the Playwright end-to-end tests (tests/e2e), not by unit coverage.
       exclude: [
+        'src/adapters/indexeddb/undo-store.ts',
         'src/ui/main.ts',
         'src/main/index.ts',
         'src/main/services.ts',

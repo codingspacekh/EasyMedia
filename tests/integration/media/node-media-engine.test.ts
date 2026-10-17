@@ -52,6 +52,13 @@ describe('Node + FFmpeg engine, real-file details', () => {
     });
   });
 
+  it('quitting (cancelAll) also stops a file check (ffprobe) that is still running', async () => {
+    const own = createNodeMediaEngine(bundledFfmpeg());
+    const checking = own.probe(join(media, 'clip_1080p30_10s.mp4'));
+    own.cancelAll();
+    await expect(checking).rejects.toThrow();
+  });
+
   it('explains a damaged file', async () => {
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(media, 'damaged.mp4'), 'this is not a video');

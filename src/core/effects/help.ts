@@ -11,6 +11,10 @@ export const WHY = {
     'Not every device plays every format, so choose the one the audience will use: MP4 for the web and phones, WMV for Windows, MPG for a DVD player. A smaller size and lossy compression make the file quick to send or stream; lossless keeps a perfect master copy that is much bigger.',
   audio:
     'Sound gets an emotional response from the viewer: music sets the mood, a voiceover (narration) explains what is happening, and sound effects emphasise the action. Lowering the music under the voice keeps the words clear.',
+  silence:
+    'Silence gives a pause: room between two pieces of music, before a voiceover starts, or to replace a sudden noise without changing the timing of what comes after it.',
+  audioExport:
+    'Export makes a file that plays on other devices; the project itself only opens in EasyMedia. A lossy format (MP3, AAC) makes a small file for streaming, phones and email; a lossless one (WAV, FLAC) keeps the sound exactly. A lower sample rate, bit rate or mono makes the file smaller but loses quality.',
   transition:
     'A transition decides how one clip changes into the next. A plain cut is quick; dissolves and fades are smoother. Too many different transitions distract the audience.',
 } as const;
