@@ -179,6 +179,15 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 6, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
   },
   {
+    // Stand-in for Task_11o_audio.mp3 (Task 11o) and the voiceover intro (Book A 11.23): a 50 ms
+    // beep (1 kHz, 0.3) every 2 s, with silence between, so each echo can be measured.
+    name: 'beeps_30s.mp3',
+    group: 'test',
+    inputs: tone('0.3*lt(mod(t,2),0.05)*sin(2*PI*1000*t)', 30),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 30, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',

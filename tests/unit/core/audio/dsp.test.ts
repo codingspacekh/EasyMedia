@@ -1,5 +1,6 @@
 // MILESTONES §3.1: audio effects tested with synthetic signals whose answers are known.
 import { describe, expect, it } from 'vitest';
+import { delay, echo, echoTimes } from '../../../../src/core/audio/dsp/echo.ts';
 import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
 import { changeSpeed } from '../../../../src/core/audio/dsp/speed.ts';
 import {
@@ -213,6 +214,79 @@ describe('A9 time stretch (the first half of Change pitch)', () => {
     const [out] = timeStretch([sine(440, 1, 0.5)], RATE, 0.75);
     expect(out!.length).toBe(Math.round(0.75 * RATE));
     expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+  });
+});
+
+describe('A10 echo (each echo is the one before × the decay; the length stays the same)', () => {
+  const impulse = (seconds: number, rate = 1000) => {
+    const a = new Float32Array(seconds * rate);
+    a[0] = 1;
+    return a;
+  };
+
+  it('0.5 s / 0.8 on a single impulse: echoes at 0.5 s (0.8), 1.0 s (0.64), 1.5 s (0.512)', () => {
+    const [out] = echo([impulse(2)], 1000, 0.5, 0.8);
+    expect(out!.length).toBe(2000);
+    expect([out![0], out![500], out![1000], out![1500]].map((v) => +v!.toFixed(4))).toEqual([
+      1, 0.8, 0.64, 0.512,
+    ]);
+    expect(out!.filter((v) => v !== 0)).toHaveLength(4);
+  });
+
+  it('echoes every channel and leaves the input unchanged', () => {
+    const left = impulse(1);
+    const [l, r] = echo([left, impulse(1)], 1000, 0.25, 0.5);
+    expect([l![250], r![250]]).toEqual([0.5, 0.5]);
+    expect(left[250]).toBe(0);
+  });
+
+  it('a delay longer than the selection changes nothing', () => {
+    const [out] = echo([impulse(1)], 1000, 2, 0.5);
+    expect(out).toEqual(impulse(1));
+  });
+});
+
+describe('A10 delay: regular, bouncing ball, reverse bouncing ball', () => {
+  it('regular: equal gaps', () => {
+    expect(echoTimes('regular', 0.5, 3)).toEqual([0.5, 1, 1.5]);
+  });
+
+  it('bouncing ball: the echoes come closer together', () => {
+    expect(echoTimes('bouncing', 1, 4)).toEqual([1, 1.75, 2.25, 2.5]);
+  });
+
+  it('reverse bouncing ball: the echoes go further apart', () => {
+    expect(echoTimes('reverse', 1, 4)).toEqual([0.25, 0.75, 1.5, 2.5]);
+  });
+
+  it('regular 0.5 s, 3 echoes, 6 dB per echo: each echo 6 dB quieter; the sound gets longer', () => {
+    const input = new Float32Array(1000);
+    input[0] = 1;
+    const [out] = delay([input], 1000, { type: 'regular', delay: 0.5, echoes: 3, decayDb: 6 });
+    expect(out!.length).toBe(2500);
+    expect([out![500], out![1000], out![1500]].map((v) => +v!.toFixed(3))).toEqual([
+      0.501, 0.251, 0.126,
+    ]);
+  });
+
+  it('can keep the length: echoes after the end are left out', () => {
+    const input = new Float32Array(1000);
+    input[0] = 1;
+    const [out] = delay([input], 1000, {
+      type: 'regular',
+      delay: 0.5,
+      echoes: 3,
+      decayDb: 6,
+      keepLength: true,
+    });
+    expect(out!.length).toBe(1000);
+    expect(+out![500]!.toFixed(3)).toBe(0.501);
+  });
+
+  it('delays every channel the same way', () => {
+    const one = Float32Array.from([1, 0, 0, 0]);
+    const out = delay([one, one], 4, { type: 'regular', delay: 0.25, echoes: 1, decayDb: 0 });
+    expect(out).toEqual([Float32Array.from([1, 1, 0, 0, 0]), Float32Array.from([1, 1, 0, 0, 0])]);
   });
 });
 

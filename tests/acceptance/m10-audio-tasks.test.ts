@@ -15,11 +15,12 @@ const TWO_KEYS = 'two_keys_45s.mp3'; // Task_11j.mp3: 0–19 s in C, then F
 const TWO_KEYS_SHARP = 'two_keys_43s.mp3'; // Activity_11e.mp3: 0–30.6 s in C♯, then F♯
 const PIANO = 'piano_stereo_60s.mp3'; // 11.05 Piano_track.mp3
 const BEE = 'bee_voiceover_6s.mp3'; // 11.06 Bee_Voiceover.mp3: a 300 Hz voice
+const BEEPS = 'beeps_30s.mp3'; // Task_11o_audio.mp3: a 50 ms beep every 2 s
 const RATE = 44100;
 
 let folder: Awaited<ReturnType<typeof projectFolder>>;
 beforeAll(async () => {
-  folder = await projectFolder([TWO_KEYS, TWO_KEYS_SHARP, PIANO, BEE]);
+  folder = await projectFolder([TWO_KEYS, TWO_KEYS_SHARP, PIANO, BEE, BEEPS]);
 });
 afterAll(() => folder.cleanUp());
 
@@ -69,6 +70,11 @@ function frequency(c: Float32Array, from: number, to: number): number {
     if (c[i - 1]! < 0 && c[i]! >= 0) crossings.push(i - 1 + c[i - 1]! / (c[i - 1]! - c[i]!));
   }
   return ((crossings.length - 1) * RATE) / (crossings.at(-1)! - crossings[0]!);
+}
+/** Loudness (RMS) of the 50 ms starting at `at` seconds. */
+function level(c: Float32Array, at: number): number {
+  const part = c.subarray(Math.round(at * RATE), Math.round((at + 0.05) * RATE));
+  return Math.sqrt(part.reduce((s, v) => s + v * v, 0) / part.length);
 }
 const near = (actual: number, expected: number, within = 0.02) =>
   expect(Math.abs(actual / expected - 1)).toBeLessThan(within);
@@ -140,5 +146,55 @@ describe('Book A 11.20: the bee voiceover at the end of the piano music, 5 % low
     near(frequency(voice.channels[0]!, 1, 5), 285);
     const file = await s.exportAs('BeeProject_sound.mp3');
     expect((await engine.probe(file)).duration!).toBeCloseTo(41, 1);
+  });
+});
+
+describe('Book B Task 11o: echo, 0.5 s delay and 0.8 decay, between 10 and 20 seconds', () => {
+  it('Task_11o.mp3 has echoes ×0.8, ×0.64… after each beep in 10–20 s, and none elsewhere', async () => {
+    const s = session();
+    await s.open(BEEPS);
+    s.audio.select({ start: 10, end: 20 });
+    expect(s.audio.applyEffect('audio.echo', { delay: 0.5, decay: 0.8 })).toBeNull();
+    const file = await s.exportAs('Task_11o.mp3', { channels: 1 });
+
+    expect((await engine.probe(file)).duration!).toBeCloseTo(30, 1); // the length stays the same
+    const [out] = (await engine.decodeAudio(file)).channels;
+    const beep = level(out!, 12);
+    near(level(out!, 12.5) / beep, 0.8, 0.05);
+    near(level(out!, 13) / beep, 0.64, 0.05);
+    near(level(out!, 13.5) / beep, 0.512, 0.05);
+    expect(level(out!, 4.5)).toBeLessThan(0.01); // before the selection: no echo
+    expect(level(out!, 20.5)).toBeLessThan(0.01); // the echoes stop where the selection ends
+  });
+});
+
+describe('Book A 11.23: echo on the voiceover intro, 0.5 s delay and 0.5 decay', () => {
+  it('each echo is half as loud as the one before', async () => {
+    const s = session();
+    await s.open(BEEPS);
+    s.audio.select({ start: 0, end: 6 });
+    expect(s.audio.applyEffect('audio.echo', { delay: 0.5, decay: 0.5 })).toBeNull();
+    const [voice] = s.doc().tracks[0]!.channels;
+    near(level(voice!, 2.5) / level(voice!, 2), 0.5, 0.02);
+    near(level(voice!, 3) / level(voice!, 2), 0.25, 0.02);
+  });
+});
+
+describe('A10 Delay: bouncing ball, through to a WAV file', () => {
+  it('4 echoes from 1 s come at 1, 1.75, 2.25 and 2.5 s, 6 dB quieter each; the sound gets longer', async () => {
+    const s = session();
+    await s.open(BEEPS);
+    s.audio.select({ start: 26, end: 30 }); // the last beep, at 28 s
+    const params = s.settings('audio.delay', { type: 1, delay: 1, echoes: 4 });
+    expect(s.audio.applyEffect('audio.delay', params)).toBeNull();
+    const file = await s.exportAs('delay.wav', { format: 'wav', channels: 1 });
+
+    expect((await engine.probe(file)).duration!).toBeCloseTo(32.5, 2);
+    const [out] = (await engine.decodeAudio(file)).channels;
+    const beep = level(out!, 28);
+    for (const [k, at] of [1, 1.75, 2.25, 2.5].entries()) {
+      near(level(out!, 28 + at) / beep, 10 ** ((-6 * (k + 1)) / 20), 0.05);
+    }
+    expect(level(out!, 29.4)).toBeLessThan(0.01); // nothing between the echoes
   });
 });

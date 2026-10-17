@@ -54,7 +54,9 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
   });
 
   it('has the M10 effects so far', () => {
-    expect(AUDIO_EFFECTS.map((e) => e.id)).toEqual(expect.arrayContaining(['audio.pitch']));
+    expect(AUDIO_EFFECTS.map((e) => e.id)).toEqual(
+      expect.arrayContaining(['audio.pitch', 'audio.echo', 'audio.delay']),
+    );
   });
 
   it('a checkbox setting is a toggle with the values 0 and 1', () => {
@@ -190,6 +192,66 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     it('keeps the length of the selection', () => {
       const [out] = pitch.process([sine(0.5, 0.2)], RATE, { ...start, semitones: 5 });
       expect(out!.length).toBe(Math.round(0.2 * RATE));
+    });
+  });
+
+  describe('A10 Echo', () => {
+    const echo = fx('audio.echo');
+
+    it('has a delay time and a decay factor (Audacity: 1 s and 0.5)', () => {
+      expect(defaultParams(echo)).toEqual({ delay: 1, decay: 0.5 });
+      expect([echo.params.decay!.min, echo.params.decay!.max]).toEqual([0, 1]);
+      expect(echo.group).toBe('Space');
+    });
+
+    it('Book B Task 11o: 0.5 s and 0.8 — says when the echoes come and how loud', () => {
+      const note = echo.note!([sine(0.1, 2)], RATE, { delay: 0.5, decay: 0.8 });
+      expect(note).toMatch(/0\.50 s \(×0\.80\), 1\.00 s \(×0\.64\), 1\.50 s \(×0\.51\)/);
+    });
+
+    it('warns when the echoes add up to more than full level (clipping)', () => {
+      expect(echo.note!([sine(0.9, 2)], RATE, { delay: 0.01, decay: 0.8 })).toMatch(/clipped/);
+      expect(echo.note!([sine(0.1, 2)], RATE, { delay: 0.5, decay: 0.5 })).not.toMatch(/clipped/);
+    });
+
+    it('keeps the length of the selection', () => {
+      const [out] = echo.process([sine(0.5, 1)], RATE, { delay: 0.5, decay: 0.8 });
+      expect(out!.length).toBe(RATE);
+    });
+  });
+
+  describe('A10 Delay', () => {
+    const delay = fx('audio.delay');
+
+    it('offers the three types as buttons, and the design screen 19 settings', () => {
+      expect(delay.params.type!.choices).toEqual([
+        'Regular',
+        'Bouncing ball',
+        'Reverse bouncing ball',
+      ]);
+      expect(defaultParams(delay)).toEqual({
+        type: 0,
+        delay: 0.5,
+        echoes: 5,
+        decayDb: 6,
+        longer: 1,
+      });
+      expect(delay.params.longer!.toggle).toBe(true);
+    });
+
+    it('says what the type does and when the echoes come', () => {
+      const note = (type: number) =>
+        delay.note!([sine(0.1, 1)], RATE, { ...defaultParams(delay), delay: 1, echoes: 4, type });
+      expect(note(0)).toMatch(/equal gaps.*1\.00, 2\.00, 3\.00, 4\.00 s/i);
+      expect(note(1)).toMatch(/closer.*1\.00, 1\.75, 2\.25, 2\.50 s/i);
+      expect(note(2)).toMatch(/further apart.*0\.25, 0\.75, 1\.50, 2\.50 s/i);
+    });
+
+    it('makes the sound longer for the last echo, unless told not to', () => {
+      const params = { ...defaultParams(delay), delay: 0.5, echoes: 2 };
+      expect(delay.process([sine(0.1, 1)], RATE, params)[0]!.length).toBe(2 * RATE);
+      expect(delay.process([sine(0.1, 1)], RATE, { ...params, longer: 0 })[0]!.length).toBe(RATE);
+      expect(delay.note!([sine(0.1, 1)], RATE, params)).toMatch(/1\.00 s → 2\.00 s/);
     });
   });
 

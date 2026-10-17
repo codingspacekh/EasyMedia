@@ -35,15 +35,18 @@
           {spec.label}
         </label>
       {:else if spec.choices && spec.choices.length <= 3}
-        <span class="label" id={`${id}-label`}>{spec.label}</span>
-        <div class="seg small choice" role="group" aria-labelledby={`${id}-label`}>
-          {#each spec.choices as choice, i (choice)}
-            <button
-              type="button"
-              aria-pressed={(params[key] ?? spec.default) === i}
-              onclick={() => (error = onchange({ ...params, [key]: i }))}>{choice}</button
-            >
-          {/each}
+        <!-- A row of its own: the buttons take the width they need, on one line each. -->
+        <div class="buttons">
+          <span class="label" id={`${id}-label`}>{spec.label}</span>
+          <div class="seg small" role="group" aria-labelledby={`${id}-label`}>
+            {#each spec.choices as choice, i (choice)}
+              <button
+                type="button"
+                aria-pressed={(params[key] ?? spec.default) === i}
+                onclick={() => (error = onchange({ ...params, [key]: i }))}>{choice}</button
+              >
+            {/each}
+          </div>
         </div>
       {:else if spec.choices}
         <label for={id}>{spec.label}</label>
@@ -89,6 +92,16 @@
   }
   .choice {
     grid-column: 2 / -1;
+  }
+  .buttons {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .buttons button {
+    white-space: nowrap;
   }
   .toggle {
     grid-column: 1 / -1;
