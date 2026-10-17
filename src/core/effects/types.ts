@@ -12,6 +12,8 @@ export interface ParamSpec {
   default: number;
   /** A checkbox: the value is 1 (ticked) or 0. */
   toggle?: boolean;
+  /** A drop-down: the value is the position of the chosen item (min 0, max length − 1). */
+  choices?: readonly string[];
 }
 
 export type Params = Record<string, number>;

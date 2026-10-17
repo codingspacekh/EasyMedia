@@ -53,6 +53,10 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     );
   });
 
+  it('has the M10 effects so far', () => {
+    expect(AUDIO_EFFECTS.map((e) => e.id)).toEqual(expect.arrayContaining(['audio.pitch']));
+  });
+
   it('a checkbox setting is a toggle with the values 0 and 1', () => {
     const allow = fx('audio.amplify').params.allowClipping!;
     expect([allow.toggle, allow.min, allow.max, allow.step]).toEqual([true, 0, 1, 1]);
@@ -130,6 +134,62 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     it('changes the length of the selection', () => {
       const [out] = speed.process([new Float32Array(1000)], RATE, { speed: 2, percent: 100 });
       expect(out!.length).toBe(500);
+    });
+  });
+
+  describe('A9 Change pitch', () => {
+    const pitch = fx('audio.pitch');
+    const start = defaultParams(pitch);
+    const keys = pitch.params.fromKey!.choices!;
+
+    it('offers the 12 keys and the two directions as drop-downs', () => {
+      expect(keys).toHaveLength(12);
+      expect([keys[0], keys[1], keys[5], keys[6]]).toEqual(['C', 'C♯ / D♭', 'F', 'F♯ / G♭']);
+      expect(pitch.params.toKey!.choices).toEqual(keys);
+      expect(pitch.params.direction!.choices).toEqual(['Up', 'Down']);
+      expect([pitch.params.fromKey!.min, pitch.params.fromKey!.max]).toEqual([0, 11]);
+    });
+
+    it('Book B Task 11k: from C to F, up, is +5 semitones (+33.48 %)', () => {
+      const p = pitch.link!({ ...start, fromKey: 0, toKey: 5 }, 'toKey');
+      expect(p.semitones).toBe(5);
+      expect(p.percent).toBeCloseTo(33.48, 2);
+    });
+
+    it('Activity 11f: from C♯ to F♯, up, is also +5 semitones', () => {
+      const p = pitch.link!({ ...start, fromKey: 1, toKey: 6 }, 'toKey');
+      expect(p.semitones).toBe(5);
+    });
+
+    it('from C to F, down, is −7 semitones', () => {
+      const up = pitch.link!({ ...start, fromKey: 0, toKey: 5 }, 'toKey');
+      const p = pitch.link!({ ...up, direction: 1 }, 'direction');
+      expect(p.semitones).toBe(-7);
+      expect(p.percent).toBeCloseTo(-33.26, 2);
+    });
+
+    it('Book A 11.20: lower by 5 % gives −0.89 semitones and keeps the keys in step', () => {
+      const p = pitch.link!({ ...start, percent: -5 }, 'percent');
+      expect(p.semitones).toBeCloseTo(-0.89, 2);
+      expect(p.direction).toBe(1);
+      expect(p.toKey).toBe(11); // C, down by about one semitone, is near B
+    });
+
+    it('semitones move the "to" key and the direction', () => {
+      const p = pitch.link!({ ...start, fromKey: 9, semitones: 3 }, 'semitones');
+      expect([p.toKey, p.direction]).toEqual([0, 0]); // A + 3 = C, up
+      expect(p.percent).toBeCloseTo(18.92, 2);
+    });
+
+    it('shows the frequencies, and that the length stays the same', () => {
+      const note = pitch.note!([sine(0.5)], RATE, { ...start, fromKey: 0, toKey: 5, semitones: 5 });
+      expect(note).toMatch(/261\.6 Hz → 349\.2 Hz/);
+      expect(note).toMatch(/length stays the same/i);
+    });
+
+    it('keeps the length of the selection', () => {
+      const [out] = pitch.process([sine(0.5, 0.2)], RATE, { ...start, semitones: 5 });
+      expect(out!.length).toBe(Math.round(0.2 * RATE));
     });
   });
 

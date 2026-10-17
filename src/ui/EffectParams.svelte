@@ -34,6 +34,29 @@
           />
           {spec.label}
         </label>
+      {:else if spec.choices && spec.choices.length <= 3}
+        <span class="label" id={`${id}-label`}>{spec.label}</span>
+        <div class="seg small choice" role="group" aria-labelledby={`${id}-label`}>
+          {#each spec.choices as choice, i (choice)}
+            <button
+              type="button"
+              aria-pressed={(params[key] ?? spec.default) === i}
+              onclick={() => (error = onchange({ ...params, [key]: i }))}>{choice}</button
+            >
+          {/each}
+        </div>
+      {:else if spec.choices}
+        <label for={id}>{spec.label}</label>
+        <select
+          {id}
+          class="choice"
+          value={String(params[key] ?? spec.default)}
+          onchange={(e) => (error = onchange({ ...params, [key]: Number(e.currentTarget.value) }))}
+        >
+          {#each spec.choices as choice, i (choice)}
+            <option value={String(i)}>{choice}</option>
+          {/each}
+        </select>
       {:else}
         <label for={id}>{spec.label}</label>
         <input
@@ -60,8 +83,12 @@
     align-items: center;
     font-size: 12px;
   }
-  label {
+  label,
+  .label {
     color: var(--tx-2);
+  }
+  .choice {
+    grid-column: 2 / -1;
   }
   .toggle {
     grid-column: 1 / -1;
@@ -70,7 +97,8 @@
     gap: 6px;
     color: var(--tx-1);
   }
-  input {
+  input,
+  select {
     font: inherit;
     color: var(--tx-1);
     background: var(--bg-0);

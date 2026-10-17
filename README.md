@@ -167,7 +167,7 @@ The audio editor follows the **Audacity model**: select a region on the waveform
 | **A6** | Splicing/joining two clips | Copy/paste between tracks; *Mix and render* (to same track or new track). | Mixer |
 | **A7** | Fading in and out | *Fade in* / *Fade out* on the selection. | Gain ramp |
 | **A8** | Altering clip speed | *Change speed* by multiplier or %, which changes pitch as in Audacity; shows the new length. | Resampling |
-| **A9** | Changing pitch | *Change pitch* by semitones, **from key → to key**, or %; length unchanged. | Time-stretch (SoundTouch) |
+| **A9** | Changing pitch | *Change pitch* by semitones, **from key → to key**, or %; length unchanged. | Time-stretch (WSOLA, as SoundTouch) + resampling |
 | **A10** | Delay / echo | *Echo*: delay time, decay factor. *Delay*: type (regular / bouncing ball / reverse bouncing ball), delay time, number of echoes. | Feedback delay line |
 | **A11** | Reverberation | *Reverb*: room size, reverberance, damping, wet/dry; **Preview** button. | Freeverb |
 | **A12** | Equalisation, high- and low-pass filters | **Graphic EQ** (≈ 10 bands, 20 Hz – 20 kHz, ±20 dB) with presets: *Bass boost*, *Treble boost*, *Treble cut*, *Telephone*, *Walkie-talkie*, *Flat*. **High-pass** and **Low-pass** with cutoff (Hz) and roll-off (dB/octave). | Biquad filters |
@@ -295,7 +295,7 @@ Because the UI is written in web technologies, it can later be reused for a brow
 | Media engine | FFmpeg + ffprobe, GPL static builds bundled per platform (Windows x64, macOS arm64, macOS x64) |
 | Waveform display | Canvas, peaks pre-computed by FFmpeg |
 | Audio playback | Web Audio API |
-| Audio DSP | TypeScript in Web Workers; SoundTouch (WASM) for pitch shifting |
+| Audio DSP | TypeScript (in a Web Worker for the heavy effects); pitch shifting by WSOLA time-stretch + resampling, the method SoundTouch uses |
 | Project format | JSON (`.mve`) |
 | Testing | Vitest (unit, filtergraph compiler), Playwright (UI end-to-end) |
 | Fonts | Bundled open-licence fonts (e.g. Noto Sans, Noto Serif, Courier Prime) |
@@ -331,7 +331,7 @@ The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is a
 |---|---|
 | **Exam use** — unclear whether centre-built software is allowed for practical papers | Confirm with the Cambridge exams officer before relying on it for assessed work. Teaching use is unaffected. |
 | **Noise reduction quality** | Port Audacity's spectral noise-reduction approach; test with coursebook files `Voiceover_1.mp3`, `Task_11n_audio.mp3`. |
-| **Pitch shift quality** | Use SoundTouch (LGPL), a proven library. |
+| **Pitch shift quality** | WSOLA (SoundTouch's method) written in TypeScript, tested with known tones; the teacher listens to real voice and music in the M10 check. If it is not good enough, SoundTouch (LGPL) replaces one DSP file. |
 | **Performance on weaker student laptops** | Phase 0 spike measured on the weakest available laptop before further work. |
 | **macOS Gatekeeper** — unsigned apps show *"cannot be opened because the developer cannot be verified"* | Option A: join the Apple Developer Program (US$99/year) to sign and notarise. Option B (free): document *right-click → Open* (or *System Settings → Privacy & Security → Open Anyway*) in the install guide. |
 | **Windows SmartScreen** — unsigned installers show *"Windows protected your PC"* | Document *More info → Run anyway*; optional code-signing certificate later. |
@@ -364,5 +364,5 @@ Still open:
 The project is open source and intended for **study and teaching use**.
 
 - Proposed licence: **GPL-3.0**. This is required because the bundled FFmpeg build includes GPL components (x264), and it keeps all derived versions open.
-- Third-party components and their licences (FFmpeg — GPL; SoundTouch — LGPL-2.1; Electron — MIT; bundled fonts — SIL OFL) are listed in a `THIRD_PARTY_LICENSES` file shipped with each release.
+- Third-party components and their licences (FFmpeg — GPL; Electron — MIT; bundled fonts — SIL OFL) are listed in a `THIRD_PARTY_LICENSES` file shipped with each release.
 - Coursebook media files are **not** included in the repository; they remain the property of their publishers.

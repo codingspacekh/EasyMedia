@@ -462,7 +462,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 **Goal:** the remaining audio effects and voiceover recording — screens 15–19.
 
 **Build order** (each effect = registry entry + DSP + tests)
-1. Change pitch, key-to-key (A9) — SoundTouch WASM.
+1. Change pitch, key-to-key (A9) — WSOLA time-stretch + resampling (SoundTouch's method, in TypeScript).
 2. Echo; Delay with 3 types (A10).
 3. Reverb (A11).
 4. Graphic EQ + presets, high-pass, low-pass (A12).

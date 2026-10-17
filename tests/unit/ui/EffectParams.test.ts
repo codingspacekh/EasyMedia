@@ -39,6 +39,54 @@ describe('settings generated from an effect schema (P7)', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/between 0.01 and 5/);
   });
 
+  const withChoices: EffectDef = {
+    ...echoLike,
+    params: {
+      key: {
+        label: 'From key',
+        min: 0,
+        max: 3,
+        step: 1,
+        default: 0,
+        choices: ['C', 'D', 'E', 'F'],
+      },
+      direction: {
+        label: 'Direction',
+        min: 0,
+        max: 1,
+        step: 1,
+        default: 0,
+        choices: ['Up', 'Down'],
+      },
+    },
+  };
+
+  it('more than three choices give a drop-down; it reports the position of the choice', async () => {
+    const onchange = vi.fn(() => null);
+    render(EffectParams, {
+      props: { def: withChoices, params: { key: 2, direction: 0 }, onchange },
+    });
+    const key = screen.getByLabelText('From key') as HTMLSelectElement;
+    expect([...key.options].map((o) => o.text)).toEqual(['C', 'D', 'E', 'F']);
+    expect(key.value).toBe('2');
+    await fireEvent.change(key, { target: { value: '3' } });
+    expect(onchange).toHaveBeenCalledWith({ key: 3, direction: 0 });
+  });
+
+  it('up to three choices give buttons, with the chosen one pressed', async () => {
+    const onchange = vi.fn(() => null);
+    render(EffectParams, {
+      props: { def: withChoices, params: { key: 0, direction: 0 }, onchange },
+    });
+    const group = screen.getByRole('group', { name: 'Direction' });
+    const up = screen.getByRole('button', { name: 'Up' });
+    expect(group.contains(up)).toBe(true);
+    expect(up.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Down' }).getAttribute('aria-pressed')).toBe('false');
+    await fireEvent.click(screen.getByRole('button', { name: 'Down' }));
+    expect(onchange).toHaveBeenCalledWith({ key: 0, direction: 1 });
+  });
+
   it('an effect with no settings says so', () => {
     render(EffectParams, {
       props: { def: { ...echoLike, params: {} }, params: {}, onchange: () => null },

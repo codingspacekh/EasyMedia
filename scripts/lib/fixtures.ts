@@ -150,6 +150,35 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 48, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
   },
   {
+    // Stand-in for Task_11j.mp3 (Book B 11.2.10, Task 11k): two parts recorded in different keys,
+    // the first 19 s in C (C4, 261.63 Hz), the rest in F (F4, 349.23 Hz).
+    name: 'two_keys_45s.mp3',
+    group: 'test',
+    inputs: tone('0.4*if(lt(t,19),sin(2*PI*261.63*t),sin(2*PI*349.23*t))', 45),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 45, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Activity_11e.mp3 (Activity 11f): the first 30.6 s in C♯ (277.18 Hz), the rest
+    // in F♯ (369.99 Hz).
+    name: 'two_keys_43s.mp3',
+    group: 'test',
+    inputs: tone(
+      '0.4*if(lt(t,30.6),sin(2*PI*277.18*t),sin(2*PI*369.99*t))|0.4*if(lt(t,30.6),sin(2*PI*277.18*t),sin(2*PI*369.99*t))',
+      43.4,
+    ),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 43.4, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for 11.06 Bee_Voiceover.mp3 (Book A 11.20): a 300 Hz "voice" that rises and falls.
+    name: 'bee_voiceover_6s.mp3',
+    group: 'test',
+    inputs: tone('(0.3+0.1*sin(2*PI*3*t))*sin(2*PI*300*t)', 6),
+    output: ['-c:a', 'libmp3lame', '-b:a', '128k'],
+    expect: { durationS: 6, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',

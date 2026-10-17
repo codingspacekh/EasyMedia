@@ -1,5 +1,6 @@
 // MILESTONES §3.1: audio effects tested with synthetic signals whose answers are known.
 import { describe, expect, it } from 'vitest';
+import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
 import { changeSpeed } from '../../../../src/core/audio/dsp/speed.ts';
 import {
   amplify,
@@ -145,6 +146,73 @@ describe('A8 change speed (pitch changes too, as in Audacity)', () => {
 
   it('refuses a speed of zero or less', () => {
     expect(() => changeSpeed([sine(440, 0.1)], 0)).toThrow(/greater than 0/);
+  });
+});
+
+describe('A9 change pitch (length stays the same)', () => {
+  it('+12 semitones: a 2 s sine at 440 Hz stays 2 s and becomes 880 Hz (±2 %)', () => {
+    const [out] = changePitch([sine(440, 2, 0.5)], RATE, 12);
+    expect(out!.length).toBe(2 * RATE);
+    expect(frequency(out!) / 880).toBeCloseTo(1, 1);
+    expect(Math.abs(frequency(out!) / 880 - 1)).toBeLessThan(0.02);
+  });
+
+  it('keeps the loudness of a steady tone (no gaps or doubled parts)', () => {
+    const [out] = changePitch([sine(440, 2, 0.5)], RATE, 12);
+    const middle = out!.subarray(Math.round(0.2 * RATE), Math.round(1.8 * RATE));
+    expect(rms(middle) / (0.5 / Math.SQRT2)).toBeGreaterThan(0.9);
+    expect(rms(middle) / (0.5 / Math.SQRT2)).toBeLessThan(1.1);
+  });
+
+  it('C → F up (Book B Task 11k) is +5 semitones: 440 Hz → 587.3 Hz', () => {
+    const [out] = changePitch([sine(440, 1, 0.5)], RATE, 5);
+    expect(Math.abs(frequency(out!) / 587.33 - 1)).toBeLessThan(0.02);
+  });
+
+  it('lower by 5 % (Book A 11.20): 440 Hz → 418 Hz, same length', () => {
+    const [out] = changePitch([sine(440, 1, 0.5)], RATE, 12 * Math.log2(0.95));
+    expect(out!.length).toBe(RATE);
+    expect(Math.abs(frequency(out!) / 418 - 1)).toBeLessThan(0.02);
+  });
+
+  it('0 semitones leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.5, 0.5);
+    const [out] = changePitch([input], RATE, 0);
+    expect(out).toEqual(input);
+    expect(out).not.toBe(input);
+  });
+
+  it('keeps the two sides of a stereo sound in step', () => {
+    const [l, r] = changePitch([sine(440, 1, 0.5), sine(440, 1, 0.5)], RATE, -3);
+    expect(r).toEqual(l);
+  });
+
+  it('a selection shorter than one window still keeps its length', () => {
+    const [out] = changePitch([sine(440, 0.01, 0.5)], RATE, 7);
+    expect(out!.length).toBe(441);
+  });
+
+  it('an empty selection stays empty', () => {
+    expect(changePitch([new Float32Array(0)], RATE, 5)).toEqual([new Float32Array(0)]);
+    expect(changePitch([new Float32Array(1)], RATE, 24)[0]!.length).toBe(1);
+  });
+
+  it('refuses a change beyond two octaves', () => {
+    expect(() => changePitch([sine(440, 0.1)], RATE, 25)).toThrow(/semitones/);
+  });
+});
+
+describe('A9 time stretch (the first half of Change pitch)', () => {
+  it('×1.5: a 1 s sine at 440 Hz becomes 1.5 s, still at 440 Hz', () => {
+    const [out] = timeStretch([sine(440, 1, 0.5)], RATE, 1.5);
+    expect(out!.length).toBe(Math.round(1.5 * RATE));
+    expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+  });
+
+  it('×0.75 makes it shorter, still at 440 Hz', () => {
+    const [out] = timeStretch([sine(440, 1, 0.5)], RATE, 0.75);
+    expect(out!.length).toBe(Math.round(0.75 * RATE));
+    expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
   });
 });
 
