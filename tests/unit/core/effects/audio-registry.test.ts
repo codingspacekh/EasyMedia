@@ -5,6 +5,7 @@ import {
   defaultParams,
   validateParams,
 } from '../../../../src/core/effects/registry.ts';
+import { noiseProfile } from '../../../../src/core/audio/dsp/noise.ts';
 import { peak } from '../../../../src/core/audio/dsp/volume.ts';
 import { EditError } from '../../../../src/core/model/errors.ts';
 
@@ -36,7 +37,10 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     (_, e) => {
       const params = defaultParams(e);
       validateParams(e, params);
-      const out = e.process([sine(0.5)], RATE, params);
+      const context = e.needsNoiseProfile
+        ? { noiseProfile: noiseProfile([sine(0.5)], RATE) }
+        : undefined;
+      const out = e.process([sine(0.5)], RATE, params, context);
       expect(out).toHaveLength(1);
     },
   );
@@ -397,6 +401,40 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     it('a cut-off at or above half the sample rate is brought down to what the rate can hold', () => {
       const [out] = lp.process([sine(0.5)], 8000, { cutoff: 6000, rolloff: 1 });
       expect(out!.every(Number.isFinite)).toBe(true);
+    });
+  });
+
+  describe('A13 Noise reduction', () => {
+    const nr = fx('audio.noise');
+    const hiss = Float32Array.from(
+      { length: RATE },
+      (_, i) => 0.05 * Math.sin(i * 12.9898) * Math.sin(i * 78.233),
+    );
+
+    it('starts at 12 dB, sensitivity 6 and 3 bands of smoothing (Book B Task 11l)', () => {
+      expect(defaultParams(nr)).toEqual({
+        reductionDb: 12,
+        sensitivity: 6,
+        smoothing: 3,
+        output: 0,
+      });
+      expect(nr.params.output!.choices).toEqual(['Reduce noise', 'Hear only what is removed']);
+      expect(nr.group).toBe('Repair & channels');
+    });
+
+    it('needs a noise profile first (step 1)', () => {
+      expect(nr.needsNoiseProfile).toBe(true);
+      expect(() => nr.process([hiss], RATE, defaultParams(nr))).toThrow(EditError);
+      expect(() => nr.process([hiss], RATE, defaultParams(nr))).toThrow(/noise profile/);
+    });
+
+    it('with a profile, makes the noise quieter; or gives only what is removed', () => {
+      const context = { noiseProfile: noiseProfile([hiss], RATE) };
+      const [out] = nr.process([hiss], RATE, defaultParams(nr), context);
+      const rms = (a: Float32Array) => Math.sqrt(a.reduce((t, v) => t + v * v, 0) / a.length);
+      expect(rms(out!)).toBeLessThan(rms(hiss) / 2);
+      const [removed] = nr.process([hiss], RATE, { ...defaultParams(nr), output: 1 }, context);
+      expect(rms(removed!)).toBeGreaterThan(rms(out!));
     });
   });
 

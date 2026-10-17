@@ -82,6 +82,16 @@
     {...effect.link ? { link: effect.link } : {}}
     preview={(p) => audio.previewEffect(effect.id, p)}
     apply={(p) => audio.applyEffect(effect.id, p)}
+    {...effect.needsNoiseProfile
+      ? {
+          step1: {
+            taken: $store.noiseProfile
+              ? `${$store.noiseProfile.start.toFixed(2)} – ${$store.noiseProfile.end.toFixed(2)} s`
+              : null,
+            take: () => audio.getNoiseProfile(),
+          },
+        }
+      : {}}
     onclose={() => (audioUi.dialog = null)}
   />
 {:else if audioUi.dialog?.kind === 'silence'}

@@ -197,6 +197,27 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 120, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
   },
   {
+    // Stand-in for Voiceover_1.mp3 (Task 11l): a 300 Hz "voice" for the first 3.3 s, then only the
+    // background hiss that runs all the way through (the noise-only part is 3.3–8.09 s).
+    name: 'voice_hiss_9s.mp3',
+    group: 'test',
+    inputs: tone('0.3*lt(t,3.3)*sin(2*PI*300*t)+0.03*(2*random(0)-1)', 9),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 9, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Task_11n_audio.mp3 (Task 11n): bass (100 Hz) and treble (8 kHz) music with hiss
+    // throughout; 40–50 s has only the hiss ("barely audible").
+    name: 'music_hiss_60s.mp3',
+    group: 'test',
+    inputs: tone(
+      '(1-between(t,40,50))*(0.2*sin(2*PI*100*t)+0.2*sin(2*PI*8000*t))+0.02*(2*random(0)-1)',
+      60,
+    ),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 60, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',

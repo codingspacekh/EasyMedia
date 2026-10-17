@@ -16,12 +16,23 @@ const TWO_KEYS_SHARP = 'two_keys_43s.mp3'; // Activity_11e.mp3: 0–30.6 s in C�
 const PIANO = 'piano_stereo_60s.mp3'; // 11.05 Piano_track.mp3
 const BEE = 'bee_voiceover_6s.mp3'; // 11.06 Bee_Voiceover.mp3: a 300 Hz voice
 const BEEPS = 'beeps_30s.mp3'; // Task_11o_audio.mp3: a 50 ms beep every 2 s
+const VOICE_HISS = 'voice_hiss_9s.mp3'; // Voiceover_1.mp3: voice 0–3.3 s, hiss throughout
+const MUSIC_HISS = 'music_hiss_60s.mp3'; // Task_11n_audio.mp3: only hiss in 40–50 s
 const TONES = 'bass_treble_120s.mp3'; // Voiceover_2, Task_11n_audio, Blue_Sky_Blues: 100 Hz + 8 kHz
 const RATE = 44100;
 
 let folder: Awaited<ReturnType<typeof projectFolder>>;
 beforeAll(async () => {
-  folder = await projectFolder([TWO_KEYS, TWO_KEYS_SHARP, PIANO, BEE, BEEPS, TONES]);
+  folder = await projectFolder([
+    TWO_KEYS,
+    TWO_KEYS_SHARP,
+    PIANO,
+    BEE,
+    BEEPS,
+    TONES,
+    VOICE_HISS,
+    MUSIC_HISS,
+  ]);
 });
 afterAll(() => folder.cleanUp());
 
@@ -71,6 +82,11 @@ function frequency(c: Float32Array, from: number, to: number): number {
     if (c[i - 1]! < 0 && c[i]! >= 0) crossings.push(i - 1 + c[i - 1]! / (c[i - 1]! - c[i]!));
   }
   return ((crossings.length - 1) * RATE) / (crossings.at(-1)! - crossings[0]!);
+}
+/** Loudness (RMS) between two times. */
+function rms(c: Float32Array, from: number, to: number): number {
+  const part = c.subarray(Math.round(from * RATE), Math.round(to * RATE));
+  return Math.sqrt(part.reduce((s, v) => s + v * v, 0) / part.length);
 }
 /** Loudness (RMS) of the 50 ms starting at `at` seconds. */
 function level(c: Float32Array, at: number): number {
@@ -236,10 +252,16 @@ describe('Book B Task 11m: reverb 4–6 s, more treble 8–11.8 s, more bass 11.
   });
 });
 
-describe('Book B Task 11n: a high-pass, then (from the start again) a low-pass, on 10–20 s', () => {
-  it('Task_11n_high.mp3 loses the bass in 10–20 s; Task_11n_low.mp3 loses the treble', async () => {
+describe('Book B Task 11n: noise reduction, then a high-pass on 10–20 s; again with a low-pass', () => {
+  it('Task_11n_high.mp3 is quieter in 40–50 s and loses the bass in 10–20 s; Task_11n_low.mp3 the treble', async () => {
     const high = session();
-    await high.open(TONES);
+    await high.open(MUSIC_HISS);
+    high.audio.select({ start: 40, end: 50 }); // background noise only
+    expect(high.audio.getNoiseProfile()).toBeNull();
+    high.audio.selectAll(); // Ctrl+A, then Noise Reduction… step 2
+    expect(
+      high.audio.applyEffect('audio.noise', high.audio.effectSettings('audio.noise')),
+    ).toBeNull();
     high.audio.select({ start: 10, end: 20 });
     expect(
       high.audio.applyEffect('audio.highpass', high.audio.effectSettings('audio.highpass')),
@@ -247,12 +269,14 @@ describe('Book B Task 11n: a high-pass, then (from the start again) a low-pass, 
     const [h] = (
       await engine.decodeAudio(await high.exportAs('Task_11n_high.mp3', { channels: 1 }))
     ).channels;
+    const [original] = (await engine.decodeAudio(folder.file(MUSIC_HISS))).channels;
+    expect(20 * Math.log10(rms(h!, 42, 48) / rms(original!, 42, 48))).toBeLessThan(-9); // hiss
     expect(change(h!, 100, 14, 2)).toBeLessThan(-15); // the bass is cut
     expect(Math.abs(change(h!, 8000, 14, 2))).toBeLessThan(1); // the treble passes
     expect(Math.abs(change(h!, 100, 25, 2))).toBeLessThan(1); // only in 10–20 s
 
-    const low = session();
-    await low.open(TONES);
+    const low = session(); // "start a new project and reopen the file"
+    await low.open(MUSIC_HISS);
     low.audio.select({ start: 10, end: 20 });
     expect(
       low.audio.applyEffect('audio.lowpass', low.audio.effectSettings('audio.lowpass')),
@@ -261,6 +285,54 @@ describe('Book B Task 11n: a high-pass, then (from the start again) a low-pass, 
       .channels;
     expect(change(l!, 8000, 14, 2)).toBeLessThan(-15);
     expect(Math.abs(change(l!, 100, 14, 2))).toBeLessThan(1);
+  });
+});
+
+describe('Book B Task 11l: remove the background noise from Voiceover_1, trim to 4 s', () => {
+  it('Task_11l.mp3 is 4 s; the hiss is much quieter and the voice keeps its level', async () => {
+    const s = session();
+    await s.open(VOICE_HISS);
+    const before = s.doc().tracks[0]!.channels[0]!;
+    s.audio.select({ start: 3.3, end: 8.09 }); // only background noise
+    expect(s.audio.getNoiseProfile()).toBeNull();
+    s.audio.selectAll();
+    const settings = s.audio.effectSettings('audio.noise');
+    expect(settings).toMatchObject({ reductionDb: 12, sensitivity: 6, smoothing: 3 });
+    expect(s.audio.applyEffect('audio.noise', settings)).toBeNull();
+    const after = s.doc().tracks[0]!.channels[0]!;
+    expect(20 * Math.log10(rms(after, 4, 8) / rms(before, 4, 8))).toBeLessThan(-9); // hiss
+    expect(Math.abs(toneDb(after, 300, 1) - toneDb(before, 300, 1))).toBeLessThan(1); // voice
+    s.audio.select({ start: 4, end: 9 }); // trim to 4 s
+    s.audio.cut();
+    const file = await s.exportAs('Task_11l.mp3', { channels: 1 });
+    expect((await engine.probe(file)).duration!).toBeCloseTo(4, 1);
+  });
+});
+
+describe('Book A 11.24: EQ presets, and high- and low-pass filters, on the voiceover', () => {
+  it('Bass boost, Treble cut, Telephone, Walkie-talkie, and filters at other cut-offs each do what they say', async () => {
+    const s = session();
+    await s.open(TONES);
+    const tried = (id: string, change: Params) => {
+      s.audio.select({ start: 0, end: 4 });
+      expect(s.audio.applyEffect(id, s.settings(id, change))).toBeNull();
+      const out = s.doc().tracks[0]!.channels[0]!;
+      const result = { bass: toneDb(out, 100, 2), treble: toneDb(out, 8000, 2) };
+      s.audio.undo();
+      return result;
+    };
+    const original = s.doc().tracks[0]!.channels[0]!;
+    const bass = toneDb(original, 100, 2);
+    const treble = toneDb(original, 8000, 2);
+    expect(tried('audio.eq', { preset: 2 }).bass).toBeGreaterThan(bass + 6); // Bass boost
+    expect(tried('audio.eq', { preset: 5 }).treble).toBeLessThan(treble - 6); // Treble cut
+    for (const preset of [6, 7]) {
+      const phone = tried('audio.eq', { preset }); // Telephone, Walkie-talkie
+      expect(phone.bass).toBeLessThan(bass - 10);
+      expect(phone.treble).toBeLessThan(treble - 10);
+    }
+    expect(tried('audio.highpass', { cutoff: 300 }).bass).toBeLessThan(bass - 8);
+    expect(tried('audio.lowpass', { cutoff: 3000 }).treble).toBeLessThan(treble - 6);
   });
 });
 

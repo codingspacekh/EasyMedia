@@ -250,6 +250,35 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     expect(t.doc().tracks[0]!.channels[0]!.length).toBe(2 * 44100);
   });
 
+  it('A13 Noise reduction: step 1 takes the profile and closes; step 2 shows it and reduces', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.select({ start: 1, end: 2 });
+    await menuItem('Effect', 'Noise reduction…');
+    let dialog = screen.getByRole('dialog', { name: 'Noise reduction' });
+    const step1 = within(dialog).getByRole('region', { name: 'Step 1 · Get a noise profile' });
+    expect(within(step1).getByText(/no profile yet/i)).toBeTruthy();
+    await fireEvent.click(within(step1).getByRole('button', { name: 'Get noise profile' }));
+    expect(screen.queryByRole('dialog')).toBeNull(); // as Audacity: now select the sound to clean
+    expect(t.state().noiseProfile).toMatchObject({ start: 1, end: 2 });
+
+    t.audio.selectAll();
+    await menuItem('Effect', 'Noise reduction…');
+    dialog = screen.getByRole('dialog', { name: 'Noise reduction' });
+    expect(within(dialog).getByText('Profile taken from 1.00 – 2.00 s')).toBeTruthy();
+    expect(within(dialog).getByRole('region', { name: /Step 2/ })).toBeTruthy();
+    expect((within(dialog).getByLabelText('Noise reduction') as HTMLInputElement).value).toBe('12');
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(t.state().history.past.at(-1)!.label).toBe('Noise reduction 0.00 – 4.00 s');
+  });
+
+  it('A13 a failed step 1 keeps the dialog open and says why', async () => {
+    await audioMode('/m/Task_11j_audio_1.mp3');
+    await menuItem('Effect', 'Noise reduction…');
+    const dialog = screen.getByRole('dialog', { name: 'Noise reduction' });
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Get noise profile' }));
+    expect(within(dialog).getByRole('alert').textContent).toMatch(/select a part/i);
+  });
+
   it('A18 every effect dialog has Preview; Cancel changes nothing', async () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3');
     t.audio.selectAll();

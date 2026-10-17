@@ -13,6 +13,7 @@ import { applyEffect, audioMode, exportAudio, importAudio, select, shot } from '
 const TWO_KEYS = 'two_keys_45s.mp3';
 const BEEPS = 'beeps_30s.mp3';
 const TONES = 'bass_treble_120s.mp3';
+const VOICE_HISS = 'voice_hiss_9s.mp3';
 const engine = createNodeMediaEngine(bundledFfmpeg());
 let dir: string;
 
@@ -21,7 +22,9 @@ test.beforeAll(async () => {
   await generateFixtures(
     bundledFfmpeg().ffmpeg,
     dir,
-    selectFixtures(FIXTURES, 'test').filter((f) => [TWO_KEYS, BEEPS, TONES].includes(f.name)),
+    selectFixtures(FIXTURES, 'test').filter((f) =>
+      [TWO_KEYS, BEEPS, TONES, VOICE_HISS].includes(f.name),
+    ),
   );
 });
 test.afterAll(() => rm(dir, { recursive: true, force: true }));
@@ -162,5 +165,32 @@ test('Book B Task 11m (EQ part) and Task 11n: Treble boost on 8–11.8 s; a high
   });
   const history = page.getByRole('complementary', { name: 'Selected track' });
   await expect(history.getByText(/High-pass filter/)).toBeVisible();
+  await app.close();
+});
+
+test('Book B Task 11l: noise profile from 3.3–8.09 s, reduce all, trim to 4 s', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  await audioMode(page);
+  await importAudio(app, page, join(dir, VOICE_HISS), 1);
+  await select(page, '3.3', '8.09');
+  await page.getByRole('button', { name: 'Effect', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Noise reduction…', exact: true }).click();
+  let dialog = page.getByRole('dialog', { name: 'Noise reduction' });
+  await dialog.getByRole('button', { name: 'Get noise profile' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText(/Noise profile taken from 3\.30 – 8\.09 s/)).toBeVisible();
+  await menu(app, 'Edit', 'Select All');
+  await page.getByRole('button', { name: 'Effect', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Noise reduction…', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Noise reduction' });
+  await expect(dialog.getByText('Profile taken from 3.30 – 8.09 s')).toBeVisible();
+  await shot(page, '11l-noise');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(dialog).toBeHidden();
+  await select(page, '4', '9');
+  await page.getByRole('button', { name: 'Cut' }).click();
+  const file = await exportAudio(app, page, join(dir, 'Task_11l.mp3'), { mono: true });
+  expect(Math.abs((await engine.probe(file)).duration! - 4)).toBeLessThan(0.1);
   await app.close();
 });

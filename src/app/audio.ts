@@ -40,8 +40,9 @@ import {
   type AudioTrack,
   type Channels,
 } from '../core/audio/pcm.ts';
+import { noiseProfile, type NoiseProfile } from '../core/audio/dsp/noise.ts';
 import { audioEffectById, defaultParams, validateParams } from '../core/effects/registry.ts';
-import type { Params } from '../core/effects/types.ts';
+import type { EffectContext, Params } from '../core/effects/types.ts';
 import { EditError, JobCancelledError, MediaError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
@@ -97,6 +98,8 @@ export interface AudioState {
   busy: string | null;
   exporting: AudioExportState;
   message: { kind: 'error' | 'info'; text: string } | null;
+  /** A13 step 1: the noise measured for Noise reduction (not an edit, so not undone). */
+  noiseProfile: { start: Seconds; end: Seconds; profile: NoiseProfile } | null;
 }
 
 export interface AudioDeps {
@@ -135,6 +138,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
     busy: null,
     exporting: { state: 'idle' },
     message: null,
+    noiseProfile: null,
   });
   const patch = (change: Partial<AudioState>) => store.update((s) => ({ ...s, ...change }));
   const doc = () => store.get().history.present;
@@ -294,6 +298,10 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
   }
 
   /** Applies an effect to the selection; returns why it cannot, or null. */
+  const effectContext = (): EffectContext => ({
+    noiseProfile: store.get().noiseProfile?.profile ?? null,
+  });
+
   function applyEffect(id: string, params: Params): string | null {
     const def = audioEffectById(id);
     if (!def) return 'This effect is not available in this version of EasyMedia.';
@@ -301,7 +309,9 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
     return tryEdit(`${def.label.replace('…', '')} ${range(sel)}`, (tx) => {
       validateParams(def, params);
       def.check?.(selectedSound(), params);
-      applyToSelection(tx, sel, (channels, rate) => def.process(channels, rate, params));
+      applyToSelection(tx, sel, (channels, rate) =>
+        def.process(channels, rate, params, effectContext()),
+      );
     });
   }
 
@@ -533,6 +543,27 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
 
     applyEffect,
 
+    /** A13 step 1: measures the selected background noise for Noise reduction. */
+    getNoiseProfile(): string | null {
+      const sel = selection();
+      const sound = selectedSound();
+      if (sel.end <= sel.start || !sound.length)
+        return 'Select a part with only background noise first, then click Get noise profile.';
+      try {
+        const profile = noiseProfile(sound, doc().rate);
+        patch({
+          noiseProfile: { start: sel.start, end: sel.end, profile },
+          message: {
+            kind: 'info',
+            text: `Noise profile taken from ${range(sel)}. Now select the sound to clean (Ctrl/Cmd + A for all) and open Noise reduction again.`,
+          },
+        });
+        return null;
+      } catch (error) {
+        return errorText(error);
+      }
+    },
+
     /** For menu items without settings (Fade in, Fade out): a refusal goes to the status bar. */
     applyNow(id: string): void {
       const problem = applyEffect(id, {});
@@ -556,6 +587,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
           sliceChannels(track.channels, r.from, r.to),
           doc().rate,
           params,
+          effectContext(),
         );
         startPlaying(processed, sel.start, false);
         return null;
