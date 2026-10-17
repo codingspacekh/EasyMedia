@@ -469,10 +469,12 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 5. Noise reduction, two-step (A13).
 6. Compressor (A19) — screen 18.
 7. Recording / overdub: microphone choice, level meter, count-in, permission handling on both OSes (A14, X4) — screen 15.
+8. Save the Audio mode session (as Audacity's *Save Project*): P1, P3, P7 for Audio mode — save and open, autosave and recovery, and a warning before quitting or closing with audio edits not saved (added after the M9 gate, at the teacher's choice).
 
 **Tests first**
 - All remaining rows in §3.1.
 - Recorder adapter contract test with a fake microphone stream; macOS permission-denied path shows the friendly message.
+- An Audio mode session saved and opened again gives the exact same samples, tracks and settings; quitting with unsaved audio edits asks first.
 
 **Exit gate — acceptance**
 - Automated: Book A **11.20–11.24**; Book B **Tasks 11k–11p**, Activities **11f–11i**.
@@ -550,6 +552,6 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M7 Effects & transitions | ✅ Done ([gate record](acceptance/M7.md)) — plus the layout redesign to match the design screens | 2026-10-15 | `v0.7.0` |
 | M8 Audio-in-video & export | ✅ Done ([gate record](acceptance/M8.md)) — plus split, join and speed for sound clips after the teacher's test | 2026-10-16 | `v0.8.0` |
 | M9 Audio editor core | ✅ Done ([gate record](acceptance/M9.md)) — undo steps on disk (as Audacity) to keep RAM in budget | 2026-10-17 | `v0.9.0` |
-| M10 Audio effects & recording | ☐ Not started | | |
+| M10 Audio effects & recording | 🔶 In progress | | |
 | M11 Teaching layer | ☐ Not started | | |
 | M12 Hardening & v1.0 | ☐ Not started | | |
