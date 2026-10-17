@@ -14,6 +14,8 @@ export interface ParamSpec {
   toggle?: boolean;
   /** A drop-down: the value is the position of the chosen item (min 0, max length − 1). */
   choices?: readonly string[];
+  /** One band of a graphic EQ: shown as a vertical slider beside the other bands. */
+  band?: boolean;
 }
 
 export type Params = Record<string, number>;

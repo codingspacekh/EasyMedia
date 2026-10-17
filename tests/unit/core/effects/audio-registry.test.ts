@@ -55,7 +55,15 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
 
   it('has the M10 effects so far', () => {
     expect(AUDIO_EFFECTS.map((e) => e.id)).toEqual(
-      expect.arrayContaining(['audio.pitch', 'audio.echo', 'audio.delay', 'audio.reverb']),
+      expect.arrayContaining([
+        'audio.pitch',
+        'audio.echo',
+        'audio.delay',
+        'audio.reverb',
+        'audio.eq',
+        'audio.highpass',
+        'audio.lowpass',
+      ]),
     );
   });
 
@@ -298,6 +306,97 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
       expect(
         reverb.process([sine(0.1, 1)], RATE, { ...start, tail: 1 })[0]!.length,
       ).toBeGreaterThan(RATE);
+    });
+  });
+
+  describe('A12 Graphic EQ', () => {
+    const eq = fx('audio.eq');
+    const start = defaultParams(eq);
+    const bands = Object.keys(eq.params).filter((k) => eq.params[k]!.band);
+
+    it('has 10 band sliders, 31 Hz to 16 kHz, ±20 dB, starting flat', () => {
+      expect(bands.map((k) => eq.params[k]!.label)).toEqual([
+        '31 Hz',
+        '62 Hz',
+        '125 Hz',
+        '250 Hz',
+        '500 Hz',
+        '1 kHz',
+        '2 kHz',
+        '4 kHz',
+        '8 kHz',
+        '16 kHz',
+      ]);
+      expect(bands.every((k) => eq.params[k]!.min === -20 && eq.params[k]!.max === 20)).toBe(true);
+      expect(bands.every((k) => start[k] === 0)).toBe(true);
+      expect(eq.params.preset!.choices![start.preset!]).toBe('Flat');
+      expect(eq.group).toBe('Frequency');
+    });
+
+    it('has the presets of design screen 20', () => {
+      expect(eq.params.preset!.choices).toEqual([
+        'Custom',
+        'Flat',
+        'Bass boost',
+        'Bass cut',
+        'Treble boost',
+        'Treble cut',
+        'Telephone',
+        'Walkie-talkie',
+      ]);
+    });
+
+    it('Treble boost is Book B 11.2.14: +2, +4, +7, +10, +10 from 1 kHz up', () => {
+      const p = eq.link!({ ...start, preset: 4 }, 'preset');
+      expect(bands.map((k) => p[k])).toEqual([0, 0, 0, 0, 0, 2, 4, 7, 10, 10]);
+    });
+
+    it('Bass boost raises the low bands; Telephone cuts the lows and highs', () => {
+      const bass = eq.link!({ ...start, preset: 2 }, 'preset');
+      expect(bass[bands[0]!]!).toBeGreaterThan(5);
+      expect(bass[bands[9]!]).toBe(0);
+      const phone = eq.link!({ ...start, preset: 6 }, 'preset');
+      expect(phone[bands[0]!]!).toBeLessThan(-10);
+      expect(phone[bands[9]!]!).toBeLessThan(-10);
+      expect(phone[bands[5]!]!).toBeGreaterThanOrEqual(0);
+    });
+
+    it('moving a slider makes it Custom', () => {
+      expect(eq.link!({ ...start, [bands[3]!]: 5 }, bands[3]!).preset).toBe(0);
+    });
+
+    it('says which frequencies get louder or quieter', () => {
+      expect(eq.note!([sine(0.1)], RATE, start)).toMatch(/flat/i);
+      const p = eq.link!({ ...start, preset: 4 }, 'preset');
+      expect(eq.note!([sine(0.1)], RATE, p)).toMatch(
+        /louder: 1 kHz \+2, 2 kHz \+4, 4 kHz \+7, 8 kHz \+10, 16 kHz \+10 dB/i,
+      );
+    });
+  });
+
+  describe('A12 High-pass and Low-pass filters', () => {
+    const hp = fx('audio.highpass');
+    const lp = fx('audio.lowpass');
+
+    it('cut-off 1000 Hz and a roll-off of 6 dB per octave to start (design screen 17)', () => {
+      expect(defaultParams(hp)).toEqual({ cutoff: 1000, rolloff: 0 });
+      expect(hp.params.rolloff!.choices).toEqual(['6 dB', '12 dB', '24 dB', '36 dB', '48 dB']);
+      expect(defaultParams(lp)).toEqual({ cutoff: 1000, rolloff: 0 });
+      expect([hp.group, lp.group]).toEqual(['Frequency', 'Frequency']);
+    });
+
+    it('say how much quieter the tones they cut become', () => {
+      expect(hp.note!([sine(0.1)], RATE, defaultParams(hp))).toMatch(
+        /below 1000 Hz.*500 Hz −7 dB, 250 Hz −12 dB/,
+      );
+      expect(lp.note!([sine(0.1)], RATE, defaultParams(lp))).toMatch(
+        /above 1000 Hz.*2000 Hz −7 dB, 4000 Hz −13 dB/,
+      );
+    });
+
+    it('a cut-off at or above half the sample rate is brought down to what the rate can hold', () => {
+      const [out] = lp.process([sine(0.5)], 8000, { cutoff: 6000, rolloff: 1 });
+      expect(out!.every(Number.isFinite)).toBe(true);
     });
   });
 

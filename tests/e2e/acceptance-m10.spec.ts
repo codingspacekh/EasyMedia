@@ -12,6 +12,7 @@ import { applyEffect, audioMode, exportAudio, importAudio, select, shot } from '
 
 const TWO_KEYS = 'two_keys_45s.mp3';
 const BEEPS = 'beeps_30s.mp3';
+const TONES = 'bass_treble_120s.mp3';
 const engine = createNodeMediaEngine(bundledFfmpeg());
 let dir: string;
 
@@ -20,7 +21,7 @@ test.beforeAll(async () => {
   await generateFixtures(
     bundledFfmpeg().ffmpeg,
     dir,
-    selectFixtures(FIXTURES, 'test').filter((f) => [TWO_KEYS, BEEPS].includes(f.name)),
+    selectFixtures(FIXTURES, 'test').filter((f) => [TWO_KEYS, BEEPS, TONES].includes(f.name)),
   );
 });
 test.afterAll(() => rm(dir, { recursive: true, force: true }));
@@ -124,5 +125,42 @@ test('Book B Task 11m (reverb part): reverb between 4 and 6 s, Vocal preset; pre
   });
   const history = page.getByRole('complementary', { name: 'Selected track' });
   await expect(history.getByText(/Reverb/)).toBeVisible();
+  await app.close();
+});
+
+test('Book B Task 11m (EQ part) and Task 11n: Treble boost on 8–11.8 s; a high-pass filter', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  await audioMode(page);
+  await importAudio(app, page, join(dir, TONES), 1);
+  await select(page, '8', '11.8');
+  await applyEffect(page, 'Graphic EQ…', 'Graphic EQ', async (dialog) => {
+    await dialog.getByLabel('Preset').selectOption({ label: 'Treble boost' });
+    // The chosen preset's name is not cut off.
+    const fits = await dialog.getByLabel('Preset').evaluate((el: HTMLSelectElement) => {
+      const context = document.createElement('canvas').getContext('2d')!;
+      context.font = getComputedStyle(el).font;
+      const text = el.options[el.selectedIndex]!.text;
+      return context.measureText(text).width + 28 <= el.clientWidth;
+    });
+    expect(fits).toBe(true);
+    const bands = dialog.getByRole('group', { name: 'Frequency bands' });
+    await expect(bands.getByRole('slider')).toHaveCount(10);
+    await expect(bands.getByRole('slider', { name: '8 kHz' })).toHaveValue('10');
+    await expect(dialog.getByText(/Louder: 1 kHz \+2/)).toBeVisible();
+    // The ten sliders fit in the dialog.
+    const box = (await dialog.boundingBox())!;
+    const last = (await bands.getByRole('slider', { name: '16 kHz' }).boundingBox())!;
+    expect(last.x + last.width).toBeLessThanOrEqual(box.x + box.width);
+    await shot(page, '11m-eq');
+  });
+  await select(page, '10', '20');
+  await applyEffect(page, 'High-pass filter…', 'High-pass filter', async (dialog) => {
+    await expect(dialog.getByLabel('Cut-off')).toHaveValue('1000');
+    await expect(dialog.getByText(/500 Hz −7 dB/)).toBeVisible();
+    await shot(page, '11n-highpass');
+  });
+  const history = page.getByRole('complementary', { name: 'Selected track' });
+  await expect(history.getByText(/High-pass filter/)).toBeVisible();
   await app.close();
 });

@@ -3,6 +3,7 @@
 import { EditError } from '../model/errors.ts';
 import type { EffectInstance } from '../model/types.ts';
 import { delay, echo } from './audio/echo.ts';
+import { graphicEqualiser, highPassFilter, lowPassFilter } from './audio/filters.ts';
 import { pitch } from './audio/pitch.ts';
 import { reverb } from './audio/reverb.ts';
 import { speed } from './audio/speed.ts';
@@ -23,7 +24,7 @@ export const EFFECTS: readonly EffectDef[] = [
   invert,
 ];
 export const TRANSITIONS: readonly TransitionDef[] = TRANSITION_LIST;
-/** Audio mode's Effect menu (A3, A4, A7–A11), in menu order. */
+/** Audio mode's Effect menu (A3, A4, A7–A12), in menu order. */
 export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   amplify,
   normalise,
@@ -34,6 +35,9 @@ export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   echo,
   delay,
   reverb,
+  graphicEqualiser,
+  highPassFilter,
+  lowPassFilter,
 ];
 
 export const effectById = (id: string): EffectDef | undefined => EFFECTS.find((e) => e.id === id);

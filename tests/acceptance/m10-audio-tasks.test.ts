@@ -16,11 +16,12 @@ const TWO_KEYS_SHARP = 'two_keys_43s.mp3'; // Activity_11e.mp3: 0–30.6 s in C�
 const PIANO = 'piano_stereo_60s.mp3'; // 11.05 Piano_track.mp3
 const BEE = 'bee_voiceover_6s.mp3'; // 11.06 Bee_Voiceover.mp3: a 300 Hz voice
 const BEEPS = 'beeps_30s.mp3'; // Task_11o_audio.mp3: a 50 ms beep every 2 s
+const TONES = 'bass_treble_120s.mp3'; // Voiceover_2, Task_11n_audio, Blue_Sky_Blues: 100 Hz + 8 kHz
 const RATE = 44100;
 
 let folder: Awaited<ReturnType<typeof projectFolder>>;
 beforeAll(async () => {
-  folder = await projectFolder([TWO_KEYS, TWO_KEYS_SHARP, PIANO, BEE, BEEPS]);
+  folder = await projectFolder([TWO_KEYS, TWO_KEYS_SHARP, PIANO, BEE, BEEPS, TONES]);
 });
 afterAll(() => folder.cleanUp());
 
@@ -76,6 +77,19 @@ function level(c: Float32Array, at: number): number {
   const part = c.subarray(Math.round(at * RATE), Math.round((at + 0.05) * RATE));
   return Math.sqrt(part.reduce((s, v) => s + v * v, 0) / part.length);
 }
+/** Level (dB) of one frequency in the second starting at `at` (Goertzel). */
+function toneDb(c: Float32Array, freq: number, at: number): number {
+  const from = Math.round((at + 0.1) * RATE);
+  const n = Math.round(0.8 * RATE);
+  const k = 2 * Math.cos((2 * Math.PI * freq) / RATE);
+  let [s1, s2] = [0, 0];
+  for (let i = 0; i < n; i++) [s1, s2] = [c[from + i]! + k * s1 - s2, s1];
+  const power = s1 * s1 + s2 * s2 - k * s1 * s2;
+  return 10 * Math.log10((4 * power) / (n * n));
+}
+/** How much louder (dB) a frequency is at `at` than at `reference`. */
+const change = (c: Float32Array, freq: number, at: number, reference: number) =>
+  toneDb(c, freq, at) - toneDb(c, freq, reference);
 const near = (actual: number, expected: number, within = 0.02) =>
   expect(Math.abs(actual / expected - 1)).toBeLessThan(within);
 
@@ -196,6 +210,93 @@ describe('A10 Delay: bouncing ball, through to a WAV file', () => {
       near(level(out!, 28 + at) / beep, 10 ** ((-6 * (k + 1)) / 20), 0.05);
     }
     expect(level(out!, 29.4)).toBeLessThan(0.01); // nothing between the echoes
+  });
+});
+
+describe('Book B Task 11m: reverb 4–6 s, more treble 8–11.8 s, more bass 11.8–15 s', () => {
+  it('Task_11m.mp3: treble +10 dB only in 8–11.8 s, bass boosted only in 11.8–15 s', async () => {
+    const s = session();
+    await s.open(TONES);
+    s.audio.select({ start: 4, end: 6 });
+    expect(s.audio.applyEffect('audio.reverb', s.audio.effectSettings('audio.reverb'))).toBeNull();
+    s.audio.select({ start: 8, end: 11.8 });
+    const treble = s.settings('audio.eq', { preset: 4 }); // Treble boost, as in the book
+    expect(s.audio.applyEffect('audio.eq', treble)).toBeNull();
+    s.audio.select({ start: 11.8, end: 15 });
+    expect(s.audio.applyEffect('audio.eq', s.settings('audio.eq', { preset: 2 }))).toBeNull();
+    const file = await s.exportAs('Task_11m.mp3', { channels: 1 });
+
+    const [out] = (await engine.decodeAudio(file)).channels;
+    expect(change(out!, 8000, 9, 1)).toBeCloseTo(10, 0); // treble up 10 dB
+    expect(Math.abs(change(out!, 100, 9, 1))).toBeLessThan(1); // bass as it was
+    expect(change(out!, 100, 13, 1)).toBeGreaterThan(6); // bass up
+    expect(Math.abs(change(out!, 8000, 13, 1))).toBeLessThan(1); // treble as it was
+    expect(Math.abs(change(out!, 8000, 17, 1))).toBeLessThan(1); // after 15 s: unchanged
+    expect(Math.abs(change(out!, 100, 17, 1))).toBeLessThan(1);
+  });
+});
+
+describe('Book B Task 11n: a high-pass, then (from the start again) a low-pass, on 10–20 s', () => {
+  it('Task_11n_high.mp3 loses the bass in 10–20 s; Task_11n_low.mp3 loses the treble', async () => {
+    const high = session();
+    await high.open(TONES);
+    high.audio.select({ start: 10, end: 20 });
+    expect(
+      high.audio.applyEffect('audio.highpass', high.audio.effectSettings('audio.highpass')),
+    ).toBeNull();
+    const [h] = (
+      await engine.decodeAudio(await high.exportAs('Task_11n_high.mp3', { channels: 1 }))
+    ).channels;
+    expect(change(h!, 100, 14, 2)).toBeLessThan(-15); // the bass is cut
+    expect(Math.abs(change(h!, 8000, 14, 2))).toBeLessThan(1); // the treble passes
+    expect(Math.abs(change(h!, 100, 25, 2))).toBeLessThan(1); // only in 10–20 s
+
+    const low = session();
+    await low.open(TONES);
+    low.audio.select({ start: 10, end: 20 });
+    expect(
+      low.audio.applyEffect('audio.lowpass', low.audio.effectSettings('audio.lowpass')),
+    ).toBeNull();
+    const [l] = (await engine.decodeAudio(await low.exportAs('Task_11n_low.mp3', { channels: 1 })))
+      .channels;
+    expect(change(l!, 8000, 14, 2)).toBeLessThan(-15);
+    expect(Math.abs(change(l!, 100, 14, 2))).toBeLessThan(1);
+  });
+});
+
+describe('Book B Activities 11g and 11h: reverb, bass and treble, then filters on the saved file', () => {
+  it('Activity_11g.mp3 then Activity_11h.mp3 have each change in its own place', async () => {
+    const g = session();
+    await g.open(TONES); // Blue_Sky_Blues.mp3
+    g.audio.select({ start: 20, end: 30 }); // lots of reverb
+    expect(
+      g.audio.applyEffect('audio.reverb', g.settings('audio.reverb', { preset: 4 })),
+    ).toBeNull();
+    g.audio.select({ start: 40, end: 50 }); // more bass
+    expect(g.audio.applyEffect('audio.eq', g.settings('audio.eq', { preset: 2 }))).toBeNull();
+    g.audio.select({ start: 60, end: 70 }); // more treble
+    expect(g.audio.applyEffect('audio.eq', g.settings('audio.eq', { preset: 4 }))).toBeNull();
+    const saved = await g.exportAs('Activity_11g.mp3', { channels: 1 });
+
+    const h = session();
+    await h.open('Activity_11g.mp3'); // Activity 11h opens the file saved in 11g
+    expect(saved).toBe(folder.file('Activity_11g.mp3'));
+    h.audio.select({ start: 80, end: 90 });
+    expect(
+      h.audio.applyEffect('audio.highpass', h.audio.effectSettings('audio.highpass')),
+    ).toBeNull();
+    h.audio.select({ start: 100, end: 110 });
+    expect(
+      h.audio.applyEffect('audio.lowpass', h.audio.effectSettings('audio.lowpass')),
+    ).toBeNull();
+    const [out] = (await engine.decodeAudio(await h.exportAs('Activity_11h.mp3', { channels: 1 })))
+      .channels;
+
+    expect(change(out!, 100, 44, 5)).toBeGreaterThan(6); // 11g: bass 40–50 s
+    expect(change(out!, 8000, 64, 5)).toBeCloseTo(10, 0); // 11g: treble 60–70 s
+    expect(change(out!, 100, 84, 5)).toBeLessThan(-15); // 11h: high-pass 80–90 s
+    expect(change(out!, 8000, 104, 5)).toBeLessThan(-15); // 11h: low-pass 100–110 s
+    expect(Math.abs(change(out!, 8000, 115, 5))).toBeLessThan(1); // the end untouched
   });
 });
 

@@ -188,6 +188,15 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 30, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
   },
   {
+    // Stand-in for Voiceover_2.mp3, Task_11n_audio.mp3 and Blue_Sky_Blues.mp3 (Tasks 11m, 11n,
+    // Activities 11g, 11h): a bass tone (100 Hz) and a treble tone (8 kHz), each measured on its own.
+    name: 'bass_treble_120s.mp3',
+    group: 'test',
+    inputs: tone('0.2*sin(2*PI*100*t)+0.2*sin(2*PI*8000*t)', 120),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 120, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',

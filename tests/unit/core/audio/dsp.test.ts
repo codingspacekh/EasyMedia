@@ -1,6 +1,7 @@
 // MILESTONES §3.1: audio effects tested with synthetic signals whose answers are known.
 import { describe, expect, it } from 'vitest';
 import { delay, echo, echoTimes } from '../../../../src/core/audio/dsp/echo.ts';
+import { EQ_BANDS, graphicEq, highPass, lowPass } from '../../../../src/core/audio/dsp/filters.ts';
 import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
 import { reverb, type ReverbSettings } from '../../../../src/core/audio/dsp/reverb.ts';
 import { changeSpeed } from '../../../../src/core/audio/dsp/speed.ts';
@@ -338,6 +339,89 @@ describe('A11 reverb (Freeverb)', () => {
   it('works at other sample rates', () => {
     const [out] = reverb([new Float32Array(48000).fill(0.1)], 48000, { ...vocal, tail: true });
     expect(out!.length).toBeGreaterThan(48000);
+    expect(out!.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('A12 high-pass and low-pass filters (Butterworth)', () => {
+  /** Change in level (dB) of a sine at `freq` through the filter, after it settles. */
+  const gainDb = (filter: (c: Float32Array[]) => Float32Array[], freq: number, rate = RATE) => {
+    const input = sine(freq, 0.5, 0.5, 0, rate);
+    const [out] = filter([input]);
+    const settled = (a: Float32Array) => a.subarray(Math.round(0.2 * rate));
+    return 20 * Math.log10(rms(settled(out!)) / rms(settled(input)));
+  };
+
+  it('high-pass 1 kHz, 6 dB per octave: 100 Hz down by ≥ 15 dB, 5 kHz within 1 dB', () => {
+    const hp = (c: Float32Array[]) => highPass(c, RATE, 1000, 6);
+    expect(gainDb(hp, 100)).toBeLessThan(-15);
+    expect(Math.abs(gainDb(hp, 5000))).toBeLessThan(1);
+  });
+
+  it('low-pass 1 kHz: 5 kHz down, 100 Hz kept', () => {
+    const lp = (c: Float32Array[]) => lowPass(c, RATE, 1000, 6);
+    expect(gainDb(lp, 5000)).toBeLessThan(-12);
+    expect(Math.abs(gainDb(lp, 100))).toBeLessThan(1);
+  });
+
+  it('the cut-off is 3 dB down, whatever the roll-off', () => {
+    for (const rolloff of [6, 12, 24, 36, 48]) {
+      expect(gainDb((c) => highPass(c, RATE, 1000, rolloff), 1000)).toBeCloseTo(-3, 0);
+    }
+  });
+
+  it('a steeper roll-off cuts more: one octave below, about 6 dB more per 6 dB step', () => {
+    const below = (rolloff: number) => gainDb((c) => highPass(c, RATE, 1000, rolloff), 500);
+    expect(below(6)).toBeCloseTo(-7, 0);
+    expect(below(12)).toBeCloseTo(-12.3, 0);
+    expect(below(48)).toBeLessThan(-45);
+  });
+
+  it('filters every channel and leaves the input unchanged', () => {
+    const left = sine(100, 0.1);
+    const out = highPass([left, sine(100, 0.1)], RATE, 1000, 12);
+    expect(out[1]).toEqual(out[0]);
+    expect(left).toEqual(sine(100, 0.1));
+  });
+});
+
+describe('A12 graphic EQ (10 bands, ±20 dB)', () => {
+  const flat = EQ_BANDS.map(() => 0);
+  const gainDb = (gains: number[], freq: number) => {
+    const input = sine(freq, 0.5, 0.1);
+    const [out] = graphicEq([input], RATE, gains);
+    const settled = (a: Float32Array) => a.subarray(Math.round(0.25 * RATE));
+    return 20 * Math.log10(rms(settled(out!)) / rms(settled(input)));
+  };
+
+  it('has the 10 bands of design screen 20, 31 Hz to 16 kHz', () => {
+    expect(EQ_BANDS).toEqual([31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]);
+  });
+
+  it('flat leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.2);
+    expect(graphicEq([input], RATE, flat)).toEqual([input]);
+  });
+
+  it('each slider sets the level at its own frequency (±1 dB), even next to other boosts', () => {
+    const treble = [0, 0, 0, 0, 0, 2, 4, 7, 10, 10]; // Book B 11.2.14
+    expect(gainDb(treble, 8000)).toBeCloseTo(10, 0);
+    expect(gainDb(treble, 4000)).toBeCloseTo(7, 0);
+    expect(gainDb(treble, 1000)).toBeCloseTo(2, 0);
+    expect(Math.abs(gainDb(treble, 125))).toBeLessThan(1);
+  });
+
+  it('cuts as well as boosts', () => {
+    const gains = [...flat];
+    gains[5] = -12; // 1 kHz
+    expect(gainDb(gains, 1000)).toBeCloseTo(-12, 0);
+    expect(Math.abs(gainDb(gains, 125))).toBeLessThan(1);
+  });
+
+  it('leaves out bands above what the sample rate can hold (16 kHz at 32 kHz)', () => {
+    const gains = [...flat];
+    gains[9] = 10;
+    const [out] = graphicEq([sine(440, 0.2, 0.5, 0, 32000)], 32000, gains);
     expect(out!.every(Number.isFinite)).toBe(true);
   });
 });
