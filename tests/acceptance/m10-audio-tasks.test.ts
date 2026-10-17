@@ -18,6 +18,7 @@ const BEE = 'bee_voiceover_6s.mp3'; // 11.06 Bee_Voiceover.mp3: a 300 Hz voice
 const BEEPS = 'beeps_30s.mp3'; // Task_11o_audio.mp3: a 50 ms beep every 2 s
 const VOICE_HISS = 'voice_hiss_9s.mp3'; // Voiceover_1.mp3: voice 0–3.3 s, hiss throughout
 const MUSIC_HISS = 'music_hiss_60s.mp3'; // Task_11n_audio.mp3: only hiss in 40–50 s
+const LOUD_QUIET = 'loud_quiet_voice_12s.wav'; // 3 s parts at 0.8 and 0.08 (20 dB apart)
 const TONES = 'bass_treble_120s.mp3'; // Voiceover_2, Task_11n_audio, Blue_Sky_Blues: 100 Hz + 8 kHz
 const RATE = 44100;
 
@@ -32,6 +33,7 @@ beforeAll(async () => {
     TONES,
     VOICE_HISS,
     MUSIC_HISS,
+    LOUD_QUIET,
   ]);
 });
 afterAll(() => folder.cleanUp());
@@ -401,5 +403,27 @@ describe('Book A 11.21: increase the reverberance by 10 % for the bee voiceover'
       return level(s.doc().tracks[0]!.channels[0]!, 2.6);
     };
     expect(await ring(50)).toBeGreaterThan((await ring(40)) * 1.3);
+  });
+});
+
+describe('A19 Compressor (Book B 11.2.22): loud and quiet words come closer together', () => {
+  it('Voice preset: 20 dB between loud and quiet parts becomes about 8 dB; the peak is at 0 dB', async () => {
+    const s = session();
+    await s.open(LOUD_QUIET);
+    s.audio.selectAll();
+    const voice = s.audio.effectSettings('audio.compressor');
+    expect(voice).toMatchObject({ thresholdDb: -20, ratio: 3, makeUp: 1 });
+    expect(s.audio.applyEffect('audio.compressor', voice)).toBeNull();
+    const file = await s.exportAs('voice_compressed.wav', { format: 'wav', channels: 1 });
+
+    const [out] = (await engine.decodeAudio(file)).channels;
+    // Loud at 7.5–8.9 s; quiet at 5.4–5.9 s, once the 1 s release has let go after the loud part.
+    const gap = 20 * Math.log10(rms(out!, 7.5, 8.9) / rms(out!, 5.4, 5.9));
+    expect(gap).toBeGreaterThan(6);
+    expect(gap).toBeLessThan(10);
+    expect(20 * Math.log10(out!.reduce((m, v) => Math.max(m, Math.abs(v)), 0))).toBeGreaterThan(
+      -0.5,
+    );
+    expect((await engine.probe(file)).duration!).toBeCloseTo(12, 2);
   });
 });

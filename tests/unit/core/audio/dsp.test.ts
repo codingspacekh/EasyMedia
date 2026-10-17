@@ -1,5 +1,6 @@
 // MILESTONES §3.1: audio effects tested with synthetic signals whose answers are known.
 import { describe, expect, it } from 'vitest';
+import { compress, compressedDb } from '../../../../src/core/audio/dsp/compressor.ts';
 import { delay, echo, echoTimes } from '../../../../src/core/audio/dsp/echo.ts';
 import { EQ_BANDS, graphicEq, highPass, lowPass } from '../../../../src/core/audio/dsp/filters.ts';
 import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
@@ -423,6 +424,53 @@ describe('A12 graphic EQ (10 bands, ±20 dB)', () => {
     gains[9] = 10;
     const [out] = graphicEq([sine(440, 0.2, 0.5, 0, 32000)], 32000, gains);
     expect(out!.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('A19 compressor (dynamic range compression)', () => {
+  const settings = { thresholdDb: -20, ratio: 3, attack: 0.2, release: 1, makeUp: false };
+  const db = (v: number) => 20 * Math.log10(Math.abs(v));
+  /** 1 s at −30 dB, then 2 s at −5 dB (a steady level, so the answer is exact). */
+  const step = () =>
+    Float32Array.from({ length: 3 * RATE }, (_, i) =>
+      i < RATE ? 10 ** (-30 / 20) : 10 ** (-5 / 20),
+    );
+
+  it('the curve: below the threshold unchanged; above, every 3 dB in comes out as 1 dB', () => {
+    expect(compressedDb(-30, settings)).toBe(-30);
+    expect(compressedDb(-5, settings)).toBeCloseTo(-15, 6);
+    expect(compressedDb(-20, settings)).toBeCloseTo(-20, 6);
+  });
+
+  it('§3.1: 3:1 at −20 dB, a step from −30 dB to −5 dB → about −15 dB after the attack time', () => {
+    const [out] = compress([step()], RATE, settings);
+    expect(db(out![Math.round(0.5 * RATE)]!)).toBeCloseTo(-30, 1); // quiet part unchanged
+    expect(db(out![Math.round(2.5 * RATE)]!)).toBeCloseTo(-15, 0); // loud part 10 dB down
+  });
+
+  it('reacts over the attack time, not at once', () => {
+    const [out] = compress([step()], RATE, settings);
+    const justAfter = db(out![RATE + 10]!);
+    expect(justAfter).toBeGreaterThan(-8); // still nearly as loud as the input
+  });
+
+  it('make-up gain raises the result so its loudest part is at 0 dB', () => {
+    const [out] = compress([step()], RATE, { ...settings, makeUp: true });
+    expect(peak([out!])).toBeCloseTo(1, 3);
+  });
+
+  it('compresses both sides of a stereo sound the same way (the balance stays)', () => {
+    const left = step();
+    const right = step().map((v) => v / 2);
+    const [l, r] = compress([left, right], RATE, settings);
+    const i = Math.round(2.5 * RATE);
+    expect(l![i]! / r![i]!).toBeCloseTo(2, 4);
+  });
+
+  it('a ratio of 1 changes nothing', () => {
+    const input = sine(440, 0.5, 0.9);
+    const [out] = compress([input], RATE, { ...settings, ratio: 1 });
+    for (const i of [100, 5000, 20000]) expect(out![i]).toBeCloseTo(input[i]!, 6);
   });
 });
 

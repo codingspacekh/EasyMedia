@@ -194,3 +194,22 @@ test('Book B Task 11l: noise profile from 3.3–8.09 s, reduce all, trim to 4 s'
   expect(Math.abs((await engine.probe(file)).duration! - 4)).toBeLessThan(0.1);
   await app.close();
 });
+
+test('A19 Compressor: presets, the input → output curve, before and after (screen 18)', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  await audioMode(page);
+  await importAudio(app, page, join(dir, BEEPS), 1);
+  await menu(app, 'Edit', 'Select All');
+  await applyEffect(page, 'Compressor…', 'Compressor', async (dialog) => {
+    await expect(dialog.getByRole('img', { name: 'Input → output curve' })).toBeVisible();
+    await expect(dialog.getByRole('img', { name: 'Levels before and after' })).toBeVisible();
+    await dialog.getByLabel('Preset').selectOption({ label: 'Strong' });
+    await expect(dialog.getByLabel('Ratio')).toHaveValue('6');
+    await dialog.getByLabel('Preset').selectOption({ label: 'Voice' });
+    await dialog.getByRole('button', { name: 'Why use this?' }).click();
+    await expect(dialog.getByText(/not file compression/)).toBeVisible();
+    await shot(page, 'compressor');
+  });
+  await app.close();
+});

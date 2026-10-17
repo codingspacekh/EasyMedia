@@ -69,4 +69,8 @@ export interface AudioEffectDef extends Described {
   note?(channels: Channels, rate: number, params: Params): string | null;
   /** Keeps settings that say the same thing in step (speed multiplier ↔ percent change). */
   link?(params: Params, changed: string): Params;
+  /** A19: the output level (dB) for each steady input level (dB), drawn as a curve. */
+  curve?(params: Params): (inputDb: number) => number;
+  /** A19: the levels (dB) of the selection's blocks after the effect, for a before / after picture. */
+  shape?(params: Params, levelsDb: readonly number[]): number[];
 }

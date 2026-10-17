@@ -2,6 +2,7 @@
 // definition plus one line here — the inspector settings, preview, export and help follow.
 import { EditError } from '../model/errors.ts';
 import type { EffectInstance } from '../model/types.ts';
+import { compressor } from './audio/compressor.ts';
 import { delay, echo } from './audio/echo.ts';
 import { graphicEqualiser, highPassFilter, lowPassFilter } from './audio/filters.ts';
 import { noiseReduction } from './audio/noise.ts';
@@ -25,10 +26,11 @@ export const EFFECTS: readonly EffectDef[] = [
   invert,
 ];
 export const TRANSITIONS: readonly TransitionDef[] = TRANSITION_LIST;
-/** Audio mode's Effect menu (A3, A4, A7–A13), in menu order. */
+/** Audio mode's Effect menu (A3, A4, A7–A13, A19), in menu order. */
 export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   amplify,
   normalise,
+  compressor,
   fadeIn,
   fadeOut,
   speed,

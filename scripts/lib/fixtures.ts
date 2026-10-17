@@ -218,6 +218,15 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 60, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
   },
   {
+    // A voiceover with loud and quiet parts (A19 Compressor, Book B 11.2.22): 300 Hz, 3 s at 0.8
+    // then 3 s at 0.08 (20 dB quieter), twice.
+    name: 'loud_quiet_voice_12s.wav',
+    group: 'test',
+    inputs: tone('(0.08+0.72*lt(mod(t,6),3))*sin(2*PI*300*t)', 12),
+    output: ['-c:a', 'pcm_s16le'],
+    expect: { durationS: 12, audio: { codec: 'pcm_s16le', channels: 1, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',

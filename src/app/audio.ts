@@ -534,6 +534,21 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
       return def.suggest && sound.length ? def.suggest(sound, params) : params;
     },
 
+    /** The selected sound in `count` blocks, each as its peak level in dB (silence: −60). */
+    selectionLevels(count: number): number[] {
+      const sound = selectedSound();
+      const n = sound[0]?.length ?? 0;
+      if (!n) return [];
+      return Array.from({ length: count }, (_, b) => {
+        const from = Math.floor((b * n) / count);
+        const to = Math.max(from + 1, Math.floor(((b + 1) * n) / count));
+        let most = 0;
+        for (const c of sound)
+          for (let i = from; i < Math.min(to, n); i++) most = Math.max(most, Math.abs(c[i]!));
+        return Math.max(-60, 20 * Math.log10(most || 1e-6));
+      });
+    },
+
     /** The line under the settings: a warning or what will happen. */
     effectNote(id: string, params: Params): string | null {
       const def = audioEffectById(id);

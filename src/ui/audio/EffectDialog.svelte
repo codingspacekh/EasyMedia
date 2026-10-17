@@ -5,6 +5,7 @@
   import type { Params, ParamSpec } from '../../core/effects/types.ts';
   import EffectParams from '../EffectParams.svelte';
   import Icon from '../Icon.svelte';
+  import LevelGraph from './LevelGraph.svelte';
 
   let {
     id,
@@ -19,6 +20,7 @@
     preview,
     apply,
     step1,
+    levels,
     onclose,
   }: {
     id: string;
@@ -39,6 +41,12 @@
       taken: string | null;
       /** Returns why it failed, or null (the dialog then closes so the student can select). */
       take: () => string | null;
+    };
+    /** A19: the input → output curve and the selection's levels before / after. */
+    levels?: {
+      curve: (params: Params) => (inputDb: number) => number;
+      shape: (params: Params, levelsDb: readonly number[]) => number[];
+      before: readonly number[];
     };
     onclose: () => void;
   } = $props();
@@ -89,6 +97,13 @@
       </section>
     {:else}
       <EffectParams def={{ id, params: schema }} {params} onchange={change} />
+    {/if}
+    {#if levels}
+      <LevelGraph
+        curve={levels.curve(params)}
+        before={levels.before}
+        after={levels.shape(params, levels.before)}
+      />
     {/if}
     {#if line}<p class="note">{line}</p>{/if}
     {#if error}<p class="error" role="alert">{error}</p>{/if}

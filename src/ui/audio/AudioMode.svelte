@@ -92,6 +92,9 @@
           },
         }
       : {}}
+    {...effect.curve && effect.shape
+      ? { levels: { curve: effect.curve, shape: effect.shape, before: audio.selectionLevels(60) } }
+      : {}}
     onclose={() => (audioUi.dialog = null)}
   />
 {:else if audioUi.dialog?.kind === 'silence'}

@@ -438,6 +438,54 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     });
   });
 
+  describe('A19 Compressor', () => {
+    const comp = fx('audio.compressor');
+    const start = defaultParams(comp);
+
+    it('starts as the Voice preset of design screen 18: −20 dB, 3:1, 0.2 s, 1 s, make-up on', () => {
+      expect(comp.params.preset!.choices).toEqual(['Custom', 'Gentle', 'Voice', 'Music', 'Strong']);
+      expect(start).toEqual({
+        preset: 2,
+        thresholdDb: -20,
+        ratio: 3,
+        attack: 0.2,
+        release: 1,
+        makeUp: 1,
+      });
+      expect(comp.group).toBe('Volume');
+      expect(comp.syllabus).toMatch(/compression/);
+    });
+
+    it('a preset fills the settings; changing one makes it Custom', () => {
+      const strong = comp.link!({ ...start, preset: 4 }, 'preset');
+      expect(strong.ratio).toBeGreaterThan(start.ratio!);
+      expect(comp.link!({ ...start, ratio: 4 }, 'ratio').preset).toBe(0);
+      expect(comp.link!({ ...start, makeUp: 0 }, 'makeUp').preset).toBe(2);
+    });
+
+    it('explains the settings in words (design screen 18)', () => {
+      expect(comp.note!([sine(0.5)], RATE, start)).toMatch(
+        /louder than −20 dB are reduced: every 3 dB above the threshold comes out as 1 dB/,
+      );
+    });
+
+    it('explains that it is not file compression (A19)', () => {
+      expect(comp.why).toMatch(/file compression/i);
+      expect(comp.why).toMatch(/smaller/i);
+    });
+
+    it('draws the input → output curve and the before / after levels', () => {
+      const curve = comp.curve!(start);
+      expect(curve(-30)).toBe(-30);
+      expect(curve(-5)).toBeCloseTo(-15, 6);
+      const after = comp.shape!({ ...start, makeUp: 0 }, [-30, -5]);
+      expect(after[0]).toBe(-30);
+      expect(after[1]).toBeCloseTo(-15, 6);
+      expect(Math.max(...comp.shape!(start, [-30, -5]))).toBeCloseTo(0, 6); // make-up to 0 dB
+      expect(comp.shape!(start, [-60, -5])[0]).toBe(-60); // silence stays silent
+    });
+  });
+
   it('A7 fades have no settings', () => {
     expect(Object.keys(fx('audio.fadein').params)).toEqual([]);
     expect(Object.keys(fx('audio.fadeout').params)).toEqual([]);

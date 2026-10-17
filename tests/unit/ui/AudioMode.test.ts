@@ -279,6 +279,25 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     expect(within(dialog).getByRole('alert').textContent).toMatch(/select a part/i);
   });
 
+  it('A19 Compressor shows the input → output curve and the levels before and after', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.selectAll();
+    await menuItem('Effect', 'Compressor…');
+    const dialog = screen.getByRole('dialog', { name: 'Compressor' });
+    const curve = within(dialog).getByRole('img', { name: /input → output/i });
+    expect(within(curve).getByText('threshold')).toBeTruthy();
+    expect(within(dialog).getByRole('img', { name: /before and after/i })).toBeTruthy();
+    expect(
+      within(dialog).getByText(/every 3 dB above the threshold comes out as 1 dB/),
+    ).toBeTruthy();
+    const line = () => within(curve).getByTestId('curve').getAttribute('d');
+    const before = line();
+    await fireEvent.change(within(dialog).getByLabelText('Ratio'), { target: { value: '6' } });
+    expect(line()).not.toBe(before); // the curve follows the settings
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(t.state().history.past.at(-1)!.label).toBe('Compressor 0.00 – 4.00 s');
+  });
+
   it('A18 every effect dialog has Preview; Cancel changes nothing', async () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3');
     t.audio.selectAll();

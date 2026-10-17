@@ -303,6 +303,18 @@ describe('effects on the selection', () => {
     expect(s.audio.effectNote('audio.noise', params)).toMatch(/12 dB quieter/);
   });
 
+  it('A19 the selection in blocks, as levels in dB (for the compressor before / after picture)', async () => {
+    const s = setup();
+    expect(s.audio.selectionLevels(10)).toEqual([]); // nothing to show
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    s.audio.selectAll();
+    const levels = s.audio.selectionLevels(10);
+    expect(levels).toHaveLength(10);
+    const loudest = 20 * Math.log10(peak(s.doc().tracks[0]!.channels));
+    expect(Math.max(...levels)).toBeCloseTo(loudest, 5);
+    expect(Math.min(...levels)).toBeGreaterThanOrEqual(-60); // silence shows as −60 dB
+  });
+
   it('A18 Preview plays the effect on (at most 6 s of) the selection without changing it', async () => {
     const s = setup();
     await s.importFiles('/m/Task_11j_audio_2.mp3');
