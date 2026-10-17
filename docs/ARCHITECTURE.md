@@ -57,7 +57,7 @@ Why this matters for a single-maintainer, teaching project:
                 │
 ┌───────────────┴─ Renderer (UI) ──────────────────┐
 │ Svelte app + store + core                        │
-│   └─ Web Worker: audio DSP (from M10, see §7.5)  │
+│   (audio DSP runs here too: fast enough, §7.5)  │
 └──────────────────────────────────────────────────┘
         ffmpeg / ffprobe  = separate OS processes
 ```
@@ -101,7 +101,9 @@ EasyMedia/
 │  │  │                       motion.ts (fades, fly-ins, credits scroll), fonts.ts
 │  │  ├─ image/               crop.ts (V11 resize with constrained proportions + 9-point crop)
 │  │  ├─ audio/               pcm.ts (tracks), edit.ts (cut/paste/align/mix), history.ts (memento),
-│  │  │                       peaks.ts (waveform columns), dsp/ (volume, speed, channels)
+│  │  │                       peaks.ts (waveform columns), recording.ts (level advice, A14),
+│  │  │                       dsp/ (volume, speed, channels, pitch, echo, reverb, filters, fft,
+│  │  │                       noise, compressor)
 │  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts
@@ -110,11 +112,12 @@ EasyMedia/
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts)
-│  │  ├─ webaudio/            output.ts (AudioOutput: Audio mode playback)
+│  │  ├─ webaudio/            output.ts (AudioOutput: Audio mode playback), recorder.ts (Recorder:
+│  │  │                       getUserMedia + MediaStreamTrackProcessor)
 │  │  ├─ indexeddb/           undo-store.ts (UndoStore: Audio mode undo steps on disk)
-│  │  └─ mock/                fake media, fake jobs (browser + tests)
-│  ├─ workers/                audio.worker.ts
-│  ├─ main/                   Electron main: index.ts, ipc.ts, menu.ts, services.ts (dialogs, files), perf.ts
+│  │  └─ mock/                fake media, fake jobs, fake microphone (browser + tests)
+│  ├─ main/                   Electron main: index.ts, ipc.ts, menu.ts, services.ts (dialogs, files), perf.ts,
+│  │                          microphone.ts (X4), close-guard.ts (P7: ask before closing)
 │  │  ├─ protocol/            media:// server: serve.ts, range.ts, allowlist.ts
 │  │  ├─ ffmpeg/              paths.ts, progress.ts, errors.ts (plain-English), hardware.ts (encoder detection)
 │  │  ├─ jobs/                queue.ts (concurrency, progress, cancel, temp-then-rename)
@@ -316,9 +319,32 @@ Export ─► mix of what is heard (mute / solo, gain, pan, clipped) from 0 s at
      FFmpeg starts (job queue prepare / clean-up) ─► MP3 / M4A / AAC / WAV / FLAC with tags
 ```
 
-In M9 the DSP runs in the page: every M9 effect on a 3-minute stereo clip takes well under N3's
-3 s (change speed 0.65–1.5 s, the slowest). The Web Worker arrives with M10's heavy effects
-(noise reduction, reverb, pitch).
+The DSP runs in the page, with no Web Worker: every effect on a 3-minute stereo clip takes under
+N3's 3 s on the MacBook (M10: noise reduction 1.75 s, pitch 1.5–1.7 s, reverb 1.2 s, EQ 0.6 s,
+compressor 0.5 s; Delay with 50 echoes 2.1 s). A worker would copy the samples both ways; it
+remains the way out if slower laptops need it (checked in M12).
+
+### 7.6 Audio mode additions (M10)
+
+```
+Effects ─► the same registry (P6/P7): drop-downs and buttons for choices, EQ bands as vertical
+  sliders, presets that fill the settings (link), a curve + before / after picture (Compressor)
+
+Noise reduction (two steps, as Audacity) ─► select noise only ─► Get noise profile: the mean
+  power per frequency, kept in Audio mode's state (not an edit) ─► select the sound ─► Apply:
+  the profile reaches the effect through its EffectContext
+
+Record ─► Recorder.open: macOS asks the system once (main, askForMediaAccess); getUserMedia with
+  no echo cancelling / noise suppression / auto gain; frames from MediaStreamTrackProcessor
+  ─► level meter (peak held) ─► count-in ─► blocks kept (other tracks play: overdub)
+  ─► Stop: one undo step adds "Recording N" at the playhead (resampled to the project rate)
+
+Save (P1) ─► each changed track ─► MediaEngine.encodeAudio: 32-bit float WAV in "<project> audio/"
+  ─► the .mve gets audioMode { rate, tracks: name, offset, gain, pan, file } (paths relative)
+Open ─► MediaEngine.decodeAudio of each WAV: exactly the same samples
+Close / Quit (P7) ─► main stops the close and sends app:closeRequested ─► the page asks
+  Save / Don't Save / Cancel if anything is unsaved ─► app:closeAnswer
+```
 
 ## 8. Ports and IPC contract
 
@@ -346,10 +372,11 @@ interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): numbe
 interface UndoStore { save(channels): Promise<key>; load(key): Promise<Float32Array[]>; keepOnly(keys): Promise<void> } // IndexedDB
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
-interface Recorder { start(deviceId?): Promise<void>; stop(): Promise<Float32Array[]>; }  // A14 (uses getUserMedia)
+interface Recorder { microphones(): Promise<Microphone[]>; open(id | null, onBlock): Promise<MicrophoneInput> } // A14, X4; throws MicrophoneError
+interface Dialogs { …; unsavedChanges(): Promise<'save' | 'discard' | 'cancel'> }                 // P7
 ```
 
-The real and mock engines both pass one shared **contract test suite** (`tests/contract/media-engine.contract.ts`), so the mock used by UI tests cannot drift from real FFmpeg behaviour.
+The real and mock engines both pass one shared **contract test suite** (`tests/contract/media-engine.contract.ts`), so the mock used by UI tests cannot drift from real FFmpeg behaviour. The recorder has one too (`tests/contract/recorder.contract.ts`): the MediaStream adapter (with a fake microphone stream) and the mock.
 
 IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; page side: `src/adapters/electron/`). Every request returns `{ ok, value }` or `{ ok: false, error: WireError }`; the page rebuilds the right error class (`core/wire.ts`), so students always see the plain-English message.
 
@@ -366,7 +393,10 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
 | `app:paths` | invoke | proxy folder and recovery file |
-| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` | invoke | native dialogs |
+| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` / `unsavedChanges` | invoke | native dialogs (`unsavedChanges`: Save / Don't Save / Cancel, P7) |
+| `media:microphoneAccess` | invoke | X4: on macOS asks the system for the microphone (once); true elsewhere |
+| `app:closeRequested` | main → page | P7: the window is closing or the app quitting |
+| `app:closeAnswer` | invoke | P7: the page's answer (close or not) |
 | `project:read` / `project:write` / `project:remove` | invoke | `.mve` files (write = temp file + rename) |
 | `project:copy` | invoke | Package Project (P2): copies a media file — only files in the allow-list |
 | `project:saveImage` | invoke | a text PNG by plain name into the app's own `text` folder (never the student's folders) |
