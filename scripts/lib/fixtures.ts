@@ -227,6 +227,14 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 12, audio: { codec: 'pcm_s16le', channels: 1, sampleRate: 44100 } },
   },
   {
+    // Stand-in for 11i.wav (Activity 11i): quiet stereo music (0.15), so +10 dB does not clip.
+    name: 'quiet_music_40s.wav',
+    group: 'test',
+    inputs: tone('0.15*sin(2*PI*262*t)|0.15*sin(2*PI*330*t)', 40),
+    output: ['-c:a', 'pcm_s16le'],
+    expect: { durationS: 40, audio: { codec: 'pcm_s16le', channels: 2, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',
