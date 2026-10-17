@@ -549,7 +549,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M6 Text & stills | ✅ Done ([gate record](acceptance/M6.md)) — crop tool and caption dragging added after the teacher's test | 2026-10-15 | `v0.6.0` |
 | M7 Effects & transitions | ✅ Done ([gate record](acceptance/M7.md)) — plus the layout redesign to match the design screens | 2026-10-15 | `v0.7.0` |
 | M8 Audio-in-video & export | ✅ Done ([gate record](acceptance/M8.md)) — plus split, join and speed for sound clips after the teacher's test | 2026-10-16 | `v0.8.0` |
-| M9 Audio editor core | 🔶 Teacher's check passed ([gate record](acceptance/M9.md)) — CI on the pull request and the RAM decision pending | | |
+| M9 Audio editor core | ✅ Done ([gate record](acceptance/M9.md)) — undo steps on disk (as Audacity) to keep RAM in budget | 2026-10-17 | `v0.9.0` |
 | M10 Audio effects & recording | ☐ Not started | | |
 | M11 Teaching layer | ☐ Not started | | |
 | M12 Hardening & v1.0 | ☐ Not started | | |
