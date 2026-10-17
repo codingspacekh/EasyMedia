@@ -154,10 +154,10 @@ describe('menus and dialogs', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('Record is not available yet', async () => {
+  it('A14 Record is available when there is a microphone port', async () => {
     await audioMode();
     expect((screen.getByRole('button', { name: 'Record' }) as HTMLButtonElement).disabled).toBe(
-      true,
+      false,
     );
   });
 

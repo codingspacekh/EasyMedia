@@ -7,8 +7,16 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { createNodeMediaEngine } from '../../src/main/media/engine.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { launchApp, menu } from './app.ts';
-import { applyEffect, audioMode, exportAudio, importAudio, select, shot } from './audio.ts';
+import { FAKE_MICROPHONE, launchApp, menu } from './app.ts';
+import {
+  applyEffect,
+  audioMode,
+  exportAudio,
+  importAudio,
+  select,
+  setTime,
+  shot,
+} from './audio.ts';
 
 const TWO_KEYS = 'two_keys_45s.mp3';
 const BEEPS = 'beeps_30s.mp3';
@@ -211,5 +219,48 @@ test('A19 Compressor: presets, the input → output curve, before and after (scr
     await expect(dialog.getByText(/not file compression/)).toBeVisible();
     await shot(page, 'compressor');
   });
+  await app.close();
+});
+
+test('A14 overdubbing: record a voiceover over the music at the playhead (test microphone)', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp(FAKE_MICROPHONE);
+  await audioMode(page);
+  await importAudio(app, page, join(dir, BEEPS), 1);
+  await setTime(page, 'Audio position', '2');
+  await page.getByRole('button', { name: 'Record' }).click();
+  const panel = page.getByRole('dialog', { name: 'Recording' });
+  await expect(panel.getByLabel('Microphone').locator('option')).not.toHaveCount(0);
+  await expect(panel.getByRole('meter', { name: 'Input level' })).toBeVisible();
+  await shot(page, 'recording-ready');
+  await panel.getByRole('button', { name: 'Start recording' }).click();
+  await expect(panel.getByText(/Recording starts in/)).toBeVisible();
+  await expect(panel.getByText('Space = stop')).toBeVisible();
+  await expect(panel.getByLabel('Recorded time')).toHaveText(/00:0[2-9]\./, { timeout: 15_000 });
+  await shot(page, 'recording');
+  await page.keyboard.press('Space');
+  await expect(panel).toBeHidden();
+  const track = page.getByRole('group', { name: 'Track Recording 1' });
+  await expect(track).toBeVisible();
+  await expect(track.getByText(/^Mono/)).toBeVisible();
+  // The new track is selected: the side panel shows its length (the count-in is not kept).
+  const length = page
+    .getByRole('complementary', { name: 'Selected track' })
+    .getByText(/^\d+\.\d\d s$/);
+  const seconds = Number((await length.textContent())!.replace(' s', ''));
+  expect(seconds).toBeGreaterThan(1.5);
+  expect(seconds).toBeLessThan(15);
+  const history = page.getByRole('complementary', { name: 'Selected track' });
+  await expect(history.getByText(/^Record \d+\.\d\d s$/)).toBeVisible();
+  // It holds real sound: solo it and export it.
+  await page.getByRole('button', { name: 'Solo Recording 1' }).click();
+  const voice = await exportAudio(app, page, join(dir, 'recording.wav'));
+  const [samples] = (await engine.decodeAudio(voice)).channels;
+  const loudest = samples!.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  expect(loudest).toBeGreaterThan(0.01);
+  await page.getByRole('button', { name: 'Solo Recording 1' }).click();
+  const file = await exportAudio(app, page, join(dir, 'voiceover.wav'));
+  const info = await engine.probe(file);
+  expect(info.duration!).toBeCloseTo(30, 1); // the music (30 s) is still all there
   await app.close();
 });

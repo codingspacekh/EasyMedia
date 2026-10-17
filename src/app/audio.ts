@@ -41,13 +41,22 @@ import {
   type Channels,
 } from '../core/audio/pcm.ts';
 import { noiseProfile, type NoiseProfile } from '../core/audio/dsp/noise.ts';
+import { changeSpeed } from '../core/audio/dsp/speed.ts';
+import { COUNT_IN_SECONDS } from '../core/audio/recording.ts';
 import { audioEffectById, defaultParams, validateParams } from '../core/effects/registry.ts';
 import type { EffectContext, Params } from '../core/effects/types.ts';
-import { EditError, JobCancelledError, MediaError } from '../core/model/errors.ts';
+import { EditError, JobCancelledError, MediaError, MicrophoneError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
 import type { Id } from '../core/model/types.ts';
-import type { Dialogs, MediaEngine, UndoStore } from '../core/ports.ts';
+import type {
+  Dialogs,
+  MediaEngine,
+  Microphone,
+  MicrophoneInput,
+  Recorder,
+  UndoStore,
+} from '../core/ports.ts';
 import {
   changeRefs,
   hasLooseSamples,
@@ -82,6 +91,25 @@ export type AudioExportState =
   | { state: 'done'; output: string }
   | { state: 'failed'; message: string };
 
+/** A14: the recording panel (design screen 15). */
+export interface RecordingState {
+  /** opening the microphone; ready: listening for the level; count-in: 3, 2, 1; recording. */
+  phase: 'opening' | 'ready' | 'count-in' | 'recording';
+  microphones: readonly Microphone[];
+  microphoneId: string | null;
+  /** The open microphone's name. */
+  label: string;
+  /** The loudest sample just heard (0 to 1), held for a moment, for the level meter. */
+  level: number;
+  /** Seconds left in the count-in. */
+  countdown: number;
+  /** Seconds recorded so far. */
+  elapsed: Seconds;
+  /** Play the other tracks while recording (overdubbing). */
+  overdub: boolean;
+  countIn: boolean;
+}
+
 export interface AudioState {
   history: AudioHistory;
   selection: Selection;
@@ -98,6 +126,8 @@ export interface AudioState {
   busy: string | null;
   exporting: AudioExportState;
   message: { kind: 'error' | 'info'; text: string } | null;
+  /** A14: the recording panel, while it is open. */
+  recording: RecordingState | null;
   /** A13 step 1: the noise measured for Noise reduction (not an edit, so not undone). */
   noiseProfile: { start: Seconds; end: Seconds; profile: NoiseProfile } | null;
 }
@@ -108,10 +138,16 @@ export interface AudioDeps {
   output: AudioOutput;
   /** Keeps undo steps on disk (as Audacity). Without it they stay in memory. */
   undoStore?: UndoStore;
+  /** A14: the microphone. Without it, recording is not offered. */
+  recorder?: Recorder;
 }
 
 /** Undo steps with at least this many samples (all channels) go to disk: about 1 s of mono. */
 export const DISK_MIN_SAMPLES = 44100;
+
+/** The level meter falls back by this factor each second (20 dB). */
+const LEVEL_FALL_PER_SECOND = 0.1;
+const DEFAULT_MIC_RATE = 48000;
 
 /** How much of the selection an effect's Preview plays (as Audacity). */
 export const PREVIEW_SECONDS = 6;
@@ -125,7 +161,7 @@ const baseName = (path: string) => fileNameOf(path).replace(/\.[^.]+$/, '');
 /** A silent output, for when no speakers are wired up. */
 export const SILENT_OUTPUT: AudioOutput = { play: () => {}, stop: () => {}, elapsed: () => 0 };
 
-export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps) {
+export function createAudioApp({ engine, dialogs, output, undoStore, recorder }: AudioDeps) {
   const store: Store<AudioState> = createStore<AudioState>({
     history: createAudioHistory(emptyDoc()),
     selection: { start: 0, end: 0, tracks: [] },
@@ -138,6 +174,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
     busy: null,
     exporting: { state: 'idle' },
     message: null,
+    recording: null,
     noiseProfile: null,
   });
   const patch = (change: Partial<AudioState>) => store.update((s) => ({ ...s, ...change }));
@@ -145,7 +182,9 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
   const selection = () => store.get().selection;
 
   const errorText = (error: unknown) =>
-    error instanceof EditError || error instanceof MediaError ? error.message : UNEXPECTED;
+    error instanceof EditError || error instanceof MediaError || error instanceof MicrophoneError
+      ? error.message
+      : UNEXPECTED;
   const showError = (error: unknown) =>
     patch({ message: { kind: 'error', text: errorText(error) } });
 
@@ -277,6 +316,8 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
     patch({ playing: true });
   }
 
+  const playingNow = () => store.get().playing;
+
   function currentPosition(): Seconds {
     const s = store.get();
     if (!s.playing) return s.position;
@@ -295,6 +336,74 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
   /** The mix that is exported: everything heard, from 0 s to the end. */
   function exportMix(channels: number) {
     return mixTracks(doc(), audible(), { from: 0, channels });
+  }
+
+  // ---- recording (A14) ----
+  let microphone: MicrophoneInput | null = null;
+  let kept: Float32Array[] = [];
+  let recordAt: Seconds = 0;
+  let countdownTimer: ReturnType<typeof setTimeout> | null = null;
+  const recording = () => store.get().recording;
+  const patchRecording = (change: Partial<RecordingState>) =>
+    store.update((s) => (s.recording ? { ...s, recording: { ...s.recording, ...change } } : s));
+
+  function heard(block: Float32Array): void {
+    // The meter holds a peak and falls back 20 dB a second, so pauses between words do not
+    // make it look as if nothing is heard.
+    const seconds = block.length / (microphone?.sampleRate ?? DEFAULT_MIC_RATE);
+    let level = (recording()?.level ?? 0) * LEVEL_FALL_PER_SECOND ** seconds;
+    for (let i = 0; i < block.length; i++) level = Math.max(level, Math.abs(block[i]!));
+    if (recording()?.phase !== 'recording') return patchRecording({ level });
+    kept.push(block.slice());
+    const samples = kept.reduce((n, b) => n + b.length, 0);
+    patchRecording({ level, elapsed: samples / (microphone?.sampleRate ?? 1) });
+  }
+
+  async function openMicrophone(id: string | null): Promise<boolean> {
+    microphone?.close();
+    microphone = null;
+    try {
+      microphone = await recorder!.open(id, heard);
+      return true;
+    } catch (error) {
+      store.update((s) => ({ ...s, recording: null }));
+      showError(error);
+      return false;
+    }
+  }
+
+  function stopCountdown(): void {
+    if (countdownTimer) clearTimeout(countdownTimer);
+    countdownTimer = null;
+  }
+
+  function beginKeeping(): void {
+    kept = [];
+    recordAt = store.get().position;
+    patchRecording({ phase: 'recording', elapsed: 0, countdown: 0 });
+    const others = audible();
+    if (recording()?.overdub && others.length) {
+      startPlaying(mixTracks(doc(), others, { from: recordAt }).channels, recordAt, false);
+    }
+  }
+
+  function tick(): void {
+    const left = (recording()?.countdown ?? 0) - 1;
+    if (left <= 0) {
+      countdownTimer = null;
+      beginKeeping();
+    } else {
+      patchRecording({ countdown: left });
+      countdownTimer = setTimeout(tick, 1000);
+    }
+  }
+
+  function closeMicrophone(): void {
+    stopCountdown();
+    microphone?.close();
+    microphone = null;
+    kept = [];
+    store.update((s) => ({ ...s, recording: null }));
   }
 
   /** Applies an effect to the selection; returns why it cannot, or null. */
@@ -523,6 +632,109 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
         insertSilence(tx, selection(), length),
       ),
 
+    // ---- recording (A14, X4) ----
+
+    /** Whether this app can record (it has a microphone port). */
+    canRecord: recorder !== undefined,
+
+    /** Opens the recording panel: the default microphone, for the level meter. */
+    async openRecorder(): Promise<void> {
+      if (!recorder || recording()) return;
+      let microphones: Microphone[] = [];
+      try {
+        microphones = await recorder.microphones();
+      } catch {
+        // the list stays empty; opening the default microphone may still work
+      }
+      store.update((s) => ({
+        ...s,
+        message: null,
+        recording: {
+          phase: 'opening',
+          microphones,
+          microphoneId: microphones[0]?.id ?? null,
+          label: '',
+          level: 0,
+          countdown: 0,
+          elapsed: 0,
+          overdub: true,
+          countIn: true,
+        },
+      }));
+      if (await openMicrophone(recording()?.microphoneId ?? null))
+        patchRecording({ phase: 'ready', label: microphone!.label });
+    },
+
+    async chooseMicrophone(id: string): Promise<void> {
+      if (recording()?.phase !== 'ready') return;
+      patchRecording({ phase: 'opening', microphoneId: id, level: 0 });
+      if (await openMicrophone(id)) patchRecording({ phase: 'ready', label: microphone!.label });
+    },
+
+    setRecordingOptions(change: Partial<Pick<RecordingState, 'overdub' | 'countIn'>>): void {
+      patchRecording(change);
+    },
+
+    /** Starts recording at the playhead, after the count-in if it is on. */
+    startRecording(): void {
+      const r = recording();
+      if (!r || r.phase !== 'ready' || !microphone) return;
+      if (playingNow()) {
+        output.stop();
+        patch({ playing: false });
+      }
+      if (!r.countIn) return beginKeeping();
+      patchRecording({ phase: 'count-in', countdown: COUNT_IN_SECONDS });
+      countdownTimer = setTimeout(tick, 1000);
+    },
+
+    /** Stops: what was recorded becomes a new mono track at the playhead (one undo step). */
+    stopRecording(): void {
+      const r = recording();
+      if (!r) return;
+      if (r.phase === 'recording' && store.get().playing) {
+        output.stop();
+        patch({ playing: false });
+      }
+      const rate = microphone?.sampleRate ?? doc().rate;
+      const length = kept.reduce((n, b) => n + b.length, 0);
+      const samples = new Float32Array(length);
+      let at = 0;
+      for (const b of kept) {
+        samples.set(b, at);
+        at += b.length;
+      }
+      const wasRecording = r.phase === 'recording';
+      closeMicrophone();
+      if (!wasRecording || length === 0) return;
+      const first = doc().tracks.length === 0;
+      // A microphone at another rate is resampled to the project's (it plays at the same pitch).
+      const channels =
+        first || rate === doc().rate ? [samples] : changeSpeed([samples], rate / doc().rate);
+      const id = newId();
+      const taken = Math.max(
+        0,
+        ...doc().tracks.map((t) => Number(/^Recording (\d+)$/.exec(t.name)?.[1] ?? 0)),
+      );
+      run(`Record ${(length / rate).toFixed(2)} s`, (tx) => {
+        if (first && tx.doc.rate !== rate) tx.setRate(rate);
+        tx.addTrack({
+          ...createTrack({ id, name: `Recording ${taken + 1}`, channels }),
+          offset: recordAt,
+        });
+      });
+      selectOnly(id);
+    },
+
+    /** Closes the panel without keeping anything. */
+    closeRecorder(): void {
+      if (recording()?.phase === 'recording' && store.get().playing) {
+        output.stop();
+        patch({ playing: false });
+      }
+      closeMicrophone();
+    },
+
     // ---- effects (registry, P6 / P7) ----
 
     /** The settings a dialog opens with: the defaults, adjusted to the selected sound. */
@@ -724,6 +936,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore }: AudioDeps
 
     dispose(): void {
       output.stop();
+      closeMicrophone();
       stopListening();
     },
   };

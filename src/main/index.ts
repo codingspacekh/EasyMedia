@@ -1,5 +1,5 @@
 // Electron main process (ARCHITECTURE §2).
-import { app, BrowserWindow, ipcMain, Menu, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, protocol, systemPreferences } from 'electron';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
@@ -9,6 +9,7 @@ import { binaryPaths, platformKey } from './ffmpeg/paths.ts';
 import { sendToWindow } from './send.ts';
 import { registerIpc } from './ipc.ts';
 import { menuTemplate } from './menu.ts';
+import { microphoneAccess } from './microphone.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
 import { recordPerformance } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
@@ -91,6 +92,11 @@ void app.whenReady().then(async () => {
     },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
+    microphoneAccess: microphoneAccess(
+      process.platform,
+      systemPreferences,
+      app.commandLine.hasSwitch('use-fake-device-for-media-stream'),
+    ),
   });
 
   Menu.setApplicationMenu(

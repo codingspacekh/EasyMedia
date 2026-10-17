@@ -14,14 +14,20 @@ import { fileURLToPath } from 'node:url';
 // command-line argument escapes the quote, so Electron received a garbled app path and never started.
 export const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
-export async function launchApp(): Promise<{
+/** Chromium's test microphone (a beep every second): recording without hardware or OS prompts. */
+export const FAKE_MICROPHONE = [
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
+];
+
+export async function launchApp(switches: readonly string[] = []): Promise<{
   app: ElectronApplication;
   window: Page;
   userData: string;
 }> {
   const userData = mkdtempSync(join(tmpdir(), 'mve-e2e-userdata-'));
   const app = await electron.launch({
-    args: [root],
+    args: [root, ...switches],
     cwd: root,
     env: { ...process.env, EASYMEDIA_USER_DATA: userData },
   });

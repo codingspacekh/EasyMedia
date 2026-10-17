@@ -37,6 +37,7 @@ import type {
   ProbeInfo,
   ProjectFiles,
   TextRenderer,
+  Recorder,
   UndoStore,
 } from '../core/ports.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
@@ -90,6 +91,8 @@ export interface AppDeps {
   audioOutput?: AudioOutput;
   /** Where Audio mode keeps its undo steps (on disk in the app; in memory without it). */
   audioUndoStore?: UndoStore;
+  /** A14: the microphone for recording in Audio mode (MediaStream in the app). */
+  audioRecorder?: Recorder;
   autosaveMs?: number;
 }
 
@@ -115,6 +118,7 @@ export function createApp({
   paths,
   audioOutput = SILENT_OUTPUT,
   audioUndoStore,
+  audioRecorder,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -336,6 +340,7 @@ export function createApp({
     dialogs,
     output: audioOutput,
     ...(audioUndoStore ? { undoStore: audioUndoStore } : {}),
+    ...(audioRecorder ? { recorder: audioRecorder } : {}),
   });
 
   return {

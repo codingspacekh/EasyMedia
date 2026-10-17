@@ -16,6 +16,8 @@ export interface MainServices {
   paths: AppPaths;
   dialogs: Dialogs;
   files: ProjectFiles;
+  /** X4: asks the system for the microphone (macOS); true where the system does not ask. */
+  microphoneAccess: () => Promise<boolean>;
 }
 
 type Handlers = {
@@ -127,6 +129,7 @@ export function registerIpc(s: MainServices): void {
       await s.files.write(path, text);
       return null;
     },
+    'media:microphoneAccess': () => s.microphoneAccess(),
     'project:remove': async (path) => {
       await s.files.remove(path);
       return null;

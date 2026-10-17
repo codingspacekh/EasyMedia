@@ -424,3 +424,103 @@ describe('A18 transport and keyboard shortcuts (N10)', () => {
     expect(t.state().playing).toBe(false);
   });
 });
+
+describe('A14 recording a voiceover (screen 15)', () => {
+  const tone = (seconds: number) =>
+    Float32Array.from({ length: Math.round(seconds * 48000) }, (_, i) => 0.5 * Math.sin(i / 5));
+
+  it('Record opens the panel: microphone, input level with advice, overdub and count-in', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    const mic = within(panel).getByLabelText('Microphone') as HTMLSelectElement;
+    expect([...mic.options].map((o) => o.text)).toEqual([
+      'Built-in Microphone',
+      'Headset Microphone (USB)',
+    ]);
+    t.recorder.speak(tone(0.1));
+    await vi.waitFor(() =>
+      expect(within(panel).getByText('Good level — not too quiet, no clipping')).toBeTruthy(),
+    );
+    expect(
+      (within(panel).getByRole('meter', { name: 'Input level' }) as HTMLMeterElement).value,
+    ).toBeCloseTo(0.5, 2);
+    expect(
+      (within(panel).getByLabelText('Play other tracks while recording') as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect((within(panel).getByLabelText('3-second count-in') as HTMLInputElement).checked).toBe(
+      true,
+    );
+    await fireEvent.change(mic, { target: { value: 'usb' } });
+    await vi.waitFor(() =>
+      expect(t.audio.store.get().recording!.label).toBe('Headset Microphone (USB)'),
+    );
+  });
+
+  it('records into a new track; Space stops', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    await menuItem('Tracks', 'Record into new track');
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    await fireEvent.click(within(panel).getByLabelText('3-second count-in'));
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Start recording' }));
+    expect(within(panel).getByText('Space = stop')).toBeTruthy();
+    t.recorder.speak(tone(1));
+    await vi.waitFor(() => expect(within(panel).getByText('00:01.00')).toBeTruthy());
+    await fireEvent.keyDown(window, { key: ' ' });
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Recording' })).toBeNull());
+    expect(screen.getByRole('group', { name: 'Track Recording 1' })).toBeTruthy();
+  });
+
+  it('the count-in counts down before recording', async () => {
+    const t = await audioMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(within(panel).getByRole('button', { name: 'Start recording' }));
+      expect(within(panel).getByText('Recording starts in 3…')).toBeTruthy();
+      vi.advanceTimersByTime(3000);
+      await vi.waitFor(() => expect(t.audio.store.get().recording!.phase).toBe('recording'));
+      await fireEvent.click(within(panel).getByRole('button', { name: 'Stop' }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('X4: a refused microphone shows how to fix it, and no panel', async () => {
+    const t = await audioMode();
+    t.recorder.refuse('denied');
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    await vi.waitFor(() =>
+      expect(screen.getByText(/Privacy & Security ▸ Microphone/)).toBeTruthy(),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Recording' })).toBeNull();
+  });
+
+  it('Start recording waits until the microphone is open', async () => {
+    const t = await audioMode();
+    let open!: () => void;
+    const realOpen = t.recorder.open;
+    t.recorder.open = (...args) =>
+      new Promise((resolve) => (open = () => resolve(realOpen(...args))));
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    const start = within(panel).getByRole('button', {
+      name: 'Start recording',
+    }) as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    expect(within(panel).getByText(/opening the microphone/i)).toBeTruthy();
+    open();
+    await vi.waitFor(() => expect(start.disabled).toBe(false));
+  });
+
+  it('Cancel closes the panel and the microphone', async () => {
+    const t = await audioMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Recording' })).toBeNull();
+    expect(t.recorder.isOpen).toBe(false);
+  });
+});

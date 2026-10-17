@@ -59,6 +59,13 @@ describe('P2 main-process IPC handlers', () => {
     expect(seen.every((s) => s.endsWith(':page-7'))).toBe(true);
   });
 
+  it('X4 asks the system for microphone permission (macOS) and passes the answer to the page', async () => {
+    const microphoneAccess = vi.fn(async () => false);
+    const { api } = inProcessBridge(createMockMediaEngine(), { microphoneAccess });
+    expect(await api.invoke('media:microphoneAccess')).toEqual({ ok: true, value: false });
+    expect(microphoneAccess).toHaveBeenCalledTimes(1);
+  });
+
   it('reads and writes project files, and passes dialog answers through', async () => {
     const { api } = inProcessBridge(createMockMediaEngine(), {
       dialogs: {

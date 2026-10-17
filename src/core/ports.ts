@@ -130,6 +130,33 @@ export interface UndoStore {
   keepOnly(keep: readonly string[]): Promise<void>;
 }
 
+/** A14: a microphone the student can choose. */
+export interface Microphone {
+  id: string;
+  label: string;
+}
+
+/** A14: an open microphone. Its sound keeps arriving in blocks until it is closed. */
+export interface MicrophoneInput {
+  readonly sampleRate: number;
+  /** The microphone's name, e.g. "Headset Microphone (USB)". */
+  readonly label: string;
+  close(): void;
+}
+
+/**
+ * A14 + X4: the microphone (MediaStream in the app). Opening it asks the system for permission
+ * first; when it cannot be used it throws a MicrophoneError the student can act on.
+ */
+export interface Recorder {
+  microphones(): Promise<Microphone[]>;
+  /** `null`: the system's default microphone. Every block of mono samples goes to `onBlock`. */
+  open(
+    microphoneId: string | null,
+    onBlock: (samples: Float32Array) => void,
+  ): Promise<MicrophoneInput>;
+}
+
 /** Native file dialogs (P1). `null` / `[]` means the student cancelled. */
 export interface Dialogs {
   openMedia(): Promise<string[]>;

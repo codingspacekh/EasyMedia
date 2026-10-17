@@ -51,6 +51,8 @@ export interface Channels {
     result: null;
   };
   'job:cancel': { args: [jobKey: string]; result: null };
+  /** X4: asks the system for the microphone (macOS); false when it is refused. */
+  'media:microphoneAccess': { args: []; result: boolean };
   'app:paths': { args: []; result: AppPaths };
   'dialog:openMedia': { args: []; result: string[] };
   'dialog:openProject': { args: []; result: string | null };
@@ -87,6 +89,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:release',
   'media:encodeAudio',
   'job:cancel',
+  'media:microphoneAccess',
   'app:paths',
   'dialog:openMedia',
   'dialog:openProject',
