@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { delay, echo, echoTimes } from '../../../../src/core/audio/dsp/echo.ts';
 import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
+import { reverb, type ReverbSettings } from '../../../../src/core/audio/dsp/reverb.ts';
 import { changeSpeed } from '../../../../src/core/audio/dsp/speed.ts';
 import {
   amplify,
@@ -287,6 +288,57 @@ describe('A10 delay: regular, bouncing ball, reverse bouncing ball', () => {
     const one = Float32Array.from([1, 0, 0, 0]);
     const out = delay([one, one], 4, { type: 'regular', delay: 0.25, echoes: 1, decayDb: 0 });
     expect(out).toEqual([Float32Array.from([1, 1, 0, 0, 0]), Float32Array.from([1, 1, 0, 0, 0])]);
+  });
+});
+
+describe('A11 reverb (Freeverb)', () => {
+  const vocal: ReverbSettings = { roomSize: 0.6, reverberance: 0.4, damping: 0.5, wet: 0.3 };
+  const impulse = (seconds: number) => {
+    const a = new Float32Array(Math.round(seconds * RATE));
+    a[0] = 1;
+    return a;
+  };
+  /** Energy of each 100 ms window. */
+  const energies = (a: Float32Array) =>
+    Array.from({ length: Math.floor(a.length / 4410) }, (_, w) =>
+      a.subarray(w * 4410, (w + 1) * 4410).reduce((s, v) => s + v * v, 0),
+    );
+
+  it('an impulse: the output rings on and its energy dies away; with a tail it is longer', () => {
+    const [out] = reverb([impulse(1)], RATE, { ...vocal, tail: true });
+    expect(out!.length).toBeGreaterThan(RATE);
+    const e = energies(out!);
+    expect(e[1]!).toBeGreaterThan(0); // still ringing after the impulse
+    for (let w = 2; w < e.length; w++) expect(e[w]!).toBeLessThan(e[w - 1]!);
+    expect(e.at(-1)!).toBeLessThan(e[1]! * 1e-4); // the tail has died away by the end
+  });
+
+  it('without a tail the length stays the same', () => {
+    expect(reverb([impulse(1)], RATE, vocal)[0]!.length).toBe(RATE);
+  });
+
+  it('more reverberance rings longer', () => {
+    const at = (reverberance: number) =>
+      energies(reverb([impulse(2)], RATE, { ...vocal, reverberance })[0]!)[10]!;
+    expect(at(0.9)).toBeGreaterThan(at(0.4) * 10);
+  });
+
+  it('no wet sound leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.5, 0.5);
+    expect(reverb([input], RATE, { ...vocal, wet: 0 })).toEqual([input]);
+  });
+
+  it('keeps mono mono and stereo stereo; the two sides of the reverb differ (width)', () => {
+    expect(reverb([impulse(0.5)], RATE, vocal)).toHaveLength(1);
+    const [l, r] = reverb([impulse(0.5), impulse(0.5)], RATE, vocal);
+    expect(l!.length).toBe(r!.length);
+    expect(l).not.toEqual(r);
+  });
+
+  it('works at other sample rates', () => {
+    const [out] = reverb([new Float32Array(48000).fill(0.1)], 48000, { ...vocal, tail: true });
+    expect(out!.length).toBeGreaterThan(48000);
+    expect(out!.every(Number.isFinite)).toBe(true);
   });
 });
 

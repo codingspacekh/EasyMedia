@@ -55,7 +55,7 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
 
   it('has the M10 effects so far', () => {
     expect(AUDIO_EFFECTS.map((e) => e.id)).toEqual(
-      expect.arrayContaining(['audio.pitch', 'audio.echo', 'audio.delay']),
+      expect.arrayContaining(['audio.pitch', 'audio.echo', 'audio.delay', 'audio.reverb']),
     );
   });
 
@@ -252,6 +252,52 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
       expect(delay.process([sine(0.1, 1)], RATE, params)[0]!.length).toBe(2 * RATE);
       expect(delay.process([sine(0.1, 1)], RATE, { ...params, longer: 0 })[0]!.length).toBe(RATE);
       expect(delay.note!([sine(0.1, 1)], RATE, params)).toMatch(/1\.00 s → 2\.00 s/);
+    });
+  });
+
+  describe('A11 Reverb', () => {
+    const reverb = fx('audio.reverb');
+    const start = defaultParams(reverb);
+
+    it('starts as the Vocal preset: room size 60 %, reverberance 40 % (Book B 11.2.13)', () => {
+      expect(reverb.params.preset!.choices).toEqual([
+        'Custom',
+        'Small room',
+        'Vocal',
+        'Hall',
+        'Cathedral',
+      ]);
+      expect(start).toEqual({
+        preset: 2,
+        roomSize: 60,
+        reverberance: 40,
+        damping: 50,
+        wet: 30,
+        tail: 0,
+      });
+      expect(reverb.group).toBe('Space');
+    });
+
+    it('a preset sets the room; changing a setting makes it Custom', () => {
+      const hall = reverb.link!({ ...start, preset: 3 }, 'preset');
+      expect(hall.roomSize).toBeGreaterThan(start.roomSize!);
+      expect(hall.reverberance).toBeGreaterThan(start.reverberance!);
+      const more = reverb.link!({ ...start, reverberance: 50 }, 'reverberance'); // Book A 11.21
+      expect(more).toEqual({ ...start, reverberance: 50, preset: 0 });
+      expect(reverb.link!({ ...start, tail: 1 }, 'tail').preset).toBe(2);
+    });
+
+    it('says how long it rings on, and the new length when the tail is added', () => {
+      const one = [sine(0.1, 1)];
+      expect(reverb.note!(one, RATE, start)).toMatch(/rings on for about \d\.\d s/i);
+      expect(reverb.note!(one, RATE, { ...start, tail: 1 })).toMatch(/1\.00 s → \d\.\d\d s/);
+    });
+
+    it('keeps the length unless the tail is added (as Audacity)', () => {
+      expect(reverb.process([sine(0.1, 1)], RATE, start)[0]!.length).toBe(RATE);
+      expect(
+        reverb.process([sine(0.1, 1)], RATE, { ...start, tail: 1 })[0]!.length,
+      ).toBeGreaterThan(RATE);
     });
   });
 

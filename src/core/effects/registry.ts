@@ -4,6 +4,7 @@ import { EditError } from '../model/errors.ts';
 import type { EffectInstance } from '../model/types.ts';
 import { delay, echo } from './audio/echo.ts';
 import { pitch } from './audio/pitch.ts';
+import { reverb } from './audio/reverb.ts';
 import { speed } from './audio/speed.ts';
 import { amplify, fadeIn, fadeOut, normalise } from './audio/volume.ts';
 import { TRANSITION_LIST } from './transitions/transitions.ts';
@@ -22,7 +23,7 @@ export const EFFECTS: readonly EffectDef[] = [
   invert,
 ];
 export const TRANSITIONS: readonly TransitionDef[] = TRANSITION_LIST;
-/** Audio mode's Effect menu (A3, A4, A7–A10), in menu order. */
+/** Audio mode's Effect menu (A3, A4, A7–A11), in menu order. */
 export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   amplify,
   normalise,
@@ -32,6 +33,7 @@ export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   pitch,
   echo,
   delay,
+  reverb,
 ];
 
 export const effectById = (id: string): EffectDef | undefined => EFFECTS.find((e) => e.id === id);

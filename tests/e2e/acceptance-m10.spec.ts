@@ -106,3 +106,23 @@ test('Book B Task 11o: echo 0.5 s / 0.8 between 10 and 20 s; Delay offers its th
   expect(Math.abs(info.duration! - (30 + 0.5 + 0.4 + 0.3 + 0.2 + 0.1))).toBeLessThan(0.1);
   await app.close();
 });
+
+test('Book B Task 11m (reverb part): reverb between 4 and 6 s, Vocal preset; presets fill the settings', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  await audioMode(page);
+  await importAudio(app, page, join(dir, BEEPS), 1);
+  await select(page, '4', '6');
+  await applyEffect(page, 'Reverb…', 'Reverb', async (dialog) => {
+    await expect(dialog.getByLabel('Room size')).toHaveValue('60');
+    await expect(dialog.getByLabel('Reverberance')).toHaveValue('40');
+    await dialog.getByLabel('Preset').selectOption({ label: 'Cathedral' });
+    await expect(dialog.getByLabel('Room size')).toHaveValue('100');
+    await dialog.getByLabel('Preset').selectOption({ label: 'Vocal' });
+    await expect(dialog.getByText(/rings on for about/)).toBeVisible();
+    await shot(page, '11m-reverb');
+  });
+  const history = page.getByRole('complementary', { name: 'Selected track' });
+  await expect(history.getByText(/Reverb/)).toBeVisible();
+  await app.close();
+});

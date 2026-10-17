@@ -198,3 +198,35 @@ describe('A10 Delay: bouncing ball, through to a WAV file', () => {
     expect(level(out!, 29.4)).toBeLessThan(0.01); // nothing between the echoes
   });
 });
+
+describe('Book B Task 11m (reverb part): a small amount of reverb between 4 and 6 seconds', () => {
+  it('the beep at 4 s rings on afterwards; the beep at 8 s, outside the selection, does not', async () => {
+    const s = session();
+    await s.open(BEEPS); // stand-in for Voiceover_2.mp3
+    s.audio.select({ start: 4, end: 6 });
+    const settings = s.audio.effectSettings('audio.reverb');
+    expect(settings).toMatchObject({ roomSize: 60, reverberance: 40 }); // "may already be set"
+    expect(s.audio.applyEffect('audio.reverb', settings)).toBeNull();
+    const file = await s.exportAs('Task_11m.mp3', { channels: 1 });
+
+    expect((await engine.probe(file)).duration!).toBeCloseTo(30, 1);
+    const [out] = (await engine.decodeAudio(file)).channels;
+    expect(level(out!, 4.1)).toBeGreaterThan(0.01); // the reverb rings on after the beep
+    expect(level(out!, 8.1)).toBeLessThan(0.005); // no reverb outside the selection
+    expect(level(out!, 6.1)).toBeLessThan(0.005); // the tail stops with the selection (as Audacity)
+  });
+});
+
+describe('Book A 11.21: increase the reverberance by 10 % for the bee voiceover', () => {
+  it('more reverberance rings on longer', async () => {
+    const ring = async (reverberance: number) => {
+      const s = session();
+      await s.open(BEEPS);
+      s.audio.select({ start: 0, end: 30 });
+      const params = s.settings('audio.reverb', { reverberance });
+      expect(s.audio.applyEffect('audio.reverb', params)).toBeNull();
+      return level(s.doc().tracks[0]!.channels[0]!, 2.6);
+    };
+    expect(await ring(50)).toBeGreaterThan((await ring(40)) * 1.3);
+  });
+});
