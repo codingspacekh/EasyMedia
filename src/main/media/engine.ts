@@ -146,18 +146,29 @@ export function createNodeMediaEngine(
     },
 
     renderVideo(project, output, { projectDir, format, textImages }) {
-      let plan;
-      try {
-        plan = compileProject(project, {
+      const compile = (encoder: string) =>
+        compileProject(project, {
           mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
-          videoEncoder,
+          videoEncoder: encoder,
           ...(format ? { format } : {}),
           ...(textImages ? { textImages } : {}),
         });
+      let plan;
+      try {
+        plan = compile(videoEncoder);
       } catch (error) {
         return failedJob(error as Error);
       }
-      return queue.run({ label: 'Export', args: plan.args, output, duration: plan.duration });
+      // A hardware encoder cannot make every picture size (VideoToolbox refuses 426 × 240):
+      // if it fails, the export is made again with the software encoder.
+      const fallback = videoEncoder === 'libx264' ? {} : { fallbackArgs: compile('libx264').args };
+      return queue.run({
+        label: 'Export',
+        args: plan.args,
+        ...fallback,
+        output,
+        duration: plan.duration,
+      });
     },
 
     decodeAudioToFile,
