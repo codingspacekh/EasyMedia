@@ -1,5 +1,10 @@
 // MILESTONES §3.1: audio effects tested with synthetic signals whose answers are known.
 import { describe, expect, it } from 'vitest';
+import { compress, compressedDb } from '../../../../src/core/audio/dsp/compressor.ts';
+import { delay, echo, echoTimes } from '../../../../src/core/audio/dsp/echo.ts';
+import { EQ_BANDS, graphicEq, highPass, lowPass } from '../../../../src/core/audio/dsp/filters.ts';
+import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
+import { reverb, type ReverbSettings } from '../../../../src/core/audio/dsp/reverb.ts';
 import { changeSpeed } from '../../../../src/core/audio/dsp/speed.ts';
 import {
   amplify,
@@ -145,6 +150,327 @@ describe('A8 change speed (pitch changes too, as in Audacity)', () => {
 
   it('refuses a speed of zero or less', () => {
     expect(() => changeSpeed([sine(440, 0.1)], 0)).toThrow(/greater than 0/);
+  });
+});
+
+describe('A9 change pitch (length stays the same)', () => {
+  it('+12 semitones: a 2 s sine at 440 Hz stays 2 s and becomes 880 Hz (±2 %)', () => {
+    const [out] = changePitch([sine(440, 2, 0.5)], RATE, 12);
+    expect(out!.length).toBe(2 * RATE);
+    expect(frequency(out!) / 880).toBeCloseTo(1, 1);
+    expect(Math.abs(frequency(out!) / 880 - 1)).toBeLessThan(0.02);
+  });
+
+  it('keeps the loudness of a steady tone (no gaps or doubled parts)', () => {
+    const [out] = changePitch([sine(440, 2, 0.5)], RATE, 12);
+    const middle = out!.subarray(Math.round(0.2 * RATE), Math.round(1.8 * RATE));
+    expect(rms(middle) / (0.5 / Math.SQRT2)).toBeGreaterThan(0.9);
+    expect(rms(middle) / (0.5 / Math.SQRT2)).toBeLessThan(1.1);
+  });
+
+  it('C → F up (Book B Task 11k) is +5 semitones: 440 Hz → 587.3 Hz', () => {
+    const [out] = changePitch([sine(440, 1, 0.5)], RATE, 5);
+    expect(Math.abs(frequency(out!) / 587.33 - 1)).toBeLessThan(0.02);
+  });
+
+  it('lower by 5 % (Book A 11.20): 440 Hz → 418 Hz, same length', () => {
+    const [out] = changePitch([sine(440, 1, 0.5)], RATE, 12 * Math.log2(0.95));
+    expect(out!.length).toBe(RATE);
+    expect(Math.abs(frequency(out!) / 418 - 1)).toBeLessThan(0.02);
+  });
+
+  it('0 semitones leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.5, 0.5);
+    const [out] = changePitch([input], RATE, 0);
+    expect(out).toEqual(input);
+    expect(out).not.toBe(input);
+  });
+
+  it('keeps the two sides of a stereo sound in step', () => {
+    const [l, r] = changePitch([sine(440, 1, 0.5), sine(440, 1, 0.5)], RATE, -3);
+    expect(r).toEqual(l);
+  });
+
+  it('a selection shorter than one window still keeps its length', () => {
+    const [out] = changePitch([sine(440, 0.01, 0.5)], RATE, 7);
+    expect(out!.length).toBe(441);
+  });
+
+  it('an empty selection stays empty', () => {
+    expect(changePitch([new Float32Array(0)], RATE, 5)).toEqual([new Float32Array(0)]);
+    expect(changePitch([new Float32Array(1)], RATE, 24)[0]!.length).toBe(1);
+  });
+
+  it('refuses a change beyond two octaves', () => {
+    expect(() => changePitch([sine(440, 0.1)], RATE, 25)).toThrow(/semitones/);
+  });
+});
+
+describe('A9 time stretch (the first half of Change pitch)', () => {
+  it('×1.5: a 1 s sine at 440 Hz becomes 1.5 s, still at 440 Hz', () => {
+    const [out] = timeStretch([sine(440, 1, 0.5)], RATE, 1.5);
+    expect(out!.length).toBe(Math.round(1.5 * RATE));
+    expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+  });
+
+  it('×0.75 makes it shorter, still at 440 Hz', () => {
+    const [out] = timeStretch([sine(440, 1, 0.5)], RATE, 0.75);
+    expect(out!.length).toBe(Math.round(0.75 * RATE));
+    expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+  });
+});
+
+describe('A10 echo (each echo is the one before × the decay; the length stays the same)', () => {
+  const impulse = (seconds: number, rate = 1000) => {
+    const a = new Float32Array(seconds * rate);
+    a[0] = 1;
+    return a;
+  };
+
+  it('0.5 s / 0.8 on a single impulse: echoes at 0.5 s (0.8), 1.0 s (0.64), 1.5 s (0.512)', () => {
+    const [out] = echo([impulse(2)], 1000, 0.5, 0.8);
+    expect(out!.length).toBe(2000);
+    expect([out![0], out![500], out![1000], out![1500]].map((v) => +v!.toFixed(4))).toEqual([
+      1, 0.8, 0.64, 0.512,
+    ]);
+    expect(out!.filter((v) => v !== 0)).toHaveLength(4);
+  });
+
+  it('echoes every channel and leaves the input unchanged', () => {
+    const left = impulse(1);
+    const [l, r] = echo([left, impulse(1)], 1000, 0.25, 0.5);
+    expect([l![250], r![250]]).toEqual([0.5, 0.5]);
+    expect(left[250]).toBe(0);
+  });
+
+  it('a delay longer than the selection changes nothing', () => {
+    const [out] = echo([impulse(1)], 1000, 2, 0.5);
+    expect(out).toEqual(impulse(1));
+  });
+});
+
+describe('A10 delay: regular, bouncing ball, reverse bouncing ball', () => {
+  it('regular: equal gaps', () => {
+    expect(echoTimes('regular', 0.5, 3)).toEqual([0.5, 1, 1.5]);
+  });
+
+  it('bouncing ball: the echoes come closer together', () => {
+    expect(echoTimes('bouncing', 1, 4)).toEqual([1, 1.75, 2.25, 2.5]);
+  });
+
+  it('reverse bouncing ball: the echoes go further apart', () => {
+    expect(echoTimes('reverse', 1, 4)).toEqual([0.25, 0.75, 1.5, 2.5]);
+  });
+
+  it('regular 0.5 s, 3 echoes, 6 dB per echo: each echo 6 dB quieter; the sound gets longer', () => {
+    const input = new Float32Array(1000);
+    input[0] = 1;
+    const [out] = delay([input], 1000, { type: 'regular', delay: 0.5, echoes: 3, decayDb: 6 });
+    expect(out!.length).toBe(2500);
+    expect([out![500], out![1000], out![1500]].map((v) => +v!.toFixed(3))).toEqual([
+      0.501, 0.251, 0.126,
+    ]);
+  });
+
+  it('can keep the length: echoes after the end are left out', () => {
+    const input = new Float32Array(1000);
+    input[0] = 1;
+    const [out] = delay([input], 1000, {
+      type: 'regular',
+      delay: 0.5,
+      echoes: 3,
+      decayDb: 6,
+      keepLength: true,
+    });
+    expect(out!.length).toBe(1000);
+    expect(+out![500]!.toFixed(3)).toBe(0.501);
+  });
+
+  it('delays every channel the same way', () => {
+    const one = Float32Array.from([1, 0, 0, 0]);
+    const out = delay([one, one], 4, { type: 'regular', delay: 0.25, echoes: 1, decayDb: 0 });
+    expect(out).toEqual([Float32Array.from([1, 1, 0, 0, 0]), Float32Array.from([1, 1, 0, 0, 0])]);
+  });
+});
+
+describe('A11 reverb (Freeverb)', () => {
+  const vocal: ReverbSettings = { roomSize: 0.6, reverberance: 0.4, damping: 0.5, wet: 0.3 };
+  const impulse = (seconds: number) => {
+    const a = new Float32Array(Math.round(seconds * RATE));
+    a[0] = 1;
+    return a;
+  };
+  /** Energy of each 100 ms window. */
+  const energies = (a: Float32Array) =>
+    Array.from({ length: Math.floor(a.length / 4410) }, (_, w) =>
+      a.subarray(w * 4410, (w + 1) * 4410).reduce((s, v) => s + v * v, 0),
+    );
+
+  it('an impulse: the output rings on and its energy dies away; with a tail it is longer', () => {
+    const [out] = reverb([impulse(1)], RATE, { ...vocal, tail: true });
+    expect(out!.length).toBeGreaterThan(RATE);
+    const e = energies(out!);
+    expect(e[1]!).toBeGreaterThan(0); // still ringing after the impulse
+    for (let w = 2; w < e.length; w++) expect(e[w]!).toBeLessThan(e[w - 1]!);
+    expect(e.at(-1)!).toBeLessThan(e[1]! * 1e-4); // the tail has died away by the end
+  });
+
+  it('without a tail the length stays the same', () => {
+    expect(reverb([impulse(1)], RATE, vocal)[0]!.length).toBe(RATE);
+  });
+
+  it('more reverberance rings longer', () => {
+    const at = (reverberance: number) =>
+      energies(reverb([impulse(2)], RATE, { ...vocal, reverberance })[0]!)[10]!;
+    expect(at(0.9)).toBeGreaterThan(at(0.4) * 10);
+  });
+
+  it('no wet sound leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.5, 0.5);
+    expect(reverb([input], RATE, { ...vocal, wet: 0 })).toEqual([input]);
+  });
+
+  it('keeps mono mono and stereo stereo; the two sides of the reverb differ (width)', () => {
+    expect(reverb([impulse(0.5)], RATE, vocal)).toHaveLength(1);
+    const [l, r] = reverb([impulse(0.5), impulse(0.5)], RATE, vocal);
+    expect(l!.length).toBe(r!.length);
+    expect(l).not.toEqual(r);
+  });
+
+  it('works at other sample rates', () => {
+    const [out] = reverb([new Float32Array(48000).fill(0.1)], 48000, { ...vocal, tail: true });
+    expect(out!.length).toBeGreaterThan(48000);
+    expect(out!.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('A12 high-pass and low-pass filters (Butterworth)', () => {
+  /** Change in level (dB) of a sine at `freq` through the filter, after it settles. */
+  const gainDb = (filter: (c: Float32Array[]) => Float32Array[], freq: number, rate = RATE) => {
+    const input = sine(freq, 0.5, 0.5, 0, rate);
+    const [out] = filter([input]);
+    const settled = (a: Float32Array) => a.subarray(Math.round(0.2 * rate));
+    return 20 * Math.log10(rms(settled(out!)) / rms(settled(input)));
+  };
+
+  it('high-pass 1 kHz, 6 dB per octave: 100 Hz down by ≥ 15 dB, 5 kHz within 1 dB', () => {
+    const hp = (c: Float32Array[]) => highPass(c, RATE, 1000, 6);
+    expect(gainDb(hp, 100)).toBeLessThan(-15);
+    expect(Math.abs(gainDb(hp, 5000))).toBeLessThan(1);
+  });
+
+  it('low-pass 1 kHz: 5 kHz down, 100 Hz kept', () => {
+    const lp = (c: Float32Array[]) => lowPass(c, RATE, 1000, 6);
+    expect(gainDb(lp, 5000)).toBeLessThan(-12);
+    expect(Math.abs(gainDb(lp, 100))).toBeLessThan(1);
+  });
+
+  it('the cut-off is 3 dB down, whatever the roll-off', () => {
+    for (const rolloff of [6, 12, 24, 36, 48]) {
+      expect(gainDb((c) => highPass(c, RATE, 1000, rolloff), 1000)).toBeCloseTo(-3, 0);
+    }
+  });
+
+  it('a steeper roll-off cuts more: one octave below, about 6 dB more per 6 dB step', () => {
+    const below = (rolloff: number) => gainDb((c) => highPass(c, RATE, 1000, rolloff), 500);
+    expect(below(6)).toBeCloseTo(-7, 0);
+    expect(below(12)).toBeCloseTo(-12.3, 0);
+    expect(below(48)).toBeLessThan(-45);
+  });
+
+  it('filters every channel and leaves the input unchanged', () => {
+    const left = sine(100, 0.1);
+    const out = highPass([left, sine(100, 0.1)], RATE, 1000, 12);
+    expect(out[1]).toEqual(out[0]);
+    expect(left).toEqual(sine(100, 0.1));
+  });
+});
+
+describe('A12 graphic EQ (10 bands, ±20 dB)', () => {
+  const flat = EQ_BANDS.map(() => 0);
+  const gainDb = (gains: number[], freq: number) => {
+    const input = sine(freq, 0.5, 0.1);
+    const [out] = graphicEq([input], RATE, gains);
+    const settled = (a: Float32Array) => a.subarray(Math.round(0.25 * RATE));
+    return 20 * Math.log10(rms(settled(out!)) / rms(settled(input)));
+  };
+
+  it('has the 10 bands of design screen 20, 31 Hz to 16 kHz', () => {
+    expect(EQ_BANDS).toEqual([31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]);
+  });
+
+  it('flat leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.2);
+    expect(graphicEq([input], RATE, flat)).toEqual([input]);
+  });
+
+  it('each slider sets the level at its own frequency (±1 dB), even next to other boosts', () => {
+    const treble = [0, 0, 0, 0, 0, 2, 4, 7, 10, 10]; // Book B 11.2.14
+    expect(gainDb(treble, 8000)).toBeCloseTo(10, 0);
+    expect(gainDb(treble, 4000)).toBeCloseTo(7, 0);
+    expect(gainDb(treble, 1000)).toBeCloseTo(2, 0);
+    expect(Math.abs(gainDb(treble, 125))).toBeLessThan(1);
+  });
+
+  it('cuts as well as boosts', () => {
+    const gains = [...flat];
+    gains[5] = -12; // 1 kHz
+    expect(gainDb(gains, 1000)).toBeCloseTo(-12, 0);
+    expect(Math.abs(gainDb(gains, 125))).toBeLessThan(1);
+  });
+
+  it('leaves out bands above what the sample rate can hold (16 kHz at 32 kHz)', () => {
+    const gains = [...flat];
+    gains[9] = 10;
+    const [out] = graphicEq([sine(440, 0.2, 0.5, 0, 32000)], 32000, gains);
+    expect(out!.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('A19 compressor (dynamic range compression)', () => {
+  const settings = { thresholdDb: -20, ratio: 3, attack: 0.2, release: 1, makeUp: false };
+  const db = (v: number) => 20 * Math.log10(Math.abs(v));
+  /** 1 s at −30 dB, then 2 s at −5 dB (a steady level, so the answer is exact). */
+  const step = () =>
+    Float32Array.from({ length: 3 * RATE }, (_, i) =>
+      i < RATE ? 10 ** (-30 / 20) : 10 ** (-5 / 20),
+    );
+
+  it('the curve: below the threshold unchanged; above, every 3 dB in comes out as 1 dB', () => {
+    expect(compressedDb(-30, settings)).toBe(-30);
+    expect(compressedDb(-5, settings)).toBeCloseTo(-15, 6);
+    expect(compressedDb(-20, settings)).toBeCloseTo(-20, 6);
+  });
+
+  it('§3.1: 3:1 at −20 dB, a step from −30 dB to −5 dB → about −15 dB after the attack time', () => {
+    const [out] = compress([step()], RATE, settings);
+    expect(db(out![Math.round(0.5 * RATE)]!)).toBeCloseTo(-30, 1); // quiet part unchanged
+    expect(db(out![Math.round(2.5 * RATE)]!)).toBeCloseTo(-15, 0); // loud part 10 dB down
+  });
+
+  it('reacts over the attack time, not at once', () => {
+    const [out] = compress([step()], RATE, settings);
+    const justAfter = db(out![RATE + 10]!);
+    expect(justAfter).toBeGreaterThan(-8); // still nearly as loud as the input
+  });
+
+  it('make-up gain raises the result so its loudest part is at 0 dB', () => {
+    const [out] = compress([step()], RATE, { ...settings, makeUp: true });
+    expect(peak([out!])).toBeCloseTo(1, 3);
+  });
+
+  it('compresses both sides of a stereo sound the same way (the balance stays)', () => {
+    const left = step();
+    const right = step().map((v) => v / 2);
+    const [l, r] = compress([left, right], RATE, settings);
+    const i = Math.round(2.5 * RATE);
+    expect(l![i]! / r![i]!).toBeCloseTo(2, 4);
+  });
+
+  it('a ratio of 1 changes nothing', () => {
+    const input = sine(440, 0.5, 0.9);
+    const [out] = compress([input], RATE, { ...settings, ratio: 1 });
+    for (const i of [100, 5000, 20000]) expect(out![i]).toBeCloseTo(input[i]!, 6);
   });
 });
 

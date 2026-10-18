@@ -250,6 +250,54 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     expect(t.doc().tracks[0]!.channels[0]!.length).toBe(2 * 44100);
   });
 
+  it('A13 Noise reduction: step 1 takes the profile and closes; step 2 shows it and reduces', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.select({ start: 1, end: 2 });
+    await menuItem('Effect', 'Noise reduction…');
+    let dialog = screen.getByRole('dialog', { name: 'Noise reduction' });
+    const step1 = within(dialog).getByRole('region', { name: 'Step 1 · Get a noise profile' });
+    expect(within(step1).getByText(/no profile yet/i)).toBeTruthy();
+    await fireEvent.click(within(step1).getByRole('button', { name: 'Get noise profile' }));
+    expect(screen.queryByRole('dialog')).toBeNull(); // as Audacity: now select the sound to clean
+    expect(t.state().noiseProfile).toMatchObject({ start: 1, end: 2 });
+
+    t.audio.selectAll();
+    await menuItem('Effect', 'Noise reduction…');
+    dialog = screen.getByRole('dialog', { name: 'Noise reduction' });
+    expect(within(dialog).getByText('Profile taken from 1.00 – 2.00 s')).toBeTruthy();
+    expect(within(dialog).getByRole('region', { name: /Step 2/ })).toBeTruthy();
+    expect((within(dialog).getByLabelText('Noise reduction') as HTMLInputElement).value).toBe('12');
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(t.state().history.past.at(-1)!.label).toBe('Noise reduction 0.00 – 4.00 s');
+  });
+
+  it('A13 a failed step 1 keeps the dialog open and says why', async () => {
+    await audioMode('/m/Task_11j_audio_1.mp3');
+    await menuItem('Effect', 'Noise reduction…');
+    const dialog = screen.getByRole('dialog', { name: 'Noise reduction' });
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Get noise profile' }));
+    expect(within(dialog).getByRole('alert').textContent).toMatch(/select a part/i);
+  });
+
+  it('A19 Compressor shows the input → output curve and the levels before and after', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.selectAll();
+    await menuItem('Effect', 'Compressor…');
+    const dialog = screen.getByRole('dialog', { name: 'Compressor' });
+    const curve = within(dialog).getByRole('img', { name: /input → output/i });
+    expect(within(curve).getByText('threshold')).toBeTruthy();
+    expect(within(dialog).getByRole('img', { name: /before and after/i })).toBeTruthy();
+    expect(
+      within(dialog).getByText(/every 3 dB above the threshold comes out as 1 dB/),
+    ).toBeTruthy();
+    const line = () => within(curve).getByTestId('curve').getAttribute('d');
+    const before = line();
+    await fireEvent.change(within(dialog).getByLabelText('Ratio'), { target: { value: '6' } });
+    expect(line()).not.toBe(before); // the curve follows the settings
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(t.state().history.past.at(-1)!.label).toBe('Compressor 0.00 – 4.00 s');
+  });
+
   it('A18 every effect dialog has Preview; Cancel changes nothing', async () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3');
     t.audio.selectAll();
@@ -374,5 +422,105 @@ describe('A18 transport and keyboard shortcuts (N10)', () => {
     box.focus();
     await fireEvent.keyDown(box, { key: ' ' });
     expect(t.state().playing).toBe(false);
+  });
+});
+
+describe('A14 recording a voiceover (screen 15)', () => {
+  const tone = (seconds: number) =>
+    Float32Array.from({ length: Math.round(seconds * 48000) }, (_, i) => 0.5 * Math.sin(i / 5));
+
+  it('Record opens the panel: microphone, input level with advice, overdub and count-in', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    const mic = within(panel).getByLabelText('Microphone') as HTMLSelectElement;
+    expect([...mic.options].map((o) => o.text)).toEqual([
+      'Built-in Microphone',
+      'Headset Microphone (USB)',
+    ]);
+    t.recorder.speak(tone(0.1));
+    await vi.waitFor(() =>
+      expect(within(panel).getByText('Good level — not too quiet, no clipping')).toBeTruthy(),
+    );
+    expect(
+      (within(panel).getByRole('meter', { name: 'Input level' }) as HTMLMeterElement).value,
+    ).toBeCloseTo(0.5, 2);
+    expect(
+      (within(panel).getByLabelText('Play other tracks while recording') as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect((within(panel).getByLabelText('3-second count-in') as HTMLInputElement).checked).toBe(
+      true,
+    );
+    await fireEvent.change(mic, { target: { value: 'usb' } });
+    await vi.waitFor(() =>
+      expect(t.audio.store.get().recording!.label).toBe('Headset Microphone (USB)'),
+    );
+  });
+
+  it('records into a new track; Space stops', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    await menuItem('Tracks', 'Record into new track');
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    await fireEvent.click(within(panel).getByLabelText('3-second count-in'));
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Start recording' }));
+    expect(within(panel).getByText('Space = stop')).toBeTruthy();
+    t.recorder.speak(tone(1));
+    await vi.waitFor(() => expect(within(panel).getByText('00:01.00')).toBeTruthy());
+    await fireEvent.keyDown(window, { key: ' ' });
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Recording' })).toBeNull());
+    expect(screen.getByRole('group', { name: 'Track Recording 1' })).toBeTruthy();
+  });
+
+  it('the count-in counts down before recording', async () => {
+    const t = await audioMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(within(panel).getByRole('button', { name: 'Start recording' }));
+      expect(within(panel).getByText('Recording starts in 3…')).toBeTruthy();
+      vi.advanceTimersByTime(3000);
+      await vi.waitFor(() => expect(t.audio.store.get().recording!.phase).toBe('recording'));
+      await fireEvent.click(within(panel).getByRole('button', { name: 'Stop' }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('X4: a refused microphone shows how to fix it, and no panel', async () => {
+    const t = await audioMode();
+    t.recorder.refuse('denied');
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    await vi.waitFor(() =>
+      expect(screen.getByText(/Privacy & Security ▸ Microphone/)).toBeTruthy(),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Recording' })).toBeNull();
+  });
+
+  it('Start recording waits until the microphone is open', async () => {
+    const t = await audioMode();
+    let open!: () => void;
+    const realOpen = t.recorder.open;
+    t.recorder.open = (...args) =>
+      new Promise((resolve) => (open = () => resolve(realOpen(...args))));
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    const start = within(panel).getByRole('button', {
+      name: 'Start recording',
+    }) as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    expect(within(panel).getByText(/opening the microphone/i)).toBeTruthy();
+    open();
+    await vi.waitFor(() => expect(start.disabled).toBe(false));
+  });
+
+  it('Cancel closes the panel and the microphone', async () => {
+    const t = await audioMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    const panel = await screen.findByRole('dialog', { name: 'Recording' });
+    await fireEvent.click(within(panel).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Recording' })).toBeNull();
+    expect(t.recorder.isOpen).toBe(false);
   });
 });

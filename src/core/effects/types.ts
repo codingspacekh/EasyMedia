@@ -1,5 +1,6 @@
 // What every effect and transition says about itself (P6). The registry drives the menus, the
 // generated settings (P7), the preview, the export and the "Why use this?" help (T5).
+import type { NoiseProfile } from '../audio/dsp/noise.ts';
 import type { Channels } from '../audio/pcm.ts';
 
 /** One number the student can set; the settings are generated from these. */
@@ -12,6 +13,10 @@ export interface ParamSpec {
   default: number;
   /** A checkbox: the value is 1 (ticked) or 0. */
   toggle?: boolean;
+  /** A drop-down: the value is the position of the chosen item (min 0, max length − 1). */
+  choices?: readonly string[];
+  /** One band of a graphic EQ: shown as a vertical slider beside the other bands. */
+  band?: boolean;
 }
 
 export type Params = Record<string, number>;
@@ -43,11 +48,19 @@ export interface TransitionDef extends Described {
 export type AudioEffectGroup =
   'Volume' | 'Time & pitch' | 'Space' | 'Frequency' | 'Repair & channels';
 
+/** What an effect may need besides the selected sound. */
+export interface EffectContext {
+  /** A13: measured in step 1 (Get noise profile), used in step 2. */
+  noiseProfile?: NoiseProfile | null;
+}
+
 /** An effect on the selected sound in Audio mode (Audacity model, ARCHITECTURE §7.5). */
 export interface AudioEffectDef extends Described {
   group: AudioEffectGroup;
+  /** Two steps (as Audacity's Noise Reduction): a noise profile must be taken first. */
+  needsNoiseProfile?: boolean;
   /** The new samples of the selection; may be a different length (Change speed). */
-  process(channels: Channels, rate: number, params: Params): Channels;
+  process(channels: Channels, rate: number, params: Params, context?: EffectContext): Channels;
   /** Settings worked out from the selected sound, e.g. Amplify's largest gain without clipping. */
   suggest?(channels: Channels, params: Params): Params;
   /** Throws an EditError when these settings cannot be used on this sound. */
@@ -56,4 +69,8 @@ export interface AudioEffectDef extends Described {
   note?(channels: Channels, rate: number, params: Params): string | null;
   /** Keeps settings that say the same thing in step (speed multiplier ↔ percent change). */
   link?(params: Params, changed: string): Params;
+  /** A19: the output level (dB) for each steady input level (dB), drawn as a curve. */
+  curve?(params: Params): (inputDb: number) => number;
+  /** A19: the levels (dB) of the selection's blocks after the effect, for a before / after picture. */
+  shape?(params: Params, levelsDb: readonly number[]): number[];
 }

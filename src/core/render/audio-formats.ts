@@ -84,7 +84,7 @@ export const SAMPLE_RATES: { rate: number; hint: string }[] = [
   { rate: 96000, hint: 'Blu-ray, studio' },
 ];
 
-const LOSSY_BIT_RATES = [32, 64, 128, 192, 320];
+const LOSSY_BIT_RATES = [32, 64, 96, 128, 192, 320];
 /** LAME's quality levels for a variable bit rate, and the average kbps they give for music. */
 const VBR: Record<number, { q: number; kbps: number }> = {
   320: { q: 0, kbps: 245 },
@@ -157,9 +157,13 @@ export function validateAudioExport(e: AudioExportSettings): void {
   if (e.mode === 'vbr' && e.format !== 'mp3')
     throw new EditError('A variable bit rate is only available for MP3.');
   const rates = bitRatesFor(e.format, e.sampleRate);
-  if (!rates.includes(e.bitRate))
+  if (e.bitRate > rates.at(-1)!)
     throw new EditError(
       `At ${hz(e.sampleRate)} an ${info.label} can be at most ${rates.at(-1)} kbps.`,
+    );
+  if (!rates.includes(e.bitRate))
+    throw new EditError(
+      `Choose one of the bit rates in the list: ${rates.slice(0, -1).join(', ')} or ${rates.at(-1)} kbps.`,
     );
 }
 

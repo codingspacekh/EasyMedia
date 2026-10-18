@@ -78,8 +78,11 @@
   <button
     class="tbtn rec"
     aria-label="Record"
-    title="Recording comes in a later version of EasyMedia"
-    disabled><Icon name="record" /></button
+    title={audio.canRecord
+      ? 'Record a voiceover into a new track'
+      : 'Recording is not available here'}
+    disabled={!audio.canRecord || $store.recording !== null}
+    onclick={() => void audio.openRecorder()}><Icon name="record" /></button
   >
   <button
     class="tbtn"
@@ -167,8 +170,10 @@
         <button role="menuitem" onclick={() => choose(() => audio.importAudio())}
           >Import audio as new track…</button
         >
-        <button role="menuitem" disabled title="Recording comes in a later version of EasyMedia"
-          >Record into new track</button
+        <button
+          role="menuitem"
+          disabled={!audio.canRecord}
+          onclick={() => choose(() => audio.openRecorder())}>Record into new track</button
         >
         <div class="ms"></div>
         <button role="menuitem" onclick={() => choose(() => audio.moveTrack(-1))}

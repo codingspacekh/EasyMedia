@@ -52,8 +52,8 @@ describe('A16 / A17 audio export formats', () => {
   });
 
   it('MP3 bit rates are limited at low sample rates', () => {
-    expect(bitRatesFor('mp3', 44100)).toEqual([32, 64, 128, 192, 320]);
-    expect(bitRatesFor('mp3', 22050)).toEqual([32, 64, 128]);
+    expect(bitRatesFor('mp3', 44100)).toEqual([32, 64, 96, 128, 192, 320]); // 96: Book B Task 11p
+    expect(bitRatesFor('mp3', 22050)).toEqual([32, 64, 96, 128]);
     expect(bitRatesFor('mp3', 8000)).toEqual([32, 64]);
     expect(bitRatesFor('wav', 44100)).toEqual([]);
   });
@@ -156,6 +156,10 @@ describe('A16 / A17 audio export formats', () => {
       [{ ...mp3, sampleRate: 96000 }, /96 000 Hz/],
       [{ ...mp3, sampleRate: 12345 }, /sample rate/i],
       [{ ...mp3, sampleRate: 8000, bitRate: 128 }, /at most 64 kbps/],
+      [
+        { ...mp3, bitRate: 100 },
+        /one of the bit rates in the list: 32, 64, 96, 128, 192 or 320 kbps/,
+      ],
       [{ ...mp3, format: 'flac' as const, bitDepth: 32 as const }, /16 or 24-bit/],
       [{ ...mp3, format: 'wav' as const, mode: 'vbr' as const }, /bit rate/i],
       [{ ...mp3, format: 'm4a' as const, mode: 'vbr' as const }, /variable bit rate.*MP3/i],

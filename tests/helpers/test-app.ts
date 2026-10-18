@@ -2,6 +2,7 @@
 import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
+import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
 import type { Dialogs, ProbeInfo } from '../../src/core/ports.ts';
 
 export const VIDEO: ProbeInfo = {
@@ -31,8 +32,10 @@ export function testApp(
     exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
+    unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
   };
   const disk = new Map<string, string>();
+  const recorder = createMockRecorder();
   const app = createApp({
     engine,
     dialogs,
@@ -47,10 +50,11 @@ export function testApp(
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
     paths: { proxies: '/cache', recovery: '/cache/recovery.mve', snapshots: '/cache/snapshots' },
+    audioRecorder: recorder,
   });
   const importFiles = async (...paths: string[]) => {
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   };
-  return { app, engine, dialogs, importFiles };
+  return { app, engine, dialogs, importFiles, recorder };
 }

@@ -268,6 +268,53 @@ describe('effects on the selection', () => {
     expect(s.audio.applyEffect('audio.nothing', {})).toMatch(/not available/i);
   });
 
+  it('A13 noise reduction, step 1: Get noise profile remembers the selected noise (not an edit)', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    expect(s.audio.getNoiseProfile()).toMatch(/select a part/i); // nothing selected yet
+    const steps = s.state().history.past.length;
+    s.audio.select({ start: 1, end: 2 });
+    expect(s.audio.getNoiseProfile()).toBeNull();
+    expect(s.state().noiseProfile).toMatchObject({ start: 1, end: 2 });
+    expect(s.state().history.past).toHaveLength(steps);
+    expect(s.state().message).toEqual({
+      kind: 'info',
+      text: 'Noise profile taken from 1.00 – 2.00 s. Now select the sound to clean (Ctrl/Cmd + A for all) and open Noise reduction again.',
+    });
+    s.audio.select({ start: 1, end: 1.01 });
+    expect(s.audio.getNoiseProfile()).toMatch(/longer/);
+    expect(s.state().noiseProfile).toMatchObject({ start: 1, end: 2 }); // the old one is kept
+  });
+
+  it('A13 step 2: reducing needs the profile; with it, it is one undo step and can be previewed', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    s.audio.selectAll();
+    const params = s.audio.effectSettings('audio.noise');
+    expect(s.audio.applyEffect('audio.noise', params)).toMatch(/first get a noise profile/i);
+    expect(s.audio.previewEffect('audio.noise', params)).toMatch(/first get a noise profile/i);
+    s.audio.select({ start: 0, end: 1 });
+    s.audio.getNoiseProfile();
+    s.audio.selectAll();
+    const steps = s.state().history.past.length;
+    expect(s.audio.previewEffect('audio.noise', params)).toBeNull();
+    expect(s.audio.applyEffect('audio.noise', params)).toBeNull();
+    expect(s.state().history.past).toHaveLength(steps + 1);
+    expect(s.audio.effectNote('audio.noise', params)).toMatch(/12 dB quieter/);
+  });
+
+  it('A19 the selection in blocks, as levels in dB (for the compressor before / after picture)', async () => {
+    const s = setup();
+    expect(s.audio.selectionLevels(10)).toEqual([]); // nothing to show
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    s.audio.selectAll();
+    const levels = s.audio.selectionLevels(10);
+    expect(levels).toHaveLength(10);
+    const loudest = 20 * Math.log10(peak(s.doc().tracks[0]!.channels));
+    expect(Math.max(...levels)).toBeCloseTo(loudest, 5);
+    expect(Math.min(...levels)).toBeGreaterThanOrEqual(-60); // silence shows as −60 dB
+  });
+
   it('A18 Preview plays the effect on (at most 6 s of) the selection without changing it', async () => {
     const s = setup();
     await s.importFiles('/m/Task_11j_audio_2.mp3');

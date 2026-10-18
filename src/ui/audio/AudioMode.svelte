@@ -10,6 +10,7 @@
   import AudioSidePanel from './AudioSidePanel.svelte';
   import AudioTracks from './AudioTracks.svelte';
   import EffectDialog from './EffectDialog.svelte';
+  import RecordingPanel from './RecordingPanel.svelte';
   import SelectionBar from './SelectionBar.svelte';
   import { audioUi } from './audio-ui.svelte.ts';
 
@@ -38,6 +39,13 @@
   }
 
   function onkeydown(e: KeyboardEvent): void {
+    // A14: while recording (or counting in), Space stops, wherever the focus is.
+    const phase = $store.recording?.phase;
+    if (e.key === ' ' && (phase === 'recording' || phase === 'count-in')) {
+      e.preventDefault();
+      audio.stopRecording();
+      return;
+    }
     if (busy(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === ' ') {
       e.preventDefault();
@@ -82,6 +90,19 @@
     {...effect.link ? { link: effect.link } : {}}
     preview={(p) => audio.previewEffect(effect.id, p)}
     apply={(p) => audio.applyEffect(effect.id, p)}
+    {...effect.needsNoiseProfile
+      ? {
+          step1: {
+            taken: $store.noiseProfile
+              ? `${$store.noiseProfile.start.toFixed(2)} – ${$store.noiseProfile.end.toFixed(2)} s`
+              : null,
+            take: () => audio.getNoiseProfile(),
+          },
+        }
+      : {}}
+    {...effect.curve && effect.shape
+      ? { levels: { curve: effect.curve, shape: effect.shape, before: audio.selectionLevels(60) } }
+      : {}}
     onclose={() => (audioUi.dialog = null)}
   />
 {:else if audioUi.dialog?.kind === 'silence'}
@@ -98,6 +119,9 @@
     apply={(p) => audio.insertSilence(p.length!)}
     onclose={() => (audioUi.dialog = null)}
   />
+{/if}
+{#if $store.recording}
+  <RecordingPanel {app} />
 {/if}
 {#if ui.audioExport}
   <AudioExportDialog {app} onclose={() => (ui.audioExport = false)} />

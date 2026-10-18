@@ -150,6 +150,91 @@ export const FIXTURES: FixtureSpec[] = [
     expect: { durationS: 48, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
   },
   {
+    // Stand-in for Task_11j.mp3 (Book B 11.2.10, Task 11k): two parts recorded in different keys,
+    // the first 19 s in C (C4, 261.63 Hz), the rest in F (F4, 349.23 Hz).
+    name: 'two_keys_45s.mp3',
+    group: 'test',
+    inputs: tone('0.4*if(lt(t,19),sin(2*PI*261.63*t),sin(2*PI*349.23*t))', 45),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 45, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Activity_11e.mp3 (Activity 11f): the first 30.6 s in C♯ (277.18 Hz), the rest
+    // in F♯ (369.99 Hz).
+    name: 'two_keys_43s.mp3',
+    group: 'test',
+    inputs: tone(
+      '0.4*if(lt(t,30.6),sin(2*PI*277.18*t),sin(2*PI*369.99*t))|0.4*if(lt(t,30.6),sin(2*PI*277.18*t),sin(2*PI*369.99*t))',
+      43.4,
+    ),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 43.4, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for 11.06 Bee_Voiceover.mp3 (Book A 11.20): a 300 Hz "voice" that rises and falls.
+    name: 'bee_voiceover_6s.mp3',
+    group: 'test',
+    inputs: tone('(0.3+0.1*sin(2*PI*3*t))*sin(2*PI*300*t)', 6),
+    output: ['-c:a', 'libmp3lame', '-b:a', '128k'],
+    expect: { durationS: 6, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Task_11o_audio.mp3 (Task 11o) and the voiceover intro (Book A 11.23): a 50 ms
+    // beep (1 kHz, 0.3) every 2 s, with silence between, so each echo can be measured.
+    name: 'beeps_30s.mp3',
+    group: 'test',
+    inputs: tone('0.3*lt(mod(t,2),0.05)*sin(2*PI*1000*t)', 30),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 30, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Voiceover_2.mp3, Task_11n_audio.mp3 and Blue_Sky_Blues.mp3 (Tasks 11m, 11n,
+    // Activities 11g, 11h): a bass tone (100 Hz) and a treble tone (8 kHz), each measured on its own.
+    name: 'bass_treble_120s.mp3',
+    group: 'test',
+    inputs: tone('0.2*sin(2*PI*100*t)+0.2*sin(2*PI*8000*t)', 120),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 120, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Voiceover_1.mp3 (Task 11l): a 300 Hz "voice" for the first 3.3 s, then only the
+    // background hiss that runs all the way through (the noise-only part is 3.3–8.09 s).
+    name: 'voice_hiss_9s.mp3',
+    group: 'test',
+    inputs: tone('0.3*lt(t,3.3)*sin(2*PI*300*t)+0.03*(2*random(0)-1)', 9),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 9, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for Task_11n_audio.mp3 (Task 11n): bass (100 Hz) and treble (8 kHz) music with hiss
+    // throughout; 40–50 s has only the hiss ("barely audible").
+    name: 'music_hiss_60s.mp3',
+    group: 'test',
+    inputs: tone(
+      '(1-between(t,40,50))*(0.2*sin(2*PI*100*t)+0.2*sin(2*PI*8000*t))+0.02*(2*random(0)-1)',
+      60,
+    ),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 60, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // A voiceover with loud and quiet parts (A19 Compressor, Book B 11.2.22): 300 Hz, 3 s at 0.8
+    // then 3 s at 0.08 (20 dB quieter), twice.
+    name: 'loud_quiet_voice_12s.wav',
+    group: 'test',
+    inputs: tone('(0.08+0.72*lt(mod(t,6),3))*sin(2*PI*300*t)', 12),
+    output: ['-c:a', 'pcm_s16le'],
+    expect: { durationS: 12, audio: { codec: 'pcm_s16le', channels: 1, sampleRate: 44100 } },
+  },
+  {
+    // Stand-in for 11i.wav (Activity 11i): quiet stereo music (0.15), so +10 dB does not clip.
+    name: 'quiet_music_40s.wav',
+    group: 'test',
+    inputs: tone('0.15*sin(2*PI*262*t)|0.15*sin(2*PI*330*t)', 40),
+    output: ['-c:a', 'pcm_s16le'],
+    expect: { durationS: 40, audio: { codec: 'pcm_s16le', channels: 2, sampleRate: 44100 } },
+  },
+  {
     // Real MP3s often carry album art, which ffprobe reports as a video stream (attached picture).
     name: 'music_with_cover.mp3',
     group: 'test',

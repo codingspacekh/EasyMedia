@@ -198,8 +198,11 @@ export function createNodeMediaEngine(
         ],
         output,
         duration: (audio.channels[0]?.length ?? 0) / audio.sampleRate,
-        prepare: () =>
-          writeFile(raw, new Uint8Array(data.buffer, data.byteOffset, data.byteLength)),
+        prepare: async () => {
+          // Audio mode's saved tracks go into a folder next to the project, made on first save.
+          await mkdir(dirname(output), { recursive: true });
+          await writeFile(raw, new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+        },
         cleanUp: () => rm(raw, { force: true }),
       });
     },

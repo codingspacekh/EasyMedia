@@ -85,6 +85,17 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return r.response === 0;
     },
+    async unsavedChanges() {
+      const r = await dialog.showMessageBox(win(), {
+        type: 'warning',
+        buttons: ['Save', "Don't Save", 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        message: 'Do you want to save the changes to your project?',
+        detail: 'Video and Audio mode work that is not saved will be lost.',
+      });
+      return (['save', 'discard', 'cancel'] as const)[r.response] ?? 'cancel';
+    },
     async chooseFolder(title) {
       const r = await dialog.showOpenDialog(win(), {
         title,

@@ -16,6 +16,10 @@ export interface MainServices {
   paths: AppPaths;
   dialogs: Dialogs;
   files: ProjectFiles;
+  /** X4: asks the system for the microphone (macOS); true where the system does not ask. */
+  microphoneAccess: () => Promise<boolean>;
+  /** P7: the page's answer when the window is closing. */
+  closeAnswer: (close: boolean) => void;
 }
 
 type Handlers = {
@@ -121,12 +125,18 @@ export function registerIpc(s: MainServices): void {
     'dialog:exportVideo': (name, container) => s.dialogs.exportVideo(name, container),
     'dialog:exportAudio': (name, format) => s.dialogs.exportAudio(name, format),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
+    'dialog:unsavedChanges': () => s.dialogs.unsavedChanges(),
+    'app:closeAnswer': async (close) => {
+      s.closeAnswer(close === true);
+      return null;
+    },
     'dialog:chooseFolder': (title) => s.dialogs.chooseFolder(title),
     'project:read': (path) => s.files.read(path),
     'project:write': async (path, text) => {
       await s.files.write(path, text);
       return null;
     },
+    'media:microphoneAccess': () => s.microphoneAccess(),
     'project:remove': async (path) => {
       await s.files.remove(path);
       return null;

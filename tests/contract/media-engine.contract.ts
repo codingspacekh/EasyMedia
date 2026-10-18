@@ -240,6 +240,34 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         });
       });
 
+      it('P1 for Audio mode: a 32-bit WAV gives back exactly the samples it was given', async () => {
+        const { engine, out } = setup();
+        const channels = [
+          Float32Array.from({ length: 4410 }, (_, i) => Math.sin(i / 7) * 0.3712345),
+          Float32Array.from({ length: 4410 }, (_, i) => Math.cos(i / 3) * 0.9876543),
+        ];
+        const file = out('exact.wav');
+        await engine.encodeAudio(
+          { sampleRate: 44100, channels },
+          file,
+          settings({ format: 'wav', bitDepth: 32, channels: 2 }),
+        ).done;
+        const back = await engine.decodeAudio(file);
+        expect(back.sampleRate).toBe(44100);
+        expect(back.channels).toEqual(channels);
+      });
+
+      it('P1 for Audio mode: writes into a folder that does not exist yet', async () => {
+        const { engine, out } = setup();
+        const file = out('Task 11p audio/track-1.wav');
+        await engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(1, 44100, 1) },
+          file,
+          settings({ format: 'wav', bitDepth: 32, channels: 1 }),
+        ).done;
+        expect((await engine.probe(file)).audio).toMatchObject({ codec: 'pcm_f32le' });
+      });
+
       it('refuses settings a format cannot have', async () => {
         const { engine, out } = setup();
         const job = engine.encodeAudio(

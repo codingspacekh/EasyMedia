@@ -51,6 +51,8 @@ export interface Channels {
     result: null;
   };
   'job:cancel': { args: [jobKey: string]; result: null };
+  /** X4: asks the system for the microphone (macOS); false when it is refused. */
+  'media:microphoneAccess': { args: []; result: boolean };
   'app:paths': { args: []; result: AppPaths };
   'dialog:openMedia': { args: []; result: string[] };
   'dialog:openProject': { args: []; result: string | null };
@@ -65,6 +67,9 @@ export interface Channels {
   };
   'dialog:confirm': { args: [message: string]; result: boolean };
   'dialog:chooseFolder': { args: [title: string]; result: string | null };
+  'dialog:unsavedChanges': { args: []; result: 'save' | 'discard' | 'cancel' };
+  /** P7: the page's answer to app:closeRequested. */
+  'app:closeAnswer': { args: [close: boolean]; result: null };
   'project:read': { args: [path: string]; result: string };
   'project:write': { args: [path: string, text: string]; result: null };
   'project:remove': { args: [path: string]; result: null };
@@ -87,6 +92,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:release',
   'media:encodeAudio',
   'job:cancel',
+  'media:microphoneAccess',
   'app:paths',
   'dialog:openMedia',
   'dialog:openProject',
@@ -95,6 +101,8 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:exportAudio',
   'dialog:confirm',
   'dialog:chooseFolder',
+  'dialog:unsavedChanges',
+  'app:closeAnswer',
   'project:read',
   'project:write',
   'project:remove',
@@ -125,6 +133,8 @@ export type JobWireEvent =
 export interface Events {
   'job:event': JobWireEvent;
   'menu:action': MenuAction;
+  /** P7: the window is closing (or the app quitting): may it, with the work as it is? */
+  'app:closeRequested': null;
 }
 
 export interface MveApi {

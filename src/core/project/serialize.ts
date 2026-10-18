@@ -46,7 +46,22 @@ function isProject(doc: ProjectDocument): doc is ProjectDocument & Project {
     listOf(timeline.text, isTextItem) &&
     Array.isArray(timeline.audio) &&
     timeline.audio.length === 2 &&
-    timeline.audio.every((track) => listOf(track, isAudioItem))
+    timeline.audio.every((track) => listOf(track, isAudioItem)) &&
+    (doc.audioMode === undefined || isAudioMode(doc.audioMode))
+  );
+}
+
+function isAudioMode(a: unknown): boolean {
+  return (
+    isObject(a) &&
+    isNumber(a.rate) &&
+    listOf(
+      a.tracks,
+      (t) =>
+        has(t, ['id', 'name', 'file'], isString) &&
+        has(t, ['offset', 'gain', 'pan'], isNumber) &&
+        (t.bits === undefined || isNumber(t.bits)),
+    )
   );
 }
 

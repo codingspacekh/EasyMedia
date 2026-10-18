@@ -31,6 +31,30 @@ describe('X1 media paths: absolute in memory, relative to the project file on di
     ]);
   });
 
+  it('Audio mode WAV files are relative to the project too', () => {
+    const p = {
+      ...withMedia(),
+      audioMode: {
+        rate: 44100,
+        tracks: [
+          {
+            id: 'a',
+            name: 'x',
+            file: '/Users/s/IT/Task 11p audio/track-1.wav',
+            offset: 0,
+            gain: 0,
+            pan: 0,
+          },
+        ],
+      },
+    };
+    const disk = projectToDisk(p, '/Users/s/IT');
+    expect(disk.audioMode!.tracks[0]!.file).toBe('Task 11p audio/track-1.wav');
+    expect(projectFromDisk(disk, 'C:/Marking').audioMode!.tracks[0]!.file).toBe(
+      'C:/Marking/Task 11p audio/track-1.wav',
+    );
+  });
+
   it('does not change the project it was given', () => {
     const p = withMedia('/a/b.mp4');
     projectToDisk(p, '/a');

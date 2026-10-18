@@ -5,6 +5,7 @@
   import type { Params, ParamSpec } from '../../core/effects/types.ts';
   import EffectParams from '../EffectParams.svelte';
   import Icon from '../Icon.svelte';
+  import LevelGraph from './LevelGraph.svelte';
 
   let {
     id,
@@ -18,6 +19,8 @@
     link,
     preview,
     apply,
+    step1,
+    levels,
     onclose,
   }: {
     id: string;
@@ -32,6 +35,19 @@
     preview?: (params: Params) => string | null;
     /** Returns why it cannot be applied, or null (the dialog then closes). */
     apply: (params: Params) => string | null;
+    /** A13: a first step before the settings (Get noise profile, as Audacity). */
+    step1?: {
+      /** The time range the profile was taken from, or null. */
+      taken: string | null;
+      /** Returns why it failed, or null (the dialog then closes so the student can select). */
+      take: () => string | null;
+    };
+    /** A19: the input → output curve and the selection's levels before / after. */
+    levels?: {
+      curve: (params: Params) => (inputDb: number) => number;
+      shape: (params: Params, levelsDb: readonly number[]) => number[];
+      before: readonly number[];
+    };
     onclose: () => void;
   } = $props();
 
@@ -48,6 +64,11 @@
     return null;
   }
 
+  function onTake(): void {
+    error = step1!.take();
+    if (!error) onclose();
+  }
+
   function onApply(): void {
     error = apply({ ...params });
     if (!error) onclose();
@@ -59,7 +80,31 @@
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label={title}>
     <h2>{title} <span class="syl">{syllabus}</span></h2>
-    <EffectParams def={{ id, params: schema }} {params} onchange={change} />
+    {#if step1}
+      <section class="step" aria-labelledby={`${id}-step1`}>
+        <h3 id={`${id}-step1`}>Step 1 · Get a noise profile</h3>
+        <p>Select a part that has only background noise (hiss, hum, fan), then click the button.</p>
+        <div class="take">
+          <button onclick={onTake}>Get noise profile</button>
+          <span class="hint"
+            >{step1.taken ? `Profile taken from ${step1.taken}` : 'No profile yet'}</span
+          >
+        </div>
+      </section>
+      <section class="step" aria-labelledby={`${id}-step2`}>
+        <h3 id={`${id}-step2`}>Step 2 · Select the sound to clean, then reduce</h3>
+        <EffectParams def={{ id, params: schema }} {params} onchange={change} />
+      </section>
+    {:else}
+      <EffectParams def={{ id, params: schema }} {params} onchange={change} />
+    {/if}
+    {#if levels}
+      <LevelGraph
+        curve={levels.curve(params)}
+        before={levels.before}
+        after={levels.shape(params, levels.before)}
+      />
+    {/if}
     {#if line}<p class="note">{line}</p>{/if}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <div class="why">
@@ -83,6 +128,26 @@
 </div>
 
 <style>
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .step h3 {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--tx-1);
+  }
+  .step p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--tx-2);
+  }
+  .take {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   .backdrop {
     position: fixed;
     inset: 0;

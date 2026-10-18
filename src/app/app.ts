@@ -29,7 +29,7 @@ import {
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
 import { findMainItemAt, mainTrackDuration, setItemDuration } from '../core/model/timeline.ts';
-import type { Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
+import type { AudioModeSession, Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
 import type {
   AppPaths,
   Dialogs,
@@ -37,6 +37,7 @@ import type {
   ProbeInfo,
   ProjectFiles,
   TextRenderer,
+  Recorder,
   UndoStore,
 } from '../core/ports.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
@@ -73,6 +74,8 @@ export interface AppState {
   projectPath: string | null;
   /** The project as last saved or opened: anything else is unsaved work. */
   saved: Project;
+  /** Audio mode has edits that are not saved yet (it is saved with the project, P1). */
+  audioDirty: boolean;
   assets: Record<Id, AssetStatus>;
   playhead: Seconds;
   selection: Id | null;
@@ -90,10 +93,12 @@ export interface AppDeps {
   audioOutput?: AudioOutput;
   /** Where Audio mode keeps its undo steps (on disk in the app; in memory without it). */
   audioUndoStore?: UndoStore;
+  /** A14: the microphone for recording in Audio mode (MediaStream in the app). */
+  audioRecorder?: Recorder;
   autosaveMs?: number;
 }
 
-export const isDirty = (s: AppState): boolean => s.history.present !== s.saved;
+export const isDirty = (s: AppState): boolean => s.history.present !== s.saved || s.audioDirty;
 
 export const projectTitle = (s: AppState): string =>
   `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — EasyMedia`;
@@ -115,6 +120,7 @@ export function createApp({
   paths,
   audioOutput = SILENT_OUTPUT,
   audioUndoStore,
+  audioRecorder,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -122,6 +128,7 @@ export function createApp({
     history: createHistory(fresh),
     projectPath: null,
     saved: fresh,
+    audioDirty: false,
     assets: {},
     playhead: 0,
     selection: null,
@@ -247,15 +254,39 @@ export function createApp({
     for (const asset of project.media) void prepare(asset);
   }
 
+  /** Audio mode's sound goes in a folder next to the project file: "Task_11p audio". */
+  const audioFolderFor = (path: string) =>
+    `${dirOf(path)}/${fileNameOf(path).replace(/\.mve$/i, '')} audio`;
+
+  /** The project file's text, with Audio mode's work (its WAV files written first). */
+  async function projectText(path: string, copy: boolean): Promise<string> {
+    const project = present();
+    const audioMode = await audio.saveSession(audioFolderFor(path), { copy });
+    const whole = audioMode ? { ...project, audioMode } : project;
+    return serializeProject(projectToDisk(whole, dirOf(path)));
+  }
+
+  const syncAudioDirty = () => patch({ audioDirty: audio.isDirty() });
+
   async function writeProject(path: string): Promise<void> {
     const project = present();
     try {
-      await files.write(path, serializeProject(projectToDisk(project, dirOf(path))));
+      await files.write(path, await projectText(path, false));
       patch({ projectPath: path, saved: project });
+      syncAudioDirty();
       await files.remove(paths.recovery).catch(() => {});
     } catch (error) {
       showError(error);
     }
+  }
+
+  /** Splits a project read from disk into the video project and Audio mode's work. */
+  function readProject(
+    text: string,
+    path: string,
+  ): { project: Project; audioMode: AudioModeSession | null } {
+    const { audioMode, ...project } = projectFromDisk(deserializeProject(text), dirOf(path));
+    return { project, audioMode: audioMode ?? null };
   }
 
   async function save(): Promise<void> {
@@ -271,17 +302,21 @@ export function createApp({
     if (path) await writeProject(path);
   }
 
-  // P3: autosave every minute when there are changes.
-  let lastRecovery: Project | null = null;
+  // P3: autosave every minute when there are changes (in either mode).
+  let lastRecovery: { video: Project; audio: unknown } | null = null;
   const timer = setInterval(() => {
     const s = store.get();
     if (!isDirty(s)) return;
     if (s.projectPath) {
       void writeProject(s.projectPath);
-    } else if (lastRecovery !== s.history.present) {
-      lastRecovery = s.history.present;
-      void files.write(paths.recovery, serializeProject(s.history.present)).catch(() => {});
+      return;
     }
+    const now = { video: s.history.present, audio: audio.store.get().history.present };
+    if (lastRecovery?.video === now.video && lastRecovery.audio === now.audio) return;
+    lastRecovery = now;
+    void projectText(paths.recovery, true)
+      .then((text) => files.write(paths.recovery, text))
+      .catch(() => {});
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
 
@@ -336,6 +371,11 @@ export function createApp({
     dialogs,
     output: audioOutput,
     ...(audioUndoStore ? { undoStore: audioUndoStore } : {}),
+    ...(audioRecorder ? { recorder: audioRecorder } : {}),
+  });
+  // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
+  audio.store.subscribe(() => {
+    if (audio.isDirty() !== store.get().audioDirty) syncAudioDirty();
   });
 
   return {
@@ -352,9 +392,11 @@ export function createApp({
         return; // nothing to recover
       }
       try {
-        const lost = projectFromDisk(deserializeProject(text), dirOf(paths.recovery));
+        const lost = readProject(text, paths.recovery);
         if (await dialogs.confirm('EasyMedia closed before your work was saved. Restore it?')) {
-          load(lost, null, createProject({ name: 'Untitled' }));
+          load(lost.project, null, createProject({ name: 'Untitled' }));
+          await audio.openSession(lost.audioMode, { unsaved: true });
+          syncAudioDirty();
           return;
         }
       } catch {
@@ -573,7 +615,19 @@ export function createApp({
           await files.copy(asset.path, `${dir}/media/${file}`);
           media.push({ ...asset, path: `media/${file}` });
         }
-        await files.write(`${dir}/${name}.mve`, serializeProject({ ...project, media }));
+        const audioMode = await audio.saveSession(`${dir}/${name} audio`, { copy: true });
+        await files.write(
+          `${dir}/${name}.mve`,
+          serializeProject(
+            audioMode
+              ? {
+                  ...project,
+                  media,
+                  audioMode: projectToDisk({ ...project, audioMode }, dir).audioMode!,
+                }
+              : { ...project, media },
+          ),
+        );
         patch({
           message: {
             kind: 'info',
@@ -650,7 +704,10 @@ export function createApp({
       const path = await dialogs.openProject();
       if (!path) return;
       try {
-        load(projectFromDisk(deserializeProject(await files.read(path)), dirOf(path)), path);
+        const { project, audioMode } = readProject(await files.read(path), path);
+        load(project, path);
+        await audio.openSession(audioMode);
+        syncAudioDirty();
       } catch (error) {
         showError(error);
       }
@@ -660,6 +717,21 @@ export function createApp({
       if (isDirty(store.get()) && !(await dialogs.confirm(`${DISCARD} start a new project?`)))
         return;
       load(createProject({ name: 'Untitled' }), null);
+      audio.reset();
+      syncAudioDirty();
+    },
+
+    /**
+     * P7: closing the window or quitting. With unsaved work, asks Save / Don't save / Cancel;
+     * true when it may close.
+     */
+    async confirmClose(): Promise<boolean> {
+      if (!isDirty(store.get())) return true;
+      const answer = await dialogs.unsavedChanges();
+      if (answer === 'cancel') return false;
+      if (answer === 'discard') return true;
+      await save();
+      return !isDirty(store.get());
     },
 
     dispose(): void {

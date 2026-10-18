@@ -14,21 +14,57 @@ import { fileURLToPath } from 'node:url';
 // command-line argument escapes the quote, so Electron received a garbled app path and never started.
 export const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
-export async function launchApp(): Promise<{
+/** Chromium's test microphone (a beep every second): recording without hardware or OS prompts. */
+export const FAKE_MICROPHONE = [
+  '--use-fake-device-for-media-stream',
+  '--use-fake-ui-for-media-stream',
+];
+
+export async function launchApp(switches: readonly string[] = []): Promise<{
   app: ElectronApplication;
   window: Page;
   userData: string;
 }> {
   const userData = mkdtempSync(join(tmpdir(), 'mve-e2e-userdata-'));
   const app = await electron.launch({
-    args: [root],
+    args: [root, ...switches],
     cwd: root,
     env: { ...process.env, EASYMEDIA_USER_DATA: userData },
   });
   const window = await app.firstWindow();
   await window.waitForLoadState('domcontentloaded');
+  await answerUnsaved(app, 'discard');
   return { app, window, userData };
 }
+
+/**
+ * P7: answers the Save / Don't Save / Cancel box shown when closing with unsaved work (tests end
+ * with app.close(); by default the work is discarded). Counts how often it was shown.
+ */
+export async function answerUnsaved(
+  app: ElectronApplication,
+  answer: 'save' | 'discard' | 'cancel',
+) {
+  await app.evaluate(({ dialog }, choice) => {
+    const g = globalThis as {
+      unsavedAsked?: number;
+      originalMessageBox?: typeof dialog.showMessageBox;
+    };
+    g.originalMessageBox ??= dialog.showMessageBox;
+    g.unsavedAsked ??= 0;
+    dialog.showMessageBox = (async (...args: unknown[]) => {
+      const options = (args.length > 1 ? args[1] : args[0]) as { buttons?: string[] };
+      if (!options.buttons?.includes("Don't Save"))
+        return g.originalMessageBox!(...(args as [never]));
+      g.unsavedAsked! += 1;
+      return { response: ['save', 'discard', 'cancel'].indexOf(choice), checkboxChecked: false };
+    }) as typeof dialog.showMessageBox;
+  }, answer);
+}
+
+/** How many times the Save / Don't Save / Cancel box has been shown. */
+export const unsavedAsked = (app: ElectronApplication) =>
+  app.evaluate(() => (globalThis as { unsavedAsked?: number }).unsavedAsked ?? 0);
 
 /** Native dialogs cannot be clicked by a test: answer them automatically in the main process. */
 export async function answerDialogs(
