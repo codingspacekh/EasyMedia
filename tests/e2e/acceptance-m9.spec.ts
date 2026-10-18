@@ -134,7 +134,8 @@ test('Book A 11.16–11.19, 11.27, 11.29: trim to 41 s, paste the 39 s section a
     .getByRole('complementary', { name: 'Selected track' })
     .getByText(/^\d+\.\d\d s$/);
   await expect(length).toHaveText('41.00 s');
-  await expect.poll(() => stepsOnDisk(page)).toBeGreaterThan(0);
+  // The write can take seconds on a slow CI disk (Windows: one count took 4.5 s).
+  await expect.poll(() => stepsOnDisk(page), { timeout: 30_000 }).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(length).toHaveText('42.00 s');
   await page.getByRole('button', { name: 'Redo' }).click();
