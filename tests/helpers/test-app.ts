@@ -33,6 +33,8 @@ export function testApp(
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
     unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
+    openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
+    saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
   };
   const disk = new Map<string, string>();
   const recorder = createMockRecorder();
@@ -49,7 +51,12 @@ export function testApp(
     text: {
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
-    paths: { proxies: '/cache', recovery: '/cache/recovery.mve', snapshots: '/cache/snapshots' },
+    paths: {
+      proxies: '/cache',
+      recovery: '/cache/recovery.mve',
+      snapshots: '/cache/snapshots',
+      learn: '/cache/learn',
+    },
     audioRecorder: recorder,
   });
   const importFiles = async (...paths: string[]) => {

@@ -60,6 +60,8 @@ function setup(
     confirm: vi.fn<Dialogs['confirm']>(async () => true),
     chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
     unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
+    openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
+    saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
   };
   const copies: string[] = [];
   const files = {
@@ -86,7 +88,12 @@ function setup(
     dialogs,
     files,
     text,
-    paths: { proxies: '/cache', recovery: '/cache/recovery.mve', snapshots: '/cache/snapshots' },
+    paths: {
+      proxies: '/cache',
+      recovery: '/cache/recovery.mve',
+      snapshots: '/cache/snapshots',
+      learn: '/cache/learn',
+    },
   });
   const state = () => app.store.get();
   const project = () => state().history.present;
@@ -729,6 +736,7 @@ describe('M4 app use cases', () => {
           proxies: '/cache',
           recovery: '/cache/recovery.mve',
           snapshots: '/cache/snapshots',
+          learn: '/cache/learn',
         },
       });
       await app.open();
@@ -777,6 +785,7 @@ describe('M4 app use cases', () => {
           proxies: '/cache',
           recovery: '/cache/recovery.mve',
           snapshots: '/cache/snapshots',
+          learn: '/cache/learn',
         },
       });
       await app.start();

@@ -27,6 +27,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       proxies: '/cache/proxies',
       recovery: '/cache/recovery.mve',
       snapshots: '/cache/snapshots',
+      learn: '/cache/learn',
     },
     dialogs: {
       openMedia: async () => [],
@@ -37,6 +38,8 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       confirm: async () => false,
       chooseFolder: async () => null,
       unsavedChanges: async () => 'cancel',
+      openTaskCheck: async () => null,
+      saveTaskCheck: async () => null,
     },
     files: {
       read: async (path) => {

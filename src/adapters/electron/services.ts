@@ -13,6 +13,8 @@ export function createElectronDialogs(api: MveApi): Dialogs {
     confirm: (message) => unwrap(api.invoke('dialog:confirm', message)),
     chooseFolder: (title) => unwrap(api.invoke('dialog:chooseFolder', title)),
     unsavedChanges: () => unwrap(api.invoke('dialog:unsavedChanges')),
+    openTaskCheck: () => unwrap(api.invoke('dialog:openTaskCheck')),
+    saveTaskCheck: (name) => unwrap(api.invoke('dialog:saveTaskCheck', name)),
   };
 }
 

@@ -96,6 +96,22 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return (['save', 'discard', 'cancel'] as const)[r.response] ?? 'cancel';
     },
+    async openTaskCheck() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Open task check',
+        properties: ['openFile'],
+        filters: [{ name: 'EasyMedia task check', extensions: ['mvetask'] }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async saveTaskCheck(name) {
+      const r = await dialog.showSaveDialog(win(), {
+        title: 'Save task check',
+        defaultPath: `${name}.mvetask`,
+        filters: [{ name: 'EasyMedia task check', extensions: ['mvetask'] }],
+      });
+      return r.canceled ? null : (r.filePath ?? null);
+    },
     async chooseFolder(title) {
       const r = await dialog.showOpenDialog(win(), {
         title,

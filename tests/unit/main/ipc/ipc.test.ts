@@ -77,7 +77,17 @@ describe('P2 main-process IPC handlers', () => {
         confirm: async () => true,
         chooseFolder: async () => '/usb',
         unsavedChanges: async () => 'discard',
+        openTaskCheck: async () => '/t/Task 11b.mvetask',
+        saveTaskCheck: async (name) => `/t/${name}.mvetask`,
       },
+    });
+    expect(await api.invoke('dialog:saveTaskCheck', 'Task 11b')).toEqual({
+      ok: true,
+      value: '/t/Task 11b.mvetask',
+    });
+    expect(await api.invoke('dialog:openTaskCheck')).toEqual({
+      ok: true,
+      value: '/t/Task 11b.mvetask',
     });
     expect(await api.invoke('dialog:saveProject', 'Task_11b')).toEqual({
       ok: true,
@@ -101,6 +111,7 @@ describe('P2 main-process IPC handlers', () => {
         proxies: '/cache/proxies',
         recovery: '/cache/recovery.mve',
         snapshots: '/cache/snapshots',
+        learn: '/cache/learn',
       },
     });
   });
