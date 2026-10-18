@@ -104,10 +104,13 @@ EasyMedia/
 │  │  │                       peaks.ts (waveform columns), recording.ts (level advice, A14),
 │  │  │                       dsp/ (volume, speed, channels, pitch, echo, reverb, filters, fft,
 │  │  │                       noise, compressor)
-│  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
+│  │  ├─ teaching/            file-size.ts (T2), sampling.ts (T4), inspect.ts (T1), format-guide.ts (T7),
+│  │  │                       task-check.ts (T6), glossary.ts; the "why" texts (T5) are effects/help.ts
 │  │  └─ ports.ts             interfaces only
-│  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts
-│  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13, 14, 20);
+│  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts,
+│  │                          audio.ts (Audio mode), learn.ts (Learn mode)
+│  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13–20);
+│  │                          learn/ (Learn mode, screens 21–22, task checker, glossary); Why.svelte (T5);
 │  │                          menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
@@ -346,6 +349,28 @@ Close / Quit (P7) ─► main stops the close and sends app:closeRequested ─�
   Save / Don't Save / Cancel if anything is unsaved ─► app:closeAnswer
 ```
 
+### 7.7 Learn mode (M11)
+
+Learn mode never changes the project: `app/learn.ts` has its own small store, and every page of it
+is pure maths or text from `core/teaching/` shown by `ui/learn/`.
+
+```
+Inspector (T1) ─► Choose a file… (dialog) or drop it (window.mve.pathForFile) ─► MediaEngine.probe
+  ─► inspect(): rows with an explanation each; codecs marked lossy / lossless / uncompressed
+Calculator (T2), sampling visualiser (T4), format guide (T7), glossary ─► pure core functions, no I/O
+Compression comparison (T3) ─► the inspected file's first 10 s of sound (decodeAudio → encodeAudio:
+  WAV, FLAC, MP3 192 / 128 / 64) or 5 s of video (renderVideo of a one-clip project: AVI FFV1,
+  MP4 high, 640 and 426 wide) into the app's "learn" folder (files replaced each time)
+  ─► probe each file for its real size (this also allows it for media://) ─► play side by side;
+  the lossless AVI cannot be played by Chromium, so one exact frame of it (PNG) is shown
+Task checker (T6) ─► the teacher's TaskSpec saved as JSON (.mvetask, open / save dialogs)
+  ─► a student opens it and checks an export: probe ─► checkFile(): pass / fail per row
+```
+
+"Why use this?" (T5): effect texts live in each registry entry; every other tool is in
+`core/effects/help.ts` (`TOOLS`: label, syllabus point, why), shown in a section's "Why use this?"
+box (`ui/Why.svelte`) or, for toolbar buttons and menu items, in the tooltip (`withWhy`).
+
 ## 8. Ports and IPC contract
 
 ```ts
@@ -373,7 +398,9 @@ interface UndoStore { save(channels): Promise<key>; load(key): Promise<Float32Ar
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
 interface Recorder { microphones(): Promise<Microphone[]>; open(id | null, onBlock): Promise<MicrophoneInput> } // A14, X4; throws MicrophoneError
-interface Dialogs { …; unsavedChanges(): Promise<'save' | 'discard' | 'cancel'> }                 // P7
+interface Dialogs { …; unsavedChanges(): Promise<'save' | 'discard' | 'cancel'>;                 // P7
+                    openTaskCheck(): Promise<string | null>; saveTaskCheck(name): Promise<string | null> } // T6
+interface AppPaths { proxies; recovery; snapshots; learn }                                     // learn: T3 comparison files
 ```
 
 The real and mock engines both pass one shared **contract test suite** (`tests/contract/media-engine.contract.ts`), so the mock used by UI tests cannot drift from real FFmpeg behaviour. The recorder has one too (`tests/contract/recorder.contract.ts`): the MediaStream adapter (with a fake microphone stream) and the mock.
@@ -392,8 +419,8 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
-| `app:paths` | invoke | proxy folder and recovery file |
-| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` / `unsavedChanges` | invoke | native dialogs (`unsavedChanges`: Save / Don't Save / Cancel, P7) |
+| `app:paths` | invoke | proxy, snapshot and Learn mode folders, recovery file |
+| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` / `unsavedChanges` / `openTaskCheck` / `saveTaskCheck` | invoke | native dialogs (`unsavedChanges`: Save / Don't Save / Cancel, P7; task checks `.mvetask`, T6) |
 | `media:microphoneAccess` | invoke | X4: on macOS asks the system for the microphone (once); true elsewhere |
 | `app:closeRequested` | main → page | P7: the window is closing or the app quitting |
 | `app:closeAnswer` | invoke | P7: the page's answer (close or not) |
@@ -401,6 +428,8 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `project:copy` | invoke | Package Project (P2): copies a media file — only files in the allow-list |
 | `project:saveImage` | invoke | a text PNG by plain name into the app's own `text` folder (never the student's folders) |
 | `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, exportAudio, package, undo, redo, selectAll); undo, redo, import and Select All act on the mode that is showing (`ui/menu-actions.ts`) |
+
+Besides `invoke` and `on`, `window.mve` has one plain function, `pathForFile(file)` (Electron's `webUtils.getPathForFile`): where a file dropped on the page is, for Learn mode's inspector.
 
 Local files reach the page only through the **`media://` protocol** (`src/main/protocol/`): range requests for seeking, and an **allow-list** of files the app probed or created — the page can never read arbitrary files.
 
@@ -410,6 +439,7 @@ The `media://` scheme is CORS-enabled so the page can `fetch()` decoded sound; t
 
 - FFmpeg stderr is parsed by `main/ffmpeg/errors.ts` and mapped to plain-English messages (N11), e.g. *"This file uses a codec the app cannot read. Try converting it to MP4."*
 - Exports write to a temporary file and are renamed only on success, so a failed export never leaves a broken file.
+- A hardware video encoder cannot make every picture size (VideoToolbox refuses 426 × 240): an export made with one carries the software encoder's arguments as `fallbackArgs`, and the job queue tries them once, as the same job, if FFmpeg fails.
 - Projects are saved atomically (write temp → rename) with autosave every 60 s (P3).
 
 ## 10. Cross-platform notes
