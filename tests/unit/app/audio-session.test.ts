@@ -33,6 +33,25 @@ function setup(
   };
 }
 
+type Tracks = ReturnType<ReturnType<typeof setup>['doc']>['tracks'];
+/**
+ * Exactly the same tracks, sample for sample. The samples are compared as bytes: toEqual goes
+ * through long arrays one value at a time (0.75 s here, over 5 s on a busy CI runner).
+ */
+function expectSameTracks(actual: Tracks, expected: Tracks) {
+  const settings = (tracks: Tracks) =>
+    tracks.map(({ channels, ...rest }) => ({ ...rest, channels: channels.length }));
+  const bytes = (a: Float32Array) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
+  expect(settings(actual)).toEqual(settings(expected));
+  actual.forEach((t, i) =>
+    t.channels.forEach((c, k) =>
+      expect(bytes(c).equals(bytes(expected[i]!.channels[k]!)), `track ${i}, channel ${k}`).toBe(
+        true,
+      ),
+    ),
+  );
+}
+
 describe('P1 for Audio mode: saving and opening the session', () => {
   it('there is nothing to save until a sound is imported', async () => {
     const s = setup();
@@ -92,7 +111,7 @@ describe('P1 for Audio mode: saving and opening the session', () => {
     const again = setup(s.engine);
     await again.audio.openSession(session);
     expect(again.doc().rate).toBe(44100);
-    expect(again.doc().tracks).toEqual(s.doc().tracks);
+    expectSameTracks(again.doc().tracks, s.doc().tracks);
     expect(again.audio.isDirty()).toBe(false);
     expect(again.audio.store.get().history.past).toEqual([]);
   });
