@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAudioApp, SILENT_OUTPUT } from '../../../src/app/audio.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
 import type { Dialogs, ProbeInfo } from '../../../src/core/ports.ts';
+import { sameSamples } from '../../helpers/samples.ts';
 
 const sound = (duration: number, channels: number): ProbeInfo => ({
   kind: 'audio',
@@ -34,20 +35,14 @@ function setup(
 }
 
 type Tracks = ReturnType<ReturnType<typeof setup>['doc']>['tracks'];
-/**
- * Exactly the same tracks, sample for sample. The samples are compared as bytes: toEqual goes
- * through long arrays one value at a time (0.75 s here, over 5 s on a busy CI runner).
- */
+/** Exactly the same tracks, sample for sample (see sameSamples). */
 function expectSameTracks(actual: Tracks, expected: Tracks) {
   const settings = (tracks: Tracks) =>
     tracks.map(({ channels, ...rest }) => ({ ...rest, channels: channels.length }));
-  const bytes = (a: Float32Array) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
   expect(settings(actual)).toEqual(settings(expected));
   actual.forEach((t, i) =>
     t.channels.forEach((c, k) =>
-      expect(bytes(c).equals(bytes(expected[i]!.channels[k]!)), `track ${i}, channel ${k}`).toBe(
-        true,
-      ),
+      expect(sameSamples(c, expected[i]!.channels[k]!), `track ${i}, channel ${k}`).toBe(true),
     ),
   );
 }

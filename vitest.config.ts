@@ -11,6 +11,8 @@ export default defineConfig({
           include: ['tests/unit/**/*.test.ts'],
           exclude: ['tests/unit/ui/**'],
           environment: 'node',
+          // The audio DSP and Audio mode tests take 1–2 s each; slower on a busy CI runner.
+          testTimeout: 15_000,
         },
       },
       {

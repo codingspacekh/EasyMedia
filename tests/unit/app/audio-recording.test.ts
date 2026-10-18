@@ -4,6 +4,7 @@ import { createAudioApp, type AudioOutput } from '../../../src/app/audio.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../../src/adapters/mock/recorder.ts';
 import type { Dialogs, ProbeInfo } from '../../../src/core/ports.ts';
+import { sameSamples } from '../../helpers/samples.ts';
 
 const MUSIC: ProbeInfo = {
   kind: 'audio',
@@ -142,7 +143,7 @@ describe('A14 recording into a new track at the playhead', () => {
     const track = s.doc().tracks[0]!;
     expect(track).toMatchObject({ name: 'Recording 1', offset: 0 });
     expect(track.channels).toHaveLength(1);
-    expect(track.channels[0]).toEqual(said);
+    expect(sameSamples(track.channels[0]!, said)).toBe(true);
     expect(s.state().history.past.at(-1)!.label).toBe('Record 1.50 s');
     expect(s.state().selection.tracks).toEqual([track.id]);
     expect(s.state().recording).toBeNull();
