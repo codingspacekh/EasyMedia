@@ -22,6 +22,7 @@
   import { ui, type InspectorTab } from './ui-state.svelte.ts';
   import TextInspector from './TextInspector.svelte';
   import TimeField from './TimeField.svelte';
+  import Why from './Why.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
@@ -178,6 +179,7 @@
           value={item.duration}
           commit={(t) => app.edit(setDuration(item.id, t))}
         />
+        <Why tool="duration" />
       </section>
     {/if}
 
@@ -209,6 +211,7 @@
           <button onclick={() => setFromPlayhead('out')}>Set end to playhead</button>
         </div>
         {#if actionError}<p class="error" role="alert">{actionError}</p>{/if}
+        <Why tool="trim" />
       </section>
 
       <section>
@@ -227,6 +230,7 @@
             2,
           )} s on the timeline
         </p>
+        <Why tool="speed" />
       </section>
     {:else if item.type === 'video' && tab === 'audio'}
       <section>
@@ -247,6 +251,7 @@
             commit={(v) => app.edit(setClipVolume(item.id, v))}
           />
         {/if}
+        <Why tool="clipSound" />
       </section>
       <section>
         <h3>Separate sound <span class="syl">11.1</span></h3>
@@ -256,6 +261,7 @@
           The sound becomes its own clip on the voiceover (or music) track, so it can be moved,
           trimmed or deleted without the picture.
         </p>
+        <Why tool="separateSound" />
       </section>
     {:else if item.type === 'image' && tab === 'clip'}
       <p class="hint pad">

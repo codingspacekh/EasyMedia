@@ -8,6 +8,7 @@
   import { readability } from '../core/text/layout.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import TimeField from './TimeField.svelte';
+  import Why from './Why.svelte';
 
   let { app, item }: { app: App; item: TitleSlide | TextItem } = $props();
   const store = $derived(app.store);
@@ -123,6 +124,7 @@
     </label>
   </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
+  <Why tool={'type' in item ? 'title' : item.kind} />
 </section>
 
 <section>

@@ -2,6 +2,7 @@
   // Audio mode toolbar (screens 13, 14): transport, selection / time shift tools, editing,
   // undo, the Tracks and Effect menus, Import audio and Export.
   import type { App } from '../../app/app.ts';
+  import { withWhy } from '../../core/effects/help.ts';
   import { AUDIO_EFFECTS } from '../../core/effects/registry.ts';
   import type { AudioEffectGroup } from '../../core/effects/types.ts';
   import Icon from '../Icon.svelte';
@@ -79,7 +80,7 @@
     class="tbtn rec"
     aria-label="Record"
     title={audio.canRecord
-      ? 'Record a voiceover into a new track'
+      ? withWhy('Record a voiceover into a new track', 'recording')
       : 'Recording is not available here'}
     disabled={!audio.canRecord || $store.recording !== null}
     onclick={() => void audio.openRecorder()}><Icon name="record" /></button
@@ -111,25 +112,34 @@
 </div>
 <span class="vsep"></span>
 <div class="tools">
-  <button class="tbtn" aria-label="Cut" title="Cut (Ctrl/Cmd + X)" onclick={() => audio.cut()}
-    ><Icon name="split" /></button
+  <button
+    class="tbtn"
+    aria-label="Cut"
+    title={withWhy('Cut (Ctrl/Cmd + X)', 'cutCopyPaste')}
+    onclick={() => audio.cut()}><Icon name="split" /></button
   >
-  <button class="tbtn" aria-label="Copy" title="Copy (Ctrl/Cmd + C)" onclick={() => audio.copy()}
-    ><Icon name="copy" /></button
+  <button
+    class="tbtn"
+    aria-label="Copy"
+    title={withWhy('Copy (Ctrl/Cmd + C)', 'cutCopyPaste')}
+    onclick={() => audio.copy()}><Icon name="copy" /></button
   >
-  <button class="tbtn" aria-label="Paste" title="Paste (Ctrl/Cmd + V)" onclick={() => audio.paste()}
-    ><Icon name="paste" /></button
+  <button
+    class="tbtn"
+    aria-label="Paste"
+    title={withWhy('Paste (Ctrl/Cmd + V)', 'cutCopyPaste')}
+    onclick={() => audio.paste()}><Icon name="paste" /></button
   >
   <button
     class="tbtn"
     aria-label="Trim to selection"
-    title="Trim to selection: keep only the selected sound"
+    title={withWhy('Trim to selection: keep only the selected sound', 'trimAudio')}
     onclick={() => audio.trimToSelection()}><Icon name="trim" /></button
   >
   <button
     class="tbtn"
     aria-label="Insert silence"
-    title="Insert silence…"
+    title={withWhy('Insert silence…', 'silence')}
     onclick={() => (audioUi.dialog = { kind: 'silence' })}><Icon name="silence" /></button
   >
 </div>
@@ -161,52 +171,77 @@
     {#if open === 'tracks'}
       <div class="menu" role="menu" aria-label="Tracks">
         <div class="mh">{selected}</div>
-        <button role="menuitem" onclick={() => choose(() => audio.addTrack(1))}
-          >Add new mono track</button
+        <button
+          role="menuitem"
+          title={withWhy('A new empty track for one channel', 'addTrack')}
+          onclick={() => choose(() => audio.addTrack(1))}>Add new mono track</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.addTrack(2))}
-          >Add new stereo track</button
+        <button
+          role="menuitem"
+          title={withWhy('A new empty track for two channels', 'addTrack')}
+          onclick={() => choose(() => audio.addTrack(2))}>Add new stereo track</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.importAudio())}
-          >Import audio as new track…</button
+        <button
+          role="menuitem"
+          title={withWhy('A sound file or the sound of a video, as a new track', 'addTrack')}
+          onclick={() => choose(() => audio.importAudio())}>Import audio as new track…</button
         >
         <button
           role="menuitem"
           disabled={!audio.canRecord}
+          title={withWhy('Record a voiceover into a new track', 'recording')}
           onclick={() => choose(() => audio.openRecorder())}>Record into new track</button
         >
         <div class="ms"></div>
-        <button role="menuitem" onclick={() => choose(() => audio.moveTrack(-1))}
-          >Move track up</button
+        <button
+          role="menuitem"
+          title={withWhy('Show the track higher up', 'moveTrack')}
+          onclick={() => choose(() => audio.moveTrack(-1))}>Move track up</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.moveTrack(1))}
-          >Move track down</button
+        <button
+          role="menuitem"
+          title={withWhy('Show the track lower down', 'moveTrack')}
+          onclick={() => choose(() => audio.moveTrack(1))}>Move track down</button
         >
         <div class="ms"></div>
         <div class="mh">Align</div>
-        <button role="menuitem" onclick={() => choose(() => audio.alignEndToEnd())}
-          >Align end to end</button
+        <button
+          role="menuitem"
+          title={withWhy('Each selected track starts where the one above ends', 'align')}
+          onclick={() => choose(() => audio.alignEndToEnd())}>Align end to end</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.alignStart('cursor'))}
-          >Align start to cursor</button
+        <button
+          role="menuitem"
+          title={withWhy('The selected tracks start at the cursor', 'align')}
+          onclick={() => choose(() => audio.alignStart('cursor'))}>Align start to cursor</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.alignStart('zero'))}
-          >Align start to zero</button
+        <button
+          role="menuitem"
+          title={withWhy('The selected tracks start at 0 s', 'align')}
+          onclick={() => choose(() => audio.alignStart('zero'))}>Align start to zero</button
         >
         <div class="ms"></div>
         <div class="mh">Mix</div>
-        <button role="menuitem" onclick={() => choose(() => audio.stereoToMono())}
-          >Mix stereo down to mono</button
+        <button
+          role="menuitem"
+          title={withWhy('One channel instead of two', 'mono')}
+          onclick={() => choose(() => audio.stereoToMono())}>Mix stereo down to mono</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.mixAndRender())}
-          >Mix and render</button
+        <button
+          role="menuitem"
+          title={withWhy('The selected tracks become one track', 'mix')}
+          onclick={() => choose(() => audio.mixAndRender())}>Mix and render</button
         >
-        <button role="menuitem" onclick={() => choose(() => audio.mixAndRender(true))}
-          >Mix and render to new track</button
+        <button
+          role="menuitem"
+          title={withWhy('The mix goes into a new track; the originals stay', 'mix')}
+          onclick={() => choose(() => audio.mixAndRender(true))}>Mix and render to new track</button
         >
         <div class="ms"></div>
-        <button role="menuitem" onclick={() => choose(() => audio.removeTracks())}
-          >Remove track</button
+        <button
+          role="menuitem"
+          title={withWhy('Remove the selected tracks', 'removeTrack')}
+          onclick={() => choose(() => audio.removeTracks())}>Remove track</button
         >
       </div>
     {/if}

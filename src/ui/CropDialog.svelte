@@ -15,6 +15,7 @@
   import { toMediaUrl } from '../core/media-url.ts';
   import type { MediaAsset } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import Why from './Why.svelte';
 
   let {
     app,
@@ -144,6 +145,7 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Resize and crop image">
     <h2>Resize &amp; crop image <span class="syl">11.1 resizing and cropping a still</span></h2>
     <p class="hint">Make {fileNameOf(asset.path)} fit the project without stretching it.</p>
+    <Why tool="resizeCrop" />
 
     <div class="body">
       <div class="left">
