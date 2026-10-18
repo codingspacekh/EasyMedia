@@ -13,6 +13,7 @@ interface FfprobeStream {
   bits_per_sample?: number;
   bits_per_raw_sample?: string;
   bit_rate?: string;
+  display_aspect_ratio?: string;
   disposition?: { attached_pic?: number };
 }
 
@@ -68,6 +69,11 @@ export function parseProbe(json: FfprobeJson): ProbeInfo {
     info.video = { codec: v.codec_name ?? 'unknown', width: v.width ?? 0, height: v.height ?? 0 };
     const fps = frameRate(v.r_frame_rate);
     if (kind === 'video' && fps) info.video.fps = fps;
+    const videoRate = Number(v.bit_rate);
+    if (kind === 'video' && Number.isFinite(videoRate)) info.video.bitRate = videoRate;
+    const shown = v.display_aspect_ratio;
+    if (kind === 'video' && shown && /^[1-9]\d*:[1-9]\d*$/.test(shown))
+      info.video.displayAspect = shown;
   }
   if (a) {
     info.audio = {

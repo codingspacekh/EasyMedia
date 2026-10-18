@@ -18,7 +18,16 @@ export interface ProbeInfo {
   sizeBytes: number;
   /** Overall bit rate in bits per second. */
   bitRate?: number;
-  video?: { codec: string; width: number; height: number; fps?: number };
+  video?: {
+    codec: string;
+    width: number;
+    height: number;
+    fps?: number;
+    /** The video stream's own bit rate in bits per second (T1). */
+    bitRate?: number;
+    /** The shape it is shown at, when the file says so, e.g. "16:9" for a 720 × 576 DVD (T1). */
+    displayAspect?: string;
+  };
   audio?: {
     codec: string;
     sampleRate: number;
