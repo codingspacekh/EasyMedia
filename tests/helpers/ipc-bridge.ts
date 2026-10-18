@@ -58,6 +58,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
   });
   const api: MveApi = {
     platform: 'test',
+    pathForFile: (file) => `/dropped/${file.name}`,
     invoke: (channel, ...args) => handlers.get(channel)!(...args) as never,
     on: (event, listener) => {
       const set = listeners.get(event) ?? new Set();

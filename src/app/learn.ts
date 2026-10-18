@@ -26,6 +26,8 @@ export interface ComparisonItem {
   /** How much smaller than the first (lossless) file: 0–1. */
   saving: number;
   lossless: boolean;
+  /** One exact frame, for a video players cannot show (the lossless AVI). */
+  still?: string;
 }
 
 export interface Comparison {
@@ -118,7 +120,8 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
       label: string;
       extension: string;
       lossless: boolean;
-      make: (o: string) => Promise<void>;
+      /** Makes the file; may give back a still picture of it (see ComparisonItem.still). */
+      make: (o: string) => Promise<string | void>;
     }[],
   ): Promise<void> {
     patch({ comparison: null, message: null });
@@ -127,9 +130,15 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
       for (const [i, job] of jobs.entries()) {
         patch({ busy: `Making file ${i + 1} of ${jobs.length}…` });
         const path = out(i + 1, job.extension);
-        await job.make(path);
+        const still = await job.make(path);
         const { sizeBytes } = await engine.probe(path);
-        made.push({ label: job.label, path, bytes: sizeBytes, lossless: job.lossless });
+        made.push({
+          label: job.label,
+          path,
+          bytes: sizeBytes,
+          lossless: job.lossless,
+          ...(still ? { still } : {}),
+        });
       }
       const first = made[0]!.bytes;
       patch({
@@ -281,6 +290,11 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
           lossless: f.compression === 'lossless',
           make: async (output) => {
             await engine.renderVideo(project, output, { projectDir: '/', format: f }).done;
+            if (f.compression !== 'lossless') return;
+            // Video players cannot show the lossless AVI: one exact frame of it, as a PNG.
+            const still = output.replace(/\.[^.]+$/, '.png');
+            await engine.extractFrame(output, Math.min(1, seconds / 2), still);
+            return still;
           },
         })),
       );

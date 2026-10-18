@@ -14,10 +14,18 @@
   import AudioMode from './audio/AudioMode.svelte';
   import AudioStatusBar from './audio/AudioStatusBar.svelte';
   import AudioToolbar from './audio/AudioToolbar.svelte';
+  import LearnMode from './learn/LearnMode.svelte';
+  import LearnStatusBar from './learn/LearnStatusBar.svelte';
+  import type { LearnTab } from './ui-state.svelte.ts';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const modes = ['Video', 'Audio', 'Learn'] as const;
+  const LEARN_TABS: [LearnTab, string][] = [
+    ['inspect', 'Inspector & sampling'],
+    ['formats', 'Formats & compression'],
+    ['task', 'Task checker'],
+  ];
   let settingsOpen = $state(false);
   let snapshotOpen = $state(false);
   let exportOpen = $state(false);
@@ -42,6 +50,16 @@
     <span class="vsep"></span>
     {#if ui.mode === 'Audio'}
       <AudioToolbar {app} />
+    {:else if ui.mode === 'Learn'}
+      <div class="seg small" role="tablist" aria-label="Learn">
+        {#each LEARN_TABS as [tab, label] (tab)}
+          <button role="tab" aria-selected={ui.learnTab === tab} onclick={() => (ui.learnTab = tab)}
+            >{label}</button
+          >
+        {/each}
+      </div>
+      <span class="spacer"></span>
+      <button onclick={() => (ui.glossary = true)}><Icon name="help" size={14} /> Glossary</button>
     {:else}
       <div class="tools">
         <button class="tool" onclick={() => app.importMedia()}><Icon name="import" />Import</button>
@@ -137,11 +155,17 @@
       <AudioMode {app} />
     </main>
   {:else}
-    <main class="workspace later">
-      <p>{ui.mode} mode arrives in a later milestone.</p>
+    <main class="workspace">
+      <LearnMode {app} />
     </main>
   {/if}
-  {#if ui.mode === 'Audio'}<AudioStatusBar {app} />{:else}<StatusBar {app} />{/if}
+  {#if ui.mode === 'Audio'}
+    <AudioStatusBar {app} />
+  {:else if ui.mode === 'Learn'}
+    <LearnStatusBar learn={app.learn} />
+  {:else}
+    <StatusBar {app} />
+  {/if}
   {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
@@ -222,10 +246,5 @@
     flex: 1;
     display: flex;
     min-height: 0;
-  }
-  .later {
-    align-items: center;
-    justify-content: center;
-    color: var(--tx-3);
   }
 </style>

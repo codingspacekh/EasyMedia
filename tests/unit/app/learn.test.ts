@@ -120,6 +120,10 @@ describe('T3 compression comparison', () => {
     const sizes = c.items.map((i) => i.bytes);
     expect([...sizes].sort((a, b) => b - a)).toEqual(sizes);
     expect(s.state().busy).toBeNull();
+    // Players cannot show the lossless AVI: one exact frame of it is shown instead.
+    expect(c.items[0]!.still).toBe('/cache/learn/compare-1.png');
+    expect((await s.engine.probe('/cache/learn/compare-1.png')).container).toBe('png');
+    expect(c.items.slice(1).map((i) => i.still)).toEqual([undefined, undefined, undefined]);
   });
 
   it('needs a file with sound (audio) or a picture that moves (video)', async () => {

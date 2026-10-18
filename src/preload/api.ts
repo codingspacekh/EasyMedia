@@ -143,6 +143,8 @@ export interface Events {
 
 export interface MveApi {
   platform: string;
+  /** Where a file dropped on the page is on disk (Learn mode's inspector). */
+  pathForFile(file: File): string;
   invoke<C extends Channel>(
     channel: C,
     ...args: Channels[C]['args']

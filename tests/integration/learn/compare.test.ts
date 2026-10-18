@@ -81,5 +81,9 @@ describe('T3 compression comparison with real files', () => {
       ['mp4', 'h264', 426, 240],
     ]);
     for (const p of probes) expect(Math.abs(p.duration! - 5)).toBeLessThan(0.1);
+    // Players cannot show the lossless AVI: one exact frame of it, as a PNG.
+    const still = await engine.probe(items[0]!.still!);
+    expect(still).toMatchObject({ kind: 'image', container: 'png' });
+    expect(still.video).toMatchObject({ width: 1920, height: 1080 });
   });
 });
