@@ -32,7 +32,7 @@ export interface PreviewLook {
 interface Extras {
   look?: PreviewLook;
   /** V9: the next clip coming in over this one during a transition. */
-  incoming?: { frame: PreviewFrame; progress: number; transition: string };
+  incoming?: { frame: PreviewFrame; progress: number; transition: string; xfade: string };
 }
 
 export type PreviewFrame =
@@ -59,12 +59,14 @@ export function previewAt(state: AppState, time: Seconds): PreviewFrame {
   if (frame.kind === 'empty' || !next || time < next.start) return frame;
   const overlap = transitionOverlap(main, hit.index + 1);
   if (overlap <= 0) return frame;
+  const kind = transitionById(next.item.transitionIn!.effectId);
   return {
     ...frame,
     incoming: {
       frame: frameOf(state, hit.index + 1, time - next.start),
       progress: (time - next.start) / overlap,
-      transition: transitionById(next.item.transitionIn!.effectId)?.label ?? 'Transition',
+      transition: kind?.label ?? 'Transition',
+      xfade: kind?.xfade ?? 'fade',
     },
   };
 }

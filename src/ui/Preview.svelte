@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { App } from '../app/app.ts';
   import { previewAt, soundsAt, textLayersAt } from '../app/preview.ts';
+  import { transitionLook, type LayerLook } from '../core/effects/transitions/transitions.ts';
   import { formatTime } from '../core/model/time.ts';
   import { mainTrackDuration } from '../core/model/timeline.ts';
   import { drawText } from '../core/text/draw.ts';
@@ -14,6 +15,24 @@
   const store = $derived(app.store);
 
   const frame = $derived(previewAt($store, $store.playhead));
+  /** V9: how the two clips look part of the way through a transition. */
+  const look = $derived(
+    frame.kind !== 'empty' && frame.incoming
+      ? transitionLook(frame.incoming.xfade, frame.incoming.progress)
+      : null,
+  );
+  const css = (l: LayerLook | undefined) =>
+    l
+      ? {
+          opacity: l.opacity === undefined ? null : String(l.opacity),
+          clip: l.clipPath ?? null,
+          transform: l.transform ?? null,
+          mask: l.mask ?? null,
+          filter: l.filter ?? null,
+        }
+      : { opacity: null, clip: null, transform: null, mask: null, filter: null };
+  const out = $derived(css(look?.from));
+  const into = $derived(css(look?.to));
   const sounds = $derived(soundsAt($store, $store.playhead));
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
@@ -101,14 +120,29 @@
       {#if frame.kind === 'empty'}
         <p>Nothing to show yet.</p>
       {:else}
-        <PreviewLayer {frame} {playing} />
+        {#if look?.behind}<div class="behind" style:background={look.behind}></div>{/if}
+        <div
+          class="outgoing"
+          class:above={look?.above === 'from'}
+          style:opacity={out.opacity}
+          style:clip-path={out.clip}
+          style:transform={out.transform}
+          style:mask-image={out.mask}
+          style:filter={out.filter}
+        >
+          <PreviewLayer {frame} {playing} />
+        </div>
         {#if frame.incoming}
-          <!-- V9: the next clip blends in over this one (approximate: every transition dissolves). -->
+          <!-- V9: the next clip comes in as the transition does (FFmpeg's xfade, drawn with CSS). -->
           <div
             class="incoming"
             role="img"
             aria-label={frame.incoming.transition}
-            style:opacity={frame.incoming.progress}
+            style:opacity={into.opacity}
+            style:clip-path={into.clip}
+            style:transform={into.transform}
+            style:mask-image={into.mask}
+            style:filter={into.filter}
           >
             <PreviewLayer frame={frame.incoming.frame as typeof frame} {playing} />
           </div>
@@ -187,9 +221,14 @@
     object-fit: contain;
     pointer-events: none;
   }
-  .incoming {
+  .outgoing,
+  .incoming,
+  .behind {
     position: absolute;
     inset: 0;
+  }
+  .outgoing.above {
+    z-index: 1;
   }
   p {
     position: relative;

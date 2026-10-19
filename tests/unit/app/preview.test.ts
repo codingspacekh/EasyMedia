@@ -247,6 +247,7 @@ describe('looks in the preview (V7, V8, V9, V15 — approximate)', () => {
       frame: { kind: 'image', src: toMediaUrl('/m/photo.jpg'), itemId: 'i' },
       progress: 0.25,
       transition: 'Dissolve',
+      xfade: 'fade',
     });
     expect(previewAt(s, 2.5)).not.toHaveProperty('incoming');
   });

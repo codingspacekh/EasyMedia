@@ -267,7 +267,10 @@ test('Book B Activities 11b, 11c, 11d: the Cozumel storyboard at 960 × 720, a s
   for (const n of [1, 3]) {
     await item(page, n).click();
     await openTab(page, 'Effects');
-    await page.getByLabel('Transition', { exact: true }).selectOption('transition.dissolve');
+    await page
+      .getByRole('radiogroup', { name: 'Transition' })
+      .getByRole('radio', { name: 'Dissolve', exact: true })
+      .click();
     await expect(item(page, n)).toContainText('⇄ 1.0 s');
   }
   const withTransitions = await exportAs(page, app, 'Activity_11d.mp4');
