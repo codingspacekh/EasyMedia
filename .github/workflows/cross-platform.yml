@@ -1,0 +1,79 @@
+name: Cross-platform
+
+# M12 (X1, X2, X6): a project made and packaged on Windows opens and exports the same on macOS,
+# and the other way round (tests/e2e/cross-platform.spec.ts).
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: cross-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  make:
+    name: Make and package on ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest }
+          - { name: macOS, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Download the Electron binary (retried: the download sometimes fails)
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - run: npm run fetch:ffmpeg
+      - run: npm run build:app
+      - name: Make a project, package it and export it
+        shell: bash
+        env:
+          CROSS_STEP: make
+          CROSS_DIR: ${{ runner.temp }}/cross
+        run: npx playwright test tests/e2e/cross-platform.spec.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cross-${{ matrix.name }}
+          path: ${{ runner.temp }}/cross
+          retention-days: 3
+
+  check:
+    name: Open the ${{ matrix.from }} package on ${{ matrix.name }}
+    needs: make
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest, from: Windows }
+          - { name: Windows, os: windows-latest, from: macOS }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Download the Electron binary (retried: the download sometimes fails)
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - run: npm run fetch:ffmpeg
+      - run: npm run build:app
+      - uses: actions/download-artifact@v4
+        with:
+          name: cross-${{ matrix.from }}
+          path: ${{ runner.temp }}/cross
+      - name: Open the package, export it here, compare with the other computer's export
+        shell: bash
+        env:
+          CROSS_STEP: check
+          CROSS_DIR: ${{ runner.temp }}/cross
+        run: npx playwright test tests/e2e/cross-platform.spec.ts
