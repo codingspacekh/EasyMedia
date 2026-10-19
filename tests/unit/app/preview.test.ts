@@ -12,7 +12,12 @@ import {
   createTitleSlide,
   createVideoClip,
 } from '../../../src/core/model/factory.ts';
-import { setItemDuration, setVideoSpeed, trimVideo } from '../../../src/core/model/timeline.ts';
+import {
+  layoutMain,
+  setItemDuration,
+  setVideoSpeed,
+  trimVideo,
+} from '../../../src/core/model/timeline.ts';
 import type { MainItem } from '../../../src/core/model/types.ts';
 
 const lake = createMediaAsset({
@@ -165,6 +170,31 @@ describe('text drawn over the preview (same pictures as the export)', () => {
     // A caption starts at the top left: its middle is there too, not in the frame's middle.
     expect(caption!.anchor.x).toBeLessThan(400);
     expect(caption!.anchor.y).toBeLessThan(200);
+  });
+
+  it("during a transition the next title's words come in with it (on the incoming layer)", () => {
+    const s = withText();
+    const project = s.history.present;
+    const [first] = project.timeline.main;
+    const second = {
+      ...first!,
+      id: 't2',
+      text: 'Next',
+      transitionIn: { effectId: 'transition.clock', duration: 1 },
+    };
+    const two = {
+      ...s,
+      history: createHistory({
+        ...project,
+        timeline: { ...project.timeline, main: [first!, second], text: [] },
+      }),
+    };
+    const start = layoutMain(two.history.present.timeline.main)[1]!.start;
+    const layers = textLayersAt(two, start + 0.5, measure);
+    expect(layers.map((l) => [l.id, l.slot])).toEqual([
+      ['t', 'main'],
+      ['t2', 'incoming'],
+    ]);
   });
 
   it('shows captions only during their time, in timeline order after the title', () => {

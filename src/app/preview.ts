@@ -151,6 +151,12 @@ export interface TextLayer {
   /** Zoom entrances and exits: the size, around `anchor` (the middle of the words). */
   scale: number;
   anchor: { x: number; y: number };
+  /**
+   * Where the preview draws it: a title's words belong to its clip (`main`, or `incoming`
+   * during a transition into the next title), so they take part in the transition as in the
+   * export; captions, subtitles and credits go `over` the video.
+   */
+  slot: 'main' | 'incoming' | 'over';
 }
 
 /** The title's words, then captions, subtitles and credits showing at `time` (export order). */
@@ -159,22 +165,31 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
   const frame = { width: project.settings.width, height: project.settings.height };
   const layers: TextLayer[] = [];
   const hit = findMainItemAt(project.timeline.main, time);
-  const item = hit && project.timeline.main[hit.index];
   const middle = (text: string, style: TextStyle) => {
     const { box } = layoutText(text, style, frame, measure);
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   };
-  if (hit && item?.type === 'title' && item.text.trim() !== '') {
-    const motion = textMotion(item, hit.offset, item.duration, frame);
-    const anchor = middle(item.text, item.style);
+  const title = (i: number, offset: Seconds, slot: 'main' | 'incoming') => {
+    const it = project.timeline.main[i];
+    if (it?.type !== 'title' || it.text.trim() === '') return;
+    const motion = textMotion(it, offset, it.duration, frame);
+    const anchor = middle(it.text, it.style);
     layers.push({
-      id: item.id,
-      text: item.text,
-      style: item.style,
+      id: it.id,
+      text: it.text,
+      style: it.style,
       mode: 'frame',
       anchor,
+      slot,
       ...motion,
     });
+  };
+  if (hit) {
+    title(hit.index, hit.offset, 'main');
+    // During a transition the next item has already started.
+    const next = layoutMain(project.timeline.main)[hit.index + 1];
+    if (next && time >= next.start && transitionOverlap(project.timeline.main, hit.index + 1) > 0)
+      title(hit.index + 1, time - next.start, 'incoming');
   }
   for (const t of project.timeline.text) {
     if (time < t.start || time >= t.start + t.duration) continue;
@@ -185,7 +200,7 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
         : undefined;
     const motion = textMotion(t, time - t.start, t.duration, frame, credits);
     const anchor = middle(t.text, t.style);
-    layers.push({ id: t.id, text: t.text, style: t.style, mode, anchor, ...motion });
+    layers.push({ id: t.id, text: t.text, style: t.style, mode, anchor, slot: 'over', ...motion });
   }
   return layers;
 }

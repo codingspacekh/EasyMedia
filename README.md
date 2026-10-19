@@ -103,7 +103,7 @@ Not supported: Windows 7/8, 32-bit Windows, Linux (possible later from the same 
 | ID | Requirement |
 |---|---|
 | **X1** | A project saved on Windows opens on macOS and vice versa (media paths stored **relative** to the project file; *Package project* (P2) for moving between machines). |
-| **X2** | **Bundled fonts** (open-licence, e.g. a sans-serif, a serif and a monospace "Courier-style" font) are used for titles, captions and credits, so text looks identical on both platforms. System fonts can still be chosen but are flagged as "may differ on other computers". |
+| **X2** | **Bundled fonts** (open-licence: 20 fonts in five groups — sans-serif, serif, display, handwriting, typewriter & retro — including a "Courier-style" font) are used for titles, captions and credits, so text looks identical on both platforms. System fonts can still be chosen but are flagged as "may differ on other computers". |
 | **X3** | Keyboard shortcuts follow platform conventions (`Ctrl` on Windows, `⌘` on macOS); menus use the native menu bar on macOS. |
 | **X4** | Microphone access: on macOS the app declares microphone usage (`NSMicrophoneUsageDescription`) and shows a clear message if permission is denied; on Windows it respects the *Microphone privacy* setting. |
 | **X5** | FFmpeg/ffprobe binaries bundled for each platform and architecture (Windows x64, macOS arm64, macOS x64). |

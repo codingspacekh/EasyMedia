@@ -36,7 +36,10 @@
   const sounds = $derived(soundsAt($store, $store.playhead));
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
+  /** Captions, subtitles and credits; the title words of this clip and of the next one. */
   let textCanvas: HTMLCanvasElement | undefined = $state();
+  let mainCanvas: HTMLCanvasElement | undefined = $state();
+  let incomingCanvas: HTMLCanvasElement | undefined = $state();
   const settings = $derived($store.history.present.settings);
   /** Bumped when a bundled font finishes loading, so the text is drawn again with it. */
   let fontsLoaded = $state(0);
@@ -49,17 +52,25 @@
     return () => fonts.removeEventListener('loadingdone', redraw);
   });
 
-  // Titles, captions and credits: the same drawing as the export, scaled with the screen.
+  // Titles, captions and credits: the same drawing as the export, scaled with the screen. A
+  // title's words are drawn in its clip's layer, so a transition takes them along.
   $effect(() => {
     void fontsLoaded;
-    const ctx = textCanvas?.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, settings.width, settings.height);
+    const canvases = { over: textCanvas, main: mainCanvas, incoming: incomingCanvas };
+    const contexts = Object.fromEntries(
+      Object.entries(canvases).map(([slot, c]) => [slot, c?.getContext('2d') ?? null]),
+    ) as Record<keyof typeof canvases, CanvasRenderingContext2D | null>;
+    for (const ctx of Object.values(contexts))
+      ctx?.clearRect(0, 0, settings.width, settings.height);
+    const measuring = contexts.over;
+    if (!measuring) return;
     const measure = (text: string, font: string) => {
-      ctx.font = font;
-      return ctx.measureText(text).width;
+      measuring.font = font;
+      return measuring.measureText(text).width;
     };
     for (const layer of textLayersAt($store, $store.playhead, measure)) {
+      const ctx = contexts[layer.slot];
+      if (!ctx) continue;
       void document.fonts?.load(cssFont(layer.style, settings.height));
       ctx.save();
       ctx.globalAlpha = layer.opacity;
@@ -137,6 +148,13 @@
           style:filter={out.filter}
         >
           <PreviewLayer {frame} {playing} />
+          <canvas
+            class="words"
+            bind:this={mainCanvas}
+            width={settings.width}
+            height={settings.height}
+            aria-hidden="true"
+          ></canvas>
         </div>
         {#if frame.incoming}
           <!-- V9: the next clip comes in as the transition does (FFmpeg's xfade, drawn with CSS). -->
@@ -151,6 +169,13 @@
             style:filter={into.filter}
           >
             <PreviewLayer frame={frame.incoming.frame as typeof frame} {playing} />
+            <canvas
+              class="words"
+              bind:this={incomingCanvas}
+              width={settings.width}
+              height={settings.height}
+              aria-hidden="true"
+            ></canvas>
           </div>
         {/if}
       {/if}
@@ -219,7 +244,8 @@
     overflow: hidden;
     position: relative;
   }
-  .text {
+  .text,
+  .words {
     position: absolute;
     inset: 0;
     width: 100%;

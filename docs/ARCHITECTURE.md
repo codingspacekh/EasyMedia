@@ -260,8 +260,10 @@ Ctrl/⌘+Z ─► undo(history) → the previous (immutable) project is restored
 ### 7.3 Preview ("approximate preview, exact export")
 
 - Plays **proxy** files in at most two `<video>` elements (current + next, for transitions).
-- Effects use their `preview` hint: CSS `filter` (brightness, contrast, saturate, grayscale, sepia, blur), CSS `opacity` for fades and dissolves, CSS `transform` for pan/zoom.
-- Text items are drawn on a canvas layered on top, with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). Fades, fly-ins and the credits scroll follow `core/text/motion.ts`, the same rules the export writes as FFmpeg expressions.
+- Effects use their `preview` hint: CSS `filter` (brightness, contrast, saturate, grayscale, sepia, blur), CSS `opacity` for fades, CSS `transform` for pan/zoom.
+- Transitions (33 xfade kinds in five groups) are drawn by `transitionLook(xfade, progress)` in `core/effects/transitions/transitions.ts`: CSS `clip-path`, `mask-image`, `transform`, `opacity` and `filter` for the outgoing and incoming layers, with directions checked against FFmpeg's. The export is exactly xfade.
+- Text items are drawn on canvases with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). A title's words are drawn inside its clip's layer, so a transition takes them along; captions, subtitles and credits on a canvas on top. Fades, entrances (fly, rise, drop, zoom, pop), exits and the credits scroll follow `core/text/motion.ts`: `textMotion` for the preview and `motionExpressions`, the same rules as FFmpeg expressions (a scale filter and the overlay position, zooming around the middle of the words that the TextRenderer reports). A unit test evaluates the expressions and checks they give the preview's numbers.
+- Text looks (`core/text/looks.ts`: Neon, Gold, Fire, Comic…) only set style fields (colour, glow, gradient, 3D, outline and box colours) that `draw.ts` draws, so they are the same in the preview and the export. 20 bundled OFL fonts (`resources/fonts`, `ui/fonts.css`) in five groups.
 - **"Render preview of selection"** runs the real compiler on a short range for a frame-exact check.
 
 ### 7.4 Export
@@ -393,7 +395,7 @@ interface MediaEngine {
   onJobEvent(listener: (e: JobEvent) => void): () => void;                  // queued/started/progress/done/error/cancelled
 }
 interface JobHandle { id: string; done: Promise<void>; cancel(): void }      // done rejects JobCancelledError / MediaError
-interface TextRenderer { draw(text, style, frame, mode: 'frame' | 'block'): Promise<{ png, width, height }> } // §7.3
+interface TextRenderer { draw(text, style, frame, mode: 'frame' | 'block'): Promise<{ png, width, height, anchor? }> } // §7.3
 
 decodeAudio(path, sampleRate?): Promise<DecodedAudio>;                    // A1: { sampleRate, channels: Float32Array[], bits? }
 decodeAudioToFile(path, sampleRate?): Promise<DecodedAudioFile>;        // the same, left in a temp f32 file (used over IPC)

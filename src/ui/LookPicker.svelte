@@ -8,7 +8,7 @@
   let { style, onchange }: { style: TextStyle; onchange: (lookId: string) => void } = $props();
 
   const current = $derived(lookOf(style));
-  /** A small frame: 300 "points" in a 1080-line frame is 25 px in this 90-px tile. */
+  /** A small frame: 540 "points" in a 1080-line frame is 45 px in this 90-px tile. */
   const TILE = { width: 160, height: 90 };
   /** Bumped when a font finishes loading, so the tiles are drawn again with it. */
   let fontsLoaded = $state(0);
@@ -27,7 +27,7 @@
     if (!ctx) return;
     const tile: TextStyle = {
       ...applyLook(style, id),
-      size: 300,
+      size: 540,
       align: 'centre',
       position: 'centre',
     };

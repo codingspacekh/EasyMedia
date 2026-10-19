@@ -72,7 +72,7 @@
         class="tile"
         role="radio"
         aria-checked={value === t.id}
-        title="{t.label}\n\nWhy? {t.why}"
+        title={`${t.label}\n\nWhy? ${t.why}`}
         onclick={() => onchange(t.id)}
         onpointerenter={() => play(t.id)}
         onpointerleave={stop}
