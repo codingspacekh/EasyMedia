@@ -130,13 +130,18 @@ export interface TextStyle {
 }
 
 /** How text arrives on screen (Book B: "an appropriate animation effect"). Lasts 1 s. */
-export type Entrance = 'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down';
+export type Entrance =
+  'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down' | 'rise' | 'drop' | 'zoom' | 'pop';
 
-/** Fades and entrance shared by title slides and text items (V7 for text). */
+/** How text leaves the screen, in its last second. */
+export type Exit = 'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down' | 'sink' | 'zoom';
+
+/** Fades, entrance and exit shared by title slides and text items (V7 for text). */
 export interface TextEffects {
   fadeIn?: Seconds;
   fadeOut?: Seconds;
   entrance?: Entrance;
+  exit?: Exit;
 }
 
 export type TitleBackground =

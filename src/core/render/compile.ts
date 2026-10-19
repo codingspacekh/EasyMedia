@@ -11,13 +11,13 @@ import {
 import { filtersFor, transitionById } from '../effects/registry.ts';
 import type {
   AudioItem,
-  Entrance,
   MainItem,
   MediaAsset,
   Project,
   ProjectSettings,
   TextEffects,
 } from '../model/types.ts';
+import { ENTRANCE_SECONDS, motionExpressions } from '../text/motion.ts';
 import { atempoChain, fitFilter, num } from './filters.ts';
 import {
   codecArgs,
@@ -48,6 +48,8 @@ export interface TextImage {
   path: string;
   width: number;
   height: number;
+  /** The middle of the words in the frame: zooms grow around it (default: the frame's middle). */
+  anchor?: { x: number; y: number };
 }
 
 export interface RenderPlan {
@@ -152,11 +154,11 @@ export function compileProject(project: Project, options: RenderOptions): Render
           );
         }
         if (words) {
-          const k = loopImage(d, textImage(item.id).path);
-          filters.push(`[${k}:v]format=rgba${fades(0, itemDuration(item), item)}[t${i}x]`);
-          filters.push(
-            `[bg${i}][t${i}x]overlay=${overlayPosition(item.entrance, 0, settings)}${vOut}`,
-          );
+          const image = textImage(item.id);
+          const k = loopImage(d, image.path);
+          const m = motion(item, 0, itemDuration(item), image);
+          filters.push(`[${k}:v]format=rgba${m.filters}[t${i}x]`);
+          filters.push(`[bg${i}][t${i}x]overlay=${m.position}${vOut}`);
         }
       }
       if (hasAudio) filters.push(`${SILENCE},atrim=duration=${d}${audioOut}`);
@@ -246,11 +248,15 @@ export function compileProject(project: Project, options: RenderOptions): Render
     const start = item.start;
     const end = item.start + item.duration;
     const k = loopImage(num(Math.min(end, total)), image.path);
-    filters.push(`[${k}:v]format=rgba${fades(start, end, item)}[t${j}]`);
-    const position =
-      item.kind === 'credits' && item.scroll !== false
-        ? `x=(main_w-overlay_w)/2:y='main_h-(t-${num(start)})/${num(item.duration)}*(main_h+overlay_h)'`
-        : overlayPosition(item.entrance, start, settings);
+    const scrolls = item.kind === 'credits' && item.scroll !== false;
+    const m = scrolls
+      ? {
+          filters: fades(start, end, item),
+          position: `x=(main_w-overlay_w)/2:y='main_h-(t-${num(start)})/${num(item.duration)}*(main_h+overlay_h)'`,
+        }
+      : motion(item, start, item.duration, image);
+    filters.push(`[${k}:v]format=rgba${m.filters}[t${j}]`);
+    const position = m.position;
     const from = j === 0 ? '[vbase]' : `[o${j - 1}]`;
     const to = j === texts.length - 1 ? '[vout]' : `[o${j}]`;
     filters.push(
@@ -404,6 +410,33 @@ function panZoomFilter(
   return `zoompan=z='${lerp(pz.from.zoom, pz.to.zoom)}':x=${centre('x', 'iw')}:y=${centre('y', 'ih')}:d=1:s=${s.width}x${s.height}:fps=${s.fps}`;
 }
 
+/**
+ * A full-frame text layer's fades, entrance and exit (core/text/motion.ts, the same rules as
+ * the preview): filters for its stream and where the overlay puts it.
+ */
+function motion(
+  effects: TextEffects,
+  start: Seconds,
+  duration: Seconds,
+  image: TextImage,
+): { filters: string; position: string } {
+  const anchor = image.anchor ?? { x: image.width / 2, y: image.height / 2 };
+  const m = motionExpressions(effects, start, duration, image, anchor);
+  const end = start + duration;
+  const extra =
+    (m.fadeIn ? `,fade=t=in:st=${num(start)}:d=${ENTRANCE_SECONDS}:alpha=1` : '') +
+    (m.fadeOut
+      ? `,fade=t=out:st=${num(end - ENTRANCE_SECONDS)}:d=${ENTRANCE_SECONDS}:alpha=1`
+      : '');
+  const scale = m.scale
+    ? `,scale=w='max(1,iw*(${m.scale}))':h='max(1,ih*(${m.scale}))':eval=frame`
+    : '';
+  return {
+    filters: `${fades(start, end, effects)}${extra}${scale}`,
+    position: `x=${m.x}:y=${m.y}`,
+  };
+}
+
 /** Fades the transparency of a text layer (V7 for text). */
 function fades(start: Seconds, end: Seconds, effects: TextEffects): string {
   const fadeIn = effects.fadeIn ?? 0;
@@ -412,28 +445,6 @@ function fades(start: Seconds, end: Seconds, effects: TextEffects): string {
     (fadeIn > 0 ? `,fade=t=in:st=${num(start)}:d=${num(fadeIn)}:alpha=1` : '') +
     (fadeOut > 0 ? `,fade=t=out:st=${num(end - fadeOut)}:d=${num(fadeOut)}:alpha=1` : '')
   );
-}
-
-/** Where a full-frame text layer sits; an entrance slides it in over the first second. */
-function overlayPosition(
-  entrance: Entrance | undefined,
-  start: Seconds,
-  s: ProjectSettings,
-): string {
-  const t = `t-${num(start)}`;
-  const slide = (from: number) => `'if(lt(${t},1),${from}+(${t})*${-from},0)'`;
-  switch (entrance) {
-    case 'fly-left':
-      return `x=${slide(-s.width)}:y=0`;
-    case 'fly-right':
-      return `x='if(lt(${t},1),${s.width}-(${t})*${s.width},0)':y=0`;
-    case 'fly-up':
-      return `x=0:y='if(lt(${t},1),${s.height}-(${t})*${s.height},0)'`;
-    case 'fly-down':
-      return `x=0:y=${slide(-s.height)}`;
-    default:
-      return 'x=0:y=0';
-  }
 }
 
 function colourFrame(s: ProjectSettings, colour: string, duration: string): string {

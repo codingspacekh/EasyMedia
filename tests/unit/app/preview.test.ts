@@ -147,6 +147,26 @@ describe('text drawn over the preview (same pictures as the export)', () => {
     ]);
   });
 
+  it('a zooming caption is scaled around the middle of its words', () => {
+    const s = withText();
+    const project = s.history.present;
+    const zooming = {
+      ...s,
+      history: createHistory({
+        ...project,
+        timeline: {
+          ...project.timeline,
+          text: [{ ...project.timeline.text[0]!, entrance: 'zoom' as const }],
+        },
+      }),
+    };
+    const [caption] = textLayersAt(zooming, 2.5, measure);
+    expect(caption!.scale).toBe(0.875);
+    // A caption starts at the top left: its middle is there too, not in the frame's middle.
+    expect(caption!.anchor.x).toBeLessThan(400);
+    expect(caption!.anchor.y).toBeLessThan(200);
+  });
+
   it('shows captions only during their time, in timeline order after the title', () => {
     expect(textLayersAt(withText(), 1.9, measure).map((l) => l.id)).toEqual(['t']);
     expect(textLayersAt(withText(), 3, measure).map((l) => l.id)).toEqual(['cap']);

@@ -64,6 +64,12 @@
       ctx.save();
       ctx.globalAlpha = layer.opacity;
       ctx.translate(layer.x, layer.y);
+      if (layer.scale !== 1) {
+        // Zoom entrances and exits grow around the middle of the words, as in the export.
+        ctx.translate(layer.anchor.x, layer.anchor.y);
+        ctx.scale(layer.scale, layer.scale);
+        ctx.translate(-layer.anchor.x, -layer.anchor.y);
+      }
       drawText(ctx, layer.text, layer.style, settings, layer.mode);
       ctx.restore();
     }

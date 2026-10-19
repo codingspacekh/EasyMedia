@@ -145,6 +145,19 @@ describe('text inspector (screens 02–04)', () => {
     expect(item()).toMatchObject({ fadeIn: 0.5, fadeOut: 1, entrance: 'fly-left' });
   });
 
+  it('more animations: entrances such as drop or pop, and an exit in the last second', async () => {
+    const { item } = withCaption();
+    const entrances = [...(field('Entrance') as unknown as HTMLSelectElement).options];
+    expect(entrances.map((o) => o.textContent)).toEqual(
+      expect.arrayContaining(['Rise and fade in', 'Drop and bounce', 'Zoom in', 'Pop']),
+    );
+    await change('Entrance', 'pop');
+    await change('Exit', 'zoom');
+    expect(item()).toMatchObject({ entrance: 'pop', exit: 'zoom' });
+    await change('Exit', 'none');
+    expect(item().exit).toBe('none');
+  });
+
   it('credits can stop scrolling', async () => {
     const t = testApp();
     t.app.addText('credits');

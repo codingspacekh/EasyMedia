@@ -360,8 +360,18 @@ export function createApp({
     ];
     const images: Record<Id, TextImage> = {};
     for (const item of wanted) {
-      const { png, width, height } = await text.draw(item.text, item.style, frame, item.mode);
-      images[item.id] = { path: await files.saveImage(`text-${item.id}`, png), width, height };
+      const { png, width, height, anchor } = await text.draw(
+        item.text,
+        item.style,
+        frame,
+        item.mode,
+      );
+      images[item.id] = {
+        path: await files.saveImage(`text-${item.id}`, png),
+        width,
+        height,
+        ...(anchor ? { anchor } : {}),
+      };
     }
     return images;
   }

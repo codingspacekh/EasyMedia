@@ -47,7 +47,25 @@ describe('canvas text renderer', () => {
     const { renderer, log } = fakes();
     const out = await renderer.draw('Hi', STYLE, { width: 1280, height: 720 }, 'frame');
     expect(log).toEqual(['load 700 40px "Noto Serif"', 'canvas 1280x720', 'fill Hi']);
-    expect(out).toEqual({ png: new Uint8Array([137, 80, 78, 71]), width: 1280, height: 720 });
+    // "Hi" is 20 px wide (10 px a letter) and one 40-px line, in the middle of the frame.
+    expect(out).toEqual({
+      png: new Uint8Array([137, 80, 78, 71]),
+      width: 1280,
+      height: 720,
+      anchor: { x: 640, y: 360 },
+    });
+  });
+
+  it('says where the middle of the words is (zooms grow around it)', async () => {
+    const { renderer } = fakes();
+    const out = await renderer.draw(
+      'Hello',
+      { ...STYLE, position: 'top-left' },
+      { width: 1920, height: 1080 },
+      'frame',
+    );
+    expect(out.anchor!.x).toBeLessThan(400);
+    expect(out.anchor!.y).toBeLessThan(200);
   });
 
   it('makes a block-sized canvas for scrolling credits', async () => {

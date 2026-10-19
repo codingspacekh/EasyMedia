@@ -15,7 +15,7 @@ import type { Id, MainItem, PanZoomFrame, TextStyle } from '../core/model/types.
 import { previewFilter, transitionById } from '../core/effects/registry.ts';
 import { panZoomAt } from '../core/effects/panzoom.ts';
 import { textImageSize, type TextImageMode } from '../core/text/draw.ts';
-import type { Measure } from '../core/text/layout.ts';
+import { layoutText, type Measure } from '../core/text/layout.ts';
 import { textMotion } from '../core/text/motion.ts';
 import type { AppState } from './app.ts';
 
@@ -148,6 +148,9 @@ export interface TextLayer {
   opacity: number;
   x: number;
   y: number;
+  /** Zoom entrances and exits: the size, around `anchor` (the middle of the words). */
+  scale: number;
+  anchor: { x: number; y: number };
 }
 
 /** The title's words, then captions, subtitles and credits showing at `time` (export order). */
@@ -157,9 +160,21 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
   const layers: TextLayer[] = [];
   const hit = findMainItemAt(project.timeline.main, time);
   const item = hit && project.timeline.main[hit.index];
+  const middle = (text: string, style: TextStyle) => {
+    const { box } = layoutText(text, style, frame, measure);
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
   if (hit && item?.type === 'title' && item.text.trim() !== '') {
     const motion = textMotion(item, hit.offset, item.duration, frame);
-    layers.push({ id: item.id, text: item.text, style: item.style, mode: 'frame', ...motion });
+    const anchor = middle(item.text, item.style);
+    layers.push({
+      id: item.id,
+      text: item.text,
+      style: item.style,
+      mode: 'frame',
+      anchor,
+      ...motion,
+    });
   }
   for (const t of project.timeline.text) {
     if (time < t.start || time >= t.start + t.duration) continue;
@@ -169,7 +184,8 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
         ? { creditsHeight: textImageSize(t.text, t.style, frame, mode, measure).height }
         : undefined;
     const motion = textMotion(t, time - t.start, t.duration, frame, credits);
-    layers.push({ id: t.id, text: t.text, style: t.style, mode, ...motion });
+    const anchor = middle(t.text, t.style);
+    layers.push({ id: t.id, text: t.text, style: t.style, mode, anchor, ...motion });
   }
   return layers;
 }

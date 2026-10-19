@@ -207,6 +207,8 @@ export interface RenderedText {
   png: Uint8Array;
   width: number;
   height: number;
+  /** For a frame image: the middle of the words (zoom entrances and exits grow around it). */
+  anchor?: { x: number; y: number };
 }
 
 export interface AppPaths {
