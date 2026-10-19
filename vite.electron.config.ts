@@ -5,11 +5,13 @@
 //   vite build -c vite.electron.config.ts --mode preload
 import { builtinModules } from 'node:module';
 import { defineConfig } from 'vite';
+import { recordPackages } from './scripts/lib/record-packages.ts';
 
 export default defineConfig(({ mode }) => {
   const entry = mode === 'preload' ? 'src/preload/index.ts' : 'src/main/index.ts';
   const name = mode === 'preload' ? 'preload' : 'main';
   return {
+    plugins: [recordPackages(name)],
     build: {
       outDir: 'out',
       emptyOutDir: mode !== 'preload',

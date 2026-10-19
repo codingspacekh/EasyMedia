@@ -1,6 +1,8 @@
 // Electron main process (ARCHITECTURE §2).
 import { app, BrowserWindow, ipcMain, Menu, protocol, systemPreferences } from 'electron';
-import { mkdir } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { access, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
 import type { Events } from '../preload/api.ts';
@@ -15,6 +17,7 @@ import { createNodeMediaEngine } from './media/engine.ts';
 import { recordPerformance } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
+import { selfCheck } from './self-check.ts';
 import { electronDialogs, projectFiles } from './services.ts';
 
 const APP_ROOT = join(__dirname, '..');
@@ -72,7 +75,37 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
+/** M12: EASYMEDIA_SELF_CHECK=<file> — check the installed app, write the result there, quit. */
+async function runSelfCheck(file: string): Promise<void> {
+  const run = promisify(execFile);
+  const result = await selfCheck({
+    binaries: binaryPaths(RESOURCES, platformKey(process.platform, process.arch)),
+    pagesDir: join(APP_ROOT, 'dist'),
+    run: async (bin, args) => (await run(bin, args)).stdout,
+    exists: (path) =>
+      access(path).then(
+        () => true,
+        () => false,
+      ),
+    list: (dir) => readdir(dir),
+  });
+  // The pages also load in a (hidden) window.
+  const win = new BrowserWindow({ show: false });
+  const loaded = await Promise.race([
+    win.loadFile(join(APP_ROOT, 'dist', 'index.html')).then(() => win.webContents.getTitle()),
+    new Promise<string>((_, reject) => setTimeout(() => reject(new Error('timed out')), 30_000)),
+  ]).then(
+    (title) => ({ name: 'window', ok: true, detail: title }),
+    (error: Error) => ({ name: 'window', ok: false, detail: error.message }),
+  );
+  const checks = [...result.checks, loaded];
+  const ok = checks.every((c) => c.ok);
+  await writeFile(file, `${JSON.stringify({ ok, version: app.getVersion(), checks }, null, 2)}\n`);
+  app.exit(ok ? 0 : 1);
+}
+
 void app.whenReady().then(async () => {
+  if (process.env.EASYMEDIA_SELF_CHECK) return runSelfCheck(process.env.EASYMEDIA_SELF_CHECK);
   const binaries = binaryPaths(RESOURCES, platformKey(process.platform, process.arch));
   const proxies = join(app.getPath('userData'), 'proxies');
   await mkdir(proxies, { recursive: true });

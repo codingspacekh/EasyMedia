@@ -13,3 +13,8 @@ design/__pycache__/
 out/
 test-results/
 playwright-report/
+
+# Made by the release build (M12)
+release/
+build-info/
+THIRD_PARTY_LICENSES.txt

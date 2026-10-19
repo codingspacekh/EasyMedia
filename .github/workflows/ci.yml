@@ -57,6 +57,10 @@ jobs:
         run: npm run build:app
       - name: End-to-end tests (real app)
         run: npm run test:e2e
+      - name: Package the app and let the packaged app check itself (FFmpeg, pages, fonts)
+        run: |
+          npm run licences
+          npm run package -- --dir
       - name: Keep Playwright traces of failed end-to-end tests
         if: failure()
         uses: actions/upload-artifact@v4

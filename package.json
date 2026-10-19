@@ -1,6 +1,6 @@
 {
   "name": "easymedia",
-  "version": "0.0.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Lightweight video and audio editor for Cambridge AS & A Level IT (9626) Chapter 11",
   "license": "GPL-3.0-or-later",
@@ -27,7 +27,10 @@
     "spike": "electron spikes/m0-electron/main.cjs",
     "build:app": "vite build && vite build -c vite.electron.config.ts --mode main && vite build -c vite.electron.config.ts --mode preload",
     "app": "npm run build:app && electron .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "licences": "node scripts/licences.ts",
+    "dist": "npm run build:app && npm run licences && npm run package",
+    "package": "node scripts/package.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -37,6 +40,7 @@
     "@types/node": "24.19.0",
     "@vitest/coverage-v8": "5.0.2",
     "electron": "44.5.0",
+    "electron-builder": "26.15.3",
     "eslint": "10.11.0",
     "eslint-plugin-svelte": "3.23.0",
     "globals": "17.12.0",
