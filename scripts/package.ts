@@ -2,11 +2,11 @@
 // packaged app with EASYMEDIA_SELF_CHECK: its FFmpeg runs and its pages and fonts are there.
 // Usage: npm run build:app && npm run licences && npm run package [-- --dir]
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { builderArgs, packagedProgram } from './lib/package.ts';
+import { builderArgs, oversized, packagedProgram } from './lib/package.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dir = process.argv.includes('--dir');
@@ -33,3 +33,14 @@ try {
   console.log(readFileSync(report, 'utf8'));
 }
 console.log('The packaged app checked itself: everything is in place.');
+
+// N6: the installers must not grow past the size students are asked to download.
+if (!dir) {
+  const release = join(root, 'release');
+  const installers = readdirSync(release)
+    .filter((f) => /\.(exe|zip|dmg)$/.test(f))
+    .map((name) => ({ name, bytes: statSync(join(release, name)).size }));
+  for (const f of installers) console.log(`${f.name}: ${Math.round(f.bytes / 1e6)} MB`);
+  const tooBig = oversized(installers);
+  if (tooBig.length) throw new Error(tooBig.join('\n'));
+}

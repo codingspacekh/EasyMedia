@@ -214,7 +214,7 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | **N3** | Performance | Audio effects on a 3-minute stereo clip apply in ≤ 3 s. |
 | **N4** | Memory | ≤ 600 MB RAM for a typical exam-sized project (≈ 10 clips, ≤ 5 min). |
 | **N5** | Startup | App opens in ≤ 5 s. |
-| **N6** | Install | Installer ≤ 150 MB per platform (Windows: per-user, **no admin rights**, plus a portable `.zip`; macOS: drag-to-Applications `.dmg`). |
+| **N6** | Install | Installer ≤ 220 MB per platform (raised from 150 MB on 2026-10-19: Electron alone is about 134 MB; the portable .zip is about 235 MB) (Windows: per-user, **no admin rights**, plus a portable `.zip`; macOS: drag-to-Applications `.dmg`). |
 | **N7** | Offline | All features work with **no internet connection**. No telemetry. |
 | **N8** | Precision | Every time value can be typed with 0.01 s precision; durations shown in seconds (e.g. `12.40 s`) and as `mm:ss.ss`. |
 | **N9** | Usability | A new student can complete a trim + title + export task in one lesson without prior training. Menu names follow Movie Maker / Audacity wording where possible. |
@@ -354,6 +354,7 @@ The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is a
 | 6 | macOS support | **Yes** — first-class target alongside Windows. |
 | 7 | App type and framework | Desktop app, Electron + bundled FFmpeg (§10). |
 | 8 | Code signing for v1.0 (2026-10-19) | **None, for now** — the install guide shows the free *right-click → Open* (macOS Gatekeeper) and *More info → Run anyway* (Windows SmartScreen). Signing can be added later. |
+| 9 | Installer size (2026-10-19) | **At most 220 MB** per installer (N6 was 150 MB). Electron alone is about 134 MB compressed; slimmer self-built FFmpeg builds would save only a little and add upkeep. |
 
 Still open:
 

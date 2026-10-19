@@ -77,3 +77,18 @@ describe('packaging this computer’s build (scripts/package.ts)', () => {
     expect(packagedProgram('win32', 'x64')).toBe('release/win-unpacked/EasyMedia.exe');
   });
 });
+
+describe('N6 installer size', () => {
+  it('each installer is at most 220 MB; a bigger one stops the release', async () => {
+    const { MAX_INSTALLER_MB, oversized } = await import('../../../scripts/lib/package.ts');
+    expect(MAX_INSTALLER_MB).toBe(220);
+    expect(
+      oversized([
+        { name: 'EasyMedia-1.0.0-mac-x64.dmg', bytes: 207_000_000 },
+        { name: 'EasyMedia-Setup-1.0.0.exe', bytes: 221_000_001 },
+        // The portable zip (for a USB stick) is not an installer: zip packs less tightly.
+        { name: 'EasyMedia-1.0.0-win.zip', bytes: 235_000_000 },
+      ]),
+    ).toEqual(['EasyMedia-Setup-1.0.0.exe is 221 MB (at most 220 MB, README N6)']);
+  });
+});

@@ -5,7 +5,8 @@ EasyMedia is free. Download it from the project's **Releases** page on GitHub
 
 | Your computer | Download | Size |
 |---|---|---|
-| Windows 11 (64-bit) | `EasyMedia-Setup-<version>.exe` (installer), or `EasyMedia-<version>-win.zip` (no installing: unzip it and run `EasyMedia.exe`, e.g. from a USB stick) | about 140 MB |
+| Windows 11 (64-bit) | `EasyMedia-Setup-<version>.exe` (installer) | about 175 MB |
+| Windows 11, without installing (e.g. from a USB stick) | `EasyMedia-<version>-win.zip`: unzip it and run `EasyMedia.exe` | about 235 MB |
 | Mac with an Apple chip (M1, M2, M3, M4…) | `EasyMedia-<version>-mac-arm64.dmg` | about 190 MB |
 | Mac with an Intel processor | `EasyMedia-<version>-mac-x64.dmg` | about 210 MB |
 

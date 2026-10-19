@@ -16,3 +16,19 @@ export function packagedProgram(platform: string, arch: string): string {
   const folder = arch === 'x64' ? 'mac' : `mac-${arch}`;
   return `release/${folder}/EasyMedia.app/Contents/MacOS/EasyMedia`;
 }
+
+/** README N6 (decided 2026-10-19: Electron alone is about 134 MB compressed). */
+export const MAX_INSTALLER_MB = 220;
+
+/**
+ * The installers (.exe, .dmg) bigger than N6 allows, explained (1 MB = 1 000 000 bytes). The
+ * portable .zip is not an installer: zip packs less tightly (about 235 MB).
+ */
+export function oversized(files: readonly { name: string; bytes: number }[]): string[] {
+  return files
+    .filter((f) => !f.name.endsWith('.zip') && f.bytes > MAX_INSTALLER_MB * 1e6)
+    .map(
+      (f) =>
+        `${f.name} is ${Math.round(f.bytes / 1e6)} MB (at most ${MAX_INSTALLER_MB} MB, README N6)`,
+    );
+}
