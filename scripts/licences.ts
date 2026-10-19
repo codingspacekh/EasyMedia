@@ -15,9 +15,12 @@ async function licenceText(dir: string): Promise<string> {
   return file ? readFile(join(root, dir, file), 'utf8') : '';
 }
 
-const infos = await readdir(join(root, 'build-info')).catch(() => {
-  throw new Error('Run "npm run build:app" first: it records what goes into the app.');
-});
+// The package lists of each build (build-info also holds the guides).
+const infos = (
+  await readdir(join(root, 'build-info')).catch(() => {
+    throw new Error('Run "npm run build:app" first: it records what goes into the app.');
+  })
+).filter((f) => f.endsWith('.json'));
 const names = [
   ...new Set((await Promise.all(infos.map((f) => json(`build-info/${f}`)))).flat() as string[]),
 ].sort();
