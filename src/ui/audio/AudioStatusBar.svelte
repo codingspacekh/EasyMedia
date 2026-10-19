@@ -7,7 +7,7 @@
   const audio = $derived(app.audio);
   const store = $derived(app.audio.store);
   const doc = $derived($store.history.present);
-  const stereo = $derived(doc.tracks.some((t) => t.channels.length === 2 || t.pan !== 0));
+  const stereo = $derived(doc.tracks.some((t) => t.channelCount === 2 || t.pan !== 0));
 </script>
 
 <footer class="status">

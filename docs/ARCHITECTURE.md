@@ -141,7 +141,7 @@ type Seconds = number;           // always seconds, 0.01 precision in UI (N8)
 type Id = string;
 
 interface Project {
-  schemaVersion: 1;
+  schemaVersion: 2;               // 2: Audio mode tracks hold clips (migration 1 → 2)
   name: string;
   settings: {
     aspect: '16:9' | '4:3' | 'custom';
@@ -200,7 +200,7 @@ interface AudioItem {
 interface EffectInstance { effectId: string; params: Record<string, number | string | boolean>; }
 ```
 
-The audio editor (Audio mode) uses a separate, simpler model (`core/audio/pcm.ts`): an `AudioDoc { rate, tracks }` where every `AudioTrack { id, name, offset, channels: Float32Array[], gain, pan, bits? }` shares the project rate (the first imported file's rate; later files are decoded at it). Edits work on a selection `{ start, end, tracks }` (Audacity model) and use the Memento pattern (P5) instead of commands. Mute and solo only change what is heard and are not edits. The Audio mode session is not saved in the `.mve` file yet: the work leaves EasyMedia by **Export audio**.
+The audio editor (Audio mode) uses a separate, simpler model (`core/audio/pcm.ts`): an `AudioDoc { rate, tracks }` where every `AudioTrack { id, name, channelCount, clips, gain, pan, bits? }` shares the project rate (the first imported file's rate; later files are decoded at it). A track holds **clips**, as the video timeline does: `AudioClip { id, offset, source: Float32Array[], in, out }` plays samples `[in, out)` of `source` from `offset`. Trimming an edge only moves `in` / `out` (it can be dragged back out), and the two halves of a split share one `source`, so Split, Move, Trim and Join keep no samples in their undo steps. Clips on a track never overlap; gaps are silence. Edits work either on clips (click, drag, Split / Join / Delete: the gap stays) or on a selection `{ start, end, tracks }` (Audacity model: Cut, Copy, Paste, effects, which work across clips and gaps). Both use the Memento pattern (P5) instead of commands. Mute and solo only change what is heard and are not edits. The session is saved with the project (§7.6).
 
 ## 6. Effect registry (P6 + P7)
 
@@ -342,8 +342,11 @@ Record ─► Recorder.open: macOS asks the system once (main, askForMediaAccess
   ─► level meter (peak held) ─► count-in ─► blocks kept (other tracks play: overdub)
   ─► Stop: one undo step adds "Recording N" at the playhead (resampled to the project rate)
 
-Save (P1) ─► each changed track ─► MediaEngine.encodeAudio: 32-bit float WAV in "<project> audio/"
-  ─► the .mve gets audioMode { rate, tracks: name, offset, gain, pan, file } (paths relative)
+Save (P1) ─► each clip's samples ─► MediaEngine.encodeAudio: 32-bit float WAV "clip-<id>.wav" in
+  "<project> audio/" (one file per set of samples: split halves share it; a file is written again
+  only if it no longer holds those very samples, e.g. after Undo)
+  ─► the .mve gets audioMode { rate, tracks: name, channels, gain, pan,
+     clips: { file, offset, in, out } } (paths relative)
 Open ─► MediaEngine.decodeAudio of each WAV: exactly the same samples
 Close / Quit (P7) ─► main stops the close and sends app:closeRequested ─► the page asks
   Save / Don't Save / Cancel if anything is unsaved ─► app:closeAnswer
@@ -369,7 +372,10 @@ Task checker (T6) ─► the teacher's TaskSpec saved as JSON (.mvetask, open / 
 
 "Why use this?" (T5): effect texts live in each registry entry; every other tool is in
 `core/effects/help.ts` (`TOOLS`: label, syllabus point, why), shown in a section's "Why use this?"
-box (`ui/Why.svelte`) or, for toolbar buttons and menu items, in the tooltip (`withWhy`).
+box (`ui/Why.svelte`) or, for toolbar buttons and menu items, in the tooltip (`withWhy`). Tooltips
+come from `ui/Tooltip.svelte`, one for the whole app: after 0.4 s on a button (or on keyboard
+focus) it shows the button's title, or an icon-only button's label, with the "Why?" part under
+it; the built-in tooltip is kept away meanwhile.
 
 ## 8. Ports and IPC contract
 

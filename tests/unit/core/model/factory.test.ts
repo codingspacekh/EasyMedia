@@ -28,7 +28,7 @@ describe('P12 factory defaults', () => {
   it('a new project is 16:9, 1920 × 1080, 30 fps, schema v1 and empty', () => {
     const p = createProject({ name: 'Lake Naivasha' });
     expect(p).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       name: 'Lake Naivasha',
       settings: {
         aspect: '16:9',

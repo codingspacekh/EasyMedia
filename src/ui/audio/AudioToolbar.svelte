@@ -97,17 +97,20 @@
 <div class="tools">
   <button
     class="tbtn"
-    aria-label="Selection tool"
-    title="Selection tool: drag across a waveform"
-    aria-pressed={audioUi.tool === 'select'}
-    onclick={() => (audioUi.tool = 'select')}><Icon name="cursor" /></button
+    aria-label="Clip tool"
+    title={withWhy(
+      'Clip tool: click a clip to select it, drag it to move it, drag its edges to trim it',
+      'moveClip',
+    )}
+    aria-pressed={audioUi.tool === 'clip'}
+    onclick={() => (audioUi.tool = 'clip')}><Icon name="shift" /></button
   >
   <button
     class="tbtn"
-    aria-label="Time shift tool"
-    title="Time shift tool: drag a track to move it in time"
-    aria-pressed={audioUi.tool === 'shift'}
-    onclick={() => (audioUi.tool = 'shift')}><Icon name="shift" /></button
+    aria-label="Selection tool"
+    title="Selection tool: drag across the sound to select part of it (for Cut, Copy and effects)"
+    aria-pressed={audioUi.tool === 'select'}
+    onclick={() => (audioUi.tool = 'select')}><Icon name="cursor" /></button
   >
 </div>
 <span class="vsep"></span>

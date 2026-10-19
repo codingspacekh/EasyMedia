@@ -173,7 +173,7 @@ export interface AudioItem {
 }
 
 export interface Project {
-  schemaVersion: 1;
+  schemaVersion: 2;
   name: string;
   settings: ProjectSettings;
   media: MediaAsset[];
@@ -188,7 +188,7 @@ export interface Project {
   audioMode?: AudioModeSession;
 }
 
-/** P1 for Audio mode: its tracks; each one's sound is an exact 32-bit WAV file. */
+/** P1 for Audio mode: its tracks and their clips; the sound is in exact 32-bit WAV files. */
 export interface AudioModeSession {
   /** The project rate: every track's sample rate. */
   rate: number;
@@ -198,10 +198,20 @@ export interface AudioModeSession {
 export interface SavedAudioTrack {
   id: Id;
   name: string;
-  /** The WAV file with the track's samples (relative to the project file on disk, X1). */
-  file: string;
-  offset: number;
+  /** 1 = mono, 2 = stereo (absent in files of version 1: taken from the sound). */
+  channels?: number;
+  clips: SavedAudioClip[];
   gain: number;
   pan: number;
   bits?: number;
+}
+
+export interface SavedAudioClip {
+  id: Id;
+  /** The WAV file with the clip's samples (relative to the project file on disk, X1). */
+  file: string;
+  offset: number;
+  /** The heard samples [in, out) of the file; absent: all of them. */
+  in?: number;
+  out?: number;
 }

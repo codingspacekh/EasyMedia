@@ -19,3 +19,6 @@ export const ui = $state({
   /** Learn mode's glossary is open. */
   glossary: false,
 });
+
+/** How long the mouse rests on a button before its tooltip shows (the built-in one is slower). */
+export const TOOLTIP_DELAY = 400;

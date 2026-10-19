@@ -28,7 +28,7 @@
       const doc = app.audio.store.get().history.present;
       return defaultAudioExport({
         rate: doc.rate,
-        channels: doc.tracks.some((t) => t.channels.length === 2) ? 2 : 1,
+        channels: doc.tracks.some((t) => t.channelCount === 2) ? 2 : 1,
       });
     }),
   );

@@ -13,7 +13,7 @@ beforeEach(() => {
   ui.inspectorTab = 'clip';
   ui.snap = true;
   ui.safeArea = false;
-  audioUi.tool = 'select';
+  audioUi.tool = 'clip';
   audioUi.pxPerSecond = DEFAULT_ZOOM;
   audioUi.dialog = null;
 });

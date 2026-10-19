@@ -40,6 +40,12 @@ export const WHY = {
   export:
     'Not every device plays every format, so choose the one the audience will use: MP4 for the web and phones, WMV for Windows, MPG for a DVD player. A smaller size and lossy compression make the file quick to send or stream; lossless keeps a perfect master copy that is much bigger.',
   // ---- Audio mode ----
+  splitAudio:
+    'Splitting cuts an audio clip in two at the playhead, so one part can be moved, deleted or have another sound put between the parts. Joining (splicing) puts two clips that touch back together into one.',
+  moveClip:
+    'Moving a clip along its track changes when it plays, for example to start a voiceover at the right moment in the music. Dragging a clip’s edge trims its start or end; drag it back out to get the sound back.',
+  deleteClip:
+    'Deleting a clip takes away a sound the project does not need. The gap it leaves is silent, and the clips after it stay where they are.',
   cutCopyPaste:
     'Cut removes the selected sound and keeps it to paste somewhere else; Copy keeps a copy without removing it; Paste puts it in at the cursor. Together they move or repeat a part of a clip.',
   trimAudio:
@@ -101,6 +107,9 @@ export const TOOLS: Tool[] = [
   tool('snapshot', 'Snapshot', '11.1 extracting a still image'),
   tool('audio', 'Music & voiceover', '11.1 adding audio to a video clip'),
   tool('export', 'Export video', '11.1 exporting · compressing to different resolutions'),
+  tool('splitAudio', 'Split and join audio', '11.2 splicing / joining audio clips'),
+  tool('moveClip', 'Move and trim a clip', '11.2 trimming an audio clip'),
+  tool('deleteClip', 'Delete a clip', '11.2 trimming an audio clip'),
   tool('cutCopyPaste', 'Cut, copy & paste', '11.2 splicing / joining audio clips'),
   tool('trimAudio', 'Trim to selection', '11.2 trimming an audio clip'),
   tool('silence', 'Insert silence', '11.2 trimming an audio clip'),

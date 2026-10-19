@@ -12,7 +12,10 @@ function relocate(project: Project, move: (path: string) => string): Project {
       ? {
           audioMode: {
             ...audioMode,
-            tracks: audioMode.tracks.map((t) => ({ ...t, file: move(t.file) })),
+            tracks: audioMode.tracks.map((t) => ({
+              ...t,
+              clips: t.clips.map((c) => ({ ...c, file: move(c.file) })),
+            })),
           },
         }
       : {}),

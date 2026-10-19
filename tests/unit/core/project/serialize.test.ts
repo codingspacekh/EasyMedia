@@ -53,7 +53,7 @@ describe('P1 / P11 project files (.mve)', () => {
 
   it('is readable JSON with the schema version first', () => {
     expect(serializeProject(fullProject())).toMatch(
-      /^\{\n {2}"schemaVersion": 1,\n {2}"name": "Lake Naivasha"/,
+      /^\{\n {2}"schemaVersion": 2,\n {2}"name": "Lake Naivasha"/,
     );
   });
 
@@ -134,7 +134,7 @@ describe('P1 / P11 project files (.mve)', () => {
   });
 });
 
-describe('P1 for Audio mode: its tracks are saved in the project, their sound in WAV files', () => {
+describe('P1 for Audio mode: its tracks and clips are saved in the project, their sound in WAV files', () => {
   const withAudio = (): Project => ({
     ...fullProject(),
     audioMode: {
@@ -143,8 +143,11 @@ describe('P1 for Audio mode: its tracks are saved in the project, their sound in
         {
           id: 'a1',
           name: 'Task_11p_audio',
-          file: 'Task_11p audio/track-1.wav',
-          offset: 0,
+          channels: 2,
+          clips: [
+            { id: 'c1', file: 'Task_11p audio/clip-c1.wav', offset: 0, in: 0, out: 44100 },
+            { id: 'c2', file: 'Task_11p audio/clip-c1.wav', offset: 3, in: 44100, out: 88200 },
+          ],
           gain: 0,
           pan: 0,
           bits: 16,
@@ -152,8 +155,8 @@ describe('P1 for Audio mode: its tracks are saved in the project, their sound in
         {
           id: 'a2',
           name: 'Recording 1',
-          file: 'Task_11p audio/track-2.wav',
-          offset: 11,
+          channels: 1,
+          clips: [{ id: 'c3', file: 'Task_11p audio/clip-c3.wav', offset: 11, in: 0, out: 9 }],
           gain: -3,
           pan: 0.5,
         },
@@ -161,7 +164,7 @@ describe('P1 for Audio mode: its tracks are saved in the project, their sound in
     },
   });
 
-  it('round-trips the Audio mode tracks', () => {
+  it('round-trips the Audio mode tracks and clips', () => {
     const p = withAudio();
     expect(deserializeProject(serializeProject(p))).toEqual(p);
   });
@@ -170,18 +173,52 @@ describe('P1 for Audio mode: its tracks are saved in the project, their sound in
     expect(serializeProject(fullProject())).not.toMatch(/audioMode/);
   });
 
+  it('opens projects of version 1 (one sound file per track) as tracks with one clip', () => {
+    const v1 = JSON.stringify({
+      ...fullProject(),
+      schemaVersion: 1,
+      audioMode: {
+        rate: 44100,
+        tracks: [
+          {
+            id: 'a1',
+            name: 'Task_11p_audio',
+            file: 'Task_11p audio/track-1.wav',
+            offset: 2,
+            gain: 0,
+            pan: 0,
+            bits: 16,
+          },
+        ],
+      },
+    });
+    const p = deserializeProject(v1);
+    expect(p.schemaVersion).toBe(CURRENT_SCHEMA);
+    expect(p.audioMode!.tracks).toEqual([
+      {
+        id: 'a1',
+        name: 'Task_11p_audio',
+        clips: [{ id: 'a1.c', file: 'Task_11p audio/track-1.wav', offset: 2 }],
+        gain: 0,
+        pan: 0,
+        bits: 16,
+      },
+    ]);
+  });
+
   it.each([
     ['a rate that is not a number', { rate: 'fast', tracks: [] }],
+    ['a track without clips', { rate: 44100, tracks: [{ id: 'a', name: 'x', gain: 0, pan: 0 }] }],
     [
-      'a track without its file',
-      { rate: 44100, tracks: [{ id: 'a', name: 'x', offset: 0, gain: 0, pan: 0 }] },
+      'a clip without its file',
+      {
+        rate: 44100,
+        tracks: [{ id: 'a', name: 'x', clips: [{ id: 'c', offset: 0 }], gain: 0, pan: 0 }],
+      },
     ],
     [
       'a pan that is not a number',
-      {
-        rate: 44100,
-        tracks: [{ id: 'a', name: 'x', file: 'f.wav', offset: 0, gain: 0, pan: 'left' }],
-      },
+      { rate: 44100, tracks: [{ id: 'a', name: 'x', clips: [], gain: 0, pan: 'left' }] },
     ],
   ])('refuses Audio mode work with %s', (_, audioMode) => {
     const text = serializeProject({ ...fullProject(), audioMode } as unknown as Project);

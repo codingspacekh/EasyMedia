@@ -17,6 +17,7 @@ import {
 } from '../../../src/core/model/factory.ts';
 import type { Dialogs, JobEvent, ProbeInfo, TextRenderer } from '../../../src/core/ports.ts';
 import { defaultExport, estimateSize } from '../../../src/core/render/formats.ts';
+import { sameSamples } from '../../helpers/samples.ts';
 
 const video = (sizeBytes = 7_000_000): ProbeInfo => ({
   kind: 'video',
@@ -709,7 +710,12 @@ describe('M4 app use cases', () => {
       const saved = JSON.parse(disk.get('/p/Task_11p.mve')!);
       expect(saved.audioMode).toMatchObject({
         rate: 44100,
-        tracks: [{ name: 'music', file: 'Task_11p audio/track-1.wav' }],
+        tracks: [
+          {
+            name: 'music',
+            clips: [{ file: expect.stringMatching(/^Task_11p audio\/clip-.+\.wav$/) }],
+          },
+        ],
       });
       expect(isDirty(state())).toBe(false);
       expect(app.audio.isDirty()).toBe(false);
@@ -741,11 +747,16 @@ describe('M4 app use cases', () => {
       });
       await app.open();
       const opened = app.audio.store.get().history.present.tracks;
-      const details = (t: (typeof tracks)[number]) => ({ ...t, channels: t.channels.length });
+      const details = (t: (typeof tracks)[number]) => ({
+        ...t,
+        clips: t.clips.map(({ source, ...c }) => ({ ...c, channels: source.length })),
+      });
       expect(opened.map(details)).toEqual(tracks.map(details));
-      // Exactly the same samples (a loop: toEqual on millions of samples is slow).
+      // Exactly the same samples, compared as bytes (toEqual on millions of samples is slow).
       const same = opened.every((t, i) =>
-        t.channels.every((c, ch) => c.every((v, j) => v === tracks[i]!.channels[ch]![j])),
+        t.clips.every((clip, k) =>
+          clip.source.every((c, ch) => sameSamples(c, tracks[i]!.clips[k]!.source[ch]!)),
+        ),
       );
       expect(same).toBe(true);
       expect(app.store.get().history.present).not.toHaveProperty('audioMode');
@@ -771,7 +782,7 @@ describe('M4 app use cases', () => {
       for (let i = 0; i < 10 && !first.disk.has('/cache/recovery.mve'); i++)
         await vi.advanceTimersByTimeAsync(10);
       const recovery = JSON.parse(first.disk.get('/cache/recovery.mve')!);
-      expect(recovery.audioMode.tracks[0].file).toBe('recovery audio/track-1.wav');
+      expect(recovery.audioMode.tracks[0].clips[0].file).toMatch(/^recovery audio\/clip-.+\.wav$/);
       expect(first.app.audio.isDirty()).toBe(true); // a recovery copy is not a save
       vi.useRealTimers();
 
@@ -798,9 +809,9 @@ describe('M4 app use cases', () => {
       await importAudio('/m/music.mp3');
       dialogs.chooseFolder.mockResolvedValueOnce('/usb/T');
       await app.packageProject();
-      expect(JSON.parse(disk.get('/usb/T/Untitled.mve')!).audioMode.tracks[0].file).toBe(
-        'Untitled audio/track-1.wav',
-      );
+      expect(
+        JSON.parse(disk.get('/usb/T/Untitled.mve')!).audioMode.tracks[0].clips[0].file,
+      ).toMatch(/^Untitled audio\/clip-.+\.wav$/);
       expect(app.audio.isDirty()).toBe(true); // packaging makes a copy, not a save
     });
   });

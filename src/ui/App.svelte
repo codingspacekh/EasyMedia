@@ -11,6 +11,7 @@
   import SnapshotDialog from './SnapshotDialog.svelte';
   import StatusBar from './StatusBar.svelte';
   import Timeline from './Timeline.svelte';
+  import Tooltip from './Tooltip.svelte';
   import AudioMode from './audio/AudioMode.svelte';
   import AudioStatusBar from './audio/AudioStatusBar.svelte';
   import AudioToolbar from './audio/AudioToolbar.svelte';
@@ -170,6 +171,7 @@
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
 </div>
+<Tooltip />
 
 <style>
   .app {

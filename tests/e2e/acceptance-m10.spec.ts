@@ -1,7 +1,7 @@
 // M10 exit gate: Audio mode coursebook tasks with the M10 effects, done through the real app's UI
 // (screens 15–19) and checked on the exported files.
 import { expect, test } from '@playwright/test';
-import { access, mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
@@ -286,13 +286,13 @@ test('P1 + P7 for Audio mode: saved with the project and opened again; closing w
   expect(
     await first.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
   ).toBe(1);
-  // Save: the project file and, next to it, the track's sound.
+  // Save: the project file and, next to it, the clip's sound.
   await answerDialogs(first.app, { save: project });
   await menu(first.app, 'File', 'Save');
   await expect
     .poll(() =>
-      access(join(dir, 'Task_11p audio', 'track-1.wav')).then(
-        () => true,
+      readdir(join(dir, 'Task_11p audio')).then(
+        (files) => files.some((f) => /^clip-.+\.wav$/.test(f)),
         () => false,
       ),
     )

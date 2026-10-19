@@ -6,6 +6,7 @@ import { trackDuration } from '../../../src/core/audio/pcm.ts';
 import { JobCancelledError } from '../../../src/core/model/errors.ts';
 import type { Dialogs, ProbeInfo } from '../../../src/core/ports.ts';
 import { defaultAudioExport } from '../../../src/core/render/audio-formats.ts';
+import { soundOf } from '../../helpers/samples.ts';
 
 const sound = (duration: number, channels = 2, sampleRate = 44100): ProbeInfo => ({
   kind: 'audio',
@@ -71,7 +72,7 @@ describe('A1 importing sound into Audio mode', () => {
     expect(doc().tracks).toHaveLength(1);
     const [track] = doc().tracks;
     expect(track!.name).toBe('Task_11j_audio_1');
-    expect(track!.channels).toHaveLength(2);
+    expect(track!.channelCount).toBe(2);
     expect(trackDuration(track!, 44100)).toBeCloseTo(4);
     expect(state().selection.tracks).toEqual([track!.id]);
     expect(state().history.past.map((c) => c.label)).toEqual(['Import Task_11j_audio_1.mp3']);
@@ -83,7 +84,7 @@ describe('A1 importing sound into Audio mode', () => {
     await importFiles('/m/voice.wav');
     expect(doc().tracks.map((t) => t.name)).toEqual(['Task_11j_audio_1', 'voice']);
     expect(trackDuration(doc().tracks[1]!, doc().rate)).toBeCloseTo(2);
-    expect(doc().tracks[1]!.channels).toHaveLength(1);
+    expect(soundOf(doc(), 1).channels).toHaveLength(1);
   });
 
   it('takes the sound of a video file; explains a file without sound', async () => {
@@ -214,11 +215,11 @@ describe('A5 cut, copy, paste, delete, trim, insert silence — and A18 undo', (
 
   it('undo and redo step back and forward through the edits', async () => {
     const s = await oneTrack();
-    const original = [...s.doc().tracks[0]!.channels[0]!];
+    const original = [...soundOf(s.doc(), 0).channels[0]!];
     s.audio.select({ start: 0, end: 1 });
     s.audio.deleteSelection();
     s.audio.undo();
-    expect([...s.doc().tracks[0]!.channels[0]!]).toEqual(original);
+    expect([...soundOf(s.doc(), 0).channels[0]!]).toEqual(original);
     s.audio.redo();
     expect(length(s)).toBeCloseTo(5, 5);
   });
@@ -228,15 +229,15 @@ describe('effects on the selection', () => {
   it('A3 Normalise with the defaults: −1 dB peak; undo restores the exact samples', async () => {
     const s = setup();
     await s.importFiles('/m/Task_11j_audio_1.mp3');
-    const before = [...s.doc().tracks[0]!.channels[0]!];
+    const before = [...soundOf(s.doc(), 0).channels[0]!];
     s.audio.selectAll();
     expect(
       s.audio.applyEffect('audio.normalise', s.audio.effectSettings('audio.normalise')),
     ).toBeNull();
-    expect(peak(s.doc().tracks[0]!.channels)).toBeCloseTo(0.891, 3);
+    expect(peak(soundOf(s.doc(), 0).channels)).toBeCloseTo(0.891, 3);
     expect(s.state().history.past.at(-1)!.label).toBe('Normalise 0.00 – 4.00 s');
     s.audio.undo();
-    expect([...s.doc().tracks[0]!.channels[0]!]).toEqual(before);
+    expect([...soundOf(s.doc(), 0).channels[0]!]).toEqual(before);
   });
 
   it('A4 Amplify suggests the largest gain without clipping and refuses to clip', async () => {
@@ -263,7 +264,7 @@ describe('effects on the selection', () => {
     await s.importFiles('/m/Task_11j_audio_1.mp3');
     s.audio.select({ start: 0, end: 1 });
     expect(s.audio.applyEffect('audio.fadein', {})).toBeNull();
-    expect(s.doc().tracks[0]!.channels[0]![0]).toBe(0);
+    expect(soundOf(s.doc(), 0).channels[0]![0]).toBe(0);
     expect(s.audio.applyEffect('audio.speed', { speed: 0, percent: -100 })).toMatch(/between/);
     expect(s.audio.applyEffect('audio.nothing', {})).toMatch(/not available/i);
   });
@@ -310,7 +311,7 @@ describe('effects on the selection', () => {
     s.audio.selectAll();
     const levels = s.audio.selectionLevels(10);
     expect(levels).toHaveLength(10);
-    const loudest = 20 * Math.log10(peak(s.doc().tracks[0]!.channels));
+    const loudest = 20 * Math.log10(peak(soundOf(s.doc(), 0).channels));
     expect(Math.max(...levels)).toBeCloseTo(loudest, 5);
     expect(Math.min(...levels)).toBeGreaterThanOrEqual(-60); // silence shows as −60 dB
   });
@@ -322,6 +323,151 @@ describe('effects on the selection', () => {
     s.audio.previewEffect('audio.amplify', { gain: -6, allowClipping: 0 });
     expect(s.played.at(-1)).toMatchObject({ seconds: 6, loop: false });
     expect(s.state().history.past).toHaveLength(1);
+  });
+});
+
+describe('clips, as on the video timeline: click, split, drag, trim, join, delete', () => {
+  async function music() {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_2.mp3'); // 6 s
+    return s;
+  }
+  const clips = (s: ReturnType<typeof setup>, track = 0) =>
+    [...s.doc().tracks[track]!.clips]
+      .sort((a, b) => a.offset - b.offset)
+      .map((c) => [c.offset, (c.out - c.in) / 44100]);
+
+  it('clicking a clip selects it, its track and its time (so effects and Copy use it)', async () => {
+    const s = await music();
+    const clip = s.doc().tracks[0]!.clips[0]!;
+    s.audio.selectClip(clip.id);
+    expect(s.state().clip).toBe(clip.id);
+    expect(s.state().selection).toEqual({ start: 0, end: 6, tracks: [s.doc().tracks[0]!.id] });
+    s.audio.select({ start: 1, end: 2 }); // dragging across the sound selects a part instead
+    expect(s.state().clip).toBeNull();
+  });
+
+  it('Split cuts the selected clip at the playhead; both halves can then be moved', async () => {
+    const s = await music();
+    s.audio.selectClip(s.doc().tracks[0]!.clips[0]!.id);
+    s.audio.setPosition(2);
+    s.audio.split();
+    expect(clips(s)).toEqual([
+      [0, 2],
+      [2, 4],
+    ]);
+    expect(s.state().history.past.at(-1)!.label).toBe('Split at 2.00 s');
+    const right = s.doc().tracks[0]!.clips.find((c) => c.offset === 2)!;
+    s.audio.moveClip(right.id, 3);
+    expect(clips(s)).toEqual([
+      [0, 2],
+      [3, 4],
+    ]);
+    expect(s.state().clip).toBe(right.id);
+  });
+
+  it('Split with no clip selected splits every track under the playhead', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3', '/m/Task_11j_audio_2.mp3');
+    s.audio.select({ start: 0, end: 0, tracks: [] });
+    s.audio.setPosition(3);
+    s.audio.split();
+    expect(s.doc().tracks.map((t) => t.clips.length)).toEqual([2, 2]);
+  });
+
+  it('Split with a selected part makes the part a clip of its own', async () => {
+    const s = await music();
+    s.audio.select({ start: 1, end: 2.5 });
+    s.audio.split();
+    expect(clips(s)).toEqual([
+      [0, 1],
+      [1, 1.5],
+      [2.5, 3.5],
+    ]);
+  });
+
+  it('Split away from any clip explains what to do', async () => {
+    const s = await music();
+    s.audio.setPosition(9);
+    s.audio.split();
+    expect(s.state().message).toEqual({
+      kind: 'error',
+      text: 'Move the playhead over a clip to split it.',
+    });
+  });
+
+  it('dragging an edge trims the clip; dragging it back out brings the sound back', async () => {
+    const s = await music();
+    const id = s.doc().tracks[0]!.clips[0]!.id;
+    s.audio.trimClip(id, 'start', 1);
+    s.audio.trimClip(id, 'end', 4);
+    expect(clips(s)).toEqual([[1, 3]]);
+    s.audio.trimClip(id, 'start', 0);
+    s.audio.trimClip(id, 'end', 10);
+    expect(clips(s)).toEqual([[0, 6]]);
+  });
+
+  it('Delete removes the selected clip and leaves its gap; undo brings it back', async () => {
+    const s = await music();
+    s.audio.setPosition(2);
+    s.audio.split();
+    s.audio.selectClip(s.doc().tracks[0]!.clips[0]!.id);
+    s.audio.deleteSelection();
+    expect(clips(s)).toEqual([[2, 4]]);
+    expect(s.state().clip).toBeNull();
+    await s.audio.undo();
+    expect(clips(s)).toHaveLength(2);
+    s.audio.deleteClip();
+    expect(s.state().message?.text).toMatch(/click a clip first/i);
+  });
+
+  it('Cut on a selected clip cuts it out (its gap stays); Paste puts it at the playhead', async () => {
+    const s = await music();
+    s.audio.setPosition(2);
+    s.audio.split();
+    s.audio.selectClip(s.doc().tracks[0]!.clips.find((c) => c.offset === 0)!.id);
+    s.audio.cut();
+    expect(clips(s)).toEqual([[2, 4]]);
+    s.audio.setPosition(6);
+    s.audio.selectClip(s.doc().tracks[0]!.clips[0]!.id);
+    s.audio.paste();
+    expect(clips(s)).toEqual([
+      [2, 4],
+      [6, 2],
+    ]);
+  });
+
+  it('Join puts a split clip back together; it needs a clip right after', async () => {
+    const s = await music();
+    s.audio.setPosition(2);
+    s.audio.split();
+    const left = s.doc().tracks[0]!.clips.find((c) => c.offset === 0)!.id;
+    s.audio.selectClip(left);
+    s.audio.join();
+    expect(clips(s)).toEqual([[0, 6]]);
+    s.audio.join();
+    expect(s.state().message?.text).toMatch(/no clip right after/i);
+  });
+
+  it('with a clip selected, Play starts at the playhead (as in Video mode)', async () => {
+    const s = await music();
+    s.audio.selectClip(s.doc().tracks[0]!.clips[0]!.id);
+    s.audio.setPosition(4);
+    s.audio.play();
+    expect(s.played.at(-1)).toMatchObject({ seconds: 2, loop: false });
+  });
+
+  it('a clip that would overlap another is not moved, and why is shown', async () => {
+    const s = await music();
+    s.audio.setPosition(2);
+    s.audio.split();
+    const right = s.doc().tracks[0]!.clips.find((c) => c.offset === 2)!.id;
+    s.audio.moveClip(right, 1);
+    expect(clips(s)).toEqual([
+      [0, 2],
+      [2, 4],
+    ]);
+    expect(s.state().message?.text).toMatch(/overlaps another clip/i);
   });
 });
 
@@ -340,7 +486,7 @@ describe('A2, A6, A15 Tracks menu', () => {
     expect(s.doc().tracks[0]!.id).toBe(second);
     s.audio.selectAll();
     s.audio.alignEndToEnd();
-    expect(s.doc().tracks[1]!.offset).toBeCloseTo(6);
+    expect(soundOf(s.doc(), 1).offset).toBeCloseTo(6);
     s.audio.mixAndRender();
     expect(s.doc().tracks).toHaveLength(1);
     expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(10);
@@ -363,25 +509,26 @@ describe('A2, A6, A15 Tracks menu', () => {
     const [a] = s.doc().tracks;
     s.audio.selectTrack(a!.id);
     s.audio.stereoToMono();
-    expect(s.doc().tracks[0]!.channels).toHaveLength(1);
+    expect(soundOf(s.doc(), 0).channels).toHaveLength(1);
     s.audio.select({ start: 2.5, end: 2.5 });
     s.audio.alignStart('cursor');
-    expect(s.doc().tracks[0]!.offset).toBe(2.5);
+    expect(soundOf(s.doc(), 0).offset).toBe(2.5);
     s.audio.alignStart('zero');
-    expect(s.doc().tracks[0]!.offset).toBe(0);
+    expect(soundOf(s.doc(), 0).offset).toBe(0);
   });
 
-  it('add a new empty track, remove tracks, time-shift a track', async () => {
+  it('add a new empty track, remove tracks, drag a clip along its track', async () => {
     const s = await twoTracks();
     s.audio.addTrack(2);
     expect(s.doc().tracks.at(-1)).toMatchObject({ name: 'Audio track 3' });
-    expect(s.doc().tracks.at(-1)!.channels).toHaveLength(2);
+    expect(soundOf(s.doc(), -1).channels).toHaveLength(2);
     s.audio.removeTracks();
     expect(s.doc().tracks).toHaveLength(2);
-    s.audio.timeShift(s.doc().tracks[1]!.id, 1.234567);
-    expect(s.doc().tracks[1]!.offset).toBeCloseTo(1.234567, 4);
-    s.audio.timeShift(s.doc().tracks[1]!.id, -3);
-    expect(s.doc().tracks[1]!.offset).toBe(0);
+    const clip = s.doc().tracks[1]!.clips[0]!.id;
+    s.audio.moveClip(clip, 1.234567);
+    expect(soundOf(s.doc(), 1).offset).toBeCloseTo(1.234567, 4);
+    s.audio.moveClip(clip, -3);
+    expect(soundOf(s.doc(), 1).offset).toBe(0);
   });
 
   it('gain, pan and name are undoable; mute and solo are not edits', async () => {

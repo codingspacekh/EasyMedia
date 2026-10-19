@@ -1,7 +1,7 @@
 // P1: reading and writing .mve project files (JSON).
 import { ProjectFileError } from '../model/errors.ts';
 import type { Project } from '../model/types.ts';
-import { DAMAGED, migrate, type ProjectDocument } from './migrate.ts';
+import { CURRENT_SCHEMA, DAMAGED, migrate, type ProjectDocument } from './migrate.ts';
 
 export function serializeProject(project: Project): string {
   return `${JSON.stringify(project, null, 2)}\n`;
@@ -34,7 +34,7 @@ const listOf = (v: unknown, check: (item: Obj) => boolean) =>
 function isProject(doc: ProjectDocument): doc is ProjectDocument & Project {
   const { settings, timeline } = doc;
   return (
-    doc.schemaVersion === 1 &&
+    doc.schemaVersion === CURRENT_SCHEMA &&
     isString(doc.name) &&
     isObject(settings) &&
     has(settings, ['width', 'height', 'fps'], isNumber) &&
@@ -58,9 +58,16 @@ function isAudioMode(a: unknown): boolean {
     listOf(
       a.tracks,
       (t) =>
-        has(t, ['id', 'name', 'file'], isString) &&
-        has(t, ['offset', 'gain', 'pan'], isNumber) &&
-        (t.bits === undefined || isNumber(t.bits)),
+        has(t, ['id', 'name'], isString) &&
+        has(t, ['gain', 'pan'], isNumber) &&
+        [t.bits, t.channels].every((n) => n === undefined || isNumber(n)) &&
+        listOf(
+          t.clips,
+          (c) =>
+            has(c, ['id', 'file'], isString) &&
+            isNumber(c.offset) &&
+            [c.in, c.out].every((n) => n === undefined || isNumber(n)),
+        ),
     )
   );
 }
