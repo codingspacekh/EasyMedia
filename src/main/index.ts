@@ -1,5 +1,5 @@
 // Electron main process (ARCHITECTURE §2).
-import { app, BrowserWindow, ipcMain, Menu, protocol, systemPreferences } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, protocol, shell, systemPreferences } from 'electron';
 import { execFile } from 'node:child_process';
 import { access, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
@@ -160,6 +160,14 @@ void app.whenReady().then(async () => {
         process.platform,
         (action) => sendToWindow(mainWindow, 'menu:action', action),
         !app.isPackaged,
+        // Installed: in the resources; in development: made by "npm run guides".
+        (guide) =>
+          void shell.openPath(
+            join(
+              app.isPackaged ? join(RESOURCES, 'guides') : join(APP_ROOT, 'build-info', 'guides'),
+              `${guide}.html`,
+            ),
+          ),
       ),
     ),
   );

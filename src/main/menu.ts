@@ -2,10 +2,14 @@
 import type { MenuItemConstructorOptions } from 'electron';
 import type { MenuAction } from '../preload/api.ts';
 
+export type Guide = 'user-guide' | 'teacher-notes';
+
 export function menuTemplate(
   platform: string,
   send: (action: MenuAction) => void,
   developer: boolean,
+  /** Opens a guide shipped with the app (a web page) in the browser. */
+  openGuide: (guide: Guide) => void = () => {},
 ): MenuItemConstructorOptions[] {
   const mac = platform === 'darwin';
   const item = (
@@ -63,7 +67,13 @@ export function menuTemplate(
     {
       label: 'Help',
       role: 'help',
-      submenu: [item('Welcome to EasyMedia', '', 'welcome'), item('Licences', '', 'licences')],
+      submenu: [
+        item('Welcome to EasyMedia', '', 'welcome'),
+        { label: 'User guide', click: () => openGuide('user-guide') },
+        { label: 'Teacher notes', click: () => openGuide('teacher-notes') },
+        { type: 'separator' },
+        item('Licences', '', 'licences'),
+      ],
     },
   ];
 }

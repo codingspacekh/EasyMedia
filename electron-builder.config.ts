@@ -22,6 +22,8 @@ const config: Configuration = {
     { from: 'THIRD_PARTY_LICENSES.txt', to: 'THIRD_PARTY_LICENSES.txt' },
     // Chromium's licences (the Mac build would otherwise leave them out).
     { from: 'node_modules/electron/dist/LICENSES.chromium.html', to: 'LICENSES.chromium.html' },
+    // Help ▸ User guide and Teacher notes (made by `npm run guides`).
+    { from: 'build-info/guides', to: 'guides' },
   ],
   win: {
     target: [

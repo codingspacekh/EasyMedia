@@ -12,12 +12,13 @@ describe('installers', () => {
     expect(config.files).toEqual(['out/**/*', 'dist/**/*', 'package.json']);
   });
 
-  it('every installer carries the licences', () => {
+  it('every installer carries the licences and the guides', () => {
     expect(resources(config.extraResources)).toEqual([
       'LICENSE → LICENSE.txt',
       'THIRD_PARTY_LICENSES.txt → THIRD_PARTY_LICENSES.txt',
       // Chromium's licences (the Mac build would otherwise leave them out).
       'node_modules/electron/dist/LICENSES.chromium.html → LICENSES.chromium.html',
+      'build-info/guides → guides',
     ]);
   });
 

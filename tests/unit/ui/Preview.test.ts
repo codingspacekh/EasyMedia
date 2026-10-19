@@ -160,3 +160,21 @@ describe('V13 music in the preview (Task 11e: "test the audio plays when the vid
     expect(audio.currentTime).toBeCloseTo(1, 5);
   });
 });
+
+describe('N10 Video mode keyboard', () => {
+  it('Space plays and pauses the preview (not while typing)', async () => {
+    const { app, importFiles } = testApp();
+    await importFiles('/m/photo.jpg');
+    app.addToTimeline(app.store.get().history.present.media[0]!.id);
+    render(Preview, { props: { app } });
+    const play = () => screen.getByRole('button', { name: /^(Play|Pause)$/ });
+    expect(play().getAttribute('aria-label')).toBe('Play');
+    await fireEvent.keyDown(window, { key: ' ' });
+    expect(play().getAttribute('aria-label')).toBe('Pause');
+    const box = document.body.appendChild(document.createElement('textarea'));
+    await fireEvent.keyDown(box, { key: ' ' });
+    expect(play().getAttribute('aria-label')).toBe('Pause');
+    await fireEvent.keyDown(window, { key: ' ' });
+    expect(play().getAttribute('aria-label')).toBe('Play');
+  });
+});

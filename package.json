@@ -29,8 +29,9 @@
     "app": "npm run build:app && electron .",
     "test:e2e": "playwright test",
     "licences": "node scripts/licences.ts",
-    "dist": "npm run build:app && npm run licences && npm run package",
-    "package": "node scripts/package.ts"
+    "dist": "npm run build:app && npm run licences && npm run guides && npm run package",
+    "package": "node scripts/package.ts",
+    "guides": "node scripts/guides.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -45,6 +46,7 @@
     "eslint-plugin-svelte": "3.23.0",
     "globals": "17.12.0",
     "jsdom": "30.1.1",
+    "marked": "18.0.14",
     "prettier": "3.9.9",
     "prettier-plugin-svelte": "4.1.1",
     "svelte": "5.57.1",

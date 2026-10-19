@@ -7,6 +7,7 @@
   import { drawText } from '../core/text/draw.ts';
   import { cssFont } from '../core/text/layout.ts';
   import Icon from './Icon.svelte';
+  import { shortcutAllowed } from './keys.ts';
   import PreviewLayer from './PreviewLayer.svelte';
   import PreviewSound from './PreviewSound.svelte';
   import { ui } from './ui-state.svelte.ts';
@@ -109,6 +110,14 @@
     playing = !playing && duration > 0;
   }
 </script>
+
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key !== ' ' || !shortcutAllowed(e)) return;
+    e.preventDefault();
+    togglePlay();
+  }}
+/>
 
 <section class="preview">
   <div class="top">

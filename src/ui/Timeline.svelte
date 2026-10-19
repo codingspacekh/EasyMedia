@@ -27,6 +27,7 @@
   import { withWhy } from '../core/effects/help.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import Icon from './Icon.svelte';
+  import { shortcutAllowed } from './keys.ts';
   import { ui } from './ui-state.svelte.ts';
 
   let { app }: { app: App } = $props();
@@ -220,6 +221,15 @@
     draggingId = null;
   }
 </script>
+
+<svelte:window
+  onkeydown={(e) => {
+    if ((e.key !== 'Delete' && e.key !== 'Backspace') || !shortcutAllowed(e)) return;
+    if (!$store.selection) return;
+    e.preventDefault();
+    app.removeSelected();
+  }}
+/>
 
 <section class="timeline">
   <div class="bar">

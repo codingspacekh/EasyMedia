@@ -54,10 +54,11 @@ jobs:
       - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
         shell: bash
         run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
-      - name: Build the app and its THIRD_PARTY_LICENSES
+      - name: Build the app, its THIRD_PARTY_LICENSES and its guides
         run: |
           npm run build:app
           npm run licences
+          npm run guides
       - name: End-to-end tests (real app)
         run: npm run test:e2e
       - name: Package the app and let the packaged app check itself (FFmpeg, pages, fonts)

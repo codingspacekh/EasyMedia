@@ -96,13 +96,18 @@ describe('X3 native menus', () => {
     expect(view(false)).not.toContain('toggleDevTools');
   });
 
-  it('Help ▸ Welcome and Help ▸ Licences go to the page (X7, README §16)', () => {
+  it('Help: Welcome and Licences go to the page; the guides open as web pages (M12)', () => {
     const send = vi.fn<(a: MenuAction) => void>();
-    for (const platform of ['darwin', 'win32']) {
-      const help = items(find(menuTemplate(platform, send, false), 'Help'));
-      expect(help.map((i) => i.label)).toEqual(['Welcome to EasyMedia', 'Licences']);
-      for (const i of help) (i.click as () => void)();
-    }
-    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'licences', 'welcome', 'licences']);
+    const open = vi.fn<(guide: 'user-guide' | 'teacher-notes') => void>();
+    const help = items(find(menuTemplate('win32', send, false, open), 'Help'));
+    expect(help.map((i) => i.label)).toEqual([
+      'Welcome to EasyMedia',
+      'User guide',
+      'Teacher notes',
+      'Licences',
+    ]);
+    for (const i of help) (i.click as () => void)();
+    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'licences']);
+    expect(open.mock.calls.map(([g]) => g)).toEqual(['user-guide', 'teacher-notes']);
   });
 });

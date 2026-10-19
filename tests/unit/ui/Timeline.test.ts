@@ -125,3 +125,20 @@ describe('timeline (main track)', () => {
     });
   });
 });
+
+describe('N10 Video mode keyboard', () => {
+  it('Delete (or Backspace) removes the selected clip; typing in a box does not', async () => {
+    const { app } = await withTwoItems();
+    render(Timeline, { props: { app } });
+    const main = () => app.store.get().history.present.timeline.main;
+    app.select(main()[1]!.id);
+    const box = document.body.appendChild(document.createElement('input'));
+    await fireEvent.keyDown(box, { key: 'Delete' });
+    expect(main()).toHaveLength(2);
+    await fireEvent.keyDown(window, { key: 'Delete' });
+    expect(main()).toHaveLength(1);
+    app.select(main()[0]!.id);
+    await fireEvent.keyDown(window, { key: 'Backspace' });
+    expect(main()).toHaveLength(0);
+  });
+});
