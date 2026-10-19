@@ -4,9 +4,9 @@
   import type { App } from '../app/app.ts';
   import { setText, setTextEffects, setTextStyle, setTitleBackground } from '../app/commands.ts';
   import type { Entrance, TextItem, TextStyle, TitleSlide } from '../core/model/types.ts';
-  import { FONTS } from '../core/text/fonts.ts';
   import { readability } from '../core/text/layout.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import FontPicker from './FontPicker.svelte';
   import TimeField from './TimeField.svelte';
   import Why from './Why.svelte';
 
@@ -72,18 +72,10 @@
       onchange={(e) => (error = app.edit(setText(item.id, e.currentTarget.value)))}></textarea>
   </label>
   <div class="grid2">
-    <label class="stack">
+    <div class="stack">
       Font
-      <select
-        aria-label="Font"
-        value={item.style.font}
-        onchange={(e) => style({ font: e.currentTarget.value })}
-      >
-        {#each FONTS as font (font.name)}
-          <option value={font.name}>{font.label}</option>
-        {/each}
-      </select>
-    </label>
+      <FontPicker value={item.style.font} onchange={(font) => style({ font })} />
+    </div>
     <label class="stack">
       Size
       <input

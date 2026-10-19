@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import Inspector from '../../../src/ui/Inspector.svelte';
 import App from '../../../src/ui/App.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
@@ -8,6 +8,14 @@ import { testApp } from '../../helpers/test-app.ts';
 const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement;
 const change = (name: string, value: string) =>
   fireEvent.change(field(name), { target: { value } });
+
+/** Opens the font chooser and picks a font by its name. */
+async function chooseFont(name: string) {
+  await fireEvent.click(screen.getByRole('button', { name: /^Font:/ }));
+  await fireEvent.click(
+    within(screen.getByRole('radiogroup', { name: 'Font' })).getByRole('radio', { name }),
+  );
+}
 
 function withCaption() {
   const t = testApp();
@@ -36,7 +44,7 @@ describe('text inspector (screens 02–04)', () => {
     const { item } = withCaption();
     expect(screen.getByText(/^Caption ·/)).toBeTruthy();
     await change('Text', 'Fish eagle\nat the lake');
-    await change('Font', 'Courier Prime');
+    await chooseFont('Courier Prime');
     await change('Size', '48');
     await fireEvent.change(field('Colour'), { target: { value: '#ffcc00' } });
     await fireEvent.click(field('Bold'));
@@ -45,6 +53,25 @@ describe('text inspector (screens 02–04)', () => {
       text: 'Fish eagle\nat the lake',
       style: { font: 'Courier Prime', size: 48, colour: '#ffcc00', bold: true, italic: true },
     });
+  });
+
+  it('X2 fonts are shown in groups, each name in its own letters; choosing one closes the list', async () => {
+    const { item } = withCaption();
+    const open = screen.getByRole('button', { name: 'Font: Inter' });
+    expect(open.getAttribute('aria-expanded')).toBe('false');
+    await fireEvent.click(open);
+    const list = screen.getByRole('radiogroup', { name: 'Font' });
+    for (const group of ['Sans-serif', 'Serif', 'Display', 'Handwriting', 'Typewriter & retro'])
+      expect(within(list).getByText(group)).toBeTruthy();
+    const lobster = within(list).getByRole('radio', { name: 'Lobster' });
+    expect(lobster.style.fontFamily).toMatch(/Lobster/);
+    expect(within(list).getByRole('radio', { name: 'Inter' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    await fireEvent.click(lobster);
+    expect(item().style.font).toBe('Lobster');
+    expect(screen.queryByRole('radiogroup', { name: 'Font' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Font: Lobster' })).toBeTruthy();
   });
 
   it('V4 places text with the 3 × 3 position grid and aligns its lines', async () => {

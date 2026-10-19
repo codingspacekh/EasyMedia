@@ -76,7 +76,7 @@ test('Book A 11.02: two-line Courier title, size 80, centred, 3 s — preview ma
   await answerDialogs(app, { exportTo: output });
   await page.getByRole('button', { name: 'Add title' }).click();
   await setText(page, 'Did you know that bees are very important\nto our world?');
-  await page.getByLabel('Font', { exact: true }).selectOption('Courier Prime');
+  await chooseFont(page, 'Courier Prime');
   await setSize(page, '80');
   await page.getByRole('button', { name: 'Align centre' }).click();
   await setTime(page, 'Duration', '3');
@@ -130,7 +130,7 @@ test('Book A 11.05: a black three-line Courier caption in the top-left corner of
     page,
     'Bees are very important pollinators\nfor fruits and vegetables.\nThey help them grow!',
   );
-  await page.getByLabel('Font', { exact: true }).selectOption('Courier Prime');
+  await chooseFont(page, 'Courier Prime');
   await setSize(page, '60');
   await page.getByLabel('Colour', { exact: true }).fill('#000000');
   await page.getByRole('button', { name: 'Top left' }).click();
@@ -272,7 +272,7 @@ test('Book B Activity 11a: 4:3 at 960 × 720, yellow 48 pt serif title over a pi
 
   await page.getByRole('button', { name: 'Add title' }).click();
   await setText(page, 'Diving in Cozumel, Mexico');
-  await page.getByLabel('Font', { exact: true }).selectOption('Noto Serif');
+  await chooseFont(page, 'Noto Serif');
   await setSize(page, '48');
   await page.getByLabel('Colour', { exact: true }).fill('#ffff00');
   await page.getByLabel('Background', { exact: true }).selectOption('image');
@@ -333,3 +333,12 @@ test('V11 choosing the part with the mouse: the saved picture is exactly the par
       a.at(x, y).forEach((v, i) => expect(Math.abs(v - b.at(x, y)[i]!)).toBeLessThan(12));
   await app.close();
 });
+
+/** X2: opens the font chooser and picks a font by its name. */
+async function chooseFont(page: Page, name: string) {
+  await page.getByRole('button', { name: /^Font:/ }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Font' })
+    .getByRole('radio', { name, exact: true })
+    .click();
+}
