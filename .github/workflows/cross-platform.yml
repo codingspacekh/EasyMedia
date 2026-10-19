@@ -28,7 +28,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Download the Electron binary (retried: the download sometimes fails)
+      - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
         shell: bash
         run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
       - run: npm run fetch:ffmpeg
@@ -62,7 +62,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Download the Electron binary (retried: the download sometimes fails)
+      - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
         shell: bash
         run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
       - run: npm run fetch:ffmpeg

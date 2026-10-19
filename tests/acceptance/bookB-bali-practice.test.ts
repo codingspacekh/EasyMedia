@@ -7,7 +7,7 @@
 // with no transition; the sound's times are read after its first 2 s are removed.
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, rename, rm, writeFile, copyFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp, type App } from '../../src/app/app.ts';
