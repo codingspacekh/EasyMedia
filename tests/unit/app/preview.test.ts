@@ -56,6 +56,8 @@ function state(assets: Record<string, AssetStatus>): AppState {
     selection: null,
     exporting: { state: 'idle' },
     message: null,
+    welcome: false,
+    licences: null,
   };
 }
 const ready: Record<string, AssetStatus> = {

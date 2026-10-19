@@ -82,6 +82,10 @@ export interface AppState {
   selection: Id | null;
   exporting: ExportState;
   message: { kind: 'error' | 'info'; text: string } | null;
+  /** X7: the Welcome is showing (on the first launch, or from Help ▸ Welcome). */
+  welcome: boolean;
+  /** Help ▸ Licences: the text of THIRD_PARTY_LICENSES while it is showing. */
+  licences: string | null;
 }
 
 export interface AppDeps {
@@ -135,6 +139,8 @@ export function createApp({
     selection: null,
     exporting: { state: 'idle' },
     message: null,
+    welcome: false,
+    licences: null,
   });
   const patch = (change: Partial<AppState>) => store.update((s) => ({ ...s, ...change }));
   const present = () => store.get().history.present;
@@ -400,6 +406,14 @@ export function createApp({
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
+      // X7: the Welcome, on the first launch only.
+      if (paths.preferences) {
+        const seen = await files
+          .read(paths.preferences)
+          .then((t) => JSON.parse(t).welcomeSeen === true)
+          .catch(() => false);
+        if (!seen) patch({ welcome: true });
+      }
       let text: string;
       try {
         text = await files.read(paths.recovery);
@@ -419,6 +433,34 @@ export function createApp({
       }
       await files.remove(paths.recovery).catch(() => {});
     },
+
+    showWelcome: () => patch({ welcome: true }),
+
+    /** Closes the Welcome; it does not show by itself again. */
+    async closeWelcome(): Promise<void> {
+      patch({ welcome: false });
+      if (paths.preferences)
+        await files
+          .write(paths.preferences, `${JSON.stringify({ welcomeSeen: true })}\n`)
+          .catch(() => {});
+    },
+
+    /** Help ▸ Licences: the third-party licences shipped with the app (README §16). */
+    async showLicences(): Promise<void> {
+      try {
+        if (!paths.licences) throw new Error('no licences file');
+        patch({ licences: await files.read(paths.licences) });
+      } catch {
+        patch({
+          message: {
+            kind: 'error',
+            text: 'The licences could not be found. They are in THIRD_PARTY_LICENSES.txt in the EasyMedia installer.',
+          },
+        });
+      }
+    },
+
+    closeLicences: () => patch({ licences: null }),
 
     async importMedia(): Promise<void> {
       const chosen = await dialogs.openMedia();

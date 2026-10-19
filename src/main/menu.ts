@@ -14,7 +14,7 @@ export function menuTemplate(
     action: MenuAction,
   ): MenuItemConstructorOptions => ({
     label,
-    accelerator,
+    ...(accelerator ? { accelerator } : {}),
     click: () => send(action),
   });
   return [
@@ -60,5 +60,10 @@ export function menuTemplate(
       ],
     },
     { role: 'windowMenu' },
+    {
+      label: 'Help',
+      role: 'help',
+      submenu: [item('Welcome to EasyMedia', '', 'welcome'), item('Licences', '', 'licences')],
+    },
   ];
 }

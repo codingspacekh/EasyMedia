@@ -25,6 +25,8 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
     package: app.packageProject,
     undo: () => (audio() ? app.audio.undo() : app.undo()),
     redo: () => (audio() ? app.audio.redo() : app.redo()),
+    welcome: app.showWelcome,
+    licences: app.showLicences,
     selectAll: () => {
       const box = inTextBox();
       if (box) box.select();

@@ -138,6 +138,11 @@ void app.whenReady().then(async () => {
       recovery: join(app.getPath('userData'), 'recovery.mve'),
       snapshots: join(app.getPath('userData'), 'snapshots'),
       learn,
+      preferences: join(app.getPath('userData'), 'preferences.json'),
+      // Installed: next to FFmpeg in the resources; in development: made by "npm run licences".
+      licences: app.isPackaged
+        ? join(RESOURCES, 'THIRD_PARTY_LICENSES.txt')
+        : join(APP_ROOT, 'THIRD_PARTY_LICENSES.txt'),
     },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
