@@ -15,7 +15,7 @@ import type { MainItem, MediaAsset, Project, TextItem } from '../../../src/core/
 import type { TextImage } from '../../../src/core/render/compile.ts';
 import { createNodeMediaEngine } from '../../../src/main/media/engine.ts';
 import { bundledFfmpeg, run } from '../helpers/ffmpeg.ts';
-import { measure, tinyFrame } from '../helpers/measure.ts';
+import { grayFrame, measure, tinyFrame } from '../helpers/measure.ts';
 
 const engine = createNodeMediaEngine(bundledFfmpeg());
 let dir: string;
@@ -23,6 +23,7 @@ let hd: MediaAsset;
 let photo: MediaAsset;
 let halfWhite: TextImage; // full frame, left half white, right half see-through
 let creditsBlock: TextImage; // 1920 × 200, all white
+let box: TextImage; // a 400 × 200 white box in the middle of a see-through frame
 
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'mve-render-text-'));
@@ -47,17 +48,18 @@ beforeAll(async () => {
     },
   );
   // A white rectangle padded with see-through pixels (drawbox would leave it see-through too).
-  const png = async (name: string, white: string, width: number, height: number) => {
+  const png = async (name: string, white: string, width: number, height: number, at = '0:0') => {
     const path = join(dir, name);
     await run(bundledFfmpeg().ffmpeg, [
       ...['-v', 'error', '-f', 'lavfi', '-i'],
-      `color=c=white:s=${white},format=rgba,pad=${width}:${height}:0:0:color=black@0`,
+      `color=c=white:s=${white},format=rgba,pad=${width}:${height}:${at}:color=black@0`,
       ...['-frames:v', '1', '-y', path],
     ]);
     return { path, width, height };
   };
   halfWhite = await png('half.png', '960x1080', 1920, 1080);
   creditsBlock = await png('block.png', '1920x200', 1920, 200);
+  box = { ...(await png('box.png', '400x200', 1920, 1080, '760:440')), anchor: { x: 960, y: 540 } };
 });
 afterAll(() => rm(dir, { recursive: true, force: true }));
 
@@ -131,5 +133,25 @@ describe('text in the exported video', () => {
     const [, , middle] = await rows(2);
     expect(middle).toBeGreaterThan(200);
     expect((await rows(0.2)).slice(0, 4).every((v) => v < 20)).toBe(true);
+  });
+
+  it('more text animations: zoom grows around the middle of the words, drop falls from above', async () => {
+    const caption = (entrance: 'zoom' | 'drop'): TextItem => ({
+      ...setItemDuration(createTextItem('caption', 'Box', 0, { id: 'c' }), 3),
+      entrance,
+    });
+    const zoom = await render([black(3)], [caption('zoom')], { c: box }, 'zoom.mp4');
+    const half = (await grayFrame(zoom, 0.5)).brightBox()!;
+    const full = (await grayFrame(zoom, 2)).brightBox()!;
+    expect(full.x1 - full.x0).toBeCloseTo(400, -1);
+    // At 0.5 s the zoom is 87.5 % of the way: 350 × 175, still centred on the middle.
+    expect(half.x1 - half.x0).toBeCloseTo(350, -1);
+    expect((half.x0 + half.x1) / 2).toBeCloseTo(960, -1);
+    expect((half.y0 + half.y1) / 2).toBeCloseTo(540, -1);
+
+    const drop = await render([black(3)], [caption('drop')], { c: box }, 'drop.mp4');
+    const falling = (await grayFrame(drop, 0.1)).brightBox();
+    expect(falling === null || falling.y1 < 440).toBe(true); // still above its place
+    expect((await grayFrame(drop, 2)).brightBox()!.y0).toBeCloseTo(440, -1);
   });
 });

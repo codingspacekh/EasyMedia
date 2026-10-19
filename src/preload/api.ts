@@ -68,6 +68,8 @@ export interface Channels {
   'dialog:confirm': { args: [message: string]; result: boolean };
   'dialog:chooseFolder': { args: [title: string]; result: string | null };
   'dialog:unsavedChanges': { args: []; result: 'save' | 'discard' | 'cancel' };
+  'dialog:openTaskCheck': { args: []; result: string | null };
+  'dialog:saveTaskCheck': { args: [suggestedName: string]; result: string | null };
   /** P7: the page's answer to app:closeRequested. */
   'app:closeAnswer': { args: [close: boolean]; result: null };
   'project:read': { args: [path: string]; result: string };
@@ -102,6 +104,8 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:confirm',
   'dialog:chooseFolder',
   'dialog:unsavedChanges',
+  'dialog:openTaskCheck',
+  'dialog:saveTaskCheck',
   'app:closeAnswer',
   'project:read',
   'project:write',
@@ -139,6 +143,8 @@ export interface Events {
 
 export interface MveApi {
   platform: string;
+  /** Where a file dropped on the page is on disk (Learn mode's inspector). */
+  pathForFile(file: File): string;
   invoke<C extends Channel>(
     channel: C,
     ...args: Channels[C]['args']

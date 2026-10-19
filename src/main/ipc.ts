@@ -126,6 +126,8 @@ export function registerIpc(s: MainServices): void {
     'dialog:exportAudio': (name, format) => s.dialogs.exportAudio(name, format),
     'dialog:confirm': (message) => s.dialogs.confirm(message),
     'dialog:unsavedChanges': () => s.dialogs.unsavedChanges(),
+    'dialog:openTaskCheck': () => s.dialogs.openTaskCheck(),
+    'dialog:saveTaskCheck': (name) => s.dialogs.saveTaskCheck(name),
     'app:closeAnswer': async (close) => {
       s.closeAnswer(close === true);
       return null;

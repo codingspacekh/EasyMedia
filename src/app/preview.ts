@@ -15,7 +15,7 @@ import type { Id, MainItem, PanZoomFrame, TextStyle } from '../core/model/types.
 import { previewFilter, transitionById } from '../core/effects/registry.ts';
 import { panZoomAt } from '../core/effects/panzoom.ts';
 import { textImageSize, type TextImageMode } from '../core/text/draw.ts';
-import type { Measure } from '../core/text/layout.ts';
+import { layoutText, type Measure } from '../core/text/layout.ts';
 import { textMotion } from '../core/text/motion.ts';
 import type { AppState } from './app.ts';
 
@@ -32,7 +32,7 @@ export interface PreviewLook {
 interface Extras {
   look?: PreviewLook;
   /** V9: the next clip coming in over this one during a transition. */
-  incoming?: { frame: PreviewFrame; progress: number; transition: string };
+  incoming?: { frame: PreviewFrame; progress: number; transition: string; xfade: string };
 }
 
 export type PreviewFrame =
@@ -59,12 +59,14 @@ export function previewAt(state: AppState, time: Seconds): PreviewFrame {
   if (frame.kind === 'empty' || !next || time < next.start) return frame;
   const overlap = transitionOverlap(main, hit.index + 1);
   if (overlap <= 0) return frame;
+  const kind = transitionById(next.item.transitionIn!.effectId);
   return {
     ...frame,
     incoming: {
       frame: frameOf(state, hit.index + 1, time - next.start),
       progress: (time - next.start) / overlap,
-      transition: transitionById(next.item.transitionIn!.effectId)?.label ?? 'Transition',
+      transition: kind?.label ?? 'Transition',
+      xfade: kind?.xfade ?? 'fade',
     },
   };
 }
@@ -146,6 +148,15 @@ export interface TextLayer {
   opacity: number;
   x: number;
   y: number;
+  /** Zoom entrances and exits: the size, around `anchor` (the middle of the words). */
+  scale: number;
+  anchor: { x: number; y: number };
+  /**
+   * Where the preview draws it: a title's words belong to its clip (`main`, or `incoming`
+   * during a transition into the next title), so they take part in the transition as in the
+   * export; captions, subtitles and credits go `over` the video.
+   */
+  slot: 'main' | 'incoming' | 'over';
 }
 
 /** The title's words, then captions, subtitles and credits showing at `time` (export order). */
@@ -154,10 +165,31 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
   const frame = { width: project.settings.width, height: project.settings.height };
   const layers: TextLayer[] = [];
   const hit = findMainItemAt(project.timeline.main, time);
-  const item = hit && project.timeline.main[hit.index];
-  if (hit && item?.type === 'title' && item.text.trim() !== '') {
-    const motion = textMotion(item, hit.offset, item.duration, frame);
-    layers.push({ id: item.id, text: item.text, style: item.style, mode: 'frame', ...motion });
+  const middle = (text: string, style: TextStyle) => {
+    const { box } = layoutText(text, style, frame, measure);
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const title = (i: number, offset: Seconds, slot: 'main' | 'incoming') => {
+    const it = project.timeline.main[i];
+    if (it?.type !== 'title' || it.text.trim() === '') return;
+    const motion = textMotion(it, offset, it.duration, frame);
+    const anchor = middle(it.text, it.style);
+    layers.push({
+      id: it.id,
+      text: it.text,
+      style: it.style,
+      mode: 'frame',
+      anchor,
+      slot,
+      ...motion,
+    });
+  };
+  if (hit) {
+    title(hit.index, hit.offset, 'main');
+    // During a transition the next item has already started.
+    const next = layoutMain(project.timeline.main)[hit.index + 1];
+    if (next && time >= next.start && transitionOverlap(project.timeline.main, hit.index + 1) > 0)
+      title(hit.index + 1, time - next.start, 'incoming');
   }
   for (const t of project.timeline.text) {
     if (time < t.start || time >= t.start + t.duration) continue;
@@ -167,7 +199,8 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
         ? { creditsHeight: textImageSize(t.text, t.style, frame, mode, measure).height }
         : undefined;
     const motion = textMotion(t, time - t.start, t.duration, frame, credits);
-    layers.push({ id: t.id, text: t.text, style: t.style, mode, ...motion });
+    const anchor = middle(t.text, t.style);
+    layers.push({ id: t.id, text: t.text, style: t.style, mode, anchor, slot: 'over', ...motion });
   }
   return layers;
 }

@@ -4,6 +4,8 @@ import { createAudioApp, SILENT_OUTPUT } from '../../../src/app/audio.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
 import { changeRefs } from '../../../src/core/audio/stored.ts';
 import type { Dialogs, UndoStore } from '../../../src/core/ports.ts';
+import type { AudioDoc } from '../../../src/core/audio/pcm.ts';
+import { soundOf } from '../../helpers/samples.ts';
 
 function memoryStore() {
   const files = new Map<string, Float32Array[]>();
@@ -49,9 +51,7 @@ async function setup(store = memoryStore()) {
   await audio.settled();
   return { audio, store, doc: () => audio.store.get().history.present };
 }
-const first = (doc: { tracks: readonly { channels: readonly Float32Array[] }[] }) => [
-  ...doc.tracks[0]!.channels[0]!,
-];
+const first = (doc: AudioDoc) => [...soundOf(doc, 0).channels[0]!];
 
 describe('undo steps on disk (as Audacity)', () => {
   it('clears what an earlier session left behind when it starts', async () => {
@@ -72,7 +72,7 @@ describe('undo steps on disk (as Audacity)', () => {
     expect(first(s.doc())).toEqual(before);
     await s.audio.settled();
     await s.audio.redo();
-    expect(s.doc().tracks[0]!.channels[0]!.length).toBe(0);
+    expect(soundOf(s.doc(), 0).channels[0]!.length).toBe(0);
   });
 
   it('steps that can no longer be redone are deleted from disk', async () => {
@@ -128,7 +128,7 @@ describe('undo steps on disk (as Audacity)', () => {
     await s.audio.settled();
     s.store.files.clear();
     await s.audio.undo();
-    expect(s.doc().tracks[0]!.channels[0]!.length).toBe(0);
+    expect(soundOf(s.doc(), 0).channels[0]!.length).toBe(0);
     expect(s.audio.store.get().message?.text).toMatch(/could not be undone/i);
   });
 });

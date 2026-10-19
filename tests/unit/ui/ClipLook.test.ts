@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import Inspector from '../../../src/ui/Inspector.svelte';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -78,16 +78,32 @@ describe('fades, filters, pan & zoom and transitions in the inspector (screens 0
 
   it('V9 sets the transition into the second clip and its length', async () => {
     const { item } = await twoClips(1);
-    await type('Transition', 'transition.fadeblack');
+    const picker = screen.getByRole('radiogroup', { name: 'Transition' });
+    await fireEvent.click(within(picker).getByRole('radio', { name: /Fade through black/ }));
     expect(item().transitionIn).toEqual({ effectId: 'transition.fadeblack', duration: 1 });
     await fireEvent.click(screen.getByRole('button', { name: '2 s' }));
     expect(item().transitionIn!.duration).toBe(2);
-    await type('Transition', 'none');
+    await fireEvent.click(within(picker).getByRole('radio', { name: /Clock wipe/ }));
+    expect(item().transitionIn).toEqual({ effectId: 'transition.clock', duration: 2 });
+    expect(
+      within(picker)
+        .getByRole('radio', { name: /Clock wipe/ })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    await fireEvent.click(within(picker).getByRole('radio', { name: /None \(cut\)/ }));
     expect(item().transitionIn).toBeUndefined();
+  });
+
+  it('V9 the transitions are shown in groups: fades, wipes, slides, shapes and fun', async () => {
+    await twoClips(1);
+    const picker = screen.getByRole('radiogroup', { name: 'Transition' });
+    for (const group of ['Fades', 'Wipes', 'Slides', 'Shapes', 'Fun'])
+      expect(within(picker).getByText(group)).toBeTruthy();
+    expect(within(picker).getAllByRole('radio').length).toBeGreaterThan(30);
   });
 
   it('the first clip has no transition into it', async () => {
     await twoClips(0);
-    expect(screen.queryByLabelText('Transition')).toBeNull();
+    expect(screen.queryByRole('radiogroup', { name: 'Transition' })).toBeNull();
   });
 });

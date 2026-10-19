@@ -76,6 +76,8 @@ void app.whenReady().then(async () => {
   const binaries = binaryPaths(RESOURCES, platformKey(process.platform, process.arch));
   const proxies = join(app.getPath('userData'), 'proxies');
   await mkdir(proxies, { recursive: true });
+  const learn = join(app.getPath('userData'), 'learn');
+  await mkdir(learn, { recursive: true });
   const allow = createAllowList();
   const hardware = await detectHardwareEncoder(process.platform, encoderTester(binaries.ffmpeg));
 
@@ -102,6 +104,7 @@ void app.whenReady().then(async () => {
       proxies,
       recovery: join(app.getPath('userData'), 'recovery.mve'),
       snapshots: join(app.getPath('userData'), 'snapshots'),
+      learn,
     },
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),

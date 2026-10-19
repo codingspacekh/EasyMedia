@@ -26,7 +26,7 @@ export function newId(): Id {
 
 export function createProject({ name }: { name: string }): Project {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name,
     settings: {
       aspect: '16:9',

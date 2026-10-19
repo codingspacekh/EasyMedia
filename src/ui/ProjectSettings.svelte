@@ -3,6 +3,7 @@
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
   import { setProjectSettings } from '../app/commands.ts';
+  import { WHY } from '../core/effects/help.ts';
   import type { ProjectSettings } from '../core/model/types.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
@@ -124,9 +125,8 @@
     </fieldset>
 
     <p class="why">
-      <b>Why does aspect ratio matter?</b> It is the ratio of the width of each frame to its height. 16:9
-      is used by almost all screens today. A 4:3 video shown on a 16:9 screen without black bars is stretched
-      and looks distorted.
+      <b>Why does aspect ratio matter?</b>
+      {WHY.aspectRatio}
     </p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 

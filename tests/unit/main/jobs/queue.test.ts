@@ -113,6 +113,52 @@ describe('N12 background job queue', () => {
     expect(calls).toEqual([`rm ${join('/out', 'proxy.partial-job-1.mp4')}`]);
   });
 
+  it('a job with fallback arguments tries them once when ffmpeg fails (regression: VideoToolbox at 426 × 240)', async () => {
+    const { queue, runs, events, calls } = setup();
+    const job = queue.run({
+      label: 'Export',
+      args: ['-c:v', 'h264_videotoolbox'],
+      fallbackArgs: ['-c:v', 'libx264'],
+      output: out,
+    });
+    await tick();
+    runs[0]!.finish(1, 'Cannot create compression session: -12903');
+    await tick();
+    await tick();
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.args).toContain('libx264');
+    expect(runs[1]!.args).not.toContain('h264_videotoolbox');
+    runs[1]!.finish(0);
+    await job.done;
+    expect(events).toEqual(['queued', 'started', 'progress 1', 'done']);
+    expect(calls).toEqual([
+      `rm ${join('/out', 'proxy.partial-job-1.mp4')}`,
+      `rename ${join('/out', 'proxy.partial-job-1.mp4')} → ${out}`,
+    ]);
+  });
+
+  it('if the fallback fails too, the job fails with its error', async () => {
+    const { queue, runs, events } = setup();
+    const job = queue.run({ label: 'Export', args: ['a'], fallbackArgs: ['b'], output: out });
+    await tick();
+    runs[0]!.finish(1, 'hardware busy');
+    await tick();
+    await tick();
+    runs[1]!.finish(1, 'No space left on device');
+    await expect(job.done).rejects.toThrow(/disk is full/);
+    expect(runs).toHaveLength(2);
+    expect(events).toEqual(['queued', 'started', 'error']);
+  });
+
+  it('a cancelled job is not tried again with its fallback', async () => {
+    const { queue, runs } = setup();
+    const job = queue.run({ label: 'Export', args: ['a'], fallbackArgs: ['b'], output: out });
+    await tick();
+    job.cancel();
+    await expect(job.done).rejects.toThrow(JobCancelledError);
+    expect(runs).toHaveLength(1);
+  });
+
   it('cancelling a running job stops ffmpeg and leaves no file behind', async () => {
     const { queue, runs, events, calls } = setup();
     const job = queue.run({ label: 'Proxy', args: [], output: out });

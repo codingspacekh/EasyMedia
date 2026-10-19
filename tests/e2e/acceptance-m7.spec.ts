@@ -86,7 +86,10 @@ test('Book A 11.06 + 11.09: fades between clips and a dissolve between two parts
   await setTime(page, 'Start point', '5');
   await setTime(page, 'End point', '10');
   await openTab(page, 'Effects');
-  await page.getByLabel('Transition', { exact: true }).selectOption('transition.dissolve');
+  await page
+    .getByRole('radiogroup', { name: 'Transition' })
+    .getByRole('radio', { name: 'Dissolve', exact: true })
+    .click();
   await expect(item(page, 2)).toContainText('⇄ 1.0 s');
   await exportTo(page, output);
 
@@ -161,7 +164,10 @@ test('Book B Task 11g: a 2-second transition between Naivasha1 (4.2 s) and Naiva
   await setTime(page, 'Start point', '8');
   await setTime(page, 'End point', '12.5');
   await openTab(page, 'Effects');
-  await page.getByLabel('Transition', { exact: true }).selectOption('transition.dissolve');
+  await page
+    .getByRole('radiogroup', { name: 'Transition' })
+    .getByRole('radio', { name: 'Dissolve', exact: true })
+    .click();
   await page.getByRole('button', { name: '2 s', exact: true }).click();
   await expect(page.getByText('00:00.00 / 00:06.70').first()).toBeVisible();
   await exportTo(page, output);

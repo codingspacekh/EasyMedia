@@ -18,7 +18,16 @@ export interface ProbeInfo {
   sizeBytes: number;
   /** Overall bit rate in bits per second. */
   bitRate?: number;
-  video?: { codec: string; width: number; height: number; fps?: number };
+  video?: {
+    codec: string;
+    width: number;
+    height: number;
+    fps?: number;
+    /** The video stream's own bit rate in bits per second (T1). */
+    bitRate?: number;
+    /** The shape it is shown at, when the file says so, e.g. "16:9" for a 720 × 576 DVD (T1). */
+    displayAspect?: string;
+  };
   audio?: {
     codec: string;
     sampleRate: number;
@@ -172,6 +181,10 @@ export interface Dialogs {
   chooseFolder(title: string): Promise<string | null>;
   /** P7: closing with unsaved work — Save, Don't save, or Cancel (keep working). */
   unsavedChanges(): Promise<'save' | 'discard' | 'cancel'>;
+  /** T6: a task check file (.mvetask) to open. */
+  openTaskCheck(): Promise<string | null>;
+  /** T6: where to save a task check for the students. */
+  saveTaskCheck(suggestedName: string): Promise<string | null>;
 }
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
@@ -194,6 +207,8 @@ export interface RenderedText {
   png: Uint8Array;
   width: number;
   height: number;
+  /** For a frame image: the middle of the words (zoom entrances and exits grow around it). */
+  anchor?: { x: number; y: number };
 }
 
 export interface AppPaths {
@@ -203,4 +218,6 @@ export interface AppPaths {
   recovery: string;
   /** Snapshots of a project that has not been saved yet (V10). */
   snapshots: string;
+  /** Learn mode's compression comparison files (T3), replaced each time. */
+  learn: string;
 }

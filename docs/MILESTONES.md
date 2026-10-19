@@ -486,17 +486,21 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 
 **Goal:** Learn mode and the remaining teaching features — screens 21–22.
 
-**Build order**
-1. Media inspector with explanations (T1).
-2. Audio file-size calculator with worked steps (T2).
-3. Sampling visualiser (T4).
-4. Compression comparison, audio and video (T3).
-5. Format guide (T7).
-6. Task checker for teachers (T6).
+**Build order** (the maths and texts in `core/teaching/`, pure and unit-tested; Learn mode never changes the project)
+1. Audio file-size calculator with worked steps and "What if…" rows (T2) — screen 21. MB = 1 000 000 bytes, as the books and the export dialogs.
+2. Sampling visualiser (T4) — screen 21: an analogue wave, a sample-count and a resolution slider, the stored (stepped) result, the sample table and how far it is from the original. The first wave is Book A's Figure 11.23, so 10 samples read 6, 8.5, 2.5, 8, 3.5, 2, 4.5, 3, 8.5, 3.5 (Activity 11.28).
+3. Media inspector with explanations (T1) — screen 21: choose or drop any file; container, codecs (lossy / lossless / uncompressed), resolution and aspect ratio, frame rate, video and audio bit rate, sample rate, bit depth, channels, duration, size; "File vs container". The probe gains the video stream's own bit rate and the display aspect ratio.
+4. Format guide (T7) — screen 22: every export format's compression, advantages, disadvantages and best use, from the same data as the export dialogs; video compression and quality (pixels per frame SD / HD / 4K, frame rate and length; Book B 11.1.19), with pictures at lower resolutions shown at the same size.
+5. Compression comparison, audio and video (T3) — screens 21–22: the first 10 s of the inspected file exported at several settings into the app's own folder (audio: WAV, FLAC, MP3 192 / 128 / 64 kbps; video: lossless, MP4 high, MP4 640 × 360, MP4 426 × 240), each with its real size and % saving, ready to play side by side. Reuses the export code (`encodeAudio`, `renderVideo`).
+6. Task checker for teachers (T6) — a third Learn tab (not in the design screens): the teacher sets the expected format, resolution, duration ± tolerance, channels and sample rate, and saves it as a small file to give to students; a student opens it and their export and sees pass / fail for each row.
+7. "Why use this?" on every editing tool (T5 completed): the tools that are not registry effects (trim, split, speed, clip sound, titles, captions, credits, resize & crop, cut / copy / paste / delete, silence, align, mix, mono, recording…) get one registry of syllabus point + why, shown from the "?" of their section, as the design screens show.
+8. Glossary (screens 21–22 *Glossary* button): the coursebooks' key words, written so that Book A's exam-style questions 1–6 can be answered from it.
 
 **Tests first**
 - Calculator: 44 100 Hz × 16-bit × mono × 120 s = 84 672 000 bits = 10.58 MB (Book A Question 5a); 32-bit doubles it (5b).
-- Sampling: quantising to 3 bits gives exactly 8 levels.
+- Sampling: quantising to 3 bits gives exactly 8 levels; Figure 11.23 sampled 10 times gives the book's table; 20 samples are closer to the original than 10 (Activity 11.28).
+- Media inspector: every row has an explanation; H.264 / AAC / MP3 are lossy, FLAC / PNG / FFV1 lossless, PCM uncompressed; 1920 × 1080 is 16:9.
+- Compression comparison: sizes and % saving from real files (integration test with FFmpeg); lossless is the biggest.
 - Task checker passes a correct export and fails one with the wrong resolution / duration / channel count.
 - Every editing tool links to a "why" text (registry test from M7 extended to non-effect tools).
 
@@ -552,6 +556,6 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M7 Effects & transitions | ✅ Done ([gate record](acceptance/M7.md)) — plus the layout redesign to match the design screens | 2026-10-15 | `v0.7.0` |
 | M8 Audio-in-video & export | ✅ Done ([gate record](acceptance/M8.md)) — plus split, join and speed for sound clips after the teacher's test | 2026-10-16 | `v0.8.0` |
 | M9 Audio editor core | ✅ Done ([gate record](acceptance/M9.md)) — undo steps on disk (as Audacity) to keep RAM in budget | 2026-10-17 | `v0.9.0` |
-| M10 Audio effects & recording | 🔶 Automated part done ([gate record](acceptance/M10.md)) — the teacher's check (real voiceover on Windows and Mac, listening) and CI on the pull request pending | | |
-| M11 Teaching layer | ☐ Not started | | |
+| M10 Audio effects & recording | ✅ Done ([gate record](acceptance/M10.md)) — Audio mode is saved with the project; pitch in TypeScript (SoundTouch's method) | 2026-10-18 | `v0.10.0` |
+| M11 Teaching layer | 🔶 Automated part done ([gate record](acceptance/M11.md)) — the teacher's check (Learn mode on Windows and Mac) and CI on the pull request pending | | |
 | M12 Hardening & v1.0 | ☐ Not started | | |

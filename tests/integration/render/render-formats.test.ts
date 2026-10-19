@@ -100,3 +100,20 @@ describe('V17 estimated file size', () => {
     expect(info.sizeBytes).toBeLessThan(estimateSize(format, 10, true).bytes);
   });
 });
+
+describe('a hardware encoder that cannot make the file', () => {
+  it('falls back to the software encoder (regression: VideoToolbox refused 426 × 240)', async () => {
+    // An encoder this FFmpeg does not have fails the first try on every computer.
+    const hardware = createNodeMediaEngine(bundledFfmpeg(), { videoEncoder: 'no_such_encoder' });
+    const file = join(dir, 'fallback.mp4');
+    const format: ExportSettings = {
+      ...defaultExport(project.settings),
+      width: 426,
+      height: 240,
+      quality: 'low',
+    };
+    await hardware.renderVideo(project, file, { projectDir: dir, format }).done;
+    const info = await engine.probe(file);
+    expect(info.video).toMatchObject({ codec: 'h264', width: 426, height: 240 });
+  });
+});

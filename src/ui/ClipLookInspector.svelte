@@ -12,11 +12,12 @@
   } from '../app/commands.ts';
   import { WHY } from '../core/effects/help.ts';
   import { PAN_ZOOM_PRESETS } from '../core/effects/panzoom.ts';
-  import { EFFECTS, effectById, transitionById, TRANSITIONS } from '../core/effects/registry.ts';
+  import { EFFECTS, effectById, transitionById } from '../core/effects/registry.ts';
   import { itemDuration } from '../core/model/timeline.ts';
   import type { MainItem, PanZoom, PanZoomFrame } from '../core/model/types.ts';
   import EffectParams from './EffectParams.svelte';
   import TimeField from './TimeField.svelte';
+  import TransitionPicker from './TransitionPicker.svelte';
 
   let { app, item, index }: { app: App; item: MainItem; index: number } = $props();
   let error: string | null = $state(null);
@@ -175,24 +176,13 @@
   {@const current = item.transitionIn}
   <section>
     <h3>Transition into this clip <span class="syl">11.1 transitions</span></h3>
-    <select
-      aria-label="Transition"
-      value={current?.effectId ?? 'none'}
-      onchange={(e) =>
+    <TransitionPicker
+      value={current?.effectId ?? null}
+      onchange={(id) =>
         edit(
-          setTransition(
-            item.id,
-            e.currentTarget.value === 'none'
-              ? null
-              : { effectId: e.currentTarget.value, duration: current?.duration ?? 1 },
-          ),
+          setTransition(item.id, id ? { effectId: id, duration: current?.duration ?? 1 } : null),
         )}
-    >
-      <option value="none">None (cut)</option>
-      {#each TRANSITIONS as t (t.id)}
-        <option value={t.id}>{t.label}</option>
-      {/each}
-    </select>
+    />
     {#if current}
       <TimeField
         label="Transition length"

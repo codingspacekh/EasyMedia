@@ -10,6 +10,7 @@ import {
 } from '../../src/core/render/audio-formats.ts';
 import { bundledFfmpeg, run } from '../integration/helpers/ffmpeg.ts';
 import { engine, projectFolder } from './helpers.ts';
+import { soundOf } from '../helpers/samples.ts';
 
 const PIANO = 'piano_stereo_60s.mp3'; // 11.05 Piano_track.mp3: louder burst at 39–40 s
 const SONG_DC = 'song_dc_offset_90s.mp3'; // Task_11j_audio_1.mp3 / Activity_11e_audio_1.mp3
@@ -78,26 +79,26 @@ describe('Book B Task 11j: normalise, add a clipped track before it, trim to 45 
     const s = session();
     // 11.2.1 Import Task_11j_audio_1.mp3; 11.2.2 Normalise with Remove DC offset.
     await s.open(SONG_DC);
-    const before = s.doc().tracks[0]!.channels[0]!;
+    const before = soundOf(s.doc(), 0).channels[0]!;
     expect(mean(before, 44100, 1, 5)).toBeGreaterThan(0.15); // it really has an offset
     s.audio.selectAll();
     expect(
       s.audio.applyEffect('audio.normalise', s.audio.effectSettings('audio.normalise')),
     ).toBeNull();
-    expect(Math.abs(mean(s.doc().tracks[0]!.channels[0]!, 44100, 1, 5))).toBeLessThan(0.01);
+    expect(Math.abs(mean(soundOf(s.doc(), 0).channels[0]!, 44100, 1, 5))).toBeLessThan(0.01);
     // 11.2.3 Add Task_11j_audio_2.mp3 as a new track; 11.2.4 keep only its first 19.1 s
     // (Audio position 19.100, selection 19.1 → 48 s, Cut).
     await s.open(SONG);
     s.audio.setPosition(19.1);
     s.pick('song_48s', 19.1, 48);
     s.audio.cut();
-    expect(s.doc().tracks[1]!.channels[0]!.length / 44100).toBeCloseTo(19.1, 5);
+    expect(soundOf(s.doc(), 1).channels[0]!.length / 44100).toBeCloseTo(19.1, 5);
     // 11.2.5 Move Track Up; Select All; Align End to End; Mix and Render; trim to 45 s.
     s.audio.moveTrack(-1);
     expect(s.doc().tracks.map((t) => t.name)).toEqual(['song_48s', 'song_dc_offset_90s']);
     s.audio.selectAll();
     s.audio.alignEndToEnd();
-    expect(s.doc().tracks[1]!.offset).toBeCloseTo(19.1, 5);
+    expect(soundOf(s.doc(), 1).offset).toBeCloseTo(19.1, 5);
     s.audio.mixAndRender();
     expect(s.doc().tracks).toHaveLength(1);
     s.audio.select({ start: 45, end: 200 });
@@ -109,7 +110,7 @@ describe('Book B Task 11j: normalise, add a clipped track before it, trim to 45 
     expect(s.audio.applyEffect('audio.fadeout', {})).toBeNull();
     // 11.2.7 Mix Stereo Down to Mono.
     s.audio.stereoToMono();
-    expect(s.doc().tracks[0]!.channels).toHaveLength(1);
+    expect(soundOf(s.doc(), 0).channels).toHaveLength(1);
     // 11.2.8 Amplify the quieter part from 19.1 s with the suggested gain, no clipping.
     s.audio.select({ start: 19.1, end: 40 });
     const suggested = s.audio.effectSettings('audio.amplify');
@@ -186,7 +187,7 @@ describe('Book A 11.16–11.19, 11.27, 11.29: the BeeProject soundtrack', () => 
     s.audio.select({ start: 0, end: 0, tracks: [second!.id] });
     s.audio.removeTracks();
     expect(s.doc().tracks).toHaveLength(1);
-    expect(s.doc().tracks[0]!.channels[0]!.length / 44100).toBeCloseTo(42, 5); // "about 50 s" in the book
+    expect(soundOf(s.doc(), 0).channels[0]!.length / 44100).toBeCloseTo(42, 5); // "about 50 s" in the book
     s.pick('piano_stereo_60s', 41, 60); // trim to the right length again (click the track first)
     s.audio.cut();
     expect(s.audio.store.get().message).toBeNull();
@@ -206,18 +207,18 @@ describe('Book A 11.16–11.19, 11.27, 11.29: the BeeProject soundtrack', () => 
   it('11.25 speed up the voiceover intro, then undo it: the samples are exactly as before', async () => {
     const s = session();
     await s.open(VOICE);
-    const original = s.doc().tracks[0]!.channels;
+    const original = soundOf(s.doc(), 0).channels;
     s.audio.selectAll();
     expect(s.audio.applyEffect('audio.speed', { speed: 1.5, percent: 50 })).toBeNull();
-    expect(s.doc().tracks[0]!.channels[0]!.length).toBe(Math.round(original[0]!.length / 1.5));
+    expect(soundOf(s.doc(), 0).channels[0]!.length).toBe(Math.round(original[0]!.length / 1.5));
     s.audio.undo();
-    expect(sameSamples(s.doc().tracks[0]!.channels, original)).toBe(true);
+    expect(sameSamples(soundOf(s.doc(), 0).channels, original)).toBe(true);
   });
 
   it('11.26 normalise to +2 dB and −1 dB, with and without DC offset; removing them all restores the sound', async () => {
     const s = session();
     await s.open(PIANO);
-    const original = s.doc().tracks[0]!.channels;
+    const original = soundOf(s.doc(), 0).channels;
     s.audio.selectAll();
     for (const [peakDb, removeDc] of [
       [2, 1],
@@ -229,9 +230,9 @@ describe('Book A 11.16–11.19, 11.27, 11.29: the BeeProject soundtrack', () => 
       if (peakDb > 0) expect(s.audio.effectNote('audio.normalise', params)).toMatch(/clipped/);
       expect(s.audio.applyEffect('audio.normalise', params)).toBeNull();
     }
-    expect(peak(s.doc().tracks[0]!.channels)).toBeCloseTo(0.891, 2);
+    expect(peak(soundOf(s.doc(), 0).channels)).toBeCloseTo(0.891, 2);
     for (let i = 0; i < 4; i++) s.audio.undo();
-    expect(sameSamples(s.doc().tracks[0]!.channels, original)).toBe(true);
+    expect(sameSamples(soundOf(s.doc(), 0).channels, original)).toBe(true);
   });
 });
 

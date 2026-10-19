@@ -79,7 +79,7 @@ describe('tracks and side panel', () => {
   it('a track can be removed from its header; an empty track says what to do', async () => {
     const t = await audioMode('/m/music.mp3');
     t.audio.addTrack(1);
-    await vi.waitFor(() => screen.getByText('Empty track: paste sound here'));
+    await vi.waitFor(() => screen.getByText('Empty track: paste or record sound here'));
     await fireEvent.click(screen.getByRole('button', { name: 'Remove track Audio track 2' }));
     expect(t.state().history.present.tracks.map((x) => x.name)).toEqual(['music']);
   });

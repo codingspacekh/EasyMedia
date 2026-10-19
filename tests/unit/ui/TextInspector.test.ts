@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import Inspector from '../../../src/ui/Inspector.svelte';
 import App from '../../../src/ui/App.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
@@ -8,6 +8,14 @@ import { testApp } from '../../helpers/test-app.ts';
 const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement;
 const change = (name: string, value: string) =>
   fireEvent.change(field(name), { target: { value } });
+
+/** Opens the font chooser and picks a font by its name. */
+async function chooseFont(name: string) {
+  await fireEvent.click(screen.getByRole('button', { name: /^Font:/ }));
+  await fireEvent.click(
+    within(screen.getByRole('radiogroup', { name: 'Font' })).getByRole('radio', { name }),
+  );
+}
 
 function withCaption() {
   const t = testApp();
@@ -36,7 +44,7 @@ describe('text inspector (screens 02–04)', () => {
     const { item } = withCaption();
     expect(screen.getByText(/^Caption ·/)).toBeTruthy();
     await change('Text', 'Fish eagle\nat the lake');
-    await change('Font', 'Courier Prime');
+    await chooseFont('Courier Prime');
     await change('Size', '48');
     await fireEvent.change(field('Colour'), { target: { value: '#ffcc00' } });
     await fireEvent.click(field('Bold'));
@@ -45,6 +53,25 @@ describe('text inspector (screens 02–04)', () => {
       text: 'Fish eagle\nat the lake',
       style: { font: 'Courier Prime', size: 48, colour: '#ffcc00', bold: true, italic: true },
     });
+  });
+
+  it('X2 fonts are shown in groups, each name in its own letters; choosing one closes the list', async () => {
+    const { item } = withCaption();
+    const open = screen.getByRole('button', { name: 'Font: Inter' });
+    expect(open.getAttribute('aria-expanded')).toBe('false');
+    await fireEvent.click(open);
+    const list = screen.getByRole('radiogroup', { name: 'Font' });
+    for (const group of ['Sans-serif', 'Serif', 'Display', 'Handwriting', 'Typewriter & retro'])
+      expect(within(list).getByText(group)).toBeTruthy();
+    const lobster = within(list).getByRole('radio', { name: 'Lobster' });
+    expect(lobster.style.fontFamily).toMatch(/Lobster/);
+    expect(within(list).getByRole('radio', { name: 'Inter' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    await fireEvent.click(lobster);
+    expect(item().style.font).toBe('Lobster');
+    expect(screen.queryByRole('radiogroup', { name: 'Font' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Font: Lobster' })).toBeTruthy();
   });
 
   it('V4 places text with the 3 × 3 position grid and aligns its lines', async () => {
@@ -75,8 +102,39 @@ describe('text inspector (screens 02–04)', () => {
     const { item } = withCaption();
     expect(field('Shadow').checked).toBe(true);
     await fireEvent.click(field('Outline'));
-    await fireEvent.click(field('Dark box'));
+    await fireEvent.click(field('Box'));
     expect(item().style).toMatchObject({ shadow: true, outline: true, box: true });
+  });
+
+  it('text looks: one click gives the words a ready-made look; the chosen look is marked', async () => {
+    const { item } = withCaption();
+    const looks = screen.getByRole('group', { name: 'Text look' });
+    expect(within(looks).getAllByRole('button').length).toBeGreaterThanOrEqual(12);
+    await fireEvent.click(within(looks).getByRole('button', { name: 'Gold' }));
+    expect(item().style).toMatchObject({ gradient: true, accent: '#c8901a', outline: true });
+    expect(within(looks).getByRole('button', { name: 'Gold' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+  });
+
+  it('effects by hand: glow, gradient and 3D with a second colour; outline and box colours', async () => {
+    const { item } = withCaption();
+    await fireEvent.click(field('Glow'));
+    await fireEvent.click(field('Gradient'));
+    await fireEvent.click(field('3D'));
+    await fireEvent.change(field('Second colour'), { target: { value: '#ff3b1f' } });
+    await fireEvent.click(field('Outline'));
+    await fireEvent.change(field('Outline colour'), { target: { value: '#7c3aed' } });
+    await fireEvent.click(field('Box'));
+    await fireEvent.change(field('Box colour'), { target: { value: '#ffd400' } });
+    expect(item().style).toMatchObject({
+      glow: true,
+      gradient: true,
+      depth: true,
+      accent: '#ff3b1f',
+      outlineColour: '#7c3aed',
+      boxColour: '#ffd400',
+    });
   });
 
   it('V7 fades text in and out and gives it an entrance', async () => {
@@ -85,6 +143,19 @@ describe('text inspector (screens 02–04)', () => {
     await change('Text fade out', '1');
     await change('Entrance', 'fly-left');
     expect(item()).toMatchObject({ fadeIn: 0.5, fadeOut: 1, entrance: 'fly-left' });
+  });
+
+  it('more animations: entrances such as drop or pop, and an exit in the last second', async () => {
+    const { item } = withCaption();
+    const entrances = [...(field('Entrance') as unknown as HTMLSelectElement).options];
+    expect(entrances.map((o) => o.textContent)).toEqual(
+      expect.arrayContaining(['Rise and fade in', 'Drop and bounce', 'Zoom in', 'Pop']),
+    );
+    await change('Entrance', 'pop');
+    await change('Exit', 'zoom');
+    expect(item()).toMatchObject({ entrance: 'pop', exit: 'zoom' });
+    await change('Exit', 'none');
+    expect(item().exit).toBe('none');
   });
 
   it('credits can stop scrolling', async () => {

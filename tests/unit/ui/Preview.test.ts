@@ -103,6 +103,28 @@ describe('preview player', () => {
     expect(incoming.getAttribute('aria-label')).toBe('Dissolve');
     expect(document.querySelectorAll('img')).toHaveLength(2);
   });
+
+  it('V9 the preview shows each kind of transition: a wipe uncovers, a push moves both clips', async () => {
+    const { app, importFiles } = testApp();
+    await importFiles('/m/photo.jpg');
+    const photo = app.store.get().history.present.media[0]!.id;
+    app.addToTimeline(photo);
+    app.addToTimeline(photo);
+    const second = app.store.get().history.present.timeline.main[1]!.id;
+    app.edit(setTransition(second, { effectId: 'transition.wipeleft', duration: 2 }));
+    app.setPlayhead(3.5);
+    render(Preview, { props: { app } });
+    const incoming = document.querySelector('.incoming') as HTMLElement;
+    expect(incoming.style.clipPath).toBe('inset(0 0 0 75%)');
+    expect(incoming.style.opacity).toBe('');
+    app.edit(setTransition(second, { effectId: 'transition.slide', duration: 2 }));
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r));
+    expect(incoming.style.transform).toBe('translate(75%, 0)');
+    expect((document.querySelector('.outgoing') as HTMLElement).style.transform).toBe(
+      'translate(-25%, 0)',
+    );
+  });
 });
 
 describe('V13 music in the preview (Task 11e: "test the audio plays when the video is played")', () => {

@@ -9,6 +9,7 @@ import {
   removeItem,
 } from './commands.ts';
 import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
+import { createLearnApp } from './learn.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
 import { proxyPathFor } from './proxy-path.ts';
 import { createStore, type Store } from './store.ts';
@@ -359,8 +360,18 @@ export function createApp({
     ];
     const images: Record<Id, TextImage> = {};
     for (const item of wanted) {
-      const { png, width, height } = await text.draw(item.text, item.style, frame, item.mode);
-      images[item.id] = { path: await files.saveImage(`text-${item.id}`, png), width, height };
+      const { png, width, height, anchor } = await text.draw(
+        item.text,
+        item.style,
+        frame,
+        item.mode,
+      );
+      images[item.id] = {
+        path: await files.saveImage(`text-${item.id}`, png),
+        width,
+        height,
+        ...(anchor ? { anchor } : {}),
+      };
     }
     return images;
   }
@@ -373,6 +384,9 @@ export function createApp({
     ...(audioUndoStore ? { undoStore: audioUndoStore } : {}),
     ...(audioRecorder ? { recorder: audioRecorder } : {}),
   });
+  /** Learn mode (T1, T3, T6): never changes the project. */
+  const learn = createLearnApp({ engine, dialogs, files, paths });
+
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
   audio.store.subscribe(() => {
     if (audio.isDirty() !== store.get().audioDirty) syncAudioDirty();
@@ -382,6 +396,7 @@ export function createApp({
     store,
 
     audio,
+    learn,
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {

@@ -40,8 +40,12 @@ export interface EffectDef extends Described {
 }
 
 /** A transition between two clips (V9), made with FFmpeg's xfade. */
+/** Where a transition sits in the picker. */
+export type TransitionGroup = 'Fades' | 'Wipes' | 'Slides' | 'Shapes' | 'Fun';
+
 export interface TransitionDef extends Described {
   xfade: string;
+  group: TransitionGroup;
 }
 
 /** Where an audio effect sits in the Effect menu (screen 13). */

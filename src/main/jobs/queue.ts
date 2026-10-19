@@ -16,6 +16,11 @@ export interface JobSpec {
   output: string;
   /** Length of the result, for progress. */
   duration?: Seconds;
+  /**
+   * Tried once, as the same job, if FFmpeg fails with `args`: e.g. the software encoder when a
+   * hardware encoder cannot make this picture size (VideoToolbox refuses 426 × 240).
+   */
+  fallbackArgs?: string[];
   /** Runs just before FFmpeg starts, e.g. to write its input file; if it fails, so does the job. */
   prepare?: () => Promise<void>;
   /** Runs once the job has ended in any way (before `done` settles), e.g. to remove that input. */
@@ -133,7 +138,7 @@ export function createJobQueue({
     }
   }
 
-  async function runFfmpeg(job: Job): Promise<void> {
+  async function runFfmpeg(job: Job, args = job.spec.args): Promise<void> {
     const temp = tempPathFor(job.spec.output, job.id);
     let last = 0;
     const progress = (ratio: number) => {
@@ -142,7 +147,7 @@ export function createJobQueue({
     };
     const child = run(
       ffmpeg,
-      [...QUIET_WITH_PROGRESS, ...job.spec.args, temp],
+      [...QUIET_WITH_PROGRESS, ...args, temp],
       createProgressParser(job.spec.duration ?? 0, progress),
     );
     job.kill = child.kill;
@@ -158,6 +163,8 @@ export function createJobQueue({
       job.resolve();
     } else {
       await fs.rm(temp);
+      const { fallbackArgs } = job.spec;
+      if (fallbackArgs && args !== fallbackArgs) return runFfmpeg(job, fallbackArgs);
       const error = explainFfmpegError(stderr);
       emit({ type: 'error', ...base(job), message: error.message });
       job.reject(error);

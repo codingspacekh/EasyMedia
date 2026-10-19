@@ -44,9 +44,12 @@ function edited(): AudioHistory {
     tracks: [createTrack({ id: 'a', name: 'A', channels: [ramp(1000), ramp(1000)] })],
   };
   let h = createAudioHistory(doc);
-  h = editAudio(h, 'Silence', (tx) => tx.splice('a', 0, 500, silence(500, 2))); // keeps 500 × 2
-  h = editAudio(h, 'Tiny', (tx) => tx.splice('a', 0, 2, silence(2, 2))); // keeps 2 × 2
-  h = editAudio(h, 'Mono', (tx) => tx.setChannels('a', [ramp(1000)])); // keeps the stereo
+  h = editAudio(h, 'Silence', (tx) => tx.splice('a.c', 0, 500, silence(500, 2))); // keeps 500 × 2
+  h = editAudio(h, 'Tiny', (tx) => tx.splice('a.c', 0, 2, silence(2, 2))); // keeps 2 × 2
+  h = editAudio(h, 'Mono', (tx) => {
+    tx.setSource('a.c', [ramp(1000)]);
+    tx.setMeta('a', { channelCount: 1 });
+  }); // keeps the stereo
   h = editAudio(h, 'Remove', (tx) => tx.removeTrack('a')); // keeps the whole track
   return h;
 }
@@ -78,7 +81,7 @@ describe('undo steps on disk', () => {
       h = replaceChange(h, h.past.at(-1)!, await loadChange(h.past.at(-1)!, d.load));
       h = undoAudio(h);
     }
-    expect(samples(h.present.tracks[0]!.channels)).toEqual([
+    expect(samples(h.present.tracks[0]!.clips[0]!.source)).toEqual([
       samples([ramp(1000)])[0],
       samples([ramp(1000)])[0],
     ]);
@@ -89,6 +92,25 @@ describe('undo steps on disk', () => {
       h = redoAudio(h);
     }
     expect(h.present.tracks).toEqual([]);
+  });
+
+  it('a removed track keeps the samples of each of its clips (on disk when large)', async () => {
+    const track = createTrack({ id: 'a', name: 'A', channels: [ramp(1000)] });
+    const doc = {
+      rate: 10,
+      tracks: [{ ...track, clips: [...track.clips, { ...track.clips[0]!, id: 'b', offset: 200 }] }],
+    };
+    const h = editAudio(createAudioHistory(doc), 'Remove', (tx) => tx.removeTrack('a'));
+    const d = disk();
+    const stored = await stashChange(h.past[0]!, d.save, 100);
+    expect(changeRefs(stored)).toHaveLength(2);
+    const back = undoAudio(replaceChange(h, h.past[0]!, await loadChange(stored, d.load)));
+    expect(back.present.tracks[0]!.clips.map((c) => [c.id, c.offset, c.source[0]!.length])).toEqual(
+      [
+        ['a.c', 0, 1000],
+        ['b', 200, 1000],
+      ],
+    );
   });
 
   it('lists every file the history still needs', async () => {

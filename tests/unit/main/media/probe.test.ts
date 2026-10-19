@@ -155,6 +155,25 @@ describe('T1 parseProbe: what is inside a media file', () => {
     ).toBe(29.97);
   });
 
+  it("T1 reads the video stream's own bit rate, apart from the whole file's", () => {
+    const info = parseProbe({
+      format: fmt('mov,mp4,m4a,3gp,3g2,mj2'),
+      streams: [{ ...h264, bit_rate: '4800000' }, aac],
+    });
+    expect(info.video!.bitRate).toBe(4_800_000);
+    expect(info.bitRate).toBe(5819606);
+  });
+
+  it('T1 reads the shape a video is shown at: a 720 × 576 DVD shown as 16:9', () => {
+    const dvd = { ...h264, width: 720, height: 576 };
+    const shown = (display_aspect_ratio?: string) =>
+      parseProbe({ format: fmt('mpeg'), streams: [{ ...dvd, display_aspect_ratio }] }).video!
+        .displayAspect;
+    expect(shown('16:9')).toBe('16:9');
+    expect(shown('0:1')).toBeUndefined(); // ffprobe's "not known"
+    expect(shown(undefined)).toBeUndefined();
+  });
+
   it('refuses a file with no picture or sound', () => {
     expect(() => parseProbe({ format: fmt('mp3'), streams: [] })).toThrow(MediaError);
     expect(() => parseProbe({ format: fmt('mp3'), streams: [] })).toThrow(/no picture or sound/i);

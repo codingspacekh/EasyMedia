@@ -12,7 +12,12 @@ import {
   createTitleSlide,
   createVideoClip,
 } from '../../../src/core/model/factory.ts';
-import { setItemDuration, setVideoSpeed, trimVideo } from '../../../src/core/model/timeline.ts';
+import {
+  layoutMain,
+  setItemDuration,
+  setVideoSpeed,
+  trimVideo,
+} from '../../../src/core/model/timeline.ts';
 import type { MainItem } from '../../../src/core/model/types.ts';
 
 const lake = createMediaAsset({
@@ -147,6 +152,51 @@ describe('text drawn over the preview (same pictures as the export)', () => {
     ]);
   });
 
+  it('a zooming caption is scaled around the middle of its words', () => {
+    const s = withText();
+    const project = s.history.present;
+    const zooming = {
+      ...s,
+      history: createHistory({
+        ...project,
+        timeline: {
+          ...project.timeline,
+          text: [{ ...project.timeline.text[0]!, entrance: 'zoom' as const }],
+        },
+      }),
+    };
+    const [caption] = textLayersAt(zooming, 2.5, measure);
+    expect(caption!.scale).toBe(0.875);
+    // A caption starts at the top left: its middle is there too, not in the frame's middle.
+    expect(caption!.anchor.x).toBeLessThan(400);
+    expect(caption!.anchor.y).toBeLessThan(200);
+  });
+
+  it("during a transition the next title's words come in with it (on the incoming layer)", () => {
+    const s = withText();
+    const project = s.history.present;
+    const [first] = project.timeline.main;
+    const second = {
+      ...first!,
+      id: 't2',
+      text: 'Next',
+      transitionIn: { effectId: 'transition.clock', duration: 1 },
+    };
+    const two = {
+      ...s,
+      history: createHistory({
+        ...project,
+        timeline: { ...project.timeline, main: [first!, second], text: [] },
+      }),
+    };
+    const start = layoutMain(two.history.present.timeline.main)[1]!.start;
+    const layers = textLayersAt(two, start + 0.5, measure);
+    expect(layers.map((l) => [l.id, l.slot])).toEqual([
+      ['t', 'main'],
+      ['t2', 'incoming'],
+    ]);
+  });
+
   it('shows captions only during their time, in timeline order after the title', () => {
     expect(textLayersAt(withText(), 1.9, measure).map((l) => l.id)).toEqual(['t']);
     expect(textLayersAt(withText(), 3, measure).map((l) => l.id)).toEqual(['cap']);
@@ -247,6 +297,7 @@ describe('looks in the preview (V7, V8, V9, V15 — approximate)', () => {
       frame: { kind: 'image', src: toMediaUrl('/m/photo.jpg'), itemId: 'i' },
       progress: 0.25,
       transition: 'Dissolve',
+      xfade: 'fade',
     });
     expect(previewAt(s, 2.5)).not.toHaveProperty('incoming');
   });

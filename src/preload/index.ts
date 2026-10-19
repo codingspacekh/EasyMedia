@@ -1,12 +1,13 @@
 // Preload (P2, ARCHITECTURE §2): the only bridge between the page and the main process.
 // Runs sandboxed; the page sees exactly one object, window.mve, with a fixed set of channels.
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { CHANNELS, type Events, type MveApi } from './api.ts';
 
 const EVENTS: readonly (keyof Events)[] = ['job:event', 'menu:action', 'app:closeRequested'];
 
 const api: MveApi = {
   platform: process.platform,
+  pathForFile: (file) => webUtils.getPathForFile(file),
   invoke: (channel, ...args) =>
     CHANNELS.includes(channel)
       ? ipcRenderer.invoke(channel, ...args)

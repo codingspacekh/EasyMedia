@@ -6,6 +6,7 @@ import App from '../../../src/ui/App.svelte';
 import type { ProbeInfo } from '../../../src/core/ports.ts';
 import { audioUi } from '../../../src/ui/audio/audio-ui.svelte.ts';
 import { testApp } from '../../helpers/test-app.ts';
+import { soundOf } from '../../helpers/samples.ts';
 
 const SOUND: ProbeInfo = {
   kind: 'audio',
@@ -55,15 +56,7 @@ const menuItem = async (menu: 'Tracks' | 'Effect', item: string | RegExp) => {
 describe('Audio mode layout', () => {
   it('shows the audio toolbar and asks for a sound first', async () => {
     await audioMode();
-    for (const name of [
-      'Play',
-      'Stop',
-      'Selection tool',
-      'Time shift tool',
-      'Cut',
-      'Copy',
-      'Paste',
-    ])
+    for (const name of ['Play', 'Stop', 'Clip tool', 'Selection tool', 'Cut', 'Copy', 'Paste'])
       expect(screen.getByRole('button', { name })).toBeTruthy();
     expect(screen.getByText(/import a sound/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Add title' })).toBeNull();
@@ -128,10 +121,10 @@ describe('A5 editing from the toolbar, A18 undo and History', () => {
     await typeTime('Selection start', '1');
     await typeTime('Selection end', '3');
     await fireEvent.click(screen.getByRole('button', { name: 'Cut' }));
-    expect(t.doc().tracks[0]!.channels[0]!.length).toBe(2 * 44100);
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(2 * 44100);
     expect(screen.getByText('Cut 1.00 – 3.00 s')).toBeTruthy();
     await fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(t.doc().tracks[0]!.channels[0]!.length).toBe(4 * 44100);
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(4 * 44100);
   });
 
   it('a refused edit is explained in the status bar', async () => {
@@ -147,7 +140,7 @@ describe('A5 editing from the toolbar, A18 undo and History', () => {
     const dialog = screen.getByRole('dialog', { name: 'Insert silence' });
     await fireEvent.change(within(dialog).getByLabelText('Length'), { target: { value: '0.5' } });
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
-    expect(t.doc().tracks[0]!.channels[0]!.length).toBe(4.5 * 44100);
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(4.5 * 44100);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
@@ -167,7 +160,7 @@ describe('A2, A6, A15 Tracks menu', () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3', '/m/Voiceover_3.wav');
     t.audio.selectAll();
     await menuItem('Tracks', 'Align end to end');
-    expect(t.doc().tracks[1]!.offset).toBe(4);
+    expect(soundOf(t.doc(), 1).offset).toBe(4);
     await menuItem('Tracks', 'Mix and render');
     expect(t.doc().tracks).toHaveLength(1);
   });
@@ -177,7 +170,7 @@ describe('A2, A6, A15 Tracks menu', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Tracks' }));
     expect(screen.getByRole('menu').textContent).toMatch(/1 track selected/i);
     await fireEvent.click(screen.getByRole('menuitem', { name: /mix stereo down to mono/i }));
-    expect(t.doc().tracks[0]!.channels).toHaveLength(1);
+    expect(soundOf(t.doc(), 0).channels).toHaveLength(1);
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
@@ -194,7 +187,7 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3');
     await typeTime('Selection end', '3');
     await menuItem('Effect', 'Fade in');
-    expect(t.doc().tracks[0]!.channels[0]![0]).toBe(0);
+    expect(soundOf(t.doc(), 0).channels[0]![0]).toBe(0);
     expect(screen.getByText('Fade in 0.00 – 3.00 s')).toBeTruthy();
   });
 
@@ -247,7 +240,7 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     expect((within(dialog).getByLabelText('Percent change') as HTMLInputElement).value).toBe('100');
     expect(within(dialog).getByText('Length: 4.00 s → 2.00 s')).toBeTruthy();
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
-    expect(t.doc().tracks[0]!.channels[0]!.length).toBe(2 * 44100);
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(2 * 44100);
   });
 
   it('A13 Noise reduction: step 1 takes the profile and closes; step 2 shows it and reduces', async () => {
@@ -354,18 +347,76 @@ describe('tracks: mute, solo, gain, pan; selecting and time-shifting with the mo
     expect(t.state()).toMatchObject({ selection: { start: 2, end: 2 }, position: 2 });
   });
 
-  it('A2 with the time shift tool, dragging moves the track (one undo step)', async () => {
+  it('clips as on the video timeline: drag a clip to move it (one undo step)', async () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3');
     audioUi.pxPerSecond = 24;
-    await fireEvent.click(screen.getByRole('button', { name: 'Time shift tool' }));
     const lane = screen.getByRole('region', { name: 'Waveform of Task_11j_audio_1' });
-    await fireEvent.pointerDown(lane, { clientX: 24, pointerId: 1 });
+    const clip = within(lane).getByRole('button', { name: /^Clip of Task_11j_audio_1/ });
+    await fireEvent.pointerDown(clip, { clientX: 24, pointerId: 1 });
     await fireEvent.pointerMove(lane, { clientX: 48, pointerId: 1 });
     await fireEvent.pointerMove(lane, { clientX: 72, pointerId: 1 });
     await fireEvent.pointerUp(lane, { clientX: 72, pointerId: 1 });
-    expect(t.doc().tracks[0]!.offset).toBe(2);
-    expect(t.state().history.past.at(-1)!.label).toBe('Time shift');
+    expect(soundOf(t.doc(), 0).offset).toBe(2);
+    expect(t.state().history.past.at(-1)!.label).toBe('Move clip');
     expect(t.state().history.past).toHaveLength(2);
+    expect(clip.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('clicking a clip selects it and puts the playhead there; Split, then Delete', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    audioUi.pxPerSecond = 24;
+    const lane = screen.getByRole('region', { name: 'Waveform of Task_11j_audio_1' });
+    const split = screen.getByRole('button', { name: 'Split' });
+    const del = screen.getByRole('button', { name: 'Delete' });
+    expect(del.hasAttribute('disabled')).toBe(true);
+    const clip = within(lane).getByRole('button', { name: /^Clip of/ });
+    await fireEvent.pointerDown(clip, { clientX: 48, pointerId: 1 });
+    await fireEvent.pointerUp(lane, { clientX: 48, pointerId: 1 });
+    expect(t.state()).toMatchObject({ clip: t.doc().tracks[0]!.clips[0]!.id, position: 2 });
+    await fireEvent.click(split);
+    const clips = within(lane).getAllByRole('button', { name: /^Clip of/ });
+    expect(clips).toHaveLength(2);
+    await fireEvent.pointerDown(clips[1]!, { clientX: 60, pointerId: 1 });
+    await fireEvent.pointerUp(lane, { clientX: 60, pointerId: 1 });
+    await fireEvent.click(del);
+    expect(within(lane).getAllByRole('button', { name: /^Clip of/ })).toHaveLength(1);
+    expect(
+      t
+        .state()
+        .history.past.map((c) => c.label)
+        .slice(-2),
+    ).toEqual(['Split at 2.00 s', 'Delete clip']);
+  });
+
+  it('dragging the end edge of a clip trims it; Join puts split clips back together', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    audioUi.pxPerSecond = 24;
+    const lane = screen.getByRole('region', { name: 'Waveform of Task_11j_audio_1' });
+    const edge = lane.querySelector<HTMLElement>('[data-edge="end"]')!;
+    await fireEvent.pointerDown(edge, { clientX: 96, pointerId: 1 });
+    await fireEvent.pointerMove(lane, { clientX: 72, pointerId: 1 });
+    await fireEvent.pointerUp(lane, { clientX: 72, pointerId: 1 });
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(3 * 44100);
+    expect(t.state().history.past.at(-1)!.label).toBe('Trim clip end');
+
+    t.audio.setPosition(1);
+    await fireEvent.click(screen.getByRole('button', { name: 'Split' }));
+    const [left] = within(lane).getAllByRole('button', { name: /^Clip of/ });
+    await fireEvent.keyDown(left!, { key: 'Enter' });
+    await fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    expect(t.doc().tracks[0]!.clips).toHaveLength(1);
+  });
+
+  it('with the Selection tool, dragging over a clip selects part of the sound', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    audioUi.pxPerSecond = 24;
+    await fireEvent.click(screen.getByRole('button', { name: 'Selection tool' }));
+    const lane = screen.getByRole('region', { name: 'Waveform of Task_11j_audio_1' });
+    await fireEvent.pointerDown(lane.querySelector('[data-clip]')!, { clientX: 24, pointerId: 1 });
+    await fireEvent.pointerMove(lane, { clientX: 48, pointerId: 1 });
+    await fireEvent.pointerUp(lane, { clientX: 48, pointerId: 1 });
+    expect(t.state()).toMatchObject({ clip: null, selection: { start: 1, end: 2 } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Clip tool' }));
   });
 
   it('clicking the ruler sets the Audio position', async () => {
@@ -403,7 +454,7 @@ describe('A18 transport and keyboard shortcuts (N10)', () => {
     expect(t.state().playing).toBe(false);
     t.audio.select({ start: 0, end: 1 });
     await fireEvent.keyDown(window, { key: 'Delete' });
-    expect(t.doc().tracks[0]!.channels[0]!.length).toBe(3 * 44100);
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(3 * 44100);
   });
 
   it('the Edit menu’s cut / copy / paste reach the sound (clipboard events)', async () => {
@@ -413,7 +464,7 @@ describe('A18 transport and keyboard shortcuts (N10)', () => {
     expect(t.state().clipboard).not.toBeNull();
     t.audio.select({ start: 2, end: 2 });
     await fireEvent.paste(document.body);
-    expect(t.doc().tracks[0]!.channels[0]!.length).toBe(5 * 44100);
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(5 * 44100);
   });
 
   it('shortcuts are left alone while typing in a box', async () => {

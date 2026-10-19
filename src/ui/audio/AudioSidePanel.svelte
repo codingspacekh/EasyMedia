@@ -16,7 +16,7 @@
   const group = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const facts = $derived.by(() => {
     if (!track) return null;
-    const channels = track.channels.length;
+    const channels = track.channelCount;
     const bits = track.bits ?? 16;
     const seconds = trackDuration(track, doc.rate);
     return {

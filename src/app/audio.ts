@@ -1,23 +1,30 @@
 // Audio mode use cases (A1–A8, A15–A18): what every button and menu item in Audio mode does.
-// The sound lives in memory as samples (core/audio); every edit is one undoable step (Memento,
-// P5). Errors never escape: they become a message for the student.
+// The sound lives in memory as samples (core/audio), in clips on tracks that are split, moved
+// and trimmed as on the video timeline; every edit is one undoable step (Memento, P5). Errors
+// never escape: they become a message for the student.
 import { createStore, type Store } from './store.ts';
 import {
   alignEndToEnd,
   alignStartTo,
   applyToSelection,
   copyRange,
+  deleteClips,
   deleteRange,
   docDuration,
+  findClip,
   insertSilence,
+  joinClip,
   mixAndRender,
   mixTracks,
+  moveClip,
   moveTrackBy,
   paste,
-  rangeIn,
+  soundIn,
+  splitAt,
   stereoToMonoTracks,
+  trimClip,
   trimToSelection,
-  type AudioClip,
+  type CopiedSound,
   type Selection,
 } from '../core/audio/edit.ts';
 import {
@@ -31,12 +38,12 @@ import {
   type AudioHistory,
 } from '../core/audio/history.ts';
 import {
+  clipEnd,
   createTrack,
   emptyDoc,
   silence,
-  sliceChannels,
   toSamples,
-  trackLength,
+  type AudioClip,
   type AudioDoc,
   type AudioTrack,
   type Channels,
@@ -46,7 +53,7 @@ import { changeSpeed } from '../core/audio/dsp/speed.ts';
 import { COUNT_IN_SECONDS } from '../core/audio/recording.ts';
 import { audioEffectById, defaultParams, validateParams } from '../core/effects/registry.ts';
 import type { EffectContext, Params } from '../core/effects/types.ts';
-import type { AudioModeSession } from '../core/model/types.ts';
+import type { AudioModeSession, SavedAudioTrack } from '../core/model/types.ts';
 import { EditError, JobCancelledError, MediaError, MicrophoneError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
@@ -116,9 +123,11 @@ export interface RecordingState {
 export interface AudioState {
   history: AudioHistory;
   selection: Selection;
+  /** The clip clicked last (as on the video timeline): Split, Join and Delete work on it. */
+  clip: Id | null;
   /** Audio position: where playing starts (the playhead). */
   position: Seconds;
-  clipboard: AudioClip | null;
+  clipboard: CopiedSound | null;
   playing: boolean;
   /** Loop the selection while playing (A18). */
   loop: boolean;
@@ -168,6 +177,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
   const store: Store<AudioState> = createStore<AudioState>({
     history: createAudioHistory(emptyDoc()),
     selection: { start: 0, end: 0, tracks: [] },
+    clip: null,
     position: 0,
     clipboard: null,
     playing: false,
@@ -262,6 +272,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
         ...s,
         history,
         selection: { ...s.selection, tracks: s.selection.tracks.filter((id) => ids.has(id)) },
+        clip: s.clip && findClip(history.present, s.clip) ? s.clip : null,
         message: null,
       }));
       if (history !== before) historyChanged();
@@ -278,13 +289,30 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
   }
 
   function selectOnly(id: Id): void {
-    patch({ selection: { ...selection(), tracks: [id] } });
+    patch({ selection: { ...selection(), tracks: [id] }, clip: null });
   }
+
+  /** Selects a clip: its track, and its time as the selection (for effects, Cut and Copy). */
+  function selectClipOnly(id: Id): void {
+    const found = findClip(doc(), id);
+    if (!found) return;
+    const { track, clip } = found;
+    patch({
+      clip: id,
+      selection: { start: clip.offset, end: clipEnd(clip, doc().rate), tracks: [track.id] },
+    });
+  }
+
+  /** The selected clip, with its track, if it is still there. */
+  const selectedClip = () => {
+    const id = store.get().clip;
+    return id ? findClip(doc(), id) : null;
+  };
 
   /** The tracks that are heard: the solo ones if any, else all that are not muted. */
   function audible(): AudioTrack[] {
     const { muted, solo } = store.get();
-    const tracks = doc().tracks.filter((t) => trackLength(t) > 0);
+    const tracks = doc().tracks.filter((t) => t.clips.length > 0);
     return solo.length
       ? tracks.filter((t) => solo.includes(t.id))
       : tracks.filter((t) => !muted.includes(t.id));
@@ -296,8 +324,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
     const { rate } = doc();
     return doc().tracks.flatMap((t) => {
       if (!sel.tracks.includes(t.id)) return [];
-      const r = rangeIn(t, rate, sel);
-      return r ? sliceChannels(t.channels, r.from, r.to) : [];
+      return soundIn(t, rate, sel) ?? [];
     });
   }
 
@@ -344,8 +371,12 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
   // ---- saving with the project (P1, P3, P7 for Audio mode) ----
   /** The session as last saved or opened: anything else is unsaved work. */
   let savedDoc: AudioDoc = doc();
-  /** Which file each track's samples were last written to (tracks never change in place). */
-  let written = new WeakMap<AudioTrack, string>();
+  /**
+   * The samples each file holds (samples never change in place). Undo can bring back samples
+   * whose file has since been written with others, so a file is trusted only if it still
+   * holds the very same samples.
+   */
+  let written = new Map<string, WeakRef<Channels>>();
 
   /** Starts Audio mode over with `fresh` (opening a project, or a new one). */
   function replaceDoc(fresh: AudioDoc, message: AudioState['message'] = null): void {
@@ -354,6 +385,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
       ...s,
       history: createAudioHistory(fresh),
       selection: { start: 0, end: 0, tracks: [] },
+      clip: null,
       position: 0,
       noiseProfile: null,
       message,
@@ -521,12 +553,72 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
       );
     },
 
-    /** A2 time-shift tool: drag a track to start at another time. */
-    timeShift(id: Id, offset: Seconds): void {
-      const rate = doc().rate;
-      run('Time shift', (tx) =>
-        tx.setMeta(id, { offset: toSamples(Math.max(0, offset), rate) / rate }),
+    // ---- clips, as on the video timeline ----
+
+    /** Click a clip: it is selected (with its track and its time, for effects and Copy). */
+    selectClip(id: Id): void {
+      selectClipOnly(id);
+    },
+
+    /** Drag a clip along its track (the time shift tool of Audacity). */
+    moveClip(id: Id, offset: Seconds): void {
+      run('Move clip', (tx) => moveClip(tx, id, offset));
+      selectClipOnly(id);
+    },
+
+    /** Drag a clip's start or end edge. */
+    trimClip(id: Id, side: 'start' | 'end', time: Seconds): void {
+      run(side === 'start' ? 'Trim clip start' : 'Trim clip end', (tx) =>
+        trimClip(tx, id, side, time),
       );
+      selectClipOnly(id);
+    },
+
+    /**
+     * Split: at both ends of a selected range, or else at the playhead, on the selected clip's
+     * track, the selected tracks, or every track when none is selected.
+     */
+    split(): void {
+      const sel = selection();
+      const clip = selectedClip();
+      const tracks = clip
+        ? [clip.track.id]
+        : sel.tracks.length
+          ? sel.tracks
+          : doc().tracks.map((t) => t.id);
+      if (!clip && sel.end > sel.start) {
+        run(`Split at ${range(sel)}`, (tx) => {
+          let made = 0;
+          for (const at of [sel.start, sel.end]) {
+            try {
+              made += splitAt(tx, tracks, at, newId).length;
+            } catch {
+              // no clip at this end of the selection
+            }
+          }
+          if (!made) throw new EditError('Select part of a clip to split it.');
+        });
+        return;
+      }
+      const at = store.get().position;
+      run(`Split at ${at.toFixed(2)} s`, (tx) => splitAt(tx, tracks, at, newId));
+      if (clip) selectClipOnly(clip.clip.id);
+    },
+
+    /** Join the selected clip with the clip right after it. */
+    join(): void {
+      const clip = selectedClip();
+      run('Join clips', (tx) => {
+        if (!clip) throw new EditError('Click a clip first, then Join joins it with the next one.');
+        joinClip(tx, clip.clip.id);
+      });
+      if (clip) selectClipOnly(clip.clip.id);
+    },
+
+    /** Delete the selected clip (the gap stays, as on the video timeline). */
+    deleteClip(): void {
+      const id = store.get().clip;
+      run('Delete clip', (tx) => deleteClips(tx, id ? [id] : []));
     },
 
     setTrack(id: Id, change: Partial<Pick<AudioTrack, 'name' | 'gain' | 'pan'>>): void {
@@ -559,10 +651,11 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
 
     // ---- selection (A5) ----
 
-    /** A time range; the tracks stay selected unless others are given. */
+    /** A time range; the tracks stay selected unless others are given. No clip is selected. */
     select(change: Partial<Selection>): void {
       const next = { ...selection(), ...change };
       patch({
+        clip: null,
         selection: {
           ...next,
           start: Math.max(0, Math.min(next.start, next.end)),
@@ -573,7 +666,10 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
 
     selectAll(): void {
       const d = doc();
-      patch({ selection: { start: 0, end: docDuration(d), tracks: d.tracks.map((t) => t.id) } });
+      patch({
+        selection: { start: 0, end: docDuration(d), tracks: d.tracks.map((t) => t.id) },
+        clip: null,
+      });
     },
 
     /** Click on a track: select it (with Shift: add or remove it). */
@@ -586,13 +682,13 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
           : doc()
               .tracks.map((t) => t.id)
               .filter((t) => t === id || tracks.includes(t));
-      patch({ selection: { ...selection(), tracks: next } });
+      patch({ selection: { ...selection(), tracks: next }, clip: null });
     },
 
     /** For the Selection start box: a start after the end moves the end too. */
     setSelectionStart(start: Seconds): string | null {
       const sel = selection();
-      patch({ selection: { ...sel, start, end: Math.max(sel.end, start) } });
+      patch({ selection: { ...sel, start, end: Math.max(sel.end, start) }, clip: null });
       return null;
     },
 
@@ -600,7 +696,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
     setSelectionEnd(end: Seconds): string | null {
       const sel = selection();
       if (end < sel.start) return 'The selection end must be after the selection start.';
-      patch({ selection: { ...sel, end } });
+      patch({ selection: { ...sel, end }, clip: null });
       return null;
     },
 
@@ -616,9 +712,12 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
 
     cut(): void {
       const sel = selection();
+      const selected = store.get().clip;
       try {
         const clip = copyRange(doc(), sel);
-        run(`Cut ${range(sel)}`, (tx) => deleteRange(tx, sel));
+        // A selected clip is cut out of its track; its gap stays, as with Delete.
+        if (selected) run('Cut clip', (tx) => deleteClips(tx, [selected]));
+        else run(`Cut ${range(sel)}`, (tx) => deleteRange(tx, sel));
         if (!store.get().message) patch({ clipboard: clip });
       } catch (error) {
         showError(error);
@@ -641,11 +740,22 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
         });
         return;
       }
-      run(`Paste at ${selection().start.toFixed(2)} s`, (tx) => paste(tx, selection(), clipboard));
+      const sel = selection();
+      // On a selected clip, the copy goes in at the playhead (as in Video mode).
+      const at = store.get().clip
+        ? { ...sel, start: store.get().position, end: store.get().position }
+        : sel;
+      run(`Paste at ${at.start.toFixed(2)} s`, (tx) => paste(tx, at, clipboard, newId));
     },
 
-    deleteSelection: () =>
-      run(`Delete ${range(selection())}`, (tx) => deleteRange(tx, selection())),
+    /** Delete key: the selected clip, or else the selected time. */
+    deleteSelection(): void {
+      if (store.get().clip) {
+        run('Delete clip', (tx) => deleteClips(tx, [store.get().clip!]));
+        return;
+      }
+      run(`Delete ${range(selection())}`, (tx) => deleteRange(tx, selection()));
+    },
 
     trimToSelection: () =>
       run(`Trim to ${range(selection())}`, (tx) => trimToSelection(tx, selection())),
@@ -653,7 +763,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
     /** Returns why it cannot be done, or null (for the Insert silence dialog). */
     insertSilence: (length: Seconds): string | null =>
       tryEdit(`Insert ${length.toFixed(2)} s of silence`, (tx) =>
-        insertSilence(tx, selection(), length),
+        insertSilence(tx, selection(), length, newId),
       ),
 
     // ---- saving with the project (P1, P3, P7) ----
@@ -674,24 +784,32 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
         if (!copy) savedDoc = current;
         return null;
       }
-      const tracks = [];
-      for (const [i, track] of current.tracks.entries()) {
-        const file = `${folder}/track-${i + 1}.wav`;
-        if (written.get(track) !== file) {
-          await engine.encodeAudio({ sampleRate: current.rate, channels: track.channels }, file, {
-            ...defaultAudioExport({ rate: current.rate, channels: track.channels.length }),
-            format: 'wav',
-            bitDepth: 32,
-            sampleRate: current.rate,
-            channels: track.channels.length >= 2 ? 2 : 1,
-          }).done;
-          written.set(track, file);
+      const tracks: SavedAudioTrack[] = [];
+      const names = new Map<Channels, string>();
+      for (const track of current.tracks) {
+        const clips = [];
+        for (const clip of track.clips) {
+          // One file per set of samples, named after the first clip using them (the halves of
+          // a split clip share it).
+          const file = names.get(clip.source) ?? `${folder}/clip-${clip.id}.wav`;
+          names.set(clip.source, file);
+          if (written.get(file)?.deref() !== clip.source) {
+            await engine.encodeAudio({ sampleRate: current.rate, channels: clip.source }, file, {
+              ...defaultAudioExport({ rate: current.rate, channels: track.channelCount }),
+              format: 'wav',
+              bitDepth: 32,
+              sampleRate: current.rate,
+              channels: track.channelCount >= 2 ? 2 : 1,
+            }).done;
+            written.set(file, new WeakRef(clip.source));
+          }
+          clips.push({ id: clip.id, file, offset: clip.offset, in: clip.in, out: clip.out });
         }
         tracks.push({
           id: track.id,
           name: track.name,
-          file,
-          offset: track.offset,
+          channels: track.channelCount,
+          clips,
           gain: track.gain,
           pan: track.pan,
           ...(track.bits ? { bits: track.bits } : {}),
@@ -710,27 +828,42 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
       session: AudioModeSession | null,
       { unsaved = false }: { unsaved?: boolean } = {},
     ): Promise<void> {
-      written = new WeakMap();
+      written = new Map();
       if (!session) return replaceDoc(emptyDoc());
       const tracks: AudioTrack[] = [];
       const lost: string[] = [];
+      const opened = new Map<string, Channels>();
       for (const saved of session.tracks) {
-        try {
-          const decoded = await engine.decodeAudio(saved.file);
-          const track = createTrack({
-            id: saved.id,
-            name: saved.name,
-            channels: decoded.channels,
-            offset: saved.offset,
-            gain: saved.gain,
-            pan: saved.pan,
-            ...(saved.bits ? { bits: saved.bits } : {}),
-          });
-          written.set(track, saved.file);
-          tracks.push(track);
-        } catch {
-          lost.push(saved.name);
+        const clips: AudioClip[] = [];
+        let channelCount = saved.channels;
+        for (const c of saved.clips) {
+          try {
+            let source = opened.get(c.file);
+            if (!source) {
+              source = (await engine.decodeAudio(c.file)).channels;
+              opened.set(c.file, source);
+              written.set(c.file, new WeakRef(source));
+            }
+            channelCount ??= source.length;
+            const length = source[0]?.length ?? 0;
+            const out = Math.min(length, c.out ?? length);
+            const from = Math.min(c.in ?? 0, out);
+            if (out > from) clips.push({ id: c.id, offset: c.offset, source, in: from, out });
+          } catch {
+            if (!lost.includes(saved.name)) lost.push(saved.name);
+          }
         }
+        // A track whose sound is all lost is left out (its other clips stay if one is lost).
+        if (saved.clips.length && !clips.length) continue;
+        tracks.push({
+          id: saved.id,
+          name: saved.name,
+          channelCount: channelCount ?? 1,
+          clips,
+          gain: saved.gain,
+          pan: saved.pan,
+          ...(saved.bits ? { bits: saved.bits } : {}),
+        });
       }
       replaceDoc(
         { rate: session.rate, tracks },
@@ -746,7 +879,7 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
 
     /** A new project: Audio mode starts empty. */
     reset(): void {
-      written = new WeakMap();
+      written = new Map();
       replaceDoc(emptyDoc());
     },
 
@@ -836,10 +969,14 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
       );
       run(`Record ${(length / rate).toFixed(2)} s`, (tx) => {
         if (first && tx.doc.rate !== rate) tx.setRate(rate);
-        tx.addTrack({
-          ...createTrack({ id, name: `Recording ${taken + 1}`, channels }),
-          offset: recordAt,
-        });
+        tx.addTrack(
+          createTrack({
+            id,
+            name: `Recording ${taken + 1}`,
+            channels,
+            offset: toSamples(recordAt, tx.doc.rate) / tx.doc.rate,
+          }),
+        );
       });
       selectOnly(id);
     },
@@ -921,19 +1058,14 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
       if (!def) return 'This effect is not available in this version of EasyMedia.';
       const sel = selection();
       const short = { ...sel, end: Math.min(sel.end, sel.start + PREVIEW_SECONDS) };
-      const track = doc().tracks.find(
-        (t) => sel.tracks.includes(t.id) && rangeIn(t, doc().rate, short),
-      );
-      if (!track) return 'Select some sound first.';
+      const sound = doc()
+        .tracks.filter((t) => sel.tracks.includes(t.id))
+        .map((t) => soundIn(t, doc().rate, short))
+        .find((c) => c !== null);
+      if (!sound) return 'Select some sound first.';
       try {
         validateParams(def, params);
-        const r = rangeIn(track, doc().rate, short)!;
-        const processed = def.process(
-          sliceChannels(track.channels, r.from, r.to),
-          doc().rate,
-          params,
-          effectContext(),
-        );
+        const processed = def.process(sound, doc().rate, params, effectContext());
         startPlaying(processed, sel.start, false);
         return null;
       } catch (error) {
@@ -968,7 +1100,8 @@ export function createAudioApp({ engine, dialogs, output, undoStore, recorder }:
         return;
       }
       const sel = selection();
-      const ranged = sel.end > sel.start;
+      // A selected clip plays from the playhead, as in Video mode; a selected range plays itself.
+      const ranged = sel.end > sel.start && !store.get().clip;
       const from = ranged ? sel.start : store.get().position;
       const mix = mixTracks(doc(), tracks, { from }).channels;
       const n = ranged ? toSamples(sel.end - sel.start, doc().rate) : Infinity;

@@ -24,6 +24,7 @@
   } from '../core/model/timeline.ts';
   import type { AudioItem, MainItem } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import { withWhy } from '../core/effects/help.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import Icon from './Icon.svelte';
   import { ui } from './ui-state.svelte.ts';
@@ -225,6 +226,7 @@
     <button
       class="sm"
       disabled={!canSplit}
+      title={withWhy('Split the clip at the playhead', 'split')}
       onclick={() =>
         (error = app.edit(
           selectedSound
@@ -235,6 +237,7 @@
     <button
       class="sm"
       disabled={!canJoin}
+      title={withWhy('Join the clip with the next one', 'split')}
       onclick={() =>
         (error = app.edit(
           selectedSound ? joinSoundWithNext(selectedSound.id) : joinWithNext($store.selection!),
@@ -247,8 +250,11 @@
       onclick={() => showTransition($store.selection!)}
       ><Icon name="transition" size={14} /> Transition</button
     >
-    <button class="sm" disabled={!$store.selection} onclick={() => app.removeSelected()}
-      ><Icon name="delete" size={14} /> Delete</button
+    <button
+      class="sm"
+      disabled={!$store.selection}
+      title={withWhy('Delete the selected clip', 'remove')}
+      onclick={() => app.removeSelected()}><Icon name="delete" size={14} /> Delete</button
     >
     <span class="vsep"></span>
     <button

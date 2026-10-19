@@ -1,6 +1,7 @@
 // Small UI-only state shared by panels (not part of the project, not undoable).
 export type InspectorTab = 'clip' | 'audio' | 'effects' | 'text';
 export type Mode = 'Video' | 'Audio' | 'Learn';
+export type LearnTab = 'inspect' | 'formats' | 'task';
 
 export const ui = $state({
   /** Video, Audio or Learn mode (the native menus act on the mode that is showing). */
@@ -13,4 +14,11 @@ export const ui = $state({
   snap: true,
   /** Show the 5 % safe area on the preview. */
   safeArea: false,
+  /** Learn mode's tab: screen 21, screen 22 or the task checker. */
+  learnTab: 'inspect' as LearnTab,
+  /** Learn mode's glossary is open. */
+  glossary: false,
 });
+
+/** How long the mouse rests on a button before its tooltip shows (the built-in one is slower). */
+export const TOOLTIP_DELAY = 400;

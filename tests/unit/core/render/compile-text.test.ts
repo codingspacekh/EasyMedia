@@ -10,6 +10,7 @@ import { EditError } from '../../../../src/core/model/errors.ts';
 import { setItemDuration, trimVideo } from '../../../../src/core/model/timeline.ts';
 import type { MainItem, MediaAsset, Project, TextItem } from '../../../../src/core/model/types.ts';
 import { compileProject, type RenderOptions } from '../../../../src/core/render/compile.ts';
+import { motionExpressions } from '../../../../src/core/text/motion.ts';
 
 const lake = createMediaAsset({
   id: 'lake',
@@ -135,7 +136,48 @@ describe('M6 text in the export (V4–V7)', () => {
         compileProject(project([{ ...clip, out: 10 }], [caption]), options({ c1: full('/c1.png') }))
           .args,
       ),
-    ).toContain("overlay=x='if(lt(t-2,1),-1920+(t-2)*1920,0)':y=0");
+    ).toContain("overlay=x='(-1920*(1-min(max((t-2)/1,0),1)))':y=0");
+  });
+
+  it('zoom and pop scale the words around their middle (from the text renderer)', () => {
+    const caption = {
+      ...createTextItem('caption', 'Hi', 2, { id: 'c1' }),
+      entrance: 'pop' as const,
+      exit: 'zoom' as const,
+    };
+    const anchor = { x: 960, y: 950 };
+    const m = motionExpressions(
+      caption,
+      2,
+      caption.duration,
+      { width: 1920, height: 1080 },
+      anchor,
+    );
+    const g = graph(
+      compileProject(
+        project([{ ...clip, out: 10 }], [caption]),
+        options({ c1: { ...full('/c1.png'), anchor } }),
+      ).args,
+    );
+    expect(g).toContain(
+      `[1:v]format=rgba,scale=w='max(1,iw*(${m.scale}))':h='max(1,ih*(${m.scale}))':eval=frame[t0]`,
+    );
+    expect(g).toContain(`overlay=x=${m.x}:y=${m.y}:enable='between(t,2,${2 + caption.duration})'`);
+  });
+
+  it('rise and sink fade the words over their second (as well as any fade set)', () => {
+    const caption = {
+      ...createTextItem('caption', 'Hi', 2, { id: 'c1' }),
+      entrance: 'rise' as const,
+      exit: 'sink' as const,
+    };
+    const g = graph(
+      compileProject(project([{ ...clip, out: 10 }], [caption]), options({ c1: full('/c1.png') }))
+        .args,
+    );
+    expect(g).toContain(
+      '[1:v]format=rgba,fade=t=in:st=2:d=1:alpha=1,fade=t=out:st=6:d=1:alpha=1[t0]', // 2–7 s
+    );
   });
 
   it('Book B Task 11a: title text over a still picture for 8 s, flying in', () => {
@@ -147,7 +189,9 @@ describe('M6 text in the export (V4–V7)', () => {
     const { args, duration } = compileProject(project([title]), options({ t: full('/t.png') }));
     expect(args.join(' ')).toContain('-loop 1 -framerate 30 -t 8 -i /media/Fish_Eagle1.jpg');
     expect(args.join(' ')).toContain('-loop 1 -framerate 30 -t 8 -i /t.png');
-    expect(graph(args)).toContain("[bg0][t0x]overlay=x='if(lt(t-0,1),-1920+(t-0)*1920,0)':y=0[v0]");
+    expect(graph(args)).toContain(
+      "[bg0][t0x]overlay=x='(-1920*(1-min(max((t-0)/1,0),1)))':y=0[v0]",
+    );
     expect(duration).toBe(8);
   });
 

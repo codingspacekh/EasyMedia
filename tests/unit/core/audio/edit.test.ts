@@ -4,9 +4,14 @@ import {
   alignStartTo,
   applyToSelection,
   copyRange,
+  deleteClips,
   deleteRange,
   docDuration,
   insertSilence,
+  joinClip,
+  moveClip,
+  splitAt,
+  trimClip,
   mixAndRender,
   mixTracks,
   moveTrackBy,
@@ -21,12 +26,21 @@ import {
   undoAudio,
   type AudioEdit,
 } from '../../../../src/core/audio/history.ts';
-import { createTrack, type AudioDoc } from '../../../../src/core/audio/pcm.ts';
+import {
+  clipChannels,
+  createTrack,
+  trackSound,
+  trackStart,
+  type AudioDoc,
+  type AudioTrack,
+} from '../../../../src/core/audio/pcm.ts';
 import { EditError } from '../../../../src/core/model/errors.ts';
 
 const RATE = 10;
 const ramp = (n: number, from = 1) => Float32Array.from({ length: n }, (_, i) => from + i);
-const ch = (track: { channels: readonly Float32Array[] }, c = 0) => [...track.channels[c]!];
+/** The track's sound, clips and gaps together. */
+const ch = (track: AudioTrack, c = 0) => [...trackSound(track, RATE).channels[c]!];
+const offsetOf = (track: AudioTrack) => trackStart(track);
 
 function doc(...tracks: { channels: Float32Array[]; offset?: number }[]): AudioDoc {
   return {
@@ -39,6 +53,15 @@ const sel = (start: number, end: number, ...tracks: string[]): Selection => ({
   end,
   tracks,
 });
+/** Ids for new clips: n1, n2… */
+function ids() {
+  let n = 0;
+  return () => `n${++n}`;
+}
+const clipsOf = (track: AudioTrack) =>
+  [...track.clips]
+    .sort((a, b) => a.offset - b.offset)
+    .map((c) => ({ id: c.id, offset: c.offset, sound: [...clipChannels(c)[0]!] }));
 function run(d: AudioDoc, edit: (tx: AudioEdit) => void): AudioDoc {
   return editAudio(createAudioHistory(d), 'edit', edit).present;
 }
@@ -55,7 +78,7 @@ describe('A5 cut / delete a range', () => {
       tracks: [createTrack({ id: 'a', name: 'a', channels: [new Float32Array(4000)] })],
     };
     const out = run(d, (tx) => deleteRange(tx, sel(19.1, 48, 'a')));
-    expect(out.tracks[0]!.channels[0]!.length / 100).toBe(19.1);
+    expect(trackSound(out.tracks[0]!, 100).channels[0]!.length / 100).toBe(19.1);
   });
 
   it('a selection that starts before a track’s sound moves what is left to the selection start', () => {
@@ -63,7 +86,7 @@ describe('A5 cut / delete a range', () => {
       deleteRange(tx, sel(0.5, 1.3, 't0')),
     );
     expect(ch(out.tracks[0]!)).toEqual([4, 5, 6, 7, 8, 9, 10]);
-    expect(out.tracks[0]!.offset).toBe(0.5);
+    expect(offsetOf(out.tracks[0]!)).toBe(0.5);
   });
 
   it('a selected track that starts after the selection moves earlier; other tracks stay', () => {
@@ -71,7 +94,7 @@ describe('A5 cut / delete a range', () => {
       doc({ channels: [ramp(5)], offset: 2 }, { channels: [ramp(5)], offset: 2 }),
       (tx) => deleteRange(tx, sel(0, 1, 't0')),
     );
-    expect(out.tracks.map((t) => t.offset)).toEqual([1, 2]);
+    expect(out.tracks.map(offsetOf)).toEqual([1, 2]);
   });
 
   it('needs a selected track and a selection with a length', () => {
@@ -96,45 +119,52 @@ describe('A5 copy and paste (A6 splice between tracks)', () => {
   it('Book A 11.18: pasting at a point inserts the copy there and makes the track longer', () => {
     const d = doc({ channels: [ramp(5)] }, { channels: [ramp(5, 100)] });
     const clip = copyRange(d, sel(0.1, 0.3, 't1'));
-    const out = run(d, (tx) => paste(tx, sel(0.2, 0.2, 't0'), clip));
+    const out = run(d, (tx) => paste(tx, sel(0.2, 0.2, 't0'), clip, ids()));
     expect(ch(out.tracks[0]!)).toEqual([1, 2, 101, 102, 3, 4, 5]);
   });
 
   it('pasting over a selection replaces it', () => {
     const out = run(doc({ channels: [ramp(5)] }), (tx) =>
-      paste(tx, sel(0.1, 0.4, 't0'), { channels: [new Float32Array([0])] }),
+      paste(tx, sel(0.1, 0.4, 't0'), { channels: [new Float32Array([0])] }, ids()),
     );
     expect(ch(out.tracks[0]!)).toEqual([1, 0, 5]);
   });
 
   it('pasting after the end or before the start fills the gap with silence (later sound moves on)', () => {
     const clip = { channels: [new Float32Array([9])] };
-    const after = run(doc({ channels: [ramp(2)] }), (tx) => paste(tx, sel(0.4, 0.4, 't0'), clip));
+    const after = run(doc({ channels: [ramp(2)] }), (tx) =>
+      paste(tx, sel(0.4, 0.4, 't0'), clip, ids()),
+    );
     expect(ch(after.tracks[0]!)).toEqual([1, 2, 0, 0, 9]);
     const before = run(doc({ channels: [ramp(2)], offset: 0.5 }), (tx) =>
-      paste(tx, sel(0.2, 0.2, 't0'), clip),
+      paste(tx, sel(0.2, 0.2, 't0'), clip, ids()),
     );
     expect(ch(before.tracks[0]!)).toEqual([9, 0, 0, 0, 1, 2]);
-    expect(before.tracks[0]!.offset).toBe(0.2);
+    expect(offsetOf(before.tracks[0]!)).toBe(0.2);
   });
 
   it('pasting into an empty track starts it at the cursor', () => {
     const out = run(doc({ channels: [new Float32Array(0)] }), (tx) =>
-      paste(tx, sel(1.5, 1.5, 't0'), { channels: [new Float32Array([7, 8])] }),
+      paste(tx, sel(1.5, 1.5, 't0'), { channels: [new Float32Array([7, 8])] }, ids()),
     );
-    expect([out.tracks[0]!.offset, ...ch(out.tracks[0]!)]).toEqual([1.5, 7, 8]);
+    expect([offsetOf(out.tracks[0]!), ...ch(out.tracks[0]!)]).toEqual([1.5, 7, 8]);
   });
 
   it('a stereo copy pasted into a mono track is mixed to mono', () => {
     const out = run(doc({ channels: [ramp(1)] }), (tx) =>
-      paste(tx, sel(0, 0, 't0'), { channels: [new Float32Array([1]), new Float32Array([0])] }),
+      paste(
+        tx,
+        sel(0, 0, 't0'),
+        { channels: [new Float32Array([1]), new Float32Array([0])] },
+        ids(),
+      ),
     );
     expect(ch(out.tracks[0]!)).toEqual([0.5, 1]);
   });
 
   it('a mono copy pasted into a stereo track goes into both sides', () => {
     const out = run(doc({ channels: [ramp(2), ramp(2)] }), (tx) =>
-      paste(tx, sel(0, 0, 't0'), { channels: [new Float32Array([5])] }),
+      paste(tx, sel(0, 0, 't0'), { channels: [new Float32Array([5])] }, ids()),
     );
     expect([ch(out.tracks[0]!, 0), ch(out.tracks[0]!, 1)]).toEqual([
       [5, 1, 2],
@@ -149,33 +179,33 @@ describe('A5 trim to selection and insert silence', () => {
       trimToSelection(tx, sel(0.2, 0.5, 't0')),
     );
     expect(ch(out.tracks[0]!)).toEqual([3, 4, 5]);
-    expect(out.tracks[0]!.offset).toBe(0.2);
+    expect(offsetOf(out.tracks[0]!)).toBe(0.2);
   });
 
   it('empties a selected track that has no sound in the selection', () => {
     const out = run(doc({ channels: [ramp(10)] }, { channels: [ramp(3)], offset: 2 }), (tx) =>
       trimToSelection(tx, sel(0.2, 0.5, 't0', 't1')),
     );
-    expect(out.tracks[1]!.channels[0]!.length).toBe(0);
+    expect(out.tracks[1]!.clips).toEqual([]);
   });
 
   it('inserts silence at the cursor, pushing the rest later', () => {
     const out = run(doc({ channels: [ramp(4)] }), (tx) =>
-      insertSilence(tx, sel(0.2, 0.2, 't0'), 0.3),
+      insertSilence(tx, sel(0.2, 0.2, 't0'), 0.3, ids()),
     );
     expect(ch(out.tracks[0]!)).toEqual([1, 2, 0, 0, 0, 3, 4]);
   });
 
   it('with a selection, replaces it with silence of the chosen length', () => {
     const out = run(doc({ channels: [ramp(6)] }), (tx) =>
-      insertSilence(tx, sel(0.1, 0.4, 't0'), 0.1),
+      insertSilence(tx, sel(0.1, 0.4, 't0'), 0.1, ids()),
     );
     expect(ch(out.tracks[0]!)).toEqual([1, 0, 5, 6]);
   });
 
   it('refuses a length of 0 or less', () => {
     expect(() =>
-      run(doc({ channels: [ramp(4)] }), (tx) => insertSilence(tx, sel(0, 0, 't0'), 0)),
+      run(doc({ channels: [ramp(4)] }), (tx) => insertSilence(tx, sel(0, 0, 't0'), 0, ids())),
     ).toThrow(EditError);
   });
 });
@@ -219,7 +249,8 @@ describe('A2 / A6 / A15 Tracks menu', () => {
     const out = run(doc({ channels: [new Float32Array([1, 1]), new Float32Array([0, 0])] }), (tx) =>
       stereoToMonoTracks(tx, ['t0']),
     );
-    expect(out.tracks[0]!.channels.map((c) => [...c])).toEqual([[0.5, 0.5]]);
+    expect(out.tracks[0]!.channelCount).toBe(1);
+    expect(clipChannels(out.tracks[0]!.clips[0]!).map((c) => [...c])).toEqual([[0.5, 0.5]]);
   });
 
   it('A15 refuses when no selected track is stereo', () => {
@@ -241,15 +272,15 @@ describe('A2 / A6 / A15 Tracks menu', () => {
       { channels: [ramp(5)] },
     );
     const out = run(d, (tx) => alignEndToEnd(tx, ['t0', 't1', 't2']));
-    expect(out.tracks.map((t) => t.offset)).toEqual([0, 1.9, 4.9]);
+    expect(out.tracks.map(offsetOf)).toEqual([0, 1.9, 4.9]);
   });
 
   it('A2 Align start to the cursor, and to zero', () => {
     const d = doc({ channels: [ramp(3)] }, { channels: [ramp(3)], offset: 2 });
-    expect(run(d, (tx) => alignStartTo(tx, ['t0', 't1'], 1.5)).tracks.map((t) => t.offset)).toEqual(
-      [1.5, 1.5],
-    );
-    expect(run(d, (tx) => alignStartTo(tx, ['t1'], 0)).tracks[1]!.offset).toBe(0);
+    expect(run(d, (tx) => alignStartTo(tx, ['t0', 't1'], 1.5)).tracks.map(offsetOf)).toEqual([
+      1.5, 1.5,
+    ]);
+    expect(offsetOf(run(d, (tx) => alignStartTo(tx, ['t1'], 0)).tracks[1]!)).toBe(0);
   });
 
   it('A6 Mix and render: two aligned clips become one track, the sample-wise sum (clipped)', () => {
@@ -292,7 +323,7 @@ describe('A2 / A6 / A15 Tracks menu', () => {
       { channels: [new Float32Array([0.1]), new Float32Array([0.2])], offset: 1.1 },
     );
     const out = run(d, (tx) => mixAndRender(tx, ['t0', 't1'], { id: 'm', name: 'Mix' }));
-    expect(out.tracks[0]!.offset).toBe(1);
+    expect(offsetOf(out.tracks[0]!)).toBe(1);
     expect([ch(out.tracks[0]!, 0), ch(out.tracks[0]!, 1)]).toEqual(
       [
         [0.5, 0.1],
@@ -324,5 +355,140 @@ describe('A2 / A6 / A15 Tracks menu', () => {
     const mix = mixTracks(d, d.tracks, { from: 0 });
     expect(mix.channels[0]!.length).toBe(7);
     expect(docDuration(d)).toBe(0.7);
+  });
+});
+
+describe('clips, as on the video timeline', () => {
+  it('Split cuts the clip under the playhead in two; the halves share their samples', () => {
+    const d = doc({ channels: [ramp(10)] });
+    const out = run(d, (tx) => splitAt(tx, ['t0'], 0.4, ids()));
+    expect(clipsOf(out.tracks[0]!)).toEqual([
+      { id: 't0.c', offset: 0, sound: [1, 2, 3, 4] },
+      { id: 'n1', offset: 0.4, sound: [5, 6, 7, 8, 9, 10] },
+    ]);
+    expect(out.tracks[0]!.clips[1]!.source).toBe(d.tracks[0]!.clips[0]!.source);
+    expect(ch(out.tracks[0]!)).toEqual(ch(d.tracks[0]!)); // it sounds the same
+  });
+
+  it('Split works on every given track with a clip under the playhead', () => {
+    const d = doc({ channels: [ramp(10)] }, { channels: [ramp(10)] }, { channels: [ramp(2)] });
+    const out = run(d, (tx) => splitAt(tx, ['t0', 't1', 't2'], 0.5, ids()));
+    expect(out.tracks.map((t) => t.clips.length)).toEqual([2, 2, 1]);
+  });
+
+  it('Split needs the playhead over a clip (not on its edge)', () => {
+    const d = doc({ channels: [ramp(10)] });
+    expect(() => run(d, (tx) => splitAt(tx, ['t0'], 1, ids()))).toThrow(
+      /move the playhead over a clip/i,
+    );
+    expect(() => run(d, (tx) => splitAt(tx, [], 0.5, ids()))).toThrow(/select a track/i);
+  });
+
+  it('a clip moves along its track; it may not overlap another clip', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => splitAt(tx, ['t0'], 0.4, ids()));
+    const moved = run(d, (tx) => moveClip(tx, 'n1', 1.234));
+    expect(clipsOf(moved.tracks[0]!)[1]!.offset).toBe(1.2); // to a whole sample
+    expect(ch(moved.tracks[0]!)).toEqual([1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 5, 6, 7, 8, 9, 10]);
+    expect(() => run(d, (tx) => moveClip(tx, 'n1', 0.2))).toThrow(/overlaps another clip/i);
+    expect(clipsOf(run(d, (tx) => moveClip(tx, 't0.c', -5)).tracks[0]!)[0]!.offset).toBe(0);
+  });
+
+  it('dragging an edge trims the clip; dragging it back brings the sound back', () => {
+    const d = doc({ channels: [ramp(10)] });
+    const trimmed = run(d, (tx) => {
+      trimClip(tx, 't0.c', 'start', 0.3);
+      trimClip(tx, 't0.c', 'end', 0.8);
+    });
+    expect(clipsOf(trimmed.tracks[0]!)).toEqual([
+      { id: 't0.c', offset: 0.3, sound: [4, 5, 6, 7, 8] },
+    ]);
+    const back = run(trimmed, (tx) => {
+      trimClip(tx, 't0.c', 'start', 0);
+      trimClip(tx, 't0.c', 'end', 5);
+    });
+    expect(clipsOf(back.tracks[0]!)).toEqual([
+      { id: 't0.c', offset: 0, sound: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    ]);
+  });
+
+  it('a trimmed edge stops at the next clip and keeps at least one sample', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => {
+      splitAt(tx, ['t0'], 0.4, ids());
+      trimClip(tx, 't0.c', 'end', 0.2);
+    });
+    const out = run(d, (tx) => {
+      trimClip(tx, 't0.c', 'end', 0.9); // stops at the clip that starts at 0.4 s
+      trimClip(tx, 'n1', 'start', 3); // keeps one sample
+    });
+    expect(clipsOf(out.tracks[0]!)).toEqual([
+      { id: 't0.c', offset: 0, sound: [1, 2, 3, 4] },
+      { id: 'n1', offset: 0.9, sound: [10] },
+    ]);
+  });
+
+  it('Delete removes clips and leaves the gap (later clips stay where they are)', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => splitAt(tx, ['t0'], 0.4, ids()));
+    const out = run(d, (tx) => deleteClips(tx, ['t0.c']));
+    expect(clipsOf(out.tracks[0]!)).toEqual([
+      { id: 'n1', offset: 0.4, sound: [5, 6, 7, 8, 9, 10] },
+    ]);
+    expect(() => run(d, (tx) => deleteClips(tx, []))).toThrow(/click a clip/i);
+  });
+
+  it('Join puts a split clip back together (no samples copied)', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => splitAt(tx, ['t0'], 0.4, ids()));
+    const out = run(d, (tx) => joinClip(tx, 't0.c'));
+    expect(clipsOf(out.tracks[0]!)).toEqual([
+      { id: 't0.c', offset: 0, sound: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    ]);
+    expect(out.tracks[0]!.clips[0]!.source).toBe(d.tracks[0]!.clips[0]!.source);
+  });
+
+  it('Join joins any two clips that touch, one after the other', () => {
+    const d = doc({ channels: [ramp(3)] });
+    const two = run(d, (tx) =>
+      paste(tx, sel(0.3, 0.3, 't0'), { channels: [new Float32Array([7, 8])] }, ids()),
+    );
+    const out = run(two, (tx) => joinClip(tx, 't0.c'));
+    expect(clipsOf(out.tracks[0]!)).toEqual([{ id: 't0.c', offset: 0, sound: [1, 2, 3, 7, 8] }]);
+  });
+
+  it('Join needs a clip right after this one', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => {
+      splitAt(tx, ['t0'], 0.4, ids());
+      moveClip(tx, 'n1', 0.6);
+    });
+    expect(() => run(d, (tx) => joinClip(tx, 't0.c'))).toThrow(/no clip right after/i);
+  });
+
+  it('range edits work across clips and gaps', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => {
+      splitAt(tx, ['t0'], 0.4, ids());
+      moveClip(tx, 'n1', 0.6);
+    });
+    // 1 2 3 4 _ _ 5 6 7 8 9 10: delete 0.3 – 0.7 s
+    const cut = run(d, (tx) => deleteRange(tx, sel(0.3, 0.7, 't0')));
+    expect(ch(cut.tracks[0]!)).toEqual([1, 2, 3, 6, 7, 8, 9, 10]);
+    expect(copyRange(d, sel(0.3, 0.7, 't0')).channels.map((c) => [...c])).toEqual([[4, 0, 0, 5]]);
+    const silenced = run(d, (tx) =>
+      applyToSelection(tx, sel(0.3, 0.7, 't0'), (c) => c.map((x) => x.map(() => 0))),
+    );
+    expect(ch(silenced.tracks[0]!)).toEqual([1, 2, 3, 0, 0, 0, 0, 6, 7, 8, 9, 10]);
+    const trimmed = run(d, (tx) => trimToSelection(tx, sel(0.3, 0.7, 't0')));
+    expect(clipsOf(trimmed.tracks[0]!)).toEqual([
+      { id: 't0.c', offset: 0.3, sound: [4] },
+      { id: 'n1', offset: 0.6, sound: [5] },
+    ]);
+  });
+
+  it('an effect that changes the length moves the later clips with it', () => {
+    const d = run(doc({ channels: [ramp(10)] }), (tx) => {
+      splitAt(tx, ['t0'], 0.4, ids());
+      moveClip(tx, 'n1', 0.6);
+    });
+    const out = run(d, (tx) =>
+      applyToSelection(tx, sel(0, 0.4, 't0'), (c) => c.map((x) => x.slice(0, 2))),
+    );
+    expect(clipsOf(out.tracks[0]!).map((c) => c.offset)).toEqual([0, 0.4]);
   });
 });

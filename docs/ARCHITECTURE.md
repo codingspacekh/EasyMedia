@@ -104,10 +104,13 @@ EasyMedia/
 │  │  │                       peaks.ts (waveform columns), recording.ts (level advice, A14),
 │  │  │                       dsp/ (volume, speed, channels, pitch, echo, reverb, filters, fft,
 │  │  │                       noise, compressor)
-│  │  ├─ teaching/            fileSize.ts, sampling.ts, explain.ts ("why" texts, T5)
+│  │  ├─ teaching/            file-size.ts (T2), sampling.ts (T4), inspect.ts (T1), format-guide.ts (T7),
+│  │  │                       task-check.ts (T6), glossary.ts; the "why" texts (T5) are effects/help.ts
 │  │  └─ ports.ts             interfaces only
-│  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts
-│  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13, 14, 20);
+│  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts,
+│  │                          audio.ts (Audio mode), learn.ts (Learn mode)
+│  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13–20);
+│  │                          learn/ (Learn mode, screens 21–22, task checker, glossary); Why.svelte (T5);
 │  │                          menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
@@ -138,7 +141,7 @@ type Seconds = number;           // always seconds, 0.01 precision in UI (N8)
 type Id = string;
 
 interface Project {
-  schemaVersion: 1;
+  schemaVersion: 2;               // 2: Audio mode tracks hold clips (migration 1 → 2)
   name: string;
   settings: {
     aspect: '16:9' | '4:3' | 'custom';
@@ -197,7 +200,7 @@ interface AudioItem {
 interface EffectInstance { effectId: string; params: Record<string, number | string | boolean>; }
 ```
 
-The audio editor (Audio mode) uses a separate, simpler model (`core/audio/pcm.ts`): an `AudioDoc { rate, tracks }` where every `AudioTrack { id, name, offset, channels: Float32Array[], gain, pan, bits? }` shares the project rate (the first imported file's rate; later files are decoded at it). Edits work on a selection `{ start, end, tracks }` (Audacity model) and use the Memento pattern (P5) instead of commands. Mute and solo only change what is heard and are not edits. The Audio mode session is not saved in the `.mve` file yet: the work leaves EasyMedia by **Export audio**.
+The audio editor (Audio mode) uses a separate, simpler model (`core/audio/pcm.ts`): an `AudioDoc { rate, tracks }` where every `AudioTrack { id, name, channelCount, clips, gain, pan, bits? }` shares the project rate (the first imported file's rate; later files are decoded at it). A track holds **clips**, as the video timeline does: `AudioClip { id, offset, source: Float32Array[], in, out }` plays samples `[in, out)` of `source` from `offset`. Trimming an edge only moves `in` / `out` (it can be dragged back out), and the two halves of a split share one `source`, so Split, Move, Trim and Join keep no samples in their undo steps. Clips on a track never overlap; gaps are silence. Edits work either on clips (click, drag, Split / Join / Delete: the gap stays) or on a selection `{ start, end, tracks }` (Audacity model: Cut, Copy, Paste, effects, which work across clips and gaps). Both use the Memento pattern (P5) instead of commands. Mute and solo only change what is heard and are not edits. The session is saved with the project (§7.6).
 
 ## 6. Effect registry (P6 + P7)
 
@@ -257,8 +260,10 @@ Ctrl/⌘+Z ─► undo(history) → the previous (immutable) project is restored
 ### 7.3 Preview ("approximate preview, exact export")
 
 - Plays **proxy** files in at most two `<video>` elements (current + next, for transitions).
-- Effects use their `preview` hint: CSS `filter` (brightness, contrast, saturate, grayscale, sepia, blur), CSS `opacity` for fades and dissolves, CSS `transform` for pan/zoom.
-- Text items are drawn on a canvas layered on top, with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). Fades, fly-ins and the credits scroll follow `core/text/motion.ts`, the same rules the export writes as FFmpeg expressions.
+- Effects use their `preview` hint: CSS `filter` (brightness, contrast, saturate, grayscale, sepia, blur), CSS `opacity` for fades, CSS `transform` for pan/zoom.
+- Transitions (33 xfade kinds in five groups) are drawn by `transitionLook(xfade, progress)` in `core/effects/transitions/transitions.ts`: CSS `clip-path`, `mask-image`, `transform`, `opacity` and `filter` for the outgoing and incoming layers, with directions checked against FFmpeg's. The export is exactly xfade.
+- Text items are drawn on canvases with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). A title's words are drawn inside its clip's layer, so a transition takes them along; captions, subtitles and credits on a canvas on top. Fades, entrances (fly, rise, drop, zoom, pop), exits and the credits scroll follow `core/text/motion.ts`: `textMotion` for the preview and `motionExpressions`, the same rules as FFmpeg expressions (a scale filter and the overlay position, zooming around the middle of the words that the TextRenderer reports). A unit test evaluates the expressions and checks they give the preview's numbers.
+- Text looks (`core/text/looks.ts`: Neon, Gold, Fire, Comic…) only set style fields (colour, glow, gradient, 3D, outline and box colours) that `draw.ts` draws, so they are the same in the preview and the export. 20 bundled OFL fonts (`resources/fonts`, `ui/fonts.css`) in five groups.
 - **"Render preview of selection"** runs the real compiler on a short range for a frame-exact check.
 
 ### 7.4 Export
@@ -339,12 +344,40 @@ Record ─► Recorder.open: macOS asks the system once (main, askForMediaAccess
   ─► level meter (peak held) ─► count-in ─► blocks kept (other tracks play: overdub)
   ─► Stop: one undo step adds "Recording N" at the playhead (resampled to the project rate)
 
-Save (P1) ─► each changed track ─► MediaEngine.encodeAudio: 32-bit float WAV in "<project> audio/"
-  ─► the .mve gets audioMode { rate, tracks: name, offset, gain, pan, file } (paths relative)
+Save (P1) ─► each clip's samples ─► MediaEngine.encodeAudio: 32-bit float WAV "clip-<id>.wav" in
+  "<project> audio/" (one file per set of samples: split halves share it; a file is written again
+  only if it no longer holds those very samples, e.g. after Undo)
+  ─► the .mve gets audioMode { rate, tracks: name, channels, gain, pan,
+     clips: { file, offset, in, out } } (paths relative)
 Open ─► MediaEngine.decodeAudio of each WAV: exactly the same samples
 Close / Quit (P7) ─► main stops the close and sends app:closeRequested ─► the page asks
   Save / Don't Save / Cancel if anything is unsaved ─► app:closeAnswer
 ```
+
+### 7.7 Learn mode (M11)
+
+Learn mode never changes the project: `app/learn.ts` has its own small store, and every page of it
+is pure maths or text from `core/teaching/` shown by `ui/learn/`.
+
+```
+Inspector (T1) ─► Choose a file… (dialog) or drop it (window.mve.pathForFile) ─► MediaEngine.probe
+  ─► inspect(): rows with an explanation each; codecs marked lossy / lossless / uncompressed
+Calculator (T2), sampling visualiser (T4), format guide (T7), glossary ─► pure core functions, no I/O
+Compression comparison (T3) ─► the inspected file's first 10 s of sound (decodeAudio → encodeAudio:
+  WAV, FLAC, MP3 192 / 128 / 64) or 5 s of video (renderVideo of a one-clip project: AVI FFV1,
+  MP4 high, 640 and 426 wide) into the app's "learn" folder (files replaced each time)
+  ─► probe each file for its real size (this also allows it for media://) ─► play side by side;
+  the lossless AVI cannot be played by Chromium, so one exact frame of it (PNG) is shown
+Task checker (T6) ─► the teacher's TaskSpec saved as JSON (.mvetask, open / save dialogs)
+  ─► a student opens it and checks an export: probe ─► checkFile(): pass / fail per row
+```
+
+"Why use this?" (T5): effect texts live in each registry entry; every other tool is in
+`core/effects/help.ts` (`TOOLS`: label, syllabus point, why), shown in a section's "Why use this?"
+box (`ui/Why.svelte`) or, for toolbar buttons and menu items, in the tooltip (`withWhy`). Tooltips
+come from `ui/Tooltip.svelte`, one for the whole app: after 0.4 s on a button (or on keyboard
+focus) it shows the button's title, or an icon-only button's label, with the "Why?" part under
+it; the built-in tooltip is kept away meanwhile.
 
 ## 8. Ports and IPC contract
 
@@ -362,7 +395,7 @@ interface MediaEngine {
   onJobEvent(listener: (e: JobEvent) => void): () => void;                  // queued/started/progress/done/error/cancelled
 }
 interface JobHandle { id: string; done: Promise<void>; cancel(): void }      // done rejects JobCancelledError / MediaError
-interface TextRenderer { draw(text, style, frame, mode: 'frame' | 'block'): Promise<{ png, width, height }> } // §7.3
+interface TextRenderer { draw(text, style, frame, mode: 'frame' | 'block'): Promise<{ png, width, height, anchor? }> } // §7.3
 
 decodeAudio(path, sampleRate?): Promise<DecodedAudio>;                    // A1: { sampleRate, channels: Float32Array[], bits? }
 decodeAudioToFile(path, sampleRate?): Promise<DecodedAudioFile>;        // the same, left in a temp f32 file (used over IPC)
@@ -373,7 +406,9 @@ interface UndoStore { save(channels): Promise<key>; load(key): Promise<Float32Ar
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
 interface Recorder { microphones(): Promise<Microphone[]>; open(id | null, onBlock): Promise<MicrophoneInput> } // A14, X4; throws MicrophoneError
-interface Dialogs { …; unsavedChanges(): Promise<'save' | 'discard' | 'cancel'> }                 // P7
+interface Dialogs { …; unsavedChanges(): Promise<'save' | 'discard' | 'cancel'>;                 // P7
+                    openTaskCheck(): Promise<string | null>; saveTaskCheck(name): Promise<string | null> } // T6
+interface AppPaths { proxies; recovery; snapshots; learn }                                     // learn: T3 comparison files
 ```
 
 The real and mock engines both pass one shared **contract test suite** (`tests/contract/media-engine.contract.ts`), so the mock used by UI tests cannot drift from real FFmpeg behaviour. The recorder has one too (`tests/contract/recorder.contract.ts`): the MediaStream adapter (with a fake microphone stream) and the mock.
@@ -392,8 +427,8 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
-| `app:paths` | invoke | proxy folder and recovery file |
-| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` / `unsavedChanges` | invoke | native dialogs (`unsavedChanges`: Save / Don't Save / Cancel, P7) |
+| `app:paths` | invoke | proxy, snapshot and Learn mode folders, recovery file |
+| `dialog:openMedia` / `openProject` / `saveProject` / `exportVideo` / `exportAudio` / `confirm` / `chooseFolder` / `unsavedChanges` / `openTaskCheck` / `saveTaskCheck` | invoke | native dialogs (`unsavedChanges`: Save / Don't Save / Cancel, P7; task checks `.mvetask`, T6) |
 | `media:microphoneAccess` | invoke | X4: on macOS asks the system for the microphone (once); true elsewhere |
 | `app:closeRequested` | main → page | P7: the window is closing or the app quitting |
 | `app:closeAnswer` | invoke | P7: the page's answer (close or not) |
@@ -401,6 +436,8 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `project:copy` | invoke | Package Project (P2): copies a media file — only files in the allow-list |
 | `project:saveImage` | invoke | a text PNG by plain name into the app's own `text` folder (never the student's folders) |
 | `menu:action` | main → page | native menu items (new, open, save, saveAs, import, export, exportAudio, package, undo, redo, selectAll); undo, redo, import and Select All act on the mode that is showing (`ui/menu-actions.ts`) |
+
+Besides `invoke` and `on`, `window.mve` has one plain function, `pathForFile(file)` (Electron's `webUtils.getPathForFile`): where a file dropped on the page is, for Learn mode's inspector.
 
 Local files reach the page only through the **`media://` protocol** (`src/main/protocol/`): range requests for seeking, and an **allow-list** of files the app probed or created — the page can never read arbitrary files.
 
@@ -410,6 +447,7 @@ The `media://` scheme is CORS-enabled so the page can `fetch()` decoded sound; t
 
 - FFmpeg stderr is parsed by `main/ffmpeg/errors.ts` and mapped to plain-English messages (N11), e.g. *"This file uses a codec the app cannot read. Try converting it to MP4."*
 - Exports write to a temporary file and are renamed only on success, so a failed export never leaves a broken file.
+- A hardware video encoder cannot make every picture size (VideoToolbox refuses 426 × 240): an export made with one carries the software encoder's arguments as `fallbackArgs`, and the job queue tries them once, as the same job, if FFmpeg fails.
 - Projects are saved atomically (write temp → rename) with autosave every 60 s (P3).
 
 ## 10. Cross-platform notes

@@ -1,1 +1,4 @@
-01d5d9f05246fb7090a8403b81257535cb1a088b
+Fonts from https://github.com/google/fonts (SIL Open Font License; OFL-<name>.txt), at these commits:
+01d5d9f05246fb7090a8403b81257535cb1a088b  Inter, Noto Serif, Courier Prime
+47d54ca1ebb14fd864695f1d39dc734f39017c33  Montserrat, Poppins, Oswald, Playfair Display, Arvo, Cinzel, Bebas Neue, Anton, Abril Fatface, Righteous, Bangers, Lobster, Pacifico, Dancing Script, Caveat, Indie Flower, Press Start 2P
+Variable fonts are renamed without "[wght]" (e.g. Montserrat[wght].ttf → Montserrat.ttf).

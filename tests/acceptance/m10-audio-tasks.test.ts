@@ -11,6 +11,7 @@ import {
   type AudioExportSettings,
 } from '../../src/core/render/audio-formats.ts';
 import { engine, projectFolder } from './helpers.ts';
+import { soundOf } from '../helpers/samples.ts';
 
 const TWO_KEYS = 'two_keys_45s.mp3'; // Task_11j.mp3: 0–19 s in C, then F
 const TWO_KEYS_SHARP = 'two_keys_43s.mp3'; // Activity_11e.mp3: 0–30.6 s in C♯, then F♯
@@ -131,7 +132,7 @@ describe('Book B Task 11k: change the first 19 s from C to F, then speed up 1.4�
     const pitch = s.settings('audio.pitch', { fromKey: 0, toKey: 5 }); // C → F
     expect(pitch.semitones).toBe(5);
     expect(s.audio.applyEffect('audio.pitch', pitch)).toBeNull();
-    expect(s.doc().tracks[0]!.channels[0]!.length / RATE).toBeCloseTo(45, 5); // length kept
+    expect(soundOf(s.doc(), 0).channels[0]!.length / RATE).toBeCloseTo(45, 5); // length kept
     s.audio.selectAll(); // 11.2.11 Ctrl+A, Change Speed 1.400
     expect(
       s.audio.applyEffect('audio.speed', s.settings('audio.speed', { speed: 1.4 })),
@@ -177,15 +178,15 @@ describe('Book A 11.20: the bee voiceover at the end of the piano music, 5 % low
     s.audio.cut();
     await s.open(BEE);
     const bee = s.doc().tracks[1]!;
-    const beeLength = bee.channels[0]!.length / RATE;
-    s.audio.timeShift(bee.id, 41 - beeLength); // Time Shift Tool: finish with the piano
+    const beeLength = soundOf(s.doc(), 1).channels[0]!.length / RATE;
+    s.audio.moveClip(bee.clips[0]!.id, 41 - beeLength); // drag the clip: finish with the piano
     s.audio.selectTrack(bee.id);
     s.audio.select({ start: 41 - beeLength, end: 41 });
     const lower = s.settings('audio.pitch', { percent: -5 });
     expect(lower.direction).toBe(1); // down
     expect(s.audio.applyEffect('audio.pitch', lower)).toBeNull();
 
-    const voice = s.doc().tracks[1]!;
+    const voice = soundOf(s.doc(), 1);
     expect(voice.offset + voice.channels[0]!.length / RATE).toBeCloseTo(41, 3);
     near(frequency(voice.channels[0]!, 1, 5), 285);
     const file = await s.exportAs('BeeProject_sound.mp3');
@@ -218,7 +219,7 @@ describe('Book A 11.23: echo on the voiceover intro, 0.5 s delay and 0.5 decay',
     await s.open(BEEPS);
     s.audio.select({ start: 0, end: 6 });
     expect(s.audio.applyEffect('audio.echo', { delay: 0.5, decay: 0.5 })).toBeNull();
-    const [voice] = s.doc().tracks[0]!.channels;
+    const [voice] = soundOf(s.doc(), 0).channels;
     near(level(voice!, 2.5) / level(voice!, 2), 0.5, 0.02);
     near(level(voice!, 3) / level(voice!, 2), 0.25, 0.02);
   });
@@ -306,14 +307,14 @@ describe('Book B Task 11l: remove the background noise from Voiceover_1, trim to
   it('Task_11l.mp3 is 4 s; the hiss is much quieter and the voice keeps its level', async () => {
     const s = session();
     await s.open(VOICE_HISS);
-    const before = s.doc().tracks[0]!.channels[0]!;
+    const before = soundOf(s.doc(), 0).channels[0]!;
     s.audio.select({ start: 3.3, end: 8.09 }); // only background noise
     expect(s.audio.getNoiseProfile()).toBeNull();
     s.audio.selectAll();
     const settings = s.audio.effectSettings('audio.noise');
     expect(settings).toMatchObject({ reductionDb: 12, sensitivity: 6, smoothing: 3 });
     expect(s.audio.applyEffect('audio.noise', settings)).toBeNull();
-    const after = s.doc().tracks[0]!.channels[0]!;
+    const after = soundOf(s.doc(), 0).channels[0]!;
     expect(20 * Math.log10(rms(after, 4, 8) / rms(before, 4, 8))).toBeLessThan(-9); // hiss
     expect(Math.abs(toneDb(after, 300, 1) - toneDb(before, 300, 1))).toBeLessThan(1); // voice
     s.audio.select({ start: 4, end: 9 }); // trim to 4 s
@@ -330,12 +331,12 @@ describe('Book A 11.24: EQ presets, and high- and low-pass filters, on the voice
     const tried = (id: string, change: Params) => {
       s.audio.select({ start: 0, end: 4 });
       expect(s.audio.applyEffect(id, s.settings(id, change))).toBeNull();
-      const out = s.doc().tracks[0]!.channels[0]!;
+      const out = soundOf(s.doc(), 0).channels[0]!;
       const result = { bass: toneDb(out, 100, 2), treble: toneDb(out, 8000, 2) };
       s.audio.undo();
       return result;
     };
-    const original = s.doc().tracks[0]!.channels[0]!;
+    const original = soundOf(s.doc(), 0).channels[0]!;
     const bass = toneDb(original, 100, 2);
     const treble = toneDb(original, 8000, 2);
     expect(tried('audio.eq', { preset: 2 }).bass).toBeGreaterThan(bass + 6); // Bass boost
@@ -412,7 +413,7 @@ describe('Book A 11.21: increase the reverberance by 10 % for the bee voiceover'
       s.audio.select({ start: 0, end: 30 });
       const params = s.settings('audio.reverb', { reverberance });
       expect(s.audio.applyEffect('audio.reverb', params)).toBeNull();
-      return level(s.doc().tracks[0]!.channels[0]!, 2.6);
+      return level(soundOf(s.doc(), 0).channels[0]!, 2.6);
     };
     expect(await ring(50)).toBeGreaterThan((await ring(40)) * 1.3);
   });
@@ -448,7 +449,7 @@ describe('Book B Task 11p: overdub Voiceover_3 at 11 s, music −6 dB under it, 
     // 11.2.18: click the voiceover track, timer bar at exactly 11 s, Align start to cursor.
     s.pick('bee_voiceover_6s', 11, 11); // the cursor is the selection start, as Audacity
     s.audio.alignStart('cursor');
-    expect(s.doc().tracks[1]!.offset).toBe(11);
+    expect(soundOf(s.doc(), 1).offset).toBe(11);
     // The instrumental 10–21 s at −6 dB.
     s.pick('song_48s', 10, 21);
     expect(s.audio.applyEffect('audio.amplify', { gain: -6, allowClipping: 0 })).toBeNull();
@@ -505,11 +506,11 @@ describe('Book B Activity 11i: clip, amplify, fades, cut, voiceover at 10 s with
     s.audio.applyEffect('audio.fadeout', {});
     on(9, 24); // remove the audio between 9 and 24 seconds
     s.audio.cut();
-    expect(s.doc().tracks[0]!.channels[0]!.length / RATE).toBeCloseTo(18, 3);
+    expect(soundOf(s.doc(), 0).channels[0]!.length / RATE).toBeCloseTo(18, 3);
     // Voiceover_4 from 10 s, clearly audible; noise reduction on it.
     await s.open(VOICE_HISS);
     const voice = s.doc().tracks[2]!;
-    s.audio.timeShift(voice.id, 10);
+    s.audio.moveClip(voice.clips[0]!.id, 10);
     s.audio.select({ start: 13.3, end: 18.09, tracks: [voice.id] }); // only its background noise
     expect(s.audio.getNoiseProfile()).toBeNull();
     s.audio.select({ start: 10, end: 19, tracks: [voice.id] });
@@ -546,8 +547,9 @@ describe('Book A 11.22: record a five-second intro, overdubbing the start of the
     );
     s.recorder.speak(intro);
     s.audio.stopRecording();
-    const recording = s.doc().tracks[1]!;
-    expect(recording).toMatchObject({ name: 'Recording 1', offset: 0 });
+    expect(s.doc().tracks[1]!).toMatchObject({ name: 'Recording 1' });
+    const recording = soundOf(s.doc(), 1);
+    expect(recording.offset).toBe(0);
     expect(recording.channels[0]!.length).toBe(5 * RATE); // 48 kHz microphone → 44.1 kHz project
     const file = await s.exportAs('BeeProject_intro.mp3');
     const [left] = (await engine.decodeAudio(file)).channels;

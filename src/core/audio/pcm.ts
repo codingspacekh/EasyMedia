@@ -1,4 +1,5 @@
-// Audio mode data (ARCHITECTURE §5): tracks of decoded samples (PCM), Audacity style.
+// Audio mode data (ARCHITECTURE §5): tracks of decoded samples (PCM). A track holds clips, as
+// the video timeline does: each clip can be moved, trimmed at its edges, split and joined.
 // One Float32Array per channel, values −1…1. Sample arrays are never changed once made:
 // every edit builds new arrays, so earlier states stay intact (see history.ts).
 import type { Seconds } from '../model/time.ts';
@@ -6,13 +7,28 @@ import type { Id } from '../model/types.ts';
 
 export type Channels = readonly Float32Array[];
 
+/**
+ * A piece of sound on a track. Only samples [in, out) of `source` are heard; trimming a clip
+ * only moves `in` and `out`, so dragging an edge back out brings the sound back (as in Video
+ * mode). The two halves of a split clip share one `source` (no copy).
+ */
+export interface AudioClip {
+  id: Id;
+  /** Where sample `in` plays, in seconds. */
+  offset: Seconds;
+  /** All the clip's samples, including the trimmed-away ends; one array per channel. */
+  source: Channels;
+  in: number;
+  out: number;
+}
+
 export interface AudioTrack {
   id: Id;
   name: string;
-  /** Where the track's first sample plays, in seconds (time-shift, align). */
-  offset: Seconds;
-  /** 1 = mono, 2 = stereo (never none); all channels have the same length. */
-  channels: Channels;
+  /** 1 = mono, 2 = stereo; every clip on the track has this many channels. */
+  channelCount: number;
+  /** In any order; clips on a track never overlap. */
+  clips: readonly AudioClip[];
   /** Volume of the track in the mix, in dB (0 = as recorded). */
   gain: number;
   /** −1 = left only, 0 = centre, 1 = right only. */
@@ -33,19 +49,80 @@ export function emptyDoc(rate = DEFAULT_RATE): AudioDoc {
   return { rate, tracks: [] };
 }
 
-export function createTrack(
-  track: Pick<AudioTrack, 'id' | 'name' | 'channels'> & Partial<AudioTrack>,
-): AudioTrack {
-  return { offset: 0, gain: 0, pan: 0, ...track };
+/** A clip that uses all of `channels`. */
+export function createClip({
+  id,
+  channels,
+  offset = 0,
+}: {
+  id: Id;
+  channels: Channels;
+  offset?: Seconds;
+}): AudioClip {
+  return { id, offset, source: channels, in: 0, out: channels[0]?.length ?? 0 };
 }
 
-export const trackLength = (track: AudioTrack): number => track.channels[0]!.length;
+/**
+ * A track holding `channels` as one clip (called `<track id>.c`) starting at `offset`; with no
+ * samples, an empty track with that many channels.
+ */
+export function createTrack({
+  channels,
+  offset = 0,
+  ...track
+}: Pick<AudioTrack, 'id' | 'name'> &
+  Partial<Omit<AudioTrack, 'clips' | 'channelCount'>> & {
+    channels: Channels;
+    offset?: Seconds;
+  }): AudioTrack {
+  const clips = channels[0]!.length ? [createClip({ id: `${track.id}.c`, channels, offset })] : [];
+  return { gain: 0, pan: 0, ...track, channelCount: channels.length, clips };
+}
 
-export const trackDuration = (track: AudioTrack, rate: number): Seconds =>
-  trackLength(track) / rate;
+/** Samples heard from the clip (per channel). Views of the source: never change them. */
+export const clipChannels = (clip: AudioClip): Float32Array[] =>
+  clip.source.map((c) => c.subarray(clip.in, clip.out));
+
+export const clipLength = (clip: AudioClip): number => clip.out - clip.in;
+
+export const clipEnd = (clip: AudioClip, rate: number): Seconds =>
+  clip.offset + clipLength(clip) / rate;
+
+/** The clips in time order. */
+export const clipsInOrder = (track: AudioTrack): AudioClip[] =>
+  [...track.clips].sort((a, b) => a.offset - b.offset);
+
+/** Where the track's first clip starts (0 when it has none). */
+export const trackStart = (track: AudioTrack): Seconds =>
+  track.clips.length ? Math.min(...track.clips.map((c) => c.offset)) : 0;
 
 export const trackEnd = (track: AudioTrack, rate: number): Seconds =>
-  track.offset + trackDuration(track, rate);
+  track.clips.length ? Math.max(...track.clips.map((c) => clipEnd(c, rate))) : 0;
+
+/** From the start of the first clip to the end of the last one. */
+export const trackDuration = (track: AudioTrack, rate: number): Seconds =>
+  trackEnd(track, rate) - trackStart(track);
+
+/** Samples from the start of the first clip to the end of the last one, per channel. */
+export const trackLength = (track: AudioTrack, rate: number): number =>
+  track.clips.length
+    ? toSamples(trackEnd(track, rate), rate) - toSamples(trackStart(track), rate)
+    : 0;
+
+/** The track as one sound: its clips where they play, silence in the gaps. */
+export function trackSound(
+  track: AudioTrack,
+  rate: number,
+): { offset: Seconds; channels: Float32Array[] } {
+  const offset = trackStart(track);
+  const first = toSamples(offset, rate);
+  const out = silence(trackLength(track, rate), track.channelCount);
+  for (const clip of track.clips) {
+    const at = toSamples(clip.offset, rate) - first;
+    clipChannels(clip).forEach((c, ch) => out[ch]!.set(c, at));
+  }
+  return { offset, channels: out };
+}
 
 /** Seconds → whole samples. */
 export const toSamples = (seconds: Seconds, rate: number): number => Math.round(seconds * rate);

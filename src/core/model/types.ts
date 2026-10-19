@@ -115,16 +115,33 @@ export interface TextStyle {
   outline?: boolean;
   /** A dark box behind the text. */
   box?: boolean;
+  /** The outline's colour (default black). */
+  outlineColour?: string;
+  /** The box's colour (default see-through black). */
+  boxColour?: string;
+  /** The words light up the space around them (in `accent`, or their own colour). */
+  glow?: boolean;
+  /** The colour runs from `colour` at the top of each line to `accent` at the bottom. */
+  gradient?: boolean;
+  /** 3D: the words stand out, with sides in `accent` (default dark grey). */
+  depth?: boolean;
+  /** The second colour, for glow, gradient and 3D. */
+  accent?: string;
 }
 
 /** How text arrives on screen (Book B: "an appropriate animation effect"). Lasts 1 s. */
-export type Entrance = 'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down';
+export type Entrance =
+  'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down' | 'rise' | 'drop' | 'zoom' | 'pop';
 
-/** Fades and entrance shared by title slides and text items (V7 for text). */
+/** How text leaves the screen, in its last second. */
+export type Exit = 'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down' | 'sink' | 'zoom';
+
+/** Fades, entrance and exit shared by title slides and text items (V7 for text). */
 export interface TextEffects {
   fadeIn?: Seconds;
   fadeOut?: Seconds;
   entrance?: Entrance;
+  exit?: Exit;
 }
 
 export type TitleBackground =
@@ -173,7 +190,7 @@ export interface AudioItem {
 }
 
 export interface Project {
-  schemaVersion: 1;
+  schemaVersion: 2;
   name: string;
   settings: ProjectSettings;
   media: MediaAsset[];
@@ -188,7 +205,7 @@ export interface Project {
   audioMode?: AudioModeSession;
 }
 
-/** P1 for Audio mode: its tracks; each one's sound is an exact 32-bit WAV file. */
+/** P1 for Audio mode: its tracks and their clips; the sound is in exact 32-bit WAV files. */
 export interface AudioModeSession {
   /** The project rate: every track's sample rate. */
   rate: number;
@@ -198,10 +215,20 @@ export interface AudioModeSession {
 export interface SavedAudioTrack {
   id: Id;
   name: string;
-  /** The WAV file with the track's samples (relative to the project file on disk, X1). */
-  file: string;
-  offset: number;
+  /** 1 = mono, 2 = stereo (absent in files of version 1: taken from the sound). */
+  channels?: number;
+  clips: SavedAudioClip[];
   gain: number;
   pan: number;
   bits?: number;
+}
+
+export interface SavedAudioClip {
+  id: Id;
+  /** The WAV file with the clip's samples (relative to the project file on disk, X1). */
+  file: string;
+  offset: number;
+  /** The heard samples [in, out) of the file; absent: all of them. */
+  in?: number;
+  out?: number;
 }

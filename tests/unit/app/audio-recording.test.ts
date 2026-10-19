@@ -4,6 +4,7 @@ import { createAudioApp, type AudioOutput } from '../../../src/app/audio.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../../src/adapters/mock/recorder.ts';
 import type { Dialogs, ProbeInfo } from '../../../src/core/ports.ts';
+import { sameSamples, soundOf } from '../../helpers/samples.ts';
 
 const MUSIC: ProbeInfo = {
   kind: 'audio',
@@ -127,7 +128,7 @@ describe('A14 recording into a new track at the playhead', () => {
     s.recorder.speak(tone(1, 48000));
     expect(s.state().recording!.elapsed).toBeCloseTo(1, 3);
     s.audio.stopRecording();
-    expect(s.doc().tracks[0]!.channels[0]!.length).toBe(48000);
+    expect(soundOf(s.doc(), 0).channels[0]!.length).toBe(48000);
   });
 
   it('the first recording sets the project rate; it becomes a mono track named Recording 1', async () => {
@@ -140,9 +141,9 @@ describe('A14 recording into a new track at the playhead', () => {
     s.audio.stopRecording();
     expect(s.doc().rate).toBe(48000);
     const track = s.doc().tracks[0]!;
-    expect(track).toMatchObject({ name: 'Recording 1', offset: 0 });
-    expect(track.channels).toHaveLength(1);
-    expect(track.channels[0]).toEqual(said);
+    expect(track).toMatchObject({ name: 'Recording 1', channelCount: 1 });
+    expect(soundOf(s.doc(), 0).offset).toBe(0);
+    expect(sameSamples(soundOf(s.doc(), 0).channels[0]!, said)).toBe(true);
     expect(s.state().history.past.at(-1)!.label).toBe('Record 1.50 s');
     expect(s.state().selection.tracks).toEqual([track.id]);
     expect(s.state().recording).toBeNull();
@@ -160,7 +161,7 @@ describe('A14 recording into a new track at the playhead', () => {
     s.recorder.speak(tone(1, 48000));
     s.audio.stopRecording();
     expect(s.output.stop).toHaveBeenCalled();
-    const voice = s.doc().tracks[1]!;
+    const voice = soundOf(s.doc(), 1);
     expect(voice.offset).toBe(1.5);
     expect(voice.channels[0]!.length).toBe(44100); // 48 kHz microphone, 44.1 kHz project
     expect(s.doc().tracks).toHaveLength(2);

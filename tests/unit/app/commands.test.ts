@@ -16,6 +16,7 @@ import {
   relinkMedia,
   setText,
   setTextEffects,
+  setTextLook,
   setTextStyle,
   setTitleBackground,
   removeItem,
@@ -84,6 +85,7 @@ describe('P4 every command leaves the original untouched and can be undone exact
     ['relinkMedia', relinkMedia('lake', { ...lake, path: 'moved/Lake_Naivasha.mp4' })],
     ['setText', setText('x', 'Bees are important')],
     ['setTextStyle', setTextStyle('x', { font: 'Courier Prime', size: 80 })],
+    ['setTextLook', setTextLook('x', 'gold')],
     ['setTextEffects', setTextEffects('x', { fadeIn: 0.2, entrance: 'fly-left' })],
     ['setTitleBackground', setTitleBackground('t', { kind: 'image', assetId: 'photo' })],
     ['setDuration', setDuration('t', 3)],
@@ -203,6 +205,14 @@ describe('commands', () => {
         colour: '#1b2a6b',
         shadow: true,
       });
+    });
+
+    it('setTextLook gives the words a ready-made look (one step), keeping font and size', () => {
+      const command = setTextLook('t', 'neon');
+      expect(command.label).toBe('Text look: Neon');
+      const style = (run(sample(), command).timeline.main[0] as { style: object }).style;
+      expect(style).toMatchObject({ glow: true, accent: '#ff2fd0', shadow: false });
+      expect(() => run(sample(), setTextLook('t', 'sparkly'))).toThrow(/look/i);
     });
 
     it.each([
