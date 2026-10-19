@@ -115,6 +115,18 @@ export interface TextStyle {
   outline?: boolean;
   /** A dark box behind the text. */
   box?: boolean;
+  /** The outline's colour (default black). */
+  outlineColour?: string;
+  /** The box's colour (default see-through black). */
+  boxColour?: string;
+  /** The words light up the space around them (in `accent`, or their own colour). */
+  glow?: boolean;
+  /** The colour runs from `colour` at the top of each line to `accent` at the bottom. */
+  gradient?: boolean;
+  /** 3D: the words stand out, with sides in `accent` (default dark grey). */
+  depth?: boolean;
+  /** The second colour, for glow, gradient and 3D. */
+  accent?: string;
 }
 
 /** How text arrives on screen (Book B: "an appropriate animation effect"). Lasts 1 s. */

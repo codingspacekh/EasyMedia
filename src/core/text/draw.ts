@@ -19,6 +19,12 @@ export interface TextCanvas {
   fillRect(x: number, y: number, width: number, height: number): void;
   fillText(text: string, x: number, y: number): void;
   strokeText(text: string, x: number, y: number): void;
+  createLinearGradient(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ): { addColorStop(offset: number, colour: string): void };
 }
 
 /**
@@ -41,6 +47,11 @@ const BLOCK_PADDING = 0.5;
 const OUTLINE_WIDTH = 0.1;
 const SHADOW_OFFSET = 0.05;
 const SHADOW_BLUR = 0.1;
+const GLOW_BLUR = 0.4;
+/** 3D: this many layers, each this far (× the size) down and right. */
+const DEPTH_LAYERS = 6;
+const DEPTH_STEP = 1 / 60;
+const DEPTH_COLOUR = '#333333';
 
 const pixelSize = (style: TextStyle, frame: Size) => (style.size * frame.height) / 1080;
 
@@ -79,26 +90,46 @@ export function drawText(
   ctx.textBaseline = 'top';
   if (style.box) {
     const pad = BOX_PADDING * px;
-    ctx.fillStyle = BOX_COLOUR;
+    ctx.fillStyle = style.boxColour ?? BOX_COLOUR;
     ctx.fillRect(box.x - pad, box.y + dy - pad, box.width + 2 * pad, box.height + 2 * pad);
   }
+  const step = Math.round(DEPTH_STEP * px * 2) / 2;
   layout.lines.forEach((line, i) => {
     const x = layout.lineX[i] as number;
     const y = box.y + dy + i * layout.lineHeight;
+    if (style.depth) {
+      // 3D: the farthest layer first, so nearer ones cover it.
+      ctx.fillStyle = style.accent ?? DEPTH_COLOUR;
+      for (let k = DEPTH_LAYERS; k >= 1; k--) ctx.fillText(line, x + k * step, y + k * step);
+    }
     if (style.outline) {
-      ctx.strokeStyle = OUTLINE_COLOUR;
+      ctx.strokeStyle = style.outlineColour ?? OUTLINE_COLOUR;
       ctx.lineWidth = OUTLINE_WIDTH * px;
       ctx.lineJoin = 'round';
       ctx.strokeText(line, x, y);
     }
-    if (style.shadow) {
+    if (style.glow) {
+      ctx.shadowColor = style.accent ?? style.colour;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.shadowBlur = GLOW_BLUR * px;
+    } else if (style.shadow) {
       ctx.shadowColor = SHADOW_COLOUR;
       ctx.shadowOffsetX = SHADOW_OFFSET * px;
       ctx.shadowOffsetY = SHADOW_OFFSET * px;
       ctx.shadowBlur = SHADOW_BLUR * px;
     }
-    ctx.fillStyle = style.colour;
+    if (style.gradient) {
+      const fill = ctx.createLinearGradient(0, y, 0, y + px);
+      fill.addColorStop(0, style.colour);
+      fill.addColorStop(1, style.accent ?? style.colour);
+      ctx.fillStyle = fill;
+    } else {
+      ctx.fillStyle = style.colour;
+    }
     ctx.fillText(line, x, y);
+    // A glow is drawn twice: once is too faint to see on a bright picture.
+    if (style.glow) ctx.fillText(line, x, y);
     ctx.shadowColor = 'transparent';
   });
   return size;

@@ -30,6 +30,7 @@ function fakes() {
     fillRect: () => {},
     fillText: (t: string) => void log.push(`fill ${t}`),
     strokeText: () => {},
+    createLinearGradient: () => ({ addColorStop: () => {} }),
   } satisfies TextCanvas;
   const renderer = createCanvasTextRenderer({
     loadFont: async (font) => void log.push(`load ${font}`),

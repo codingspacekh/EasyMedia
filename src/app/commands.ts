@@ -4,6 +4,7 @@ import { EditError } from '../core/model/errors.ts';
 import { newId } from '../core/model/factory.ts';
 import { validateSettings } from '../core/model/settings.ts';
 import { validateTextStyle } from '../core/text/fonts.ts';
+import { applyLook, TEXT_LOOKS } from '../core/text/looks.ts';
 import {
   defaultParams,
   effectById,
@@ -475,6 +476,21 @@ export function setTextStyle(id: Id, change: Partial<TextStyle>): Command {
     apply: (p) =>
       updateText(p, id, (item) => {
         const style = { ...item.style, ...change };
+        validateTextStyle(style);
+        return { ...item, style };
+      }),
+  };
+}
+
+/** A ready-made text look (colours and effects), as one step. */
+export function setTextLook(id: Id, lookId: string): Command {
+  const look = TEXT_LOOKS.find((l) => l.id === lookId);
+  return {
+    label: `Text look: ${look?.label ?? lookId}`,
+    apply: (p) =>
+      updateText(p, id, (item) => {
+        if (!look) throw new EditError('This text look is not available in this version.');
+        const style = applyLook(item.style, lookId);
         validateTextStyle(style);
         return { ...item, style };
       }),

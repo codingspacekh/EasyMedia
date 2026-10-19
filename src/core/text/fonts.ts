@@ -63,6 +63,9 @@ export function validateTextStyle(style: TextStyle): void {
   if (!(style.size >= 8 && style.size <= 300))
     throw new EditError('Text size must be between 8 and 300.');
   if (!/^#[0-9a-f]{6}$/i.test(style.colour)) throw new EditError('Choose a text colour.');
+  for (const c of [style.accent, style.outlineColour, style.boxColour])
+    if (c !== undefined && !/^#[0-9a-f]{6}$/i.test(c))
+      throw new EditError('Choose a colour from the colour box.');
   if (!['left', 'centre', 'right'].includes(style.align) || !POSITIONS.includes(style.position)) {
     throw new EditError('Choose where the text goes.');
   }

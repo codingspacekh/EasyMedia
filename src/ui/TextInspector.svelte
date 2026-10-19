@@ -2,11 +2,18 @@
   // Text of a title slide, caption, subtitle or credits (screens 02–04): words, look, place,
   // readability and effects (V4–V7). Every change is one undoable step.
   import type { App } from '../app/app.ts';
-  import { setText, setTextEffects, setTextStyle, setTitleBackground } from '../app/commands.ts';
+  import {
+    setText,
+    setTextEffects,
+    setTextLook,
+    setTextStyle,
+    setTitleBackground,
+  } from '../app/commands.ts';
   import type { Entrance, TextItem, TextStyle, TitleSlide } from '../core/model/types.ts';
   import { readability } from '../core/text/layout.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import FontPicker from './FontPicker.svelte';
+  import LookPicker from './LookPicker.svelte';
   import TimeField from './TimeField.svelte';
   import Why from './Why.svelte';
 
@@ -120,6 +127,11 @@
 </section>
 
 <section>
+  <h3>Ready-made looks</h3>
+  <LookPicker style={item.style} onchange={(id) => (error = app.edit(setTextLook(item.id, id)))} />
+</section>
+
+<section>
   <h3>Position <span class="syl">11.4</span></h3>
   <div class="place">
     <div class="grid9">
@@ -144,7 +156,7 @@
 </section>
 
 <section>
-  <h3>Readability <span class="syl">11.4</span></h3>
+  <h3>Readability and effects <span class="syl">11.4</span></h3>
   <div class="row">
     <label class="check">
       <input
@@ -162,14 +174,71 @@
       />
       Outline
     </label>
+    {#if item.style.outline}
+      <label class="check colour" title="The colour of the outline">
+        <input
+          type="color"
+          aria-label="Outline colour"
+          value={item.style.outlineColour ?? '#000000'}
+          onchange={(e) => style({ outlineColour: e.currentTarget.value })}
+        />
+      </label>
+    {/if}
     <label class="check">
       <input
         type="checkbox"
         checked={item.style.box ?? false}
         onchange={(e) => style({ box: e.currentTarget.checked })}
       />
-      Dark box
+      Box
     </label>
+    {#if item.style.box}
+      <label class="check colour" title="The colour of the box (see-through black until chosen)">
+        <input
+          type="color"
+          aria-label="Box colour"
+          value={item.style.boxColour ?? '#000000'}
+          onchange={(e) => style({ boxColour: e.currentTarget.value })}
+        />
+      </label>
+    {/if}
+  </div>
+  <div class="row">
+    <label class="check" title="The words light up the space around them">
+      <input
+        type="checkbox"
+        checked={item.style.glow ?? false}
+        onchange={(e) => style({ glow: e.currentTarget.checked })}
+      />
+      Glow
+    </label>
+    <label class="check" title="The colour changes from the top of the words to the bottom">
+      <input
+        type="checkbox"
+        checked={item.style.gradient ?? false}
+        onchange={(e) => style({ gradient: e.currentTarget.checked })}
+      />
+      Gradient
+    </label>
+    <label class="check" title="The words stand out, with sides in the second colour">
+      <input
+        type="checkbox"
+        checked={item.style.depth ?? false}
+        onchange={(e) => style({ depth: e.currentTarget.checked })}
+      />
+      3D
+    </label>
+    {#if item.style.glow || item.style.gradient || item.style.depth}
+      <label class="check" title="Used by glow, gradient and 3D">
+        <input
+          type="color"
+          aria-label="Second colour"
+          value={item.style.accent ?? (item.style.depth ? '#333333' : item.style.colour)}
+          onchange={(e) => style({ accent: e.currentTarget.value })}
+        />
+        Second colour
+      </label>
+    {/if}
   </div>
   {#if contrast}
     <p class={contrast.easy ? 'hint' : 'warn'}>
