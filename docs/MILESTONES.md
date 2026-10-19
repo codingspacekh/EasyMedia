@@ -513,13 +513,24 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 
 **Goal:** release quality on both platforms.
 
-**Build order**
-1. Full acceptance run: every task in README §13, on a Windows 11 laptop and a Mac.
-2. **Bali practice paper** (Book B questions 1–7) end-to-end, timed.
-3. Cross-platform: project made on Windows opens and exports identically on macOS and vice versa (X1, X2, X6).
-4. Performance pass on the weakest laptop (N1–N5); fix regressions found by the performance tests.
-5. Installers: Windows NSIS + portable zip, macOS universal DMG; first-launch guide (X7); `THIRD_PARTY_LICENSES`.
-6. User guide for students; teacher notes mapping screens to syllabus points.
+**Decisions (2026-10-19):** no paid code signing for v1.0 on either platform — the install guide shows the free way past macOS Gatekeeper (*right-click → Open*, or *Privacy & Security → Open Anyway*) and Windows SmartScreen (*More info → Run anyway*). Signing can be added later without changing the app.
+
+**Build order** (installers first, so the teacher's checks run on what students will install)
+1. **Installers and release build** — electron-builder (MIT): Windows x64 NSIS installer + portable zip; one macOS **universal** DMG (Apple Silicon and Intel; each FFmpeg in its own folder, the app picks by `process.arch`). The packaged app carries FFmpeg, the fonts and the licences; on macOS `NSMicrophoneUsageDescription` and, with the hardened runtime, the `audio-input` entitlement (M10 note). An app icon (none yet). A `release.yml` workflow builds all three on a `v*` tag and attaches them to a **draft** GitHub Release; every CI run also builds them and starts each packaged app once (smoke test).
+2. **`THIRD_PARTY_LICENSES`** made by a script at build time: FFmpeg (GPL-3.0, with where to get its source), Electron and Chromium, every bundled font (SIL OFL), and every npm package that ends up in the app. Shipped in the installers and shown from *Help ▸ Licences*.
+3. **First-launch guide (X7)**: `docs/INSTALL.md` (download, install, the Gatekeeper and SmartScreen steps, microphone permission, where projects are saved) and an in-app **Welcome** shown on first launch (the three modes, where to start, *Help ▸ Welcome* to see it again).
+4. **Bali practice paper** (Book B practice questions 1–7) as an automated acceptance test through the app's use cases with stand-in files of the same kind (`EQ11-*` are not in the repo), then end-to-end through the UI with a time budget. Book inconsistencies decided as in earlier tasks and noted: the storyboard's `Bali1.mp3` / `EQ11-Bali2.mp3` are the `.mp4` clips; "Bali2 placed for 7 seconds" at 11.74 s would overlap the clip at 17.74 s with no transition allowed, so it is 6 s (the times win); the sound's times are read after the first 2 s are removed.
+5. **Cross-platform (X1, X2, X6)**: a CI job makes a project and an export on Windows, and the macOS jobs open that project and export it again: same format, size, length and codecs, and the pictures alike (PSNR ≥ 40 dB); the same in the other direction.
+6. **Student user guide and teacher notes** (`docs/guide/`): how to do each coursebook kind of task in EasyMedia; teacher notes mapping every screen and tool to the syllabus points 11.1 / 11.2. Shipped with the app and opened from *Help ▸ User guide* (offline).
+7. **Performance pass on the weakest laptop (N1–N5)** with the teacher: the installed app on an 8 GB Windows laptop measures preview frame rate, export time, effect time, RAM of an exam-sized project and start-up (`EASYMEDIA_PERF_REPORT`); fix what misses its budget (moving the audio DSP to a Web Worker is the planned way out for N3 / N12).
+8. **Full acceptance run** by the teacher on a Windows 11 laptop and a Mac with the installed app: every task in README §13, the Bali paper timed; results in `docs/acceptance/M12.md`.
+
+**Tests first**
+- Packaging: the build config names FFmpeg for each platform, the fonts, `THIRD_PARTY_LICENSES` and the microphone description; the packaged app finds its FFmpeg and fonts (smoke test in CI on Windows x64, macOS Apple Silicon and Intel).
+- Licences: the file names FFmpeg's licence and source, Electron, every bundled font and every bundled npm package; a font or package without a licence fails the build.
+- Welcome: shown on the first launch only; *Help ▸ Welcome* shows it again.
+- Bali: Bali_sound.mp3 is stereo 44.1 kHz, 35.3 s, silent from 15.7 to 23.4 s, peaks just below 0 dBFS after 6 s; Bali1.mp4 and Bali3.mp4 are 1920 × 1080 16:9 with no sound, Bali3 lasting 4× the original; the stills are the first and last frames; Bali_video.mp4 matches the storyboard times (the picture at 3 s, 9 s, 15 s, 21 s, 30 s comes from the right source; "Bali" top-right; captions 11.74–17.74 s; credits scrolling 25.38–37.38 s on the left) in the Blu-ray preset.
+- Cross-platform: a project saved on one OS opens on the other with every file found, and exports with the same settings and length.
 
 **Exit gate**
 - All acceptance tasks pass on both OSes; results in `docs/acceptance/M12.md`.
@@ -558,4 +569,4 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M9 Audio editor core | ✅ Done ([gate record](acceptance/M9.md)) — undo steps on disk (as Audacity) to keep RAM in budget | 2026-10-17 | `v0.9.0` |
 | M10 Audio effects & recording | ✅ Done ([gate record](acceptance/M10.md)) — Audio mode is saved with the project; pitch in TypeScript (SoundTouch's method) | 2026-10-18 | `v0.10.0` |
 | M11 Teaching layer | ✅ Done ([gate record](acceptance/M11.md)) — plus Audio mode clips, tooltips, 33 transitions, 20 fonts, text looks and animations after the teacher's test | 2026-10-19 | `v0.11.0` |
-| M12 Hardening & v1.0 | ☐ Not started | | |
+| M12 Hardening & v1.0 | 🔶 In progress | | |

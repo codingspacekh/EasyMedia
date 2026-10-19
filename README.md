@@ -353,10 +353,10 @@ The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is a
 | 5 | Licence | **Open source**, for study use only (see §16). |
 | 6 | macOS support | **Yes** — first-class target alongside Windows. |
 | 7 | App type and framework | Desktop app, Electron + bundled FFmpeg (§10). |
+| 8 | Code signing for v1.0 (2026-10-19) | **None, for now** — the install guide shows the free *right-click → Open* (macOS Gatekeeper) and *More info → Run anyway* (Windows SmartScreen). Signing can be added later. |
 
 Still open:
 
-- [ ] Apple Developer Program membership for notarised macOS builds, or document the free *right-click → Open* workaround (§14).
 - [ ] Confirm with the Cambridge exams officer whether the app may be used for assessed practical work (§14).
 
 ## 16. Licence
