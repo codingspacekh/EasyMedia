@@ -522,12 +522,16 @@ export function createApp({
       addToTimeline: boolean;
       duration: Seconds;
       format?: 'png' | 'jpg' | 'bmp' | 'tiff';
+      /** The picture's file name without its extension (Book B: "Bali1"); default by time. */
+      name?: string;
     }): Promise<Id | null> {
       const { time, hideText, addToTimeline, duration, format = 'png' } = options;
+      // Characters no file name may have (on Windows or macOS) become "-".
+      const named = options.name?.trim().replace(/[\\/:*?"<>|]/g, '-');
       const { projectPath } = store.get();
       // Saved straight away: next to a saved project (so it travels with it), else in the app's folder.
       const folder = projectPath ? `${dirOf(projectPath)}/Snapshots` : paths.snapshots;
-      const wanted = `${folder}/Snapshot_${time.toFixed(2)}s.${format}`;
+      const wanted = `${folder}/${named || `Snapshot_${time.toFixed(2)}s`}.${format}`;
       const current = present();
       const project: Project = hideText
         ? {
