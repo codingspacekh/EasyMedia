@@ -62,6 +62,15 @@ describe('Audio mode layout', () => {
     expect(screen.queryByRole('button', { name: 'Add title' })).toBeNull();
   });
 
+  it('the empty tracks area has its own Import audio button, which imports a track', async () => {
+    const t = await audioMode();
+    expect(screen.getByRole('heading', { name: 'Import a sound to start' })).toBeTruthy();
+    t.dialogs.openMedia.mockResolvedValueOnce(['/m/Voiceover_3.wav']);
+    await fireEvent.click(screen.getByRole('button', { name: 'Import audio…' }));
+    await vi.waitFor(() => expect(t.doc().tracks).toHaveLength(1));
+    expect(screen.queryByRole('button', { name: 'Import audio…' })).toBeNull();
+  });
+
   it('A1 an imported file becomes a track with its name, channels, rate and waveform lane', async () => {
     await audioMode('/m/Task_11j_audio_1.mp3');
     const header = screen.getByRole('group', { name: 'Track Task_11j_audio_1' });

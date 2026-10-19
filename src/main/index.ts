@@ -22,6 +22,8 @@ import { electronDialogs, projectFiles } from './services.ts';
 
 const APP_ROOT = join(__dirname, '..');
 const RESOURCES = app.isPackaged ? process.resourcesPath : join(APP_ROOT, 'resources');
+// The installed app has its icon built in; `npm run app` would otherwise show Electron's.
+const DEV_ICON = app.isPackaged ? undefined : join(APP_ROOT, 'build-resources', 'icon.png');
 
 // Tests run with their own empty user-data folder (no real proxies or recovery file).
 if (process.env.EASYMEDIA_USER_DATA) app.setPath('userData', process.env.EASYMEDIA_USER_DATA);
@@ -50,6 +52,7 @@ function createWindow(): BrowserWindow {
     minHeight: 700,
     show: false,
     title: 'EasyMedia',
+    ...(DEV_ICON && { icon: DEV_ICON }),
     backgroundColor: '#101216',
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
@@ -172,6 +175,7 @@ void app.whenReady().then(async () => {
     ),
   );
 
+  if (DEV_ICON) app.dock?.setIcon(DEV_ICON);
   mainWindow = createWindow();
   if (process.env.EASYMEDIA_PERF_REPORT)
     recordPerformance(process.env.EASYMEDIA_PERF_REPORT, mainWindow);

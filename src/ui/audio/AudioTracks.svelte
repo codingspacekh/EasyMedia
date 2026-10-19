@@ -522,12 +522,18 @@
         </div>
       {/each}
       {#if doc.tracks.length === 0}
-        <p class="start">
-          <Icon name="audio" size={28} />
-          Import a sound to start: <b>Import audio</b> on the toolbar, or
-          <b>Tracks ▸ Import audio as new track</b>. MP3, WAV, M4A, AAC, FLAC, OGG and the sound of
-          video files can be opened.
-        </p>
+        <div class="start">
+          <Icon name="audio" size={36} />
+          <h2>Import a sound to start</h2>
+          <button class="primary" onclick={() => audio.importAudio()}
+            ><Icon name="import" size={16} /> Import audio…</button
+          >
+          <p>
+            You can also use <b>Tracks ▸ Import audio as new track</b>, or press the red
+            <b>Record</b> button to record a voiceover.
+          </p>
+          <p class="formats">MP3, WAV, M4A, AAC, FLAC, OGG, or the sound of a video file</p>
+        </div>
       {/if}
     </div>
   </div>
@@ -792,14 +798,36 @@
     pointer-events: none;
   }
   .start {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    max-width: 640px;
-    margin: 40px auto;
-    padding: 0 20px;
-    color: var(--tx-2);
     position: sticky;
     left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: 440px;
+    margin: 64px auto;
+    padding: 28px 32px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    background: var(--bg-1);
+    color: var(--tx-3);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .start h2 {
+    margin: 0;
+    color: var(--tx-1);
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .start p {
+    margin: 0;
+    font-size: 13px;
+  }
+  .start b {
+    color: var(--tx-2);
+  }
+  .start .formats {
+    font-size: 12px;
   }
 </style>

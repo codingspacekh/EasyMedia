@@ -40,7 +40,7 @@ test('N4 five Amplify steps on 85 s of stereo do not make the page hold more sou
     .getByRole('button', { name: 'Audio' })
     .click();
   await answerDialogs(app, { open: [join(dir, SONG)] });
-  await page.getByRole('button', { name: 'Import audio' }).click();
+  await page.getByRole('button', { name: 'Import audio', exact: true }).click();
   await expect(page.getByRole('region', { name: /^Waveform of / })).toHaveCount(1, {
     timeout: 30_000,
   });
