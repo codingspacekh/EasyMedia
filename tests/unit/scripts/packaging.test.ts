@@ -36,7 +36,9 @@ describe('installers', () => {
 
   it('macOS: a DMG for Apple-chip Macs and one for Intel Macs, each with its own FFmpeg', () => {
     // Two downloads of about half the size of one universal DMG (which carries both of each).
-    expect(config.mac!.target).toEqual([{ target: 'dmg', arch: ['arm64', 'x64'] }]);
+    // No chip list here: it would override `--arm64` / `--x64`, so each Mac runner would also
+    // build the other chip's DMG without its FFmpeg (and upload it over the good one).
+    expect(config.mac!.target).toEqual(['dmg']);
     expect(resources(config.mac!.extraResources)).toEqual([
       'resources/ffmpeg/darwin-${arch} → ffmpeg/darwin-${arch}',
     ]);

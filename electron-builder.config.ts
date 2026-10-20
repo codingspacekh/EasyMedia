@@ -40,8 +40,10 @@ const config: Configuration = {
     artifactName: 'EasyMedia-Setup-${version}.${ext}',
   },
   mac: {
-    // Two downloads about half the size of one universal DMG (which carries both of each).
-    target: [{ target: 'dmg', arch: ['arm64', 'x64'] }],
+    // Two downloads about half the size of one universal DMG (which carries both of each). Each
+    // Mac builds its own chip's (scripts/package.ts passes --arm64 or --x64): a chip list here
+    // would override that and build the other chip's DMG without its FFmpeg.
+    target: ['dmg'],
     category: 'public.app-category.education',
     extraResources: [ffmpeg('darwin')],
     extendInfo: {

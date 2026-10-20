@@ -36,8 +36,6 @@ describe('the app name when run with npm run app', () => {
 
   it('npm run app renames Electron before starting it', () => {
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-    expect(pkg.scripts.app).toBe(
-      'npm run build:app && node scripts/dev-app-name.ts && electron .',
-    );
+    expect(pkg.scripts.app).toBe('npm run build:app && node scripts/dev-app-name.ts && electron .');
   });
 });
