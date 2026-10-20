@@ -11,8 +11,22 @@ permissions:
   contents: write
 
 jobs:
+  # Once, before the builds: GitHub allows several drafts for one tag, so if each build made its
+  # own, there would be three drafts (the installers in one, the others empty).
+  draft:
+    name: Draft release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "EasyMedia ${TAG#v}" \
+            --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64). How to install: docs/INSTALL.md."
+
   installers:
     name: ${{ matrix.name }}
+    needs: draft
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -46,8 +60,5 @@ jobs:
       - name: Attach the installers to the draft release
         shell: bash
         run: |
-          gh release create "$TAG" --draft --title "EasyMedia ${TAG#v}" \
-            --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64). How to install: docs/INSTALL.md." \
-            || true
           shopt -s nullglob
           gh release upload "$TAG" --clobber release/*.exe release/*.zip release/*.dmg
