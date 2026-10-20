@@ -1,7 +1,7 @@
 {
   "name": "easymedia",
   "productName": "EasyMedia",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "private": true,
   "description": "Lightweight video and audio editor for Cambridge AS & A Level IT (9626) Chapter 11",
   "license": "GPL-3.0-or-later",
