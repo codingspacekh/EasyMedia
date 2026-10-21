@@ -118,5 +118,5 @@ test('check: the package opens on this OS with every file, and exports the same 
   const average = /average:([\d.]+|inf)/.exec(stderr)?.[1];
   const psnr = average === 'inf' ? Infinity : Number(average); // inf: identical pictures
   console.log(`PSNR between the exports: ${psnr} dB`);
-  expect(psnr).toBeGreaterThanOrEqual(35);
+  expect(psnr).toBeGreaterThanOrEqual(40);
 });
