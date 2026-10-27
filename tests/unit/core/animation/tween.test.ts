@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createEllipse,
+  createLine,
   createRect,
   createStar,
   createText,
@@ -10,6 +11,7 @@ import {
 import {
   copyKeyframe,
   ease,
+  editAt,
   insertKeyframe,
   interpolate,
   moveKeyframe,
@@ -22,6 +24,7 @@ import {
   valueAt,
   withRepeat,
 } from '../../../../src/core/animation/tween.ts';
+import { setSize } from '../../../../src/core/animation/geometry.ts';
 import type { Track } from '../../../../src/core/animation/types.ts';
 
 const track = (
@@ -237,5 +240,69 @@ describe('keyframe editing (AN9)', () => {
       radius: 10,
     });
     expect(() => setPropertyAt(rect, 'size', 0, 10)).toThrow(/text/);
+  });
+});
+
+describe('an edit at the playhead (AN9)', () => {
+  it('at frame 0 on a still object it is a plain change; later it makes keyframes only for what changed', () => {
+    const rect = createRect({ x: 0, y: 0, width: 100, height: 50 });
+    const still = editAt(rect, 0, (o) => ({ ...o, x: 40, name: 'Box' }));
+    expect(still).toMatchObject({ x: 40, name: 'Box' });
+    expect(still.tracks).toBeUndefined();
+    const moving = editAt(still, 72, (o) => ({ ...o, x: 396, y: 196 }));
+    expect(moving.tracks!.map((t) => t.property).sort()).toEqual(['x', 'y']);
+    expect(objectAt(moving, 36)).toMatchObject({ x: 218, y: 98, width: 100 });
+  });
+
+  it('starts from the values at that frame, so a drag mid-tween keys where it was dropped', () => {
+    const rect = setPropertyAt(createRect({ x: 0, y: 0 }), 'x', 72, 100);
+    const dragged = editAt(rect, 36, (o) => ({ ...o, x: o.x + 10 }));
+    expect(trackOf(dragged, 'x')!.keyframes.map((k) => [k.frame, k.value])).toEqual([
+      [0, 0],
+      [36, 60],
+      [72, 100],
+    ]);
+  });
+
+  it('colours, outline, corner radius, words and font size become keyframes; other changes are plain', () => {
+    const rect = createRect({ x: 0, y: 0 });
+    const next = editAt(rect, 24, (o) => ({
+      ...o,
+      fill: { kind: 'solid', colour: '#ff0000' },
+      stroke: { colour: '#00ff00', width: 6, dash: 'dashed' },
+      radius: 12,
+    }));
+    expect(next.tracks!.map((t) => t.property).sort()).toEqual([
+      'fillColour',
+      'radius',
+      'strokeColour',
+      'strokeWidth',
+    ]);
+    expect(next.stroke!.dash).toBe('dashed');
+    const text = editAt(createText('Hi', { x: 0, y: 0, size: 20 }), 24, (o) => ({
+      ...o,
+      text: 'Bye',
+      size: 40,
+      bold: true,
+    }));
+    expect(text.tracks!.map((t) => t.property).sort()).toEqual(['size', 'text']);
+    expect(text.bold).toBe(true);
+  });
+
+  it('a change of fill to a gradient is plain and ends the fill colour track', () => {
+    const rect = setPropertyAt(createRect({ x: 0, y: 0 }), 'fillColour', 24, '#ff0000');
+    const gradient = editAt(rect, 48, (o) => ({
+      ...o,
+      fill: { kind: 'linear', from: '#000000', to: '#ffffff', angle: 0 },
+    }));
+    expect(gradient.fill.kind).toBe('linear');
+    expect(trackOf(gradient, 'fillColour')).toBeUndefined();
+  });
+
+  it("resizing a path at a frame keys its size without baking the frame's points into it", () => {
+    const line = createLine({ x: 0, y: 0 }, { x: 100, y: 100 });
+    const bigger = editAt(line, 24, (o) => setSize(o, 200, 200));
+    expect(bigger.points).toEqual(line.points);
+    expect(objectAt(bigger, 24).points[1]).toEqual({ x: 200, y: 200 });
   });
 });

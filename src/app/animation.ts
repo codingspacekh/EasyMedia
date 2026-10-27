@@ -22,10 +22,14 @@ import {
   deserializeAnimation,
   serializeAnimation,
 } from '../core/animation/serialize.ts';
+import { parseFrame } from '../core/animation/time.ts';
+import { objectAt } from '../core/animation/tween.ts';
 import type {
   AnimObject,
   AnimationDoc,
+  Easing,
   Id,
+  TweenProperty,
   Picture,
   Stage,
   TextObject,
@@ -63,9 +67,20 @@ export interface AnimationState {
   tool: Tool;
   /** 1 = 100 %; 'fit' fills the window. */
   zoom: number | 'fit';
+  /** AN8: the playhead, 0 to the stage's length (the end shows the last pose). */
+  frame: number;
+  playing: boolean;
+  /** AN8: loop the whole animation, or the frames from `from` to `to` (both shown). */
+  loop: Loop;
   /** What Animation mode is doing, e.g. "Exporting…". */
   busy: string | null;
   message: { kind: 'error' | 'info'; text: string } | null;
+}
+
+export interface Loop {
+  on: boolean;
+  from?: number;
+  to?: number;
 }
 
 export interface AnimationDeps {
@@ -128,6 +143,9 @@ export function createAnimationApp({
     layerId: fresh.layers[0]!.id,
     tool: 'select',
     zoom: 'fit',
+    frame: 0,
+    playing: false,
+    loop: { on: false },
     busy: null,
     message: null,
   });
@@ -143,8 +161,59 @@ export function createAnimationApp({
     patch({ message: { kind: 'error', text: known ? (error as Error).message : UNEXPECTED } });
   }
 
+  // ---- playback (AN8): the frame follows the clock, so a slow laptop drops frames, not time ----
+
+  let player: ReturnType<typeof setInterval> | null = null;
+  const TICK_MS = 10;
+
+  function pause(): void {
+    if (player) clearInterval(player);
+    player = null;
+    if (store.get().playing) patch({ playing: false });
+  }
+
+  /** The frames playback runs over: [first, last]; `wraps` when it loops. */
+  function playRange(): { first: number; last: number; wraps: boolean } {
+    const { loop } = store.get();
+    const { length } = present().stage;
+    if (loop.on && loop.from !== undefined && loop.to !== undefined)
+      return { first: loop.from, last: loop.to, wraps: true };
+    // Looping the whole animation does not show the end frame and frame 0 one after the other.
+    return loop.on
+      ? { first: 0, last: length - 1, wraps: true }
+      : { first: 0, last: length, wraps: false };
+  }
+
+  function play(): void {
+    pause();
+    const { first, last, wraps } = playRange();
+    let from = store.get().frame;
+    if (from < first || from >= last) from = first;
+    patch({ playing: true, frame: from });
+    const started = Date.now();
+    const fps = present().stage.fps;
+    player = setInterval(() => {
+      const n = Math.floor(((Date.now() - started) * fps) / 1000);
+      let frame = from + n;
+      if (wraps) frame = first + ((frame - first) % (last - first + 1));
+      else if (frame >= last) {
+        patch({ frame: last });
+        pause();
+        return;
+      }
+      if (frame !== store.get().frame) patch({ frame });
+    }, TICK_MS);
+    (player as { unref?: () => void }).unref?.();
+  }
+
+  const clampFrame = (frame: number): number =>
+    Math.max(0, Math.min(present().stage.length, Math.round(frame)));
+
+  const TYPE_TIME = 'Type a frame number, or a time such as 3 s or 0:03.00.';
+
   /** Applies a command; a refused edit becomes a message. True when it was applied. */
   function run(command: cmd.AnimCommand): boolean {
+    pause();
     try {
       store.update((s) => ({ ...s, history: execute(s.history, command) }));
       return true;
@@ -156,6 +225,7 @@ export function createAnimationApp({
 
   /** For panel fields: applies the edit, or returns why it is not allowed (shown by the field). */
   function edit(command: cmd.AnimCommand): string | null {
+    pause();
     try {
       store.update((s) => ({ ...s, history: execute(s.history, command) }));
       return null;
@@ -169,7 +239,10 @@ export function createAnimationApp({
     store.get().selection.filter((id) => findObject(present(), id) !== null);
 
   function load(doc: AnimationDoc, path: string | null, saved: AnimationDoc = doc): void {
+    pause();
     patch({
+      frame: 0,
+      loop: { on: false },
       history: createHistory(doc),
       path,
       saved,
@@ -391,26 +464,110 @@ export function createAnimationApp({
     setProperties(patchValues: Partial<AnimObject>): string | null {
       const ids = liveSelection();
       if (ids.length === 0) return null;
-      return edit(cmd.setProperties(ids, patchValues));
+      pause();
+      return edit(cmd.setProperties(ids, patchValues, store.get().frame));
     },
 
     moveSelection(dx: number, dy: number): void {
       const ids = liveSelection();
-      if (ids.length && (dx !== 0 || dy !== 0)) run(cmd.moveObjects(ids, dx, dy));
+      if (ids.length && (dx !== 0 || dy !== 0))
+        run(cmd.moveObjects(ids, dx, dy, store.get().frame));
     },
 
     /** Arrow keys: 1 px, or 10 px with Shift. */
     nudge(dx: number, dy: number): void {
       const ids = liveSelection();
-      if (ids.length) run(cmd.moveObjects(ids, dx, dy));
+      if (ids.length) run(cmd.moveObjects(ids, dx, dy, store.get().frame));
     },
 
     resizeSelected(id: Id, handle: Handle, pointer: Point, lockRatio: boolean): void {
-      run(cmd.resizeObject(id, handle, pointer, lockRatio));
+      pause();
+      run(cmd.resizeObject(id, handle, pointer, lockRatio, store.get().frame));
     },
 
     rotateSelected(id: Id, degrees: number): void {
-      run(cmd.rotateObject(id, degrees));
+      pause();
+      run(cmd.rotateObject(id, degrees, store.get().frame));
+    },
+
+    // ---- the playhead and playback (AN8) ----
+
+    setFrame(frame: number): void {
+      patch({ frame: clampFrame(frame) });
+    },
+    step(by: number): void {
+      pause();
+      patch({ frame: clampFrame(store.get().frame + by) });
+    },
+    /** A frame, seconds or a clock time typed in the playhead box; returns why not. */
+    goTo(text: string): string | null {
+      const frame = parseFrame(text, present().stage.fps);
+      if (frame === null) return TYPE_TIME;
+      patch({ frame: clampFrame(frame) });
+      return null;
+    },
+    play,
+    pause,
+    togglePlay(): void {
+      if (store.get().playing) pause();
+      else play();
+    },
+    stop(): void {
+      pause();
+      patch({ frame: 0 });
+    },
+    setLoop(loop: Loop): string | null {
+      if (loop.from !== undefined && loop.to !== undefined) {
+        if (loop.from > loop.to) return 'The loop must start before it ends.';
+        if (loop.from < 0 || loop.to > present().stage.length)
+          return 'The loop must be inside the animation.';
+      }
+      const playing = store.get().playing;
+      patch({ loop });
+      if (playing) play();
+      return null;
+    },
+
+    /** An object as it is shown at the playhead (for the Properties panel and the handles). */
+    objectAtPlayhead(id: Id): AnimObject | null {
+      const found = findObject(present(), id);
+      return found ? objectAt(found.object, store.get().frame) : null;
+    },
+
+    // ---- keyframes (AN9, AN13) ----
+
+    insertKeyframe: (id: Id, property: cmd.PropertyChoice) =>
+      void run(cmd.insertKeyframe(id, property, store.get().frame)),
+    removeKeyframe: (id: Id, property: TweenProperty, frame: number) =>
+      void run(cmd.removeKeyframe(id, property, frame)),
+    moveKeyframe: (id: Id, property: TweenProperty, frame: number, to: number) =>
+      void run(cmd.moveKeyframe(id, property, frame, to)),
+    copyKeyframe: (id: Id, property: TweenProperty, frame: number, to: number) =>
+      void run(cmd.copyKeyframe(id, property, frame, to)),
+    setEasing: (id: Id, property: TweenProperty, frame: number, easing: Easing) =>
+      void run(cmd.setEasing(id, property, frame, easing)),
+    setHold: (id: Id, property: TweenProperty, frame: number, hold: boolean) =>
+      void run(cmd.setHold(id, property, frame, hold)),
+    setRepeat: (id: Id, property: TweenProperty, repeat: 'end' | number | undefined) =>
+      void run(cmd.setRepeat(id, property, repeat)),
+    reverse: (id: Id, property: cmd.PropertyChoice) => void run(cmd.reverse(id, property)),
+
+    /** AN8: the length, typed as frames or a time; the playhead stays inside it. */
+    setLength(text: string): string | null {
+      const length = parseFrame(text, present().stage.fps);
+      if (length === null) return TYPE_TIME;
+      const refused = edit(cmd.setLength(length));
+      if (!refused) patch({ frame: clampFrame(store.get().frame) });
+      return refused;
+    },
+
+    /** AN8: a new frame rate; with 'times' the playhead keeps its time too. */
+    setFps(fps: number, keep: 'times' | 'frames'): string | null {
+      const before = present().stage.fps;
+      const refused = edit(cmd.setFps(fps, keep));
+      if (!refused && keep === 'times')
+        patch({ frame: clampFrame((store.get().frame * fps) / before) });
+      return refused;
     },
 
     deleteSelection(): void {
@@ -551,6 +708,7 @@ export function createAnimationApp({
     },
 
     dispose(): void {
+      pause();
       clearInterval(timer);
     },
   };

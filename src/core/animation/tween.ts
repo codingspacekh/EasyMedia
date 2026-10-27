@@ -322,3 +322,79 @@ export function objectAt<T extends AnimObject>(object: T, frame: number): T {
 export const isAnimated = (object: AnimObject): boolean =>
   (object.tracks ?? []).some((t) => t.keyframes.length > 0) ||
   (object.kind === 'group' && object.children.some(isAnimated));
+
+const NUMBER_KEYS = ['x', 'y', 'width', 'height', 'rotation', 'opacity'] as const;
+/** Never copied as plain changes: they are the object's identity, its motion, or follow its size. */
+const DERIVED = new Set(['id', 'tracks', 'children', 'fill', 'stroke']);
+const TWEENED = new Set<string>([...NUMBER_KEYS, 'radius', 'size', 'text']);
+
+const dropTracks = <T extends AnimObject>(o: T, gone: TweenProperty[]): T => {
+  if (!o.tracks) return o;
+  const tracks = o.tracks.filter((t) => !gone.includes(t.property));
+  if (tracks.length > 0) return { ...o, tracks };
+  const rest = { ...o };
+  delete rest.tracks;
+  return rest;
+};
+
+/**
+ * AN9: an edit made with the playhead on a frame — a drag, a resize, a turn, a number typed in
+ * the Properties panel. `change` gets the object as it is at that frame; every tweenable value
+ * it changes becomes a keyframe there (or, on a still object at frame 0, a plain change), and
+ * every other change (the name, a gradient, the dash, bold…) is plain.
+ */
+export function editAt<T extends AnimObject>(object: T, frame: number, change: (now: T) => T): T {
+  const now = objectAt(object, frame);
+  const next = change(now);
+  const n = now as unknown as Record<string, unknown>;
+  const x = next as unknown as Record<string, unknown>;
+  const plain: Record<string, unknown> = {};
+  for (const key of Object.keys(x))
+    if (
+      !DERIVED.has(key) &&
+      !TWEENED.has(key) &&
+      // A path's points follow its size; a star's number of points is a plain change.
+      !(key === 'points' && next.kind === 'path') &&
+      x[key] !== n[key]
+    )
+      plain[key] = x[key];
+  let result = { ...object, ...plain } as T;
+  const key = (property: TweenProperty, value: KeyValue) => {
+    result = setPropertyAt(result, property, frame, value);
+  };
+  for (const property of [...NUMBER_KEYS, 'radius', 'size', 'text'] as const)
+    if (property in x && x[property] !== n[property]) key(property, x[property] as KeyValue);
+  // The fill: a new colour is a keyframe; a change of kind (to a gradient, or none) is plain.
+  if (next.fill !== now.fill) {
+    if (next.fill.kind === 'solid' && now.fill.kind === 'solid') {
+      if (next.fill.colour !== now.fill.colour) key('fillColour', next.fill.colour);
+    } else result = { ...dropTracks(result, ['fillColour']), fill: next.fill };
+  }
+  // The outline: colour and width are keyframes; the dash, or adding / removing it, is plain.
+  if (next.stroke !== now.stroke) {
+    if (next.stroke && now.stroke) {
+      if (next.stroke.colour !== now.stroke.colour) key('strokeColour', next.stroke.colour);
+      if (next.stroke.width !== now.stroke.width) key('strokeWidth', next.stroke.width);
+      if (next.stroke.dash !== now.stroke.dash && result.stroke)
+        result = { ...result, stroke: { ...result.stroke, dash: next.stroke.dash } };
+    } else if (next.stroke) result = { ...result, stroke: next.stroke };
+    else {
+      result = dropTracks(result, ['strokeColour', 'strokeWidth']);
+      const rest = { ...result };
+      delete rest.stroke;
+      result = rest;
+    }
+  }
+  return result;
+}
+
+/** The properties *Insert keyframe ▸ All* fixes for this kind of object. */
+export function keyableProperties(object: AnimObject): TweenProperty[] {
+  return [
+    ...NUMBER_KEYS,
+    ...(object.fill.kind === 'solid' ? (['fillColour'] as const) : []),
+    ...(object.stroke ? (['strokeColour', 'strokeWidth'] as const) : []),
+    ...(object.kind === 'rect' ? (['radius'] as const) : []),
+    ...(object.kind === 'text' ? (['size'] as const) : []),
+  ];
+}
