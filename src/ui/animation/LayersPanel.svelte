@@ -180,7 +180,7 @@
     {/each}
   </ul>
   {#if renameError}<p class="error" role="alert">{renameError}</p>{/if}
-  <div class="why"><Why tool="animLayers" /></div>
+  <div class="why"><Why tool="animLayers" /><Why tool="animMask" /></div>
 </aside>
 
 <style>

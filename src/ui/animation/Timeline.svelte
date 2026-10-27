@@ -15,6 +15,7 @@
     TweenProperty,
   } from '../../core/animation/types.ts';
   import Icon from '../Icon.svelte';
+  import Why from '../Why.svelte';
 
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
@@ -300,6 +301,7 @@
       disabled={$store.selection.length === 0}
       onclick={insertKeyframes}><Icon name="plus" size={14} /> Keyframe</button
     >
+    <Why tool="animTimeline" />
     <label class="zoom" title="Frame zoom">
       <span class="sr-only">Frame zoom</span>
       <input type="range" min="2" max="24" step="1" aria-label="Frame zoom" bind:value={px} />

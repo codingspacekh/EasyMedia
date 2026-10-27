@@ -473,6 +473,7 @@
             </select>
           </div>
           {#if pathError}<p class="error" role="alert">{pathError}</p>{/if}
+          <Why tool="animPath" />
         </div>
         {#if first.kind !== 'text' && first.kind !== 'picture' && first.kind !== 'group'}
           <div class="sec">
@@ -497,6 +498,7 @@
               Draw the new shape, then pick it here with the playhead where the change should end
               (frame {$store.frame}).
             </p>
+            <Why tool="animMorph" />
           </div>
         {/if}
       {/if}
