@@ -745,7 +745,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M11 Teaching layer | ✅ Done ([gate record](acceptance/M11.md)) — plus Audio mode clips, tooltips, 33 transitions, 20 fonts, text looks and animations after the teacher's test | 2026-10-19 | `v0.11.0` |
 | M12 Hardening & v1.0 | ✅ Done ([gate record](acceptance/M12.md)) — installers for Windows and both Mac chips, self-checking; cross-platform at ≥ 40 dB; the teacher's performance and acceptance runs passed | 2026-10-27 | `v1.0.0` |
 | M13 Animation core | ✅ Done ([gate record](acceptance/M13.md)) — the Animation mode: stage, vector shapes and text with exact numbers, layers and folders, snapping, `.mvea` files, PNG export; the teacher's check on Windows and a Mac passed | 2026-10-27 | `v1.1.0` |
-| M14 Timeline & tweens | ⬜ | | |
+| M14 Timeline & tweens | 🔶 Built and passing on the MacBook 2026-10-27 ([gate record](acceptance/M14.md)): keyframes, tweens, the timeline, MP4 / GIF / PNG export, Send to Video mode; on the `m14` branch until `v1.1.0` is tagged; CI and the teacher's check on Windows and a Mac next | | |
 | M15 Paths, morphing & masks | ⬜ | | |
 | M16 Pictures, web export & teaching | ⬜ | | |
 | M17 Hardening & v2.0 | ⬜ | | |
