@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { execSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
@@ -23,6 +23,12 @@ test.describe('M4 app shell', () => {
     await shot(first.window, 'welcome');
     await welcome.getByRole('button', { name: 'Start' }).click();
     await expect(welcome).toBeHidden();
+    // "Seen" is written after the Welcome closes: on Windows CI, closing at once could beat it.
+    await expect
+      .poll(() => readFile(join(first.userData, 'preferences.json'), 'utf8').catch(() => ''), {
+        timeout: 10_000,
+      })
+      .toContain('"welcomeSeen":true');
     await first.app.close();
 
     const again = await launchApp([], { userData: first.userData });
