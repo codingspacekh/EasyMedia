@@ -91,7 +91,9 @@ const isTrack = (t: Obj): boolean =>
     t.keyframes,
     (k) =>
       isNumber(k.frame) &&
-      (isNumber(k.value) || isString(k.value)) &&
+      (isNumber(k.value) ||
+        isString(k.value) ||
+        (isObject(k.value) && isPathPoints(k.value.points) && isBoolean(k.value.closed))) &&
       isString(k.easing) &&
       isBoolean(k.hold),
   ) &&

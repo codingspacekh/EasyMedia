@@ -2,6 +2,7 @@
 // tracks and objects; the app's commands wrap them so each change is one undo step.
 import { EditError } from '../model/errors.ts';
 import { setSize, shiftedMotion } from './geometry.ts';
+import { isShapeValue, morphShapes, shapeOf } from './morph.ts';
 import { flattenCurves, pointAtFraction, polylineOf, type Polyline } from './path.ts';
 import { isColour } from './rules.ts';
 import type {
@@ -10,6 +11,8 @@ import type {
   Keyframe,
   KeyValue,
   MotionPath,
+  PathObject,
+  ShapeValue,
   Track,
   TweenProperty,
 } from './types.ts';
@@ -35,6 +38,7 @@ export const TWEEN_PROPERTIES: readonly { id: TweenProperty; label: string }[] =
   { id: 'radius', label: 'Corner radius' },
   { id: 'size', label: 'Font size' },
   { id: 'text', label: 'Words' },
+  { id: 'shape', label: 'Shape' },
 ];
 
 /** The CSS-style bounce used by the text animations too: lands, then bounces smaller and smaller. */
@@ -76,8 +80,9 @@ function mixColours(a: string, b: string, t: number): string {
   return `#${ca.map((v, i) => hex2(v + (cb[i]! - v) * t)).join('')}`;
 }
 
-/** The value `t` (0–1) of the way from `a` to `b`: numbers and colours blend; words switch at the end. */
+/** The value `t` (0–1) of the way from `a` to `b`: numbers, colours and shapes blend; words switch at the end. */
 export function interpolate(a: KeyValue, b: KeyValue, t: number): KeyValue {
+  if (isShapeValue(a) && isShapeValue(b)) return morphShapes(a, b, t);
   if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * t;
   if (typeof a === 'string' && typeof b === 'string' && isColour(a) && isColour(b))
     return mixColours(a, b, t);
@@ -202,6 +207,8 @@ export function propertyOf(object: AnimObject, property: TweenProperty): KeyValu
     case 'text':
       if (object.kind !== 'text') throw new EditError('Only text has words.');
       return object.text;
+    case 'shape':
+      return shapeOf(object);
     default:
       return object[property];
   }
@@ -209,6 +216,30 @@ export function propertyOf(object: AnimObject, property: TweenProperty): KeyValu
 
 const num = (v: KeyValue): number => (typeof v === 'number' ? v : Number(v));
 const str = (v: KeyValue): string => String(v);
+
+/** AN10: the object drawn as the outline of a shape keyframe, in its own box. */
+function asShape(o: AnimObject, v: ShapeValue): PathObject {
+  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group')
+    throw new EditError('Only shapes can morph: not text, pictures or groups.');
+  const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, motion } = o;
+  return {
+    kind: 'path',
+    id,
+    name,
+    x,
+    y,
+    width,
+    height,
+    rotation,
+    opacity,
+    fill,
+    ...(stroke ? { stroke } : {}),
+    ...(tracks ? { tracks } : {}),
+    ...(motion ? { motion } : {}),
+    points: v.points.map((p) => ({ x: p.x * width, y: p.y * height })),
+    closed: v.closed,
+  };
+}
 
 /** The object with one property set (its own value, not a keyframe). */
 export function withProperty<T extends AnimObject>(
@@ -250,6 +281,9 @@ function setOne(object: AnimObject, property: TweenProperty, value: KeyValue): A
     case 'text':
       if (object.kind !== 'text') throw new EditError('Only text has words.');
       return { ...object, text: str(value) };
+    case 'shape':
+      if (!isShapeValue(value)) throw new EditError('A shape keyframe needs an outline.');
+      return asShape(object, value);
     case 'width':
     case 'height': {
       const width = property === 'width' ? num(value) : object.width;
@@ -339,10 +373,18 @@ function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
   };
 }
 
-/** The object as it is at a frame: every track applied; a group's children too (AN13). */
+/**
+ * The object as it is at a frame: every track applied; a group's children too (AN13). With shape
+ * keyframes (AN10) a shape is drawn as a path, whatever kind it was drawn as.
+ */
 export function objectAt<T extends AnimObject>(object: T, frame: number): T {
   let o: T = object;
-  for (const track of object.tracks ?? []) {
+  // The shape goes last, so it is drawn in the box the size keyframes give (AN10).
+  const tracks = object.tracks ?? [];
+  for (const track of [
+    ...tracks.filter((t) => t.property !== 'shape'),
+    ...tracks.filter((t) => t.property === 'shape'),
+  ]) {
     if (track.keyframes.length === 0) continue;
     o = withProperty(o, track.property, valueAt(track, frame));
   }
@@ -451,4 +493,24 @@ export function keyableProperties(object: AnimObject): TweenProperty[] {
     ...(object.kind === 'rect' ? (['radius'] as const) : []),
     ...(object.kind === 'text' ? (['size'] as const) : []),
   ];
+}
+
+/**
+ * AN10: *Morph into…* — at `frame` the object takes the target's outline, box and colours: a
+ * shape keyframe (the first one, at frame 0, is the object's own outline) and keyframes for the
+ * position, size, fill and outline, so all of them change together.
+ */
+export function morphInto<T extends AnimObject>(object: T, target: AnimObject, frame: number): T {
+  const shape = shapeOf(target);
+  shapeOf(object);
+  const boxed = editAt(object, frame, (now) => ({
+    ...now,
+    x: target.x,
+    y: target.y,
+    width: target.width,
+    height: target.height,
+    fill: target.fill,
+    ...(target.stroke ? { stroke: target.stroke } : {}),
+  }));
+  return setPropertyAt(boxed, 'shape', frame, shape);
 }

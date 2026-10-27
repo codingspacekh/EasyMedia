@@ -50,9 +50,16 @@ export type TweenProperty =
   | 'strokeWidth'
   | 'radius'
   | 'size'
-  | 'text';
+  | 'text'
+  | 'shape';
 
-export type KeyValue = number | string;
+/** AN10: a shape keyframe's outline, in the object's box scaled to 0–1. */
+export interface ShapeValue {
+  points: { x: number; y: number }[];
+  closed: boolean;
+}
+
+export type KeyValue = number | string | ShapeValue;
 
 /** AN9: a value fixed at a frame. `easing` shapes the tween to the next keyframe; `hold` keeps this value until it. */
 export interface Keyframe {
