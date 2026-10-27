@@ -569,4 +569,4 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M9 Audio editor core | ✅ Done ([gate record](acceptance/M9.md)) — undo steps on disk (as Audacity) to keep RAM in budget | 2026-10-17 | `v0.9.0` |
 | M10 Audio effects & recording | ✅ Done ([gate record](acceptance/M10.md)) — Audio mode is saved with the project; pitch in TypeScript (SoundTouch's method) | 2026-10-18 | `v0.10.0` |
 | M11 Teaching layer | ✅ Done ([gate record](acceptance/M11.md)) — plus Audio mode clips, tooltips, 33 transitions, 20 fonts, text looks and animations after the teacher's test | 2026-10-19 | `v0.11.0` |
-| M12 Hardening & v1.0 | 🔶 In progress | | |
+| M12 Hardening & v1.0 | ✅ Done ([gate record](acceptance/M12.md)) — installers for Windows and both Mac chips, self-checking; cross-platform at ≥ 40 dB; the teacher's performance and acceptance runs passed | 2026-10-27 | `v1.0.0` |
