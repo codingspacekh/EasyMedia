@@ -33,6 +33,7 @@ const typeIn = async (label: string, value: string) => {
 };
 
 const PX = 8; // a frame's width at the default frame zoom
+const PAD = 12; // the room before frame 0
 
 afterEach(() => vi.useRealTimers());
 
@@ -51,9 +52,9 @@ describe('the timeline (AN8)', () => {
     s.anim.setFrame(72);
     s.anim.setProperties({ x: 396 });
     const ruler = within(s.timeline()).getByRole('slider', { name: 'Playhead' });
-    await fireEvent.pointerDown(ruler, { clientX: 10 * PX, button: 0 });
-    await fireEvent.pointerMove(window, { clientX: 36 * PX });
-    await fireEvent.pointerUp(window, { clientX: 36 * PX });
+    await fireEvent.pointerDown(ruler, { clientX: PAD + 10 * PX, button: 0 });
+    await fireEvent.pointerMove(window, { clientX: PAD + 36 * PX });
+    await fireEvent.pointerUp(window, { clientX: PAD + 36 * PX });
     expect(s.state().frame).toBe(36);
     expect((screen.getByLabelText('X', { exact: true }) as HTMLInputElement).value).toBe('198.00');
     expect(within(s.timeline()).getByText('0:01.50 · frame 36')).toBeTruthy();

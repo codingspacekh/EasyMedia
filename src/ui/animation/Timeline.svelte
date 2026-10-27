@@ -19,7 +19,10 @@
 
   /** A frame's width in px (the frame zoom). */
   let px = $state(8);
-  const span = $derived((stage.length + 1) * px);
+  /** Room before frame 0, so its number and dots are not cut off. */
+  const PAD = 12;
+  const xOf = (f: number) => PAD + f * px;
+  const span = $derived(2 * PAD + stage.length * px);
   /** Frame numbers every 5, or every 10, 20… when the frames are narrow. */
   const labelStep = $derived(
     5 * Math.max(1, 2 ** Math.ceil(Math.log2(Math.max(1, 28 / (5 * px))))),
@@ -89,7 +92,7 @@
   let ruler: HTMLDivElement | undefined = $state();
   const frameAt = (clientX: number): number => {
     const left = ruler?.getBoundingClientRect().left ?? 0;
-    return Math.round((clientX - left) / px);
+    return Math.round((clientX - left - PAD) / px);
   };
 
   function onRulerDown(e: PointerEvent): void {
@@ -227,7 +230,7 @@
       aria-label="Previous frame"
       title="Previous frame (,)"
       onclick={() => anim.step(-1)}
-      ><span class="flip"><Icon name="chevron" size={14} /></span></button
+      ><span class="left"><Icon name="chevron" size={14} /></span></button
     >
     <button
       class="sm icon-only"
@@ -240,7 +243,8 @@
       class="sm icon-only"
       aria-label="Next frame"
       title="Next frame (.)"
-      onclick={() => anim.step(1)}><Icon name="chevron" size={14} /></button
+      onclick={() => anim.step(1)}
+      ><span class="right"><Icon name="chevron" size={14} /></span></button
     >
     <button
       class="sm icon-only"
@@ -382,12 +386,12 @@
       onkeydown={onRulerKey}
     >
       {#each frameLabels as n (n)}
-        <span class="tick" style:left="{n * px}px">{n}</span>
+        <span class="tick" style:left="{xOf(n)}px">{n}</span>
       {/each}
       {#each secondLabels as s (s)}
-        <span class="sec" style:left="{s * stage.fps * px}px">{s} s</span>
+        <span class="sec" style:left="{xOf(s * stage.fps)}px">{s} s</span>
       {/each}
-      <span class="head" style:left="{frame * px}px" aria-hidden="true"></span>
+      <span class="head" style:left="{xOf(frame)}px" aria-hidden="true"></span>
     </div>
 
     {#each rows as row (row.kind === 'property' ? `${row.id}:${row.track.property}` : `${row.kind}:${row.id}`)}
@@ -432,7 +436,7 @@
             <span
               class="tween"
               class:hold={k.hold}
-              style:left="{k.frame * px}px"
+              style:left="{xOf(k.frame)}px"
               style:width="{(keys[i + 1]!.frame - k.frame) * px}px"
               aria-hidden="true"
             ></span>
@@ -440,7 +444,7 @@
           {#if row.track.repeat !== undefined && keys.length >= 2}
             <span
               class="repeat"
-              style:left="{keys.at(-1)!.frame * px}px"
+              style:left="{xOf(keys.at(-1)!.frame)}px"
               style:width="{Math.max(0, stage.length - keys.at(-1)!.frame) * px}px"
               title="Repeats {row.track.repeat === 'end'
                 ? 'until the end'
@@ -454,7 +458,7 @@
                 picked.property === row.track.property &&
                 picked.frame === k.frame}
               class:held={k.hold}
-              style:left="{shownFrame(row.id, row.track.property, k.frame) * px}px"
+              style:left="{xOf(shownFrame(row.id, row.track.property, k.frame))}px"
               aria-label="{LABEL[row.track.property]} keyframe at frame {k.frame}"
               title="{LABEL[
                 row.track.property
@@ -467,12 +471,12 @@
           {/each}
         {:else}
           {#each row.frames as f (f)}
-            <span class="dot" style:left="{f * px}px" aria-hidden="true"></span>
+            <span class="dot" style:left="{xOf(f)}px" aria-hidden="true"></span>
           {/each}
         {/if}
       </div>
     {/each}
-    <span class="line" style:left="calc(var(--label-w) + {frame * px}px)" aria-hidden="true"></span>
+    <span class="line" style:left="calc(var(--label-w) + {xOf(frame)}px)" aria-hidden="true"></span>
   </div>
 </section>
 
@@ -497,6 +501,7 @@
     flex-wrap: wrap;
   }
   .key-bar {
+    gap: 10px;
     background: var(--bg-2);
   }
   .key-bar label {
@@ -524,9 +529,26 @@
     background: var(--accent-soft);
     color: var(--accent);
   }
-  .flip {
+  /* The chevron icon points down: turned for previous / next and for closed rows. */
+  .left,
+  .right {
     display: inline-flex;
-    transform: scaleX(-1);
+  }
+  .left {
+    transform: rotate(90deg);
+  }
+  .right {
+    transform: rotate(-90deg);
+  }
+  select,
+  input:not([type]) {
+    font: inherit;
+    font-size: 12px;
+    background: var(--bg-2);
+    color: var(--tx-1);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 2px 6px;
   }
   .zoom input {
     width: 80px;
@@ -549,6 +571,8 @@
     overflow: auto;
     display: grid;
     grid-template-columns: var(--label-w) max-content;
+    /* The ruler's own row is taller than the others, so it never covers the first layer. */
+    grid-template-rows: 30px;
     grid-auto-rows: 22px;
     align-content: start;
   }
@@ -633,10 +657,11 @@
     color: var(--accent);
   }
   .twist :global(svg) {
+    transform: rotate(-90deg);
     transition: transform 0.1s;
   }
   .twist.open :global(svg) {
-    transform: rotate(90deg);
+    transform: none;
   }
   .twist-space {
     width: 22px;
