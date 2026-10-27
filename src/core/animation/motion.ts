@@ -26,16 +26,28 @@ export function motionFrom(source: AnimObject, options: Partial<MotionPath> = {}
   return { ...DEFAULTS, points: outline ?? [], closed: true, source: source.name, ...options };
 }
 
-/** The object follows the path; without one (undefined) it goes back to its own keyframes. */
-export function withMotion<T extends AnimObject>(object: T, motion: MotionPath | undefined): T {
-  if (!motion) {
-    const rest = { ...object };
-    delete rest.motion;
-    return rest;
-  }
+function check(motion: MotionPath): void {
   if (!Number.isInteger(motion.from) || !Number.isInteger(motion.to) || motion.from < 0)
     throw new EditError('A path runs between two whole frames, from frame 0 on.');
   if (motion.to <= motion.from) throw new EditError('The path must start before it ends.');
   if (motion.points.length < 2) throw new EditError('A path needs at least two points.');
-  return { ...object, motion };
+}
+
+/** The object follows these paths, in frame order; none: it goes back to its own keyframes. */
+export function withPaths<T extends AnimObject>(object: T, paths: readonly MotionPath[]): T {
+  if (paths.length === 0) {
+    const rest = { ...object };
+    delete rest.paths;
+    return rest;
+  }
+  paths.forEach(check);
+  const sorted = [...paths].sort((a, b) => a.from - b.from);
+  sorted.forEach((p, i) => {
+    const before = sorted[i - 1];
+    if (before && p.from < before.to)
+      throw new EditError(
+        `Paths must not overlap: one starts at frame ${p.from}, before the one before it ends at frame ${before.to}.`,
+      );
+  });
+  return { ...object, paths: sorted };
 }

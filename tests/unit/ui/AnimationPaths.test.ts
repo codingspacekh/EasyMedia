@@ -121,19 +121,19 @@ describe('Follow path and Morph into… in the Properties panel', () => {
     const car = s.objects().at(-1)!;
     await tick();
     await fireEvent.change(screen.getByLabelText('Follow path'), { target: { value: road.id } });
-    expect(s.objects().at(-1)!.motion).toMatchObject({ from: 0, to: 120 });
-    await fireEvent.change(screen.getByLabelText('Path from frame', { exact: true }), {
+    expect(s.objects().at(-1)!.paths![0]).toMatchObject({ from: 0, to: 120 });
+    await fireEvent.change(screen.getByLabelText('Path 1 from frame', { exact: true }), {
       target: { value: '24' },
     });
-    await fireEvent.change(screen.getByLabelText('Path to frame', { exact: true }), {
+    await fireEvent.change(screen.getByLabelText('Path 1 to frame', { exact: true }), {
       target: { value: '144' },
     });
-    await fireEvent.click(screen.getByLabelText('Orient to path'));
-    expect(s.objects().at(-1)!.motion).toMatchObject({ from: 24, to: 144, orient: true });
+    await fireEvent.click(screen.getByLabelText('Orient to path 1'));
+    expect(s.objects().at(-1)!.paths![0]).toMatchObject({ from: 24, to: 144, orient: true });
     const tl = within(screen.getByRole('region', { name: 'Timeline' }));
     expect(tl.getByLabelText('Path from frame 24 to 144')).toBeTruthy();
-    await fireEvent.click(screen.getByRole('button', { name: 'Remove path' }));
-    expect(s.objects().find((o) => o.id === car.id)!.motion).toBeUndefined();
+    await fireEvent.click(screen.getByRole('button', { name: 'Remove path 1' }));
+    expect(s.objects().find((o) => o.id === car.id)!.paths).toBeUndefined();
   });
 
   it('Morph into… at the playhead: the circle becomes the square, which is removed', async () => {

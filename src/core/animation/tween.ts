@@ -221,7 +221,7 @@ const str = (v: KeyValue): string => String(v);
 function asShape(o: AnimObject, v: ShapeValue): PathObject {
   if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group')
     throw new EditError('Only shapes can morph: not text, pictures or groups.');
-  const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, motion } = o;
+  const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, paths } = o;
   return {
     kind: 'path',
     id,
@@ -235,7 +235,7 @@ function asShape(o: AnimObject, v: ShapeValue): PathObject {
     fill,
     ...(stroke ? { stroke } : {}),
     ...(tracks ? { tracks } : {}),
-    ...(motion ? { motion } : {}),
+    ...(paths ? { paths } : {}),
     points: v.points.map((p) => ({ x: p.x * width, y: p.y * height })),
     closed: v.closed,
   };
@@ -361,6 +361,13 @@ const polylineFor = (m: MotionPath): Polyline => {
   return line;
 };
 
+/** AN11: the path that places the object at a frame: the one running, or the last one before. */
+function pathAt(paths: readonly MotionPath[], frame: number): MotionPath {
+  let current = paths[0]!;
+  for (const p of paths) if (p.from <= frame) current = p;
+  return current;
+}
+
 /** AN11: the object's centre on its path at a frame; turned with it when oriented. */
 function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
   const t = (Math.max(m.from, Math.min(m.to, frame)) - m.from) / (m.to - m.from);
@@ -388,7 +395,7 @@ export function objectAt<T extends AnimObject>(object: T, frame: number): T {
     if (track.keyframes.length === 0) continue;
     o = withProperty(o, track.property, valueAt(track, frame));
   }
-  if (object.motion) o = onPath(o, object.motion, frame);
+  if (object.paths?.length) o = onPath(o, pathAt(object.paths, frame), frame);
   if (o.kind === 'group') return { ...o, children: o.children.map((c) => objectAt(c, frame)) };
   return o;
 }
@@ -435,16 +442,12 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
       plain[key] = x[key];
   let result = { ...object, ...plain } as T;
   // AN11: on a path, a move takes the path with it (its position keyframes are not used).
-  const path = object.motion;
-  if (path && (x.x !== n.x || x.y !== n.y))
-    result = {
-      ...result,
-      motion: shiftedMotion(
-        path,
-        (x.x as number) - (n.x as number),
-        (x.y as number) - (n.y as number),
-      ),
-    };
+  const path = object.paths?.length ? object.paths : undefined;
+  if (path && (x.x !== n.x || x.y !== n.y)) {
+    const dx = (x.x as number) - (n.x as number);
+    const dy = (x.y as number) - (n.y as number);
+    result = { ...result, paths: path.map((p) => shiftedMotion(p, dx, dy)) };
+  }
   const key = (property: TweenProperty, value: KeyValue) => {
     result = setPropertyAt(result, property, frame, value);
   };

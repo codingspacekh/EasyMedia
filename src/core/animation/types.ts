@@ -112,8 +112,12 @@ interface ObjectBase {
   stroke?: Stroke;
   /** AN9: keyframes, one track per animated property. Absent or empty: the object stays still. */
   tracks?: Track[];
-  /** AN11: the path the object follows; its position keyframes are not used while it has one. */
-  motion?: MotionPath;
+  /**
+   * AN11: the paths the object follows, in frame order, never overlapping (Task 6: out along one,
+   * back along another). Before the first it waits at its start, between two at the end of the one
+   * before, after the last at its end. Its position keyframes are not used while it has paths.
+   */
+  paths?: MotionPath[];
 }
 
 export interface RectObject extends ObjectBase {

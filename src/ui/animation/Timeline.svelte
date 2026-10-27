@@ -61,7 +61,7 @@
     | { kind: 'object'; id: Id; name: string; frames: number[]; open: boolean; animated: boolean }
     | { kind: 'property'; id: Id; track: Track }
     /** AN11: the frames an object follows its path. */
-    | { kind: 'motion'; id: Id; motion: MotionPath };
+    | { kind: 'motion'; id: Id; motion: MotionPath; n: number };
 
   const rows = $derived.by((): Row[] => {
     const out: Row[] = [];
@@ -84,9 +84,12 @@
           name: o.name,
           frames: framesOf([o]),
           open: shown,
-          animated: tracks.length > 0 || o.motion !== undefined,
+          animated: tracks.length > 0 || (o.paths?.length ?? 0) > 0,
         });
-        if (shown && o.motion) out.push({ kind: 'motion', id: o.id, motion: o.motion });
+        if (shown)
+          (o.paths ?? []).forEach((motion, i) =>
+            out.push({ kind: 'motion', id: o.id, motion, n: i + 1 }),
+          );
         if (shown)
           for (const track of [...tracks].sort(
             (a, b) => ORDER.indexOf(a.property) - ORDER.indexOf(b.property),
@@ -403,7 +406,7 @@
       <span class="head" style:left="{xOf(frame)}px" aria-hidden="true"></span>
     </div>
 
-    {#each rows as row (row.kind === 'property' ? `${row.id}:${row.track.property}` : `${row.kind}:${row.id}`)}
+    {#each rows as row (row.kind === 'property' ? `${row.id}:${row.track.property}` : row.kind === 'motion' ? `${row.id}:path${row.n}` : `${row.kind}:${row.id}`)}
       <div class="label {row.kind}">
         {#if row.kind === 'layer'}
           <button
@@ -433,7 +436,7 @@
             onclick={() => anim.select([row.id])}>{row.name}</button
           >
         {:else if row.kind === 'motion'}
-          <span class="name prop">Path{row.motion.orient ? ' (oriented)' : ''}</span>
+          <span class="name prop">Path {row.n}{row.motion.orient ? ' (oriented)' : ''}</span>
         {:else}
           <span class="name prop"
             >{LABEL[row.track.property]}{row.track.repeat !== undefined ? ' ↻' : ''}</span

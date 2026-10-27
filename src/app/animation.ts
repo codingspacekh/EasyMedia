@@ -713,9 +713,10 @@ export function createAnimationApp({
 
     /** AN11: the object follows another object's path (or outline); returns why not. */
     followPath: (id: Id, sourceId: Id): string | null => edit(cmd.followPath(id, sourceId)),
-    setMotion: (id: Id, change: Parameters<typeof cmd.setMotion>[1]): string | null =>
-      edit(cmd.setMotion(id, change)),
-    removeMotion: (id: Id) => void run(cmd.removeMotion(id)),
+    /** The frames, Orient to path, even speed or easing of one of its paths (0 = the first). */
+    setMotion: (id: Id, index: number, change: cmd.PathChange): string | null =>
+      edit(cmd.setMotion(id, index, change)),
+    removeMotion: (id: Id, index: number) => void run(cmd.removeMotion(id, index)),
 
     /** AN10: at the playhead the shape becomes the one picked (removed unless kept). */
     morphInto(

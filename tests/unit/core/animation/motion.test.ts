@@ -11,7 +11,7 @@ import {
 } from '../../../../src/core/animation/factory.ts';
 import { centreOf, moved, rotated } from '../../../../src/core/animation/geometry.ts';
 import { addObject } from '../../../../src/core/animation/layers.ts';
-import { motionFrom, withMotion } from '../../../../src/core/animation/motion.ts';
+import { motionFrom, withPaths } from '../../../../src/core/animation/motion.ts';
 import { flattenCurves, polylineOf } from '../../../../src/core/animation/path.ts';
 import {
   deserializeAnimation,
@@ -37,7 +37,7 @@ const box = () => createRect({ x: 500, y: 500, width: 20, height: 20 });
 
 describe('motion paths (AN11)', () => {
   it('the centre follows the path from its first frame to its last, and stays at the ends outside them', () => {
-    const o = withMotion(box(), { ...straight, from: 24 });
+    const o = withPaths(box(), [{ ...straight, from: 24 }]);
     expect(centreOf(objectAt(o, 0))).toEqual({ x: 0, y: 0 });
     expect(centreOf(objectAt(o, 48))).toEqual({ x: 150, y: 0 });
     expect(objectAt(o, 48)).toMatchObject({ x: 140, y: -10 });
@@ -45,7 +45,7 @@ describe('motion paths (AN11)', () => {
   });
 
   it('eased: ease in starts slowly and still arrives; not even: each segment gets the same time', () => {
-    const eased = withMotion(box(), { ...straight, easing: 'ease-in' });
+    const eased = withPaths(box(), [{ ...straight, easing: 'ease-in' }]);
     expect(centreOf(objectAt(eased, 18)).x).toBeLessThan(75);
     expect(centreOf(objectAt(eased, 72)).x).toBe(300);
     const corner: MotionPath = {
@@ -57,8 +57,8 @@ describe('motion paths (AN11)', () => {
       ],
       even: false,
     };
-    expect(centreOf(objectAt(withMotion(box(), corner), 36))).toEqual({ x: 100, y: 0 });
-    expect(centreOf(objectAt(withMotion(box(), { ...corner, even: true }), 18))).toEqual({
+    expect(centreOf(objectAt(withPaths(box(), [corner]), 36))).toEqual({ x: 100, y: 0 });
+    expect(centreOf(objectAt(withPaths(box(), [{ ...corner, even: true }]), 18))).toEqual({
       x: 100,
       y: 0,
     });
@@ -74,11 +74,11 @@ describe('motion paths (AN11)', () => {
       ],
       orient: true,
     };
-    const car = withMotion(rotated(box(), 10), arc);
+    const car = withPaths(rotated(box(), 10), [arc]);
     expect(Math.abs(objectAt(car, 0).rotation - 10)).toBeLessThan(1);
     expect(objectAt(car, 36).rotation).toBeCloseTo(55, 0);
     expect(Math.abs(objectAt(car, 72).rotation - 100)).toBeLessThan(1);
-    expect(objectAt(withMotion(box(), { ...arc, orient: false }), 36).rotation).toBe(0);
+    expect(objectAt(withPaths(box(), [{ ...arc, orient: false }]), 36).rotation).toBe(0);
   });
 
   it('Task 5: a car on an undulating road over 5 s at 24 fps is on the road at every frame and points along it', () => {
@@ -86,12 +86,14 @@ describe('motion paths (AN11)', () => {
       Array.from({ length: 25 }, (_, i) => ({ x: i * 50, y: 400 + 60 * Math.sin(i / 2) })),
       false,
     );
-    const car = withMotion(createRect({ x: 0, y: 0, width: 80, height: 30 }), {
-      ...motionFrom(road),
-      from: 0,
-      to: 120,
-      orient: true,
-    });
+    const car = withPaths(createRect({ x: 0, y: 0, width: 80, height: 30 }), [
+      {
+        ...motionFrom(road),
+        from: 0,
+        to: 120,
+        orient: true,
+      },
+    ]);
     const line = polylineOf(flattenCurves(motionFrom(road).points, false), false);
     for (let f = 0; f <= 120; f++) {
       const c = centreOf(objectAt(car, f));
@@ -119,7 +121,7 @@ describe('motion paths (AN11)', () => {
   it('any shape can be the path: its outline on the stage, turned as it is drawn', () => {
     const ring = motionFrom(createEllipse({ x: 0, y: 0, width: 200, height: 200 }));
     expect(ring.closed).toBe(true);
-    const o = withMotion(box(), { ...ring, from: 0, to: 64 });
+    const o = withPaths(box(), [{ ...ring, from: 0, to: 64 }]);
     expect(
       Math.hypot(centreOf(objectAt(o, 16)).x - 100, centreOf(objectAt(o, 16)).y - 100),
     ).toBeCloseTo(100, 0);
@@ -132,8 +134,8 @@ describe('motion paths (AN11)', () => {
   });
 
   it('moving the object moves its path; a drag at a frame moves the path too, not a keyframe', () => {
-    const o = withMotion(box(), straight);
-    expect(moved(o, 10, 5).motion!.points[1]).toEqual({ x: 310, y: 5 });
+    const o = withPaths(box(), [straight]);
+    expect(moved(o, 10, 5).paths![0]!.points[1]).toEqual({ x: 310, y: 5 });
     const dragged = editAt(o, 36, (now) => ({ ...now, x: now.x + 10 }));
     expect(dragged.tracks).toBeUndefined();
     expect(centreOf(objectAt(dragged, 72))).toEqual({ x: 310, y: 0 });
@@ -141,12 +143,42 @@ describe('motion paths (AN11)', () => {
 
   it('in the document: placed at the frame, saved and read back', () => {
     let doc = createAnimation({ name: 'Task 5' });
-    const car = withMotion(box(), straight);
+    const car = withPaths(box(), [straight]);
     doc = addObject(doc, doc.layers[0]!.id, car);
     expect(stateAt(doc, 36).layers[0]!.objects[0]).toMatchObject({ x: 140, y: -10 });
     const back = deserializeAnimation(serializeAnimation(doc));
     expect(back).toEqual(doc);
     expect(back.schemaVersion).toBe(3);
-    expect(() => withMotion(box(), { ...straight, to: 10, from: 20 })).toThrow(/before/);
+    expect(() => withPaths(box(), [{ ...straight, to: 10, from: 20 }])).toThrow(/before/);
+  });
+
+  it('Task 6: out to the centre along one path, a second there, back along a different one', () => {
+    const out: MotionPath = {
+      ...straight,
+      points: [
+        { x: 100, y: 400 },
+        { x: 400, y: 300 },
+      ],
+      from: 0,
+      to: 24,
+    };
+    const back: MotionPath = {
+      ...straight,
+      points: [
+        { x: 400, y: 300 },
+        { x: 250, y: 500 },
+        { x: 100, y: 400 },
+      ],
+      from: 48,
+      to: 72,
+    };
+    const computer = withPaths(box(), [back, out]);
+    expect(computer.paths!.map((p) => p.from)).toEqual([0, 48]);
+    expect(centreOf(objectAt(computer, 12))).toEqual({ x: 250, y: 350 });
+    expect(centreOf(objectAt(computer, 36))).toEqual({ x: 400, y: 300 });
+    expect(centreOf(objectAt(computer, 60)).y).toBeGreaterThan(400);
+    expect(centreOf(objectAt(computer, 72))).toEqual({ x: 100, y: 400 });
+    expect(() => withPaths(box(), [out, { ...back, from: 20 }])).toThrow(/overlap/);
+    expect(withPaths(computer, []).paths).toBeUndefined();
   });
 });

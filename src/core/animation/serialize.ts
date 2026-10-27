@@ -118,7 +118,7 @@ function isAnimObject(o: Obj): boolean {
       return false;
   }
   if (o.tracks !== undefined && !listOf(o.tracks, isTrack)) return false;
-  if (o.motion !== undefined && !isMotion(o.motion)) return false;
+  if (o.paths !== undefined && !(Array.isArray(o.paths) && o.paths.every(isMotion))) return false;
   switch (o.kind) {
     case 'rect':
       return isNumber(o.radius);

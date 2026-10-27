@@ -23,7 +23,7 @@ describe('Follow path (AN11)', () => {
     s.anim.addShape('rect', { x: 0, y: 0, width: 80, height: 30 });
     const car = s.last();
     expect(s.anim.followPath(car.id, road.id)).toBeNull();
-    expect(s.find(car.id).motion).toMatchObject({
+    expect(s.find(car.id).paths![0]).toMatchObject({
       from: 0,
       to: 120,
       orient: false,
@@ -33,7 +33,7 @@ describe('Follow path (AN11)', () => {
     expect(s.find(road.id)).toBeDefined();
     expect(s.state().history.past.at(-1)!.label).toBe('Follow path');
     s.anim.undo();
-    expect(s.find(car.id).motion).toBeUndefined();
+    expect(s.find(car.id).paths).toBeUndefined();
   });
 
   it('its frames, Orient to path, even speed and easing can be changed; a bad range is explained; Remove', () => {
@@ -44,18 +44,40 @@ describe('Follow path (AN11)', () => {
     const box = s.last();
     s.anim.followPath(box.id, path.id);
     expect(
-      s.anim.setMotion(box.id, { from: 24, to: 72, orient: true, easing: 'ease-in-out' }),
+      s.anim.setMotion(box.id, 0, { from: 24, to: 72, orient: true, easing: 'ease-in-out' }),
     ).toBeNull();
-    expect(s.find(box.id).motion).toMatchObject({
+    expect(s.find(box.id).paths![0]).toMatchObject({
       from: 24,
       to: 72,
       orient: true,
       easing: 'ease-in-out',
     });
     expect(objectAt(s.find(box.id), 48).rotation).toBeCloseTo(45, 6);
-    expect(s.anim.setMotion(box.id, { to: 10 })).toMatch(/before it ends/);
-    s.anim.removeMotion(box.id);
-    expect(s.find(box.id).motion).toBeUndefined();
+    expect(s.anim.setMotion(box.id, 0, { to: 10 })).toMatch(/before it ends/);
+    s.anim.removeMotion(box.id, 0);
+    expect(s.find(box.id).paths).toBeUndefined();
+  });
+
+  it('Task 6: a second path starts where the first ends; with no time left it is explained', () => {
+    const s = setup();
+    s.anim.addLine({ x: 100, y: 400 }, { x: 400, y: 300 });
+    const out = s.last();
+    s.anim.addLine({ x: 400, y: 300 }, { x: 100, y: 400 });
+    const back = s.last();
+    s.anim.addShape('rect', { x: 0, y: 0, width: 40, height: 30 });
+    const computer = s.last();
+    s.anim.followPath(computer.id, out.id);
+    expect(s.anim.followPath(computer.id, back.id)).toMatch(/no time left/);
+    s.anim.setMotion(computer.id, 0, { to: 24 });
+    expect(s.anim.followPath(computer.id, back.id)).toBeNull();
+    expect(s.anim.setMotion(computer.id, 1, { from: 48, to: 72 })).toBeNull();
+    expect(s.find(computer.id).paths!.map((p) => [p.from, p.to])).toEqual([
+      [0, 24],
+      [48, 72],
+    ]);
+    expect(centreOf(objectAt(s.find(computer.id), 36))).toEqual({ x: 400, y: 300 });
+    expect(centreOf(objectAt(s.find(computer.id), 72))).toEqual({ x: 100, y: 400 });
+    expect(s.anim.setMotion(computer.id, 1, { from: 10 })).toMatch(/overlap/);
   });
 
   it('an object cannot follow itself, or a path that is gone', () => {

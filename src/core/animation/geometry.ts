@@ -209,8 +209,8 @@ export function shiftTracks<T extends AnimObject>(
   by: { x?: number; y?: number; rotation?: number },
 ): T {
   const withPath =
-    o.motion && (by.x || by.y)
-      ? { ...o, motion: shiftedMotion(o.motion, by.x ?? 0, by.y ?? 0) }
+    o.paths && (by.x || by.y)
+      ? { ...o, paths: o.paths.map((p) => shiftedMotion(p, by.x ?? 0, by.y ?? 0)) }
       : o;
   if (!withPath.tracks) return withPath;
   return {
