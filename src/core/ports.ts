@@ -222,6 +222,6 @@ export interface AppPaths {
   learn: string;
   /** X7: the app's own small settings (the Welcome was seen); none: no Welcome. */
   preferences?: string;
-  /** README §16: THIRD_PARTY_LICENSES.txt, for Help ▸ Licences. */
+  /** README §17: THIRD_PARTY_LICENSES.txt, for Help ▸ Licences. */
   licences?: string;
 }

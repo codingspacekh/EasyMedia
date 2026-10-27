@@ -1,4 +1,4 @@
-// X7: a Welcome on the first launch (once), Help ▸ Welcome again; Help ▸ Licences (README §16).
+// X7: a Welcome on the first launch (once), Help ▸ Welcome again; Help ▸ Licences (README §17).
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../../src/app/app.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';

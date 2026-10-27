@@ -471,4 +471,4 @@ The full TDD workflow, coverage targets and per-milestone test gates are in [`MI
 | Snapshot | Vitest | `compile()` output for each coursebook task |
 | Integration | Vitest + real FFmpeg | Export short clips; check result with ffprobe (duration, resolution, codec) |
 | End-to-end | Playwright (Electron) | Import → edit → export flows on Windows and macOS in CI |
-| Acceptance | Manual checklist | All coursebook activities (README §13) |
+| Acceptance | Manual checklist | All coursebook activities (README §14) |

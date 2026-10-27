@@ -184,6 +184,7 @@ Rules:
 2. Open a pull request `dev → main`. Merge only when all three CI jobs on its latest commit are green.
 3. If any job fails, fix it on `dev` (regression test first, R4); the pull request picks up the new run.
 4. While the repository is private on the free plan, GitHub cannot enforce rule 2, so it is followed by process. When the repository becomes public, turn on branch protection for `main` with the three CI jobs as required checks.
+5. Phase 2 (2026-10-27): the animation work is on the **`animation`** branch while `dev` waits to be released as v1.0.0, so a release never carries half a mode. CI is run on it by hand (`gh workflow run ci.yml --ref animation`); it merges into `dev` once `v1.0.0` is tagged, and from then on the work continues on `dev`.
 
 ## 5. Milestone overview
 
@@ -201,6 +202,14 @@ M7 Effects & transitions ─► M8 Audio-in-video & export ─► M9 Audio edito
             ┌───────────────────────────────────────────────────────┘
             ▼
 M10 Audio effects ─► M11 Teaching layer ─► M12 Hardening & v1.0 release
+                                                                    │
+            ┌──── phase 2: Animation (syllabus 20.1) ───────────────┘
+            ▼
+M13 Animation core ─► M14 Timeline & tweens ─► M15 Paths, morphing & masks
+                                                                    │
+            ┌───────────────────────────────────────────────────────┘
+            ▼
+M16 Pictures, web export & teaching ─► M17 Hardening & v2.0 release
 ```
 
 | # | Milestone | Main requirements | Size | Rough part-time weeks* |
@@ -218,6 +227,11 @@ M10 Audio effects ─► M11 Teaching layer ─► M12 Hardening & v1.0 release
 | M10 | Audio effects & recording | A9–A14, A19 | L | 4–5 |
 | M11 | Teaching layer | T1–T7 | M | 3 |
 | M12 | Hardening & v1.0 | all acceptance, N1–N14, X1–X7, packaging | M | 3 |
+| M13 | Animation core: stage, objects, layers | AN1–AN4, AN6, AN7, AN16 | L | 4 |
+| M14 | Timeline & tweens | AN8, AN9, AN13, AN15 (MP4, GIF, PNG) | L | 4 |
+| M15 | Paths, morphing & masks | AN10, AN11, AN12 | M | 3 |
+| M16 | Pictures, web export, stop motion & teaching | AN5, AN14, AN15 (HTML), AN17, AN18 | L | 4 |
+| M17 | Hardening & v2.0 | phase 2 acceptance, N1–N5, X1, X6, packaging | M | 2–3 |
 
 \* *Very rough, for one maintainer working ~8–10 h/week. Re-estimate after M2 using your real pace.*
 
@@ -523,7 +537,7 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 5. **Cross-platform (X1, X2, X6)**: a CI job makes a project and an export on Windows, and the macOS jobs open that project and export it again: same format, size, length and codecs, and the pictures alike (PSNR ≥ 40 dB); the same in the other direction.
 6. **Student user guide and teacher notes** (`docs/guide/`): how to do each coursebook kind of task in EasyMedia; teacher notes mapping every screen and tool to the syllabus points 11.1 / 11.2. Shipped with the app and opened from *Help ▸ User guide* (offline).
 7. **Performance pass on the weakest laptop (N1–N5)** with the teacher: the installed app on an 8 GB Windows laptop measures preview frame rate, export time, effect time, RAM of an exam-sized project and start-up (`EASYMEDIA_PERF_REPORT`); fix what misses its budget (moving the audio DSP to a Web Worker is the planned way out for N3 / N12).
-8. **Full acceptance run** by the teacher on a Windows 11 laptop and a Mac with the installed app: every task in README §13, the Bali paper timed; results in `docs/acceptance/M12.md`.
+8. **Full acceptance run** by the teacher on a Windows 11 laptop and a Mac with the installed app: every task in README §14, the Bali paper timed; results in `docs/acceptance/M12.md`.
 
 **Tests first**
 - Packaging: the build config names FFmpeg for each platform, the fonts, `THIRD_PARTY_LICENSES` and the microphone description; the packaged app finds its FFmpeg and fonts (smoke test in CI on Windows x64, macOS Apple Silicon and Intel).
@@ -536,6 +550,154 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 - All acceptance tasks pass on both OSes; results in `docs/acceptance/M12.md`.
 - No open blocker or major bugs.
 - Tag `v1.0.0`, publish GitHub Release.
+
+---
+
+## Phase 2 — Animation (syllabus 20.1)
+
+Decided 2026-10-27 (README §16, decisions 10–13): the Animation mode is built in the same way as the first phase — core first, pure and tested; then the app layer; then the UI — in five milestones. The three documents (`animation_syllabus.pdf`, `animation_book.pdf` = coursebook Chapter 19 with Adobe Animate, `animation_workbook.pdf` = workbook Chapter 7 with Tumult Hype) give the acceptance tests: the workbook's worked example and Tasks 1–9, the coursebook's Practical Activities 19.01–19.07 and exam-style questions 1–3.
+
+What stays the same: the architecture rule (`core/animation/` imports nothing outside `core/`), immutable documents with the Command / History undo (P4), one drawing function for the preview and every export (as the text drawing, ARCHITECTURE §7.3), FFmpeg for every video or GIF file, the job queue with progress and Cancel (N12), the "Why use this?" registry (T5) and the task checker (T6).
+
+What is new: a second document type, the **animation** (`.mvea`): a stage, layers of vector objects, and keyframes. It is never mixed into the video project.
+
+```
+Video / Audio / Learn (v1.0) ─► M13 Animation core ─► M14 Timeline & tweens
+                                                                │
+            ┌───────────────────────────────────────────────────┘
+            ▼
+M15 Paths, morphing & masks ─► M16 Pictures, web export & teaching ─► M17 Hardening & v2.0
+```
+
+The workbook's numbers are the test data, so every slice is checked against a real task: a 600 × 400 stage with a grey background; a 135 × 135 star at (128, 102); a circle of radius 102 at (0, 0); a rectangle whose fill goes from `#FF1CC8` to `#F0DB82` and opacity from 100 % to 57 % over three seconds; text that grows from 0 to 64 px; a star that turns once in three seconds; a 19 px road at y = 500 on a 1240 × 800 stage.
+
+---
+
+### M13 — Animation core (stage, objects, layers)
+
+**Goal:** the Animation mode exists: a stage set up exactly as a task says (size, colour, frame rate, rulers, grid, guides, snapping), vector shapes and text drawn and given exact numbers, layers, undo, and the animation saved in its own file and exported as a picture. Nothing moves yet.
+
+**Layout** (no design screen yet; drawn after the Video mode screens): the mode buttons gain **Animation**; a toolbar of tools (Select, Rectangle, Ellipse, Star, Polygon, Line, Pen, Brush, Text, Picture) with the stage chip (600 × 400 · 24 fps · #808080), Save, Undo, Redo, Export; the **stage** in the middle with rulers along the top and left, zoomed to fit or 100 %; the **Layers** panel on the left; the **Properties** panel on the right; the status bar with the pointer's coordinates and what the last move snapped to. The timeline (M14) will sit under the stage.
+
+**Build order** (core first, every file pure TypeScript)
+1. **Document model** (`core/animation/types.ts`, `factory.ts`, `stage.ts`): the stage (width, height, background, fps, length in frames), layers (name, visible, locked, colour) holding objects in drawing order, guides and grid settings, pictures (relative paths, X1). Objects: rectangle (corner radius), ellipse, star (points, inner radius), polygon (sides), line, path (Bézier points, open / closed), text (words, font, size, bold, italic, alignment), picture, group (children). Every object has a name, X and Y (its top-left corner), W and H, rotation about its centre, opacity, fill (none / solid / linear / radial) and stroke (colour, width, dash). Defaults: 1280 × 720, white, 24 fps, 5 s (120 frames); a new shape has a mid-grey fill and a dark 2 px stroke. Validation: size 16–4096 px, fps 1–60, length 1–36 000 frames, opacity 0–100 %. Aspect-ratio presets (4:3, 16:9, 16:10, 2.35:1) and `aspectOf(width, height)` for the chip.
+2. **Geometry** (`geometry.ts`): the outline of every shape as points (a star's 10 points, a polygon's n points, an ellipse's arc, a path's flattened curves, a line's two ends); bounds with rotation; the centre; hit-testing a point (the fill, or the stroke of an open path or line); resize from any of 8 handles keeping the opposite edge still, with proportions locked when asked; rotate from the rotation handle (rounded to whole degrees with Shift); nudge by 1 or 10 px.
+3. **Layers** (`layers.ts`): add (above the selected one), rename, reorder, lock, hide, remove (with its objects, undoable), folders; add an object to the selected layer; bring forward / send back / to front / to back within a layer; move objects to another layer; group / ungroup; duplicate (offset 10 px); find an object and its layer by id; the drawing order (bottom layer first, bottom object first). A locked layer's objects cannot be selected, moved or edited; a hidden layer is not drawn or exported.
+4. **Snapping** (`snap.ts`): a move or resize snaps X, Y, W or H to the grid, guides, other objects' edges and centres, and whole pixels, within a threshold in stage pixels (so it feels the same at every zoom), each source on or off; the result says what it snapped to (shown in the status bar). Snapping is off while Alt is held.
+5. **Drawing** (`draw.ts`): draws the document at frame 0 (M14: any frame) onto any 2D canvas through a small `StageCanvas` interface (a recording fake in tests): background, then each visible layer, each object with its rotation, opacity, fill (gradients made with the canvas's gradient calls), stroke and dash, text with the bundled fonts, pictures, groups recursively. The preview and the PNG export (M13), the video and GIF exports (M14) and the HTML player (M16) all use this one function.
+6. **Files** (`serialize.ts`, `migrate.ts`): `.mvea` JSON with `schemaVersion: 1`, picture paths relative to the file (`core/project/paths.ts`), a shape check that refuses other files ("This file is not an EasyMedia animation, or it is damaged."), the newer-version message, and the migration table for later versions.
+7. **Animation app** (`app/animation.ts`, `app/animation-commands.ts`): its own store (history of the document, file path, saved document, selection, tool, zoom, rulers / grid / guides / snap on or off, message) on the generic History; use cases: new, open, save, save as, the P7 close guard together with the video project ("Video, Audio and Animation work that is not saved will be lost"), add a shape / text, set properties (one command per change, labelled for the History), delete, cut / copy / paste / duplicate, nudge, group / ungroup, layer actions, zoom, export the stage as PNG (the canvas's PNG through `ProjectFiles`), autosave (P3) alongside the video project's.
+8. **UI** (`ui/animation/`): `AnimationMode.svelte` (keys: Delete, arrows, Ctrl/Cmd + D duplicate, G group, Space-drag to pan, 1 / 0 zoom), `AnimationToolbar.svelte`, `Stage.svelte` (the canvas, rulers, grid, guides, selection outline and handles, drag to draw a shape with the tool, drag to move, Shift for proportions / 45° steps), `LayersPanel.svelte`, `PropertiesPanel.svelte` (number boxes that apply on Enter or blur, as the time boxes: X, Y, W, H, lock, rotation, opacity, fill and stroke pickers with hex boxes, text boxes for text objects, name), `StageSettings.svelte` (the chip's dialog: presets, size, colour, fps, length), `AnimationStatusBar.svelte`; the native menus act on the mode that is showing (New, Open, Save, Save As, Undo, Redo, Select All, Cut / Copy / Paste); *File ▸ Export Animation…*. The dialogs port gains `openAnimation`, `saveAnimation`, `exportAnimation`.
+
+**Tests first**
+- Factory and stage: a new animation is 1280 × 720, white, 24 fps, 120 frames with one layer "Layer 1"; `aspectOf(600, 400)` is "3:2", of 1024 × 768 "4:3", of 1280 × 800 "16:10"; the 2.35:1 preset at 800 px high is 1880 × 800; a 15 px stage, 0 fps and 0 frames are refused with plain messages.
+- Geometry, with the workbook's numbers: a star 135 × 135 at (128, 102) has its centre at (195.5, 169.5), 10 outline points, the top point at (195.5, 102); a circle of radius 102 at (0, 0) is 204 × 204 and contains (102, 102) but not (0, 0); a 100 × 100 square turned 45° has bounds 141.42 wide around the same centre; resizing from the bottom-right handle keeps the top-left corner; a line from (0, 500) to (1240, 500) with a 19 px stroke is hit at (600, 505) and not at (600, 520).
+- Layers: the top layer draws last; an object added goes to the selected layer at the front; a locked layer refuses a move; bring forward swaps with the next object only; grouping two objects makes one object whose bounds enclose both and whose children keep their positions; ungrouping restores them; duplicating offsets by 10 px and keeps everything else.
+- Snapping: 103 snaps to 100 on a 10 px grid within 4 px and reports "grid"; a guide at 250 wins over the grid at 248; an object's right edge at 263 snaps the moved object's left edge to 263 ("edge of Star"); 103.4 snaps to 103 with only pixels on; nothing snaps with snapping off; the threshold is in stage pixels.
+- Drawing: the recording canvas receives the background, then each object in order with `save` / `translate` / `rotate` around its centre / `globalAlpha` / the fill and stroke calls; a hidden layer draws nothing; a gradient fill asks for a gradient with both colours; text sets the font string from the bundled font, size and style.
+- Files: a document round-trips through text unchanged; a picture at `C:\Users\x\Task5.jpg` is stored as `Task5.jpg` beside the file and restored; a `.mve` project, random JSON and a cut-off file are refused with the animation message; `schemaVersion: 99` gives the newer-version message.
+- App: every use case is undoable and undo restores the exact document; the window title shows the animation's name and the unsaved dot; closing with unsaved animation work asks; new / open / save work with the mock dialogs; export PNG writes the stage's picture.
+- UI (jsdom): the fourth mode button; the tools; dragging a rectangle on the stage adds a rectangle to the selected layer with the dragged size; typing X = 128, Y = 102, W = 135, H = 135 in the Properties panel moves and sizes it; the layers panel lists the layers and the selected object's layer; Delete removes the selection; the stage chip opens the stage settings and 600 × 400 with #808080 is applied; the status bar shows the pointer's coordinates.
+
+**Exit gate — acceptance**
+- Workbook **Task 1's set-up** through the UI: 600 × 400 stage, the star and the circle with their exact numbers, saved as `Chapter07_Task1_1.mvea`, closed, reopened, exported as PNG; the picture checked with FFmpeg (size 600 × 400).
+- Workbook **Task 3's stage**: 1024 × 768, `#CBCDF0`, rulers and grid shown; **Task 9's face** from ellipses and rounded rectangles aligned with the grid.
+- Coursebook **19.01**: a stick person with each part in its own layer in a folder; the underwater scene; a name with each letter on its own layer — each saved and reopened.
+- On both OSes; tag `v1.1.0`.
+
+---
+
+### M14 — Timeline & tweens
+
+**Goal:** things move: keyframes, tweens with easing, a frame-based timeline, play / loop, groups whose parts keep their own motion, repeat, and export as MP4, animated GIF and PNG sequence — the first complete workbook tasks.
+
+**Build order**
+1. **Time** (`core/animation/time.ts`): frames ↔ seconds at the stage's fps (frame 72 at 24 fps = 3.00 s; "3 s" typed = frame 72); the length in frames; changing the fps keeps keyframes at the same times (rounded to frames) or at the same frames, as chosen; the time shown as `0:03.00 · frame 72`.
+2. **Keyframes and tweens** (`tween.ts`): per property (x, y, width, height, rotation, opacity, fill colour, stroke colour, stroke width, corner radius, font size, text), a sorted list of keyframes {frame, value, easing, hold}; `valueAt(track, frame)` interpolates numbers, colours (in RGB, hex in and out) and angles; easings linear, ease in, ease out, ease in-out, bounce; hold keeps the previous value until the next keyframe; before the first keyframe the first value, after the last the last; *Repeat* on a property (the tween between two keyframes plays again and again until the end, or n times); property keyframes can be moved, copied (Alt-drag) and deleted; *Reverse* copies the keyframes mirrored after the last one (Task 1.2).
+3. **The document at a frame** (`state.ts`): `stateAt(doc, frame)` returns every object with its tweened values; a group's children are placed by the group's position, rotation and scale and keep their own tweens (AN13); `draw.ts` draws `stateAt`. The whole chain stays pure, so one test asks for frame 36 and reads off the numbers.
+4. **Animation app**: the playhead (frame), play / pause / stop / step forward and back, loop (whole or a frame range), setting a property at a frame makes a keyframe (the first keyframe at frame 0 is made with it), *Insert keyframe* at the playhead for a property or for everything, moving and deleting keyframes, the length of the animation, the fps change.
+5. **Timeline UI** (`ui/animation/Timeline.svelte`): under the stage: one row per layer and, when opened, one per object and per animated property; frames across the top numbered every 5, the seconds under them; keyframe dots, tween bars between them (a dash for a hold), the repeat mark; the playhead, dragged or typed (frame or seconds); transport buttons and the loop range; zoom of the frames.
+6. **Export** (`core/animation/export.ts`, a new `AnimationExporter` port, implemented in `main/media/animation.ts`): the app draws every frame onto an offscreen canvas and streams raw RGBA frames to the main process, which pipes them into FFmpeg (`-f rawvideo`): MP4 (H.264, `yuv420p`, even sizes padded), animated GIF (two passes: `palettegen` then `paletteuse`), PNG sequence (`%04d.png`); progress per frame and Cancel (N12); the export dialog with each format's pros and cons and the estimated size (T7); a preset for the stage's size.
+7. **Send to Video mode**: export an MP4 beside the animation file and import it into the video project as a clip.
+
+**Tests first**
+- Time: 3 s at 24 fps is frame 72; frame 36 is 1.50 s; a 30 fps change keeps a keyframe at 3 s on frame 90 (by time) or on frame 72 = 2.40 s (by frame).
+- Tweens with Task 1's numbers: a circle at (0, 0) with a keyframe at frame 72 at (396, 196) is at (198, 98) at frame 36 with linear easing; the fill `#FF1CC8` → `#F0DB82` is `#F87CA5` halfway; opacity 100 → 57 % is 78.5 % halfway; a font size 0 → 64 px; a star's rotation 0 → 360° in 72 frames repeated is 90° at frame 18 and 90° again at frame 90; ease-in starts slower than linear (frame 18 < 25 % of the way) and ends at the same place; bounce ends exactly at the end value; a hold keeps the value until the keyframe; *Reverse* puts the start values at frame 144.
+- Groups: a wheel at (40, 60) inside a car group at (100, 500) draws at (140, 560); the car turning 90° turns the wheel's position with it; the wheel's own rotation adds to the car's.
+- Export (integration, real FFmpeg): a 600 × 400, 3 s, 24 fps animation makes an MP4 that probes as 600 × 400, 24 fps, 3.00 s, H.264; a GIF with 72 frames; a PNG sequence of 72 files; an odd size (601 × 401) is padded to even and reported; Cancel stops the job and leaves no file.
+- UI: the timeline shows frame numbers every 5 and the seconds; dragging the playhead to frame 36 shows the circle halfway; changing X at frame 72 adds a keyframe dot; Space plays and the playhead advances; Loop keeps it playing past the end.
+
+**Exit gate — acceptance** (each as an automated test through the commands, then through the UI on both OSes)
+- Workbook **Task 1.1** (circle, growing rectangle with colour and opacity, growing text, turning star over 3 s), **Task 1.2** without the morph (reverse, the star keeps turning), **Task 2** (letters entering one by one along straight moves, "playcentre" growing, the smile), **Task 3** (slides moving in from the left, fading, "Au revoir"), coursebook **19.02** and **19.03**, exam-style **question 3** (Films by Ying: letters bounce in, stay 2 s, fade, loop, exported as GIF), each exported as MP4 and checked by the task checker.
+- Tag `v1.2.0`.
+
+---
+
+### M15 — Paths, morphing & masks
+
+**Goal:** the remaining tweening tools of 20.1: an object follows a drawn path (and turns with it), a shape becomes another shape, and a layer masks the layers under it.
+
+**Build order**
+1. **Path geometry** (`core/animation/path.ts`): a path of Bézier segments flattened to points within a tolerance; its length; the point and tangent angle at a distance or a fraction; the fraction at even speed (arc-length table).
+2. **Motion paths** (AN11): a property track `path` {pathId or the path's points, from frame, to frame, orient, easing, even speed}; `stateAt` places the object's centre on the path; the path itself can be any path or shape outline in the document (drawn with the pen, or chosen), shown only while editing.
+3. **Morphing** (AN10, `morph.ts`): shape keyframes hold a whole outline; between two outlines the points are resampled to the same count by arc length and matched from the nearest start point, then interpolated; a closed shape to an open line and back; the fill and stroke tween at the same time.
+4. **Masks** (AN12): a layer marked as a mask clips the layers under it (until the next mask or folder end) to its shapes' union; drawn with `clip`; animated like any object.
+5. **UI**: the pen and path editing (anchor points, handles, add / remove a point); *Follow path…* on a tween; *Orient to path*; *Morph into…* at a keyframe (draw or pick the new shape); *Mask* on a layer (padlock as in the coursebook: the masked layers are shown through it when locked).
+
+**Tests first**
+- Paths: a straight path from (0, 0) to (300, 0) is 300 long and its half-way point is (150, 0) with angle 0; a quarter circle of radius 100 is 157.08 long and its end angle is 90°; a path of two unequal segments at even speed is at the join at the right fraction, not at 50 %.
+- Motion: Task 5's car on an undulating path over 5 s at 24 fps is on the path at every frame and its rotation follows the tangent when oriented; the small cars go left to right and right to left; the wheels turn 360° per second, anticlockwise on the way back.
+- Morph: a circle into a square has four-fold symmetry halfway (the outline's bounds stay square); a line into a circle into a rectangle into a line (worked example 19.02) is the line again at the end; the colour changes with it.
+- Masks: a circle mask over a text layer draws `clip` with the circle before the text; moving the mask moves the clip; an unmasked layer above is not clipped.
+
+**Exit gate — acceptance**
+- Workbook **Task 1.2** complete (the circle morphs), **Task 5** (the car, the road appearing, the small cars on paths, loop), **Task 6** (scrolling introduction, computers growing in along paths and leaving along others, THE END); coursebook **19.04–19.06**, exam-style **question 1** (Saif's Comics: letters fading one at a time, 2.35:1, looping, GIF) and **question 2** (Henry's Homes: the logo pulsing, the ball revealing text, the mask).
+- Tag `v1.3.0`.
+
+---
+
+### M16 — Pictures, web export, stop motion & teaching
+
+**Goal:** everything else in 20.1: pictures and tracing, the HTML web animation with buttons, stop motion and frame-by-frame, and the theory in Learn mode; then the user guide and teacher notes for animation.
+
+**Build order**
+1. **Pictures** (AN5): import PNG, JPG, GIF, BMP (through the media engine's probe for the size) and SVG (drawn by the canvas from the file); a picture is an object like any other (moved, sized, turned, faded, tweened, masked); *Package* copies them (P2).
+2. **Trace bitmap** (`core/animation/trace.ts`): the picture's pixels (read by the canvas) are quantised to n colours, each colour's regions are traced to outlines (marching squares), simplified (Ramer–Douglas–Peucker) and smoothed into paths — one path object per region, grouped; the dialog shows colours, detail and smoothing with a preview and the note about lost detail. A published tracer with a compatible licence may replace this file if the quality is not enough (as the pitch-shift decision in M10).
+3. **HTML export** (`core/animation/html.ts`): one self-contained `.html` file: the document as JSON, the pictures as data URLs, and a small player built from the same `draw.ts` and `stateAt` (bundled by Vite as a library file read at build time), looping, sized to its stage, playing in any browser without the internet; with AN18's buttons.
+4. **Buttons** (AN18): a button object (label, action: pause, continue, restart, go to frame) that works in the preview and in the HTML player; in video and GIF exports it is drawn as it looks.
+5. **Stop motion and frame-by-frame** (AN14): *Import frames…* chooses a folder of pictures (sorted by name) and makes a picture layer with one held keyframe per frame at the chosen rate; a *frame-by-frame* layer where every keyframe holds its own drawing (the objects drawn at that frame), with onion skin (the previous and next drawings faint); *Duplicate frame*.
+6. **Teaching** (AN17): `core/teaching/animation.ts` (types of animation with advantages and disadvantages, the principles, the components, variables and avars, in the coursebook's words), a Learn ▸ **Animation** tab with those pages and a frame-rate demonstration (the same motion at 5, 12 and 24 fps side by side); glossary entries (frame, key frame, property keyframe, tween, morphing, stage, layer, mask, path, symbol, avar…); the syllabus registry (`core/teaching/syllabus.ts`) gains section 20.1 with where each point is done; "Why use this?" on every animation tool (T5); the task checker (T6) reads an exported MP4 / GIF / PNG sequence / HTML and checks size, frame rate, length, format and (for GIF and HTML) looping.
+7. **Guides**: the student user guide and the teacher notes gain the animation chapter (`scripts/guides.ts` from the syllabus registry); the Welcome mentions the fourth mode.
+
+**Tests first**
+- Pictures: a JPG is imported with its pixel size and keeps its proportions when W is typed with the lock on; the SVG of a star draws; packaging copies the pictures beside the file.
+- Trace: a picture of a red circle on white traces to two regions, one red path whose bounds are the circle's within 2 px; fewer colours merge regions; the detail setting changes the point count.
+- HTML: the file contains no external references, plays at the stage size, loops, and the Pause / Continue buttons change the player's state (tested in jsdom with the player's module).
+- Stop motion: 24 pictures at 12 fps make a 2 s layer with a held keyframe per frame; onion skin draws the neighbours at reduced opacity.
+- Teaching: every 20.1 syllabus point has a place in the app and every animation tool sits under a point (the existing registry test extended); the coursebook's questions 1–22 are answerable from the pages and glossary (acceptance test over the texts, as M11's).
+- Task checker: an MP4 exported from a 600 × 400, 24 fps, 3 s animation passes a check for those values and fails one for 30 fps.
+
+**Exit gate — acceptance**
+- Workbook **Task 3** and **Task 6** with the real pictures (`Paris1–6.jpg`, the eight computers), **Task 4** (Pause and Continue buttons in a browser), **Task 7** (flowchart iteration) and **Task 8** (bubble sort) as frame-by-frame plus tweens, the **worked example** (Star Designs: MP4 and HTML); coursebook **19.07** (every format); Learn mode answers questions 1–22.
+- Tag `v1.4.0`.
+
+---
+
+### M17 — Hardening & v2.0
+
+**Goal:** release quality for the whole app on both platforms, with animation.
+
+**Build order**
+1. **Full acceptance run** of README §14 phase 2 by the teacher on a Windows 11 laptop and a Mac with the installed app: the worked example, Tasks 1–9, Practical Activities 19.01–19.07 and exam-style questions 1–3; results in `docs/acceptance/M17.md`.
+2. **Performance (N1–N5)** with an animation open: the stage redraws at ≥ 30 fps with 100 objects on the minimum-spec laptop; a 10 s 1024 × 768 MP4 exports in ≤ 30 s; RAM within N4 with a video project and an animation open together; start-up unchanged.
+3. **Cross-platform (X1, X6)**: a `.mvea` with pictures made on Windows opens on macOS and exports the same MP4 (same size, fps, length; pictures alike at PSNR ≥ 40 dB), and the other way, in the existing CI job.
+4. **Installers**: the three builds with the new guides and licences (any vendored tracer listed); the smoke test opens an animation; `INSTALL.md` updated.
+5. **Design screens**: the Animation mode's screens added to `design/screens/` from the built UI, so the prototype stays the reference.
+6. Version 2.0.0; PR `animation` / `dev` → `main`; tag `v2.0.0`; GitHub Release.
+
+**Exit gate**
+- All phase 2 acceptance tasks pass on both OSes; no open blocker or major bugs; performance budget met.
+- Tag `v2.0.0`, publish GitHub Release.
 
 ## 7. Coursebook task → milestone map
 
@@ -550,6 +712,18 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 | M10 | 11.20–11.24 | Tasks 11k–11p; Activities 11f–11i |
 | M11 | 11.28; exam-style questions 1–6 | Theory sections 11.1.19, 11.2.20–11.2.22 |
 | M12 | All of the above, on both OSes | Practice questions 1–7 (Bali) |
+
+Phase 2 — `animation_book.pdf` (coursebook Chapter 19) and `animation_workbook.pdf` (workbook Chapter 7):
+
+| Milestone | Coursebook Chapter 19 | Workbook Chapter 7 |
+|---|---|---|
+| M13 | 19.01 (layers); questions 1–15 as glossary targets | Task 1's set-up; Task 3's stage; Task 9's face (static) |
+| M14 | 19.02, 19.03; exam-style question 3 | Task 1.1, Task 1.2 (without the morph), Task 2, Task 3 |
+| M15 | 19.04, 19.05, 19.06; exam-style questions 1 and 2 | Task 1.2 complete, Task 5, Task 6 |
+| M16 | 19.07; questions 1–22 from Learn mode | Worked example (Star Designs), Task 4, Task 7, Task 8; Tasks 3 and 6 with the real pictures |
+| M17 | All of the above, on both OSes | All of the above, on both OSes |
+
+Automated animation acceptance tests live in `tests/acceptance/` too, e.g. `workbook-task-1.test.ts`, built through the animation commands and exported with the real FFmpeg.
 
 Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. `bookB-task-11c.test.ts`. They use fixture media with the same specs as the coursebook files.
 
@@ -569,4 +743,9 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M9 Audio editor core | ✅ Done ([gate record](acceptance/M9.md)) — undo steps on disk (as Audacity) to keep RAM in budget | 2026-10-17 | `v0.9.0` |
 | M10 Audio effects & recording | ✅ Done ([gate record](acceptance/M10.md)) — Audio mode is saved with the project; pitch in TypeScript (SoundTouch's method) | 2026-10-18 | `v0.10.0` |
 | M11 Teaching layer | ✅ Done ([gate record](acceptance/M11.md)) — plus Audio mode clips, tooltips, 33 transitions, 20 fonts, text looks and animations after the teacher's test | 2026-10-19 | `v0.11.0` |
-| M12 Hardening & v1.0 | 🔶 In progress | | |
+| M12 Hardening & v1.0 | 🔶 Teacher's checks passed (2026-10-27); release pending: PR `dev → main`, version 1.0.0, tag `v1.0.0` | | |
+| M13 Animation core | 🔶 In progress (branch `animation`, from 2026-10-27) | | |
+| M14 Timeline & tweens | ⬜ | | |
+| M15 Paths, morphing & masks | ⬜ | | |
+| M16 Pictures, web export & teaching | ⬜ | | |
+| M17 Hardening & v2.0 | ⬜ | | |

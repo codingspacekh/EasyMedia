@@ -445,7 +445,7 @@ export function createApp({
           .catch(() => {});
     },
 
-    /** Help ▸ Licences: the third-party licences shipped with the app (README §16). */
+    /** Help ▸ Licences: the third-party licences shipped with the app (README §17). */
     async showLicences(): Promise<void> {
       try {
         if (!paths.licences) throw new Error('no licences file');

@@ -1,10 +1,10 @@
 # EasyMedia — System Requirements
 
-A lightweight, offline desktop video and audio editor built for teaching **Cambridge International AS & A Level Information Technology (9626), Chapter 11: Video and audio editing** (syllabus 2025–2027).
+A lightweight, offline desktop video and audio editor built for teaching **Cambridge International AS & A Level Information Technology (9626), Chapter 11: Video and audio editing** and, in phase 2, **Chapter 20: Animation** (syllabus 2025–2027).
 
-It covers every practical skill the syllabus asks for and leaves out professional features that the exam never needs, so it runs smoothly on ordinary student laptops (Windows 11 and macOS) that struggle with Adobe Premiere or DaVinci Resolve.
+It covers every practical skill the syllabus asks for and leaves out professional features that the exam never needs, so it runs smoothly on ordinary student laptops (Windows 11 and macOS) that struggle with Adobe Premiere, DaVinci Resolve or Adobe Animate.
 
-**Status:** requirements stage · **Maintainer:** subject teacher · **Licence:** open source (GPL-3.0), for study use · **Platforms:** Windows 11, macOS
+**Status:** v1.0 (Chapter 11) done; phase 2 (Chapter 20 Animation) in progress · **Maintainer:** subject teacher · **Licence:** open source (GPL-3.0), for study use · **Platforms:** Windows 11, macOS
 
 ---
 
@@ -16,22 +16,23 @@ It covers every practical skill the syllabus asks for and leaves out professiona
 4. [Hardware and OS requirements](#4-hardware-and-os-requirements)
 5. [Functional requirements — Video editor (11.1)](#5-functional-requirements--video-editor-syllabus-111)
 6. [Functional requirements — Audio editor (11.2)](#6-functional-requirements--audio-editor-syllabus-112)
-7. [Functional requirements — Teaching features](#7-functional-requirements--teaching-features)
-8. [Functional requirements — Project and file handling](#8-functional-requirements--project-and-file-handling)
-9. [Non-functional requirements](#9-non-functional-requirements)
-10. [Architecture](#10-architecture)
-11. [Technology stack](#11-technology-stack)
-12. [Development phases](#12-development-phases)
-13. [Acceptance testing](#13-acceptance-testing)
-14. [Risks and constraints](#14-risks-and-constraints)
-15. [Decisions log](#15-decisions-log)
-16. [Licence](#16-licence)
+7. [Functional requirements — Animation editor (20.1)](#7-functional-requirements--animation-editor-syllabus-201)
+8. [Functional requirements — Teaching features](#8-functional-requirements--teaching-features)
+9. [Functional requirements — Project and file handling](#9-functional-requirements--project-and-file-handling)
+10. [Non-functional requirements](#10-non-functional-requirements)
+11. [Architecture](#11-architecture)
+12. [Technology stack](#12-technology-stack)
+13. [Development phases](#13-development-phases)
+14. [Acceptance testing](#14-acceptance-testing)
+15. [Risks and constraints](#15-risks-and-constraints)
+16. [Decisions log](#16-decisions-log)
+17. [Licence](#17-licence)
 
 ---
 
 ## 1. Background
 
-The two coursebooks used for Chapter 11 teach the same syllabus with different software:
+The two coursebooks used for Chapter 11 teach the same syllabus with different software (the PDFs are kept in `documents/`, never in the repository):
 
 | Source file | Video software | Audio software | Other tools needed |
 |---|---|---|---|
@@ -39,19 +40,28 @@ The two coursebooks used for Chapter 11 teach the same syllabus with different s
 | `video_audio_editing.pdf` | Windows Movie Maker (discontinued) | Audacity | Prism (format conversion), Express Burn (DVD), Photoshop (crop/resize stills) |
 | `video_audio_editing_syllabus.pdf` | Syllabus sections 11.1 and 11.2 — the authoritative list of required skills | | |
 
+Phase 2 (from 2026-10-27) adds Chapter 20, Animation, from three more documents:
+
+| Source file | What it is | Software it uses |
+|---|---|---|
+| `animation_syllabus.pdf` | Syllabus section 20.1 — the authoritative list of required skills and theory | — |
+| `animation_book.pdf` | Coursebook Chapter 19 *Animation*: practical activities 19.01–19.07, questions 1–22, exam-style questions 1–3 | Adobe Animate (paid subscription) |
+| `animation_workbook.pdf` | Practical Skills Workbook Chapter 7 *Animation*: a worked example and Tasks 1–9 | Tumult Hype (macOS only) |
+
 Problems with the current options:
 
 - **DaVinci Resolve / Premiere Pro** need a strong GPU and lots of RAM. They do not run smoothly on typical student laptops, and they are overwhelming for students.
 - **Movie Maker** is discontinued, and its replacement (Photos / Clipchamp) lacks required features.
 - Students end up switching between **up to five programs** to finish one chapter.
+- For animation, **Adobe Animate** needs a paid subscription and a strong laptop, and **Tumult Hype** runs only on a Mac; free alternatives (Synfig, Pencil2D) are either hard to learn or lack tweens, paths and masks together.
 
-**This project:** one small application that does everything in syllabus 11.1 and 11.2, with menus and wording close enough to Movie Maker and Audacity that both coursebooks can still be followed.
+**This project:** one small application that does everything in syllabus 11.1, 11.2 and 20.1, with menus and wording close enough to Movie Maker, Audacity and the animation coursebook that the books can still be followed.
 
 ## 2. Goals and non-goals
 
 ### Goals
 
-- Cover **100% of syllabus 11.1 and 11.2** practical skills in one application.
+- Cover **100% of syllabus 11.1 and 11.2** practical skills in one application — and, in phase 2, **100% of syllabus 20.1** (animation) in the same application (§7).
 - Run smoothly and **offline** on ordinary student laptops — **Windows 11 and macOS** — from one codebase.
 - Support **precise numeric entry** (times to 0.01 s), as exam tasks require exact values.
 - Help students understand the **theory** (compression, containers, codecs, sampling) as well as the practical skills.
@@ -60,17 +70,18 @@ Problems with the current options:
 ### Non-goals
 
 - Professional features: multi-cam, colour grading wheels, motion tracking, VFX, 3D, plugins, more than 4 tracks.
+- Animation: 3D, bones / rigging, scripting (ActionScript / JavaScript), SWF export, interactivity beyond simple buttons (AN18).
 - 4K/8K editing, HDR, RAW camera formats.
 - Burning physical DVD/Blu-ray discs (a DVD-compatible *file* is produced instead).
 - Cloud storage, accounts or online collaboration.
-- Running in a web browser (possible future option — see §10.4).
+- Running in a web browser (possible future option — see §11.4).
 
 ## 3. Users
 
 | User | Needs |
 |---|---|
 | **Students** (age 16–18) | Simple interface, clear menus, exact numeric controls, explanations of *why* each feature is used |
-| **Teacher** (also the maintainer, using a MacBook) | Can demonstrate every coursebook activity; can check that student output matches task specs (resolution, duration, format); can build and release the app for both platforms |
+| **Teacher** (also the maintainer, using a MacBook) | Can demonstrate every coursebook and workbook activity; can check that student output matches task specs (resolution, duration, format); can build and release the app for both platforms |
 | **Students installing on their own laptops** | One-click install without admin rights, clear first-launch instructions (especially macOS), works offline |
 
 ## 4. Hardware and OS requirements
@@ -108,7 +119,7 @@ Not supported: Windows 7/8, 32-bit Windows, Linux (possible later from the same 
 | **X4** | Microphone access: on macOS the app declares microphone usage (`NSMicrophoneUsageDescription`) and shows a clear message if permission is denied; on Windows it respects the *Microphone privacy* setting. |
 | **X5** | FFmpeg/ffprobe binaries bundled for each platform and architecture (Windows x64, macOS arm64, macOS x64). |
 | **X6** | Exported files are identical in format and settings on both platforms (same FFmpeg version and command lines). |
-| **X7** | Installation and first launch instructions for both platforms, including what to do about the macOS Gatekeeper warning if the app is not notarised (see §14). |
+| **X7** | Installation and first launch instructions for both platforms, including what to do about the macOS Gatekeeper warning if the app is not notarised (see §15). |
 
 ## 5. Functional requirements — Video editor (syllabus 11.1)
 
@@ -179,7 +190,44 @@ The audio editor follows the **Audacity model**: select a region on the waveform
 | **A18** | (Usability) | Unlimited undo/redo, play/pause/stop, loop selection, **Preview** in every effect dialog. | Region snapshots |
 | **A19** | Effects of compression on audio: *dynamic range* compression (taught in `video_audio_editing.pdf` §11.2.22) | *Compressor*: threshold, ratio, attack, release, make-up gain; before/after waveform and input→output curve. The dialog explains that this evens out loud and quiet parts and is **different from file compression** (lossy/lossless), which reduces file size. | DSP (envelope follower + gain) |
 
-## 7. Functional requirements — Teaching features
+## 7. Functional requirements — Animation editor (syllabus 20.1)
+
+Phase 2 (decided 2026-10-27): the same app gains an **Animation** mode for syllabus Chapter 20. The coursebook teaches it with Adobe Animate (paid) and the workbook with Tumult Hype (Mac only); the syllabus names no software, so the Animation mode follows the syllabus's own vocabulary (stage, frames, key frames, tweens, layers, masks) and the numbers the tasks give (pixels, seconds, hex colours, percentages).
+
+| ID | Syllabus item | Requirement | Implementation |
+|---|---|---|---|
+| **AN1** | Configuring the stage: colour, size | **Stage settings**: width × height in pixels, background colour (hex), frame rate (10, 12, 15, 24, 25, 30, 60 fps or custom 1–60) and length (frames, shown in seconds too). Aspect-ratio presets: 4:3, 16:9, 16:10, 2.35:1, custom. | Canvas 2D stage |
+| **AN2** | Aspect ratio using rulers, guides and grid settings; snapping options | **Rulers** in pixels along the top and left showing the pointer's coordinates (0, 0 at the top left); **guides** dragged out of the rulers; a **grid** with its spacing (default 10 px), behind or over the objects; **snap** to grid, guides, other objects' edges and centres, and whole pixels — each on or off. Rulers, grid and guides never appear in an export. | UI state, `core/animation/snap.ts` |
+| **AN3** | Creating vector objects | Tools: **rectangle** (corner radius), **ellipse**, **star** (points, inner radius), **polygon** (sides), **line**, **pen** (Bézier path, open or closed), **brush** (freehand, smoothed into a path). Drawn by dragging; exact numbers typed afterwards. | Outlines in `core/animation/geometry.ts` |
+| **AN4** | Adding text | **Text** objects with the bundled fonts (X2), size in px, colour, bold / italic, alignment. *Split into letters* makes one object per letter, so letters can enter one at a time (workbook Task 2; coursebook exam-style questions 1 and 3). | Same text drawing as Video mode |
+| **AN5** | Importing vector objects; tracing bitmaps | Import PNG, JPG, GIF, BMP and SVG pictures. **Trace bitmap** turns a picture into vector shapes (number of colours, detail, smoothing) that can be edited and animated part by part, with the note that detail is lost. | Vectoriser in `core/animation/trace.ts` |
+| **AN6** | Stroke and fill settings; size, position and orientation; transparency | **Properties** panel with exact numbers: X and Y (top-left corner, px), W and H (lock proportions), rotation (°), opacity (%), **fill** (none, solid, linear or radial gradient with two colours and an angle), **stroke** (colour, width in px, solid / dashed / dotted). Every change is undoable. | Properties on each object |
+| **AN7** | Using layers | **Layers** panel: add, rename, reorder by drag, lock, hide, folders; objects belong to a layer; the top layer is in front. **Group** / ungroup, duplicate, bring forward / send back inside a layer. | `core/animation/layers.ts` |
+| **AN8** | Frames, key frames, timings, frame rate; looping or stopping animations | **Frame-based timeline** (numbered every 5 frames) with the time in seconds alongside, as the workbook's tasks give times in seconds. Play / pause / stop / step, **loop** the whole animation or a selected frame range; the frame rate can be changed with the keyframes kept at the same times or the same frames. | `core/animation/time.ts`, timeline UI |
+| **AN9** | Key frames, property key frames, inbetweening (tweening): motion, size, colour | **Keyframes per property** (position, size, rotation, opacity, fill, stroke, corner radius…): change a value at a frame and a keyframe is set; the values in between are generated (**tween**) with easing (linear, ease in, ease out, ease in-out, bounce) or **held** (no tween, for frame-by-frame work). Keyframe dots on the object's row; they can be moved, copied and deleted. | `core/animation/tween.ts` |
+| **AN10** | Morphing (shape tweening) and its effect | **Shape keyframes**: an object becomes another shape (a circle into a square, a line into a circle into a rectangle), the in-between shapes generated; colour, size and position can change at the same time. | Outline resampling in `core/animation/morph.ts` |
+| **AN11** | Setting paths | **Motion path**: draw a path (pen) or use any shape's outline for an object to follow between two keyframes; *orient to path* (a car turns with the road); even speed along the path (roving keyframes) or eased. | `core/animation/path.ts` |
+| **AN12** | Applying masks | A layer can be a **mask**: the layers under it show only through the mask's shapes; a mask animates like any object (a spotlight that reveals words). | Canvas clipping |
+| **AN13** | Animation variables: controlling the position of an animated object or its parts | **Groups**: a group's parts move, rotate and scale with it while keeping their own tweens (a car's wheels spin while the car drives; a face whose eyes, ears and mouth move independently). **Repeat** on a tween (spin once per second for the whole animation, even while the rest runs in reverse). Named objects and layers. | Parent transforms in `stateAt()` |
+| **AN14** | Stop motion, time lapse, cel and flip book animation | *Import frames…*: a folder of photographs or drawings becomes one frame each at the chosen frame rate (stop motion, time lapse). A **frame-by-frame** layer where each keyframe holds its own drawing (cel, flip book), with onion skin. | FFmpeg image sequence; keyframes |
+| **AN15** | Creating an animation for its intended application and audience; exporting | Export as **MP4** (H.264; computer, phone, web video), **animated GIF** (web page, email; no sound), **PNG sequence** (one picture per frame), **HTML web animation** (one file that plays in any browser, looping, with optional Pause / Continue buttons) and the current frame as **PNG**. The pros and cons of each format are shown (T7), and the estimated size. | Frames drawn by the app → FFmpeg; HTML player |
+| **AN16** | (Project) | Save / open `.mvea` animation files (JSON, picture paths relative to the file, X1); autosave and crash recovery (P3); unlimited undo / redo; *Package* with its pictures (P2); *Send to Video mode* puts an export on the video timeline. | `core/animation/serialize.ts` |
+| **AN17** | The basic principles of animation; different animation types and methods; components of an animation; advantages and disadvantages of animation types | **Learn ▸ Animation**: cel, stop motion, time lapse, flip book, CGI, 2D and 3D with advantages and disadvantages; frames, key frames, property key frames, timings, coordinates, tweening and morphing; primary and secondary components; animation variables and avars. "Why use this?" on every animation tool (T5); glossary entries; the **task checker** (T6) checks an exported animation (size, frame rate, length, format, whether it loops). | `core/teaching/`, Learn mode |
+| **AN18** | Controlling animations by stopping them | **Button** objects (Pause, Continue, Restart, Go to frame) that work in the preview and in the HTML export (workbook Task 4). Built last: the only interactive feature. | HTML player |
+
+### AN15 — Animation export formats
+
+| Format | Best for | Notes |
+|---|---|---|
+| **MP4** (H.264) | Computer, phone, web video, putting into a video | Smooth, small; no transparency; sound can be added in Video mode |
+| **Animated GIF** | Web pages, email, messages | Plays everywhere without a player; 256 colours per frame; large for long animations; no sound |
+| **PNG sequence** | Further editing, other animation software | One lossless picture per frame; transparency kept |
+| **HTML** | A web page, with buttons | One `.html` file that plays the animation in any browser, loops, and can carry Pause / Continue buttons |
+| **PNG** (one frame) | A still of the animation | The current frame, with transparency |
+
+Not supported: SWF (Flash; the coursebook notes it is being phased out) and 3D (a non-goal).
+
+## 8. Functional requirements — Teaching features
 
 These cover the **theory** parts of the syllabus that ordinary editors don't teach.
 
@@ -193,7 +241,7 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | **T6** | Meeting requirements of application and audience | **Task checker** (teacher-defined): compare an exported file against expected specs (format, resolution, duration ± tolerance, mono/stereo, sample rate) and report pass/fail. |
 | **T7** | Advantages and disadvantages of export file formats (11.1 and 11.2) | Every export dialog shows the **pros and cons of the selected format** (e.g. MP3: plays everywhere, small · lossy, lower quality than AAC at the same bit rate), and the Learn mode glossary compares all formats side by side. |
 
-## 8. Functional requirements — Project and file handling
+## 9. Functional requirements — Project and file handling
 
 | ID | Requirement |
 |---|---|
@@ -205,7 +253,7 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | **P6** | Missing-media detection with "locate file" prompt. |
 | **P7** | Separate **Save project** (editable) and **Export** (playable file) commands, clearly explained — the coursebook tips stress this distinction. |
 
-## 9. Non-functional requirements
+## 10. Non-functional requirements
 
 | ID | Category | Requirement |
 |---|---|---|
@@ -222,11 +270,11 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | **N11** | Reliability | An export failure never corrupts the project; FFmpeg errors are translated into plain-English messages. |
 | **N12** | Responsiveness | Long operations (proxies, export, heavy effects) run in the background with a progress bar and a Cancel button; the UI never freezes. |
 | **N13** | Maintainability | Single maintainer: TypeScript throughout; the project → FFmpeg command builder has unit tests; CI builds both platforms on every change. |
-| **N14** | Licensing | All bundled components are open source and GPL-3.0-compatible (see §16). |
+| **N14** | Licensing | All bundled components are open source and GPL-3.0-compatible (see §17). |
 
-## 10. Architecture
+## 11. Architecture
 
-### 10.1 Overview
+### 11.1 Overview
 
 > Detailed system design (layers, design patterns, data model, flows): see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 > UI prototype (23 high-fidelity screens, importable into Figma): see [`design/screens/index.html`](design/screens/index.html).
@@ -261,7 +309,7 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 10.2 Key design decisions for low-spec hardware
+### 11.2 Key design decisions for low-spec hardware
 
 1. **Proxy editing.** On import, each video is converted in the background to a 640×360 H.264 proxy. The preview always plays proxies; export always uses the originals. This is the single biggest performance gain.
 2. **Approximate preview, exact export.** There is no real-time compositing engine. Preview uses at most two `<video>` elements, CSS filters (which map almost one-to-one onto FFmpeg `eq` / `hue` / `boxblur`) and CSS opacity for fades and transitions. A **"Render preview of selection"** button produces a frame-exact check using FFmpeg.
@@ -270,7 +318,7 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 5. **All encoding/decoding by FFmpeg**, never in JavaScript. Hardware encoders are used when detected (VideoToolbox on macOS; Quick Sync / AMF / NVENC on Windows), with `libx264 -preset veryfast` as the fallback.
 6. **Audio as in-memory PCM.** Decoded once by FFmpeg; a 3-minute stereo clip is ≈ 64 MB as 32-bit float. Effects work on the selected region in a Web Worker; undo stores snapshots of only the changed region.
 
-### 10.3 Why Electron (over Tauri)
+### 11.3 Why Electron (over Tauri)
 
 | Reason | Detail |
 |---|---|
@@ -280,11 +328,11 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | Proven reference | [LosslessCut](https://github.com/mifi/lossless-cut) is an open-source Electron + FFmpeg video tool. |
 | Trade-off accepted | ≈ 80–100 MB more RAM and a larger installer than Tauri — kept in check by the design decisions above. |
 
-### 10.4 Future option: browser version
+### 11.4 Future option: browser version
 
 Because the UI is written in web technologies, it can later be reused for a browser-based practice version for home use (with `ffmpeg.wasm`, much slower export). This is **not** part of the initial scope.
 
-## 11. Technology stack
+## 12. Technology stack
 
 | Layer | Choice |
 |---|---|
@@ -302,9 +350,9 @@ Because the UI is written in web technologies, it can later be reused for a brow
 | CI / releases | GitHub Actions: build and test on `windows-latest` and `macos-latest`, attach installers to GitHub Releases |
 | Source hosting | Public GitHub repository |
 
-## 12. Development phases
+## 13. Development phases
 
-Development follows **Test-Driven Development** in 13 milestones, each closed by a test gate before the next one starts. Full plan, TDD rules and coursebook-task mapping: [`docs/MILESTONES.md`](docs/MILESTONES.md).
+Development follows **Test-Driven Development** in 18 milestones over two phases, each closed by a test gate before the next one starts. Full plan, TDD rules and coursebook-task mapping: [`docs/MILESTONES.md`](docs/MILESTONES.md).
 
 | Milestone | Scope | Outcome |
 |---|---|---|
@@ -313,9 +361,14 @@ Development follows **Test-Driven Development** in 13 milestones, each closed by
 | **M5–M8** | V1–V17 | All of syllabus 11.1 |
 | **M9–M10** | A1–A19 | All of syllabus 11.2 |
 | **M11** | T1–T7 | Theory support |
-| **M12** | §13 acceptance on Windows 11 and macOS | Release v1.0 on GitHub Releases |
+| **M12** | §14 acceptance on Windows 11 and macOS | Release v1.0 on GitHub Releases |
+| **M13** | AN1–AN4, AN6, AN7, AN16: stage, vector objects, text, properties, layers, animation files | Animation mode: a stage set up and drawn on exactly as a task says (phase 2) |
+| **M14** | AN8, AN9, AN13, AN15 (MP4, GIF, PNG): timeline, keyframes, tweens, groups, export | Moving animations exported as video |
+| **M15** | AN10–AN12: motion paths, morphing, masks | All tweening tools of 20.1 |
+| **M16** | AN5, AN14, AN15 (HTML), AN17, AN18: pictures and tracing, stop motion, web export, buttons, Learn | All of syllabus 20.1 |
+| **M17** | §14 acceptance of the animation tasks on Windows 11 and macOS | Release v2.0 on GitHub Releases |
 
-## 13. Acceptance testing
+## 14. Acceptance testing
 
 The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is accepted when **every practical activity below can be completed in the app alone** (no other software), with outputs matching the task specs:
 
@@ -325,7 +378,14 @@ The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is a
 - All of the above must be completed on **both a Windows 11 laptop and a Mac**, meeting performance targets N1–N4 on a minimum-spec machine.
 - A project created on one platform opens and exports identically on the other (X1, X2, X6).
 
-## 14. Risks and constraints
+Version 2.0 (phase 2) is accepted when, in addition, every animation task below can be completed in the app alone:
+
+- `animation_workbook.pdf`: the worked example (Star Designs) and Tasks 1–9 (Chapter 7).
+- `animation_book.pdf`: Practical Activities 19.01–19.07 and exam-style questions 1–3 (Saif's Comics, Henry's Homes, Films by Ying).
+- Questions 1–22 of the coursebook chapter answerable from Learn mode.
+- All of the above on both a Windows 11 laptop and a Mac; an animation file made on one opens and exports identically on the other.
+
+## 15. Risks and constraints
 
 | Risk | Mitigation |
 |---|---|
@@ -338,11 +398,13 @@ The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is a
 | **Different fonts per OS** | Bundled fonts (X2). |
 | **Single maintainer** | Keep scope tight (§2), automated tests and CI builds so releases are repeatable. |
 | **Coursebook inaccuracy** — `sound_video_editing.pdf` implies MOV/AVI are lossless | They are *containers*; the app's lossless options use genuinely lossless codecs, and the media inspector (T1) shows the difference. |
-| **FFmpeg licensing** | The project is open source, so a GPL FFmpeg build (with x264) can be bundled, provided the project is also GPL-compatible (see §16). |
+| **FFmpeg licensing** | The project is open source, so a GPL FFmpeg build (with x264) can be bundled, provided the project is also GPL-compatible (see §17). |
 | **Physical DVD/Blu-ray** | Out of scope; DVD-compliant `.mpg` export covers the syllabus point. |
-| **Scope creep** | Any feature not traceable to syllabus 11.1/11.2 or §7 is rejected for v1. |
+| **Scope creep** | Any feature not traceable to syllabus 11.1/11.2 or §8 is rejected for v1; for v2, not traceable to 20.1 or §7. |
+| **Trace bitmap quality** (AN5) | A JavaScript vectoriser gives coarser shapes than Animate's; good enough to show the idea (and the detail loss the coursebook describes). The number of colours and the detail are adjustable. |
+| **Two reference books, two models** — the coursebook's Animate is frame-based with tweens per layer; the workbook's Hype is time-based with keyframes per property | The timeline counts frames and shows seconds; keyframes are per property, which handles both books' tasks. The glossary explains both sets of words. |
 
-## 15. Decisions log
+## 16. Decisions log
 
 | # | Question | Decision (2026-10-14) |
 |---|---|---|
@@ -350,17 +412,21 @@ The two coursebooks provide a ready-made acceptance test suite. Version 1.0 is a
 | 2 | Windows 7/8 support | **Not needed.** |
 | 3 | Microphones / headsets | **Students have them** — voiceover recording (A14) is in scope. |
 | 4 | Maintainer | **The subject teacher** maintains the project. |
-| 5 | Licence | **Open source**, for study use only (see §16). |
+| 5 | Licence | **Open source**, for study use only (see §17). |
 | 6 | macOS support | **Yes** — first-class target alongside Windows. |
-| 7 | App type and framework | Desktop app, Electron + bundled FFmpeg (§10). |
+| 7 | App type and framework | Desktop app, Electron + bundled FFmpeg (§11). |
 | 8 | Code signing for v1.0 (2026-10-19) | **None, for now** — the install guide shows the free *right-click → Open* (macOS Gatekeeper) and *More info → Run anyway* (Windows SmartScreen). Signing can be added later. |
 | 9 | Installer size (2026-10-19) | **At most 220 MB** per installer (N6 was 150 MB). Electron alone is about 134 MB compressed; slimmer self-built FFmpeg builds would save only a little and add upkeep. |
+| 10 | Animation (2026-10-27) | Syllabus 20.1 is added to **the same app** as a fourth mode (Video · Audio · Learn · **Animation**), not a second app: one install, one set of fonts and export code, one place for students. |
+| 11 | Animation timeline model (2026-10-27) | **Frame-based** (frames numbered, a frame rate), as the syllabus and the coursebook speak of frames and key frames, with the **time in seconds shown alongside** because the workbook's tasks give times in seconds. Keyframes are **per object property** (as Hype), not per layer (as Animate): simpler for students and enough for every task. |
+| 12 | Animation files (2026-10-27) | Animations are saved in their own **`.mvea`** files (the tasks say "save in the native format"); *Send to Video mode* puts an exported animation on the video timeline. The `.mve` video project format is unchanged. |
+| 13 | Versions (2026-10-27) | Each animation milestone tags `v1.<n>.0` (M13 → v1.1.0 … M16 → v1.4.0); M17 releases **v2.0.0**. |
 
 Still open:
 
-- [ ] Confirm with the Cambridge exams officer whether the app may be used for assessed practical work (§14).
+- [ ] Confirm with the Cambridge exams officer whether the app may be used for assessed practical work (§15).
 
-## 16. Licence
+## 17. Licence
 
 The project is open source and intended for **study and teaching use**.
 
