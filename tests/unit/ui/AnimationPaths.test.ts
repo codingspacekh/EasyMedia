@@ -51,6 +51,8 @@ describe('editing a pen path on the stage (AN3)', () => {
   it('the points show on the selected path; dragging one moves it', async () => {
     const s = await zigzag();
     expect(screen.getByLabelText('Point 1')).toBeTruthy();
+    // Its points, not the box's handles, which would sit on top of them.
+    expect(screen.queryByLabelText('Resize se')).toBeNull();
     await drag(screen.getByLabelText('Point 2'), [200, 200], [200, 300]);
     expect(anchors(s.objects()[0]!)).toEqual([
       [100, 100],
@@ -99,6 +101,7 @@ describe('editing a pen path on the stage (AN3)', () => {
     s.anim.addShape('rect', { x: 0, y: 0, width: 100, height: 100 });
     await tick();
     expect(screen.queryByLabelText('Point 1')).toBeNull();
+    expect(screen.getByLabelText('Resize se')).toBeTruthy();
   });
 });
 

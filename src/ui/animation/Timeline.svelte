@@ -660,7 +660,8 @@
   .label.object {
     padding-left: 14px;
   }
-  .label.property {
+  .label.property,
+  .label.motion {
     padding-left: 36px;
     color: var(--tx-2);
   }

@@ -811,7 +811,8 @@
             />
           {/each}
         {/if}
-        {#if shownSingle && $store.tool === 'select' && drag?.kind !== 'move'}
+        <!-- A pen path shows its points instead of the box's handles (its size and turn are in Properties). -->
+        {#if shownSingle && $store.tool === 'select' && drag?.kind !== 'move' && !editablePath}
           {@const top = toStage(shownSingle, { x: shownSingle.width / 2, y: 0 })}
           {@const knob = toStage(shownSingle, { x: shownSingle.width / 2, y: -22 / zoom })}
           <line

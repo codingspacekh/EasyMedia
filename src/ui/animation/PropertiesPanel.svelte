@@ -656,6 +656,14 @@
   }
   .frame {
     width: 56px;
+    font: inherit;
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg-2);
+    color: var(--tx-1);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 3px 6px;
   }
   .row {
     display: flex;
