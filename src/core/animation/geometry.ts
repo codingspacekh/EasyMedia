@@ -1,7 +1,7 @@
 // AN3, AN6: the shapes as points — outlines, bounds, centres, hit-testing, moving, resizing from
 // handles and turning. Every object is a box (x, y, width, height) turned about its centre;
 // "local" coordinates are inside the box before the turn, with (0, 0) at its top-left corner.
-import type { AnimObject, PathPoint } from './types.ts';
+import type { AnimObject, MotionPath, PathPoint } from './types.ts';
 
 export interface Point {
   x: number;
@@ -208,10 +208,14 @@ export function shiftTracks<T extends AnimObject>(
   o: T,
   by: { x?: number; y?: number; rotation?: number },
 ): T {
-  if (!o.tracks) return o;
+  const withPath =
+    o.motion && (by.x || by.y)
+      ? { ...o, motion: shiftedMotion(o.motion, by.x ?? 0, by.y ?? 0) }
+      : o;
+  if (!withPath.tracks) return withPath;
   return {
-    ...o,
-    tracks: o.tracks.map((t) => {
+    ...withPath,
+    tracks: withPath.tracks.map((t) => {
       const d =
         t.property === 'x' || t.property === 'y' || t.property === 'rotation' ? by[t.property] : 0;
       if (!d) return t;
@@ -222,6 +226,19 @@ export function shiftTracks<T extends AnimObject>(
         ),
       };
     }),
+  };
+}
+
+/** AN11: a motion path moved by (dx, dy), handles and all. */
+export function shiftedMotion(m: MotionPath, dx: number, dy: number): MotionPath {
+  const by = (p: Point) => ({ x: p.x + dx, y: p.y + dy });
+  return {
+    ...m,
+    points: m.points.map((p) => ({
+      ...by(p),
+      ...(p.in ? { in: by(p.in) } : {}),
+      ...(p.out ? { out: by(p.out) } : {}),
+    })),
   };
 }
 

@@ -33,7 +33,7 @@ describe('.mvea files (AN16)', () => {
   it('round-trips an animation through text', () => {
     const doc = sample();
     const text = serializeAnimation(doc);
-    expect(text.startsWith('{\n  "schemaVersion": 2,')).toBe(true);
+    expect(text.startsWith('{\n  "schemaVersion": 3,')).toBe(true);
     expect(deserializeAnimation(text)).toEqual(doc);
   });
 
@@ -58,7 +58,7 @@ describe('.mvea files (AN16)', () => {
   });
 
   it('refuses a file from a newer version of the app', () => {
-    const text = serializeAnimation(sample()).replace('"schemaVersion": 2', '"schemaVersion": 99');
+    const text = serializeAnimation(sample()).replace('"schemaVersion": 3', '"schemaVersion": 99');
     expect(() => deserializeAnimation(text)).toThrow(/newer version/);
   });
 

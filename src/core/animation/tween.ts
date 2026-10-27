@@ -1,9 +1,18 @@
 // AN9, AN13: keyframes per property and the values in between (tweening). Pure functions on
 // tracks and objects; the app's commands wrap them so each change is one undo step.
 import { EditError } from '../model/errors.ts';
-import { setSize } from './geometry.ts';
+import { setSize, shiftedMotion } from './geometry.ts';
+import { flattenCurves, pointAtFraction, polylineOf, type Polyline } from './path.ts';
 import { isColour } from './rules.ts';
-import type { AnimObject, Easing, Keyframe, KeyValue, Track, TweenProperty } from './types.ts';
+import type {
+  AnimObject,
+  Easing,
+  Keyframe,
+  KeyValue,
+  MotionPath,
+  Track,
+  TweenProperty,
+} from './types.ts';
 
 export const EASINGS: readonly { id: Easing; label: string; hint: string }[] = [
   { id: 'linear', label: 'Linear', hint: 'The same speed all the way' },
@@ -307,6 +316,29 @@ export function setTrack<T extends AnimObject>(object: T, track: Track): T {
   return withTrack(object, track);
 }
 
+// A motion path's polyline is worked out once and kept with it (paths are immutable).
+const polylines = new WeakMap<MotionPath, Polyline>();
+const polylineFor = (m: MotionPath): Polyline => {
+  let line = polylines.get(m);
+  if (!line) {
+    line = polylineOf(flattenCurves(m.points, m.closed), m.closed);
+    polylines.set(m, line);
+  }
+  return line;
+};
+
+/** AN11: the object's centre on its path at a frame; turned with it when oriented. */
+function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
+  const t = (Math.max(m.from, Math.min(m.to, frame)) - m.from) / (m.to - m.from);
+  const p = pointAtFraction(polylineFor(m), ease(m.easing, t), m.even);
+  return {
+    ...o,
+    x: p.x - o.width / 2,
+    y: p.y - o.height / 2,
+    ...(m.orient ? { rotation: o.rotation + p.angle } : {}),
+  };
+}
+
 /** The object as it is at a frame: every track applied; a group's children too (AN13). */
 export function objectAt<T extends AnimObject>(object: T, frame: number): T {
   let o: T = object;
@@ -314,6 +346,7 @@ export function objectAt<T extends AnimObject>(object: T, frame: number): T {
     if (track.keyframes.length === 0) continue;
     o = withProperty(o, track.property, valueAt(track, frame));
   }
+  if (object.motion) o = onPath(o, object.motion, frame);
   if (o.kind === 'group') return { ...o, children: o.children.map((c) => objectAt(c, frame)) };
   return o;
 }
@@ -359,6 +392,17 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
     )
       plain[key] = x[key];
   let result = { ...object, ...plain } as T;
+  // AN11: on a path, a move takes the path with it (its position keyframes are not used).
+  const path = object.motion;
+  if (path && (x.x !== n.x || x.y !== n.y))
+    result = {
+      ...result,
+      motion: shiftedMotion(
+        path,
+        (x.x as number) - (n.x as number),
+        (x.y as number) - (n.y as number),
+      ),
+    };
   const key = (property: TweenProperty, value: KeyValue) => {
     result = setPropertyAt(result, property, frame, value);
   };
@@ -372,7 +416,8 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
     (p === 'height' && changed('width'));
   for (const property of [...NUMBER_KEYS, 'radius', 'size', 'text'] as const)
     // (On a still object at frame 0 the partner is set to the value it has: nothing changes.)
-    if (changed(property) || paired(property)) key(property, x[property] as KeyValue);
+    if (path && (property === 'x' || property === 'y')) continue;
+    else if (changed(property) || paired(property)) key(property, x[property] as KeyValue);
   // The fill: a new colour is a keyframe; a change of kind (to a gradient, or none) is plain.
   if (next.fill !== now.fill) {
     if (next.fill.kind === 'solid' && now.fill.kind === 'solid') {
