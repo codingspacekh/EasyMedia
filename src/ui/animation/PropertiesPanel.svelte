@@ -6,6 +6,7 @@
   import type { App } from '../../app/app.ts';
   import { DEFAULT_STROKE } from '../../core/animation/factory.ts';
   import { findObject } from '../../core/animation/layers.ts';
+  import { stateAt } from '../../core/animation/state.ts';
   import { aspectOf } from '../../core/animation/rules.ts';
   import type {
     AnimObject,
@@ -25,7 +26,8 @@
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
   const store = $derived(app.animation.store);
-  const doc = $derived($store.history.present);
+  // M14: what the student sees and edits is the animation at the playhead.
+  const doc = $derived(stateAt($store.history.present, $store.frame));
   const found = $derived(
     $store.selection.flatMap((id) => {
       const f = findObject(doc, id);

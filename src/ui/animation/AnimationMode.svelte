@@ -1,6 +1,7 @@
 <script lang="ts">
-  // Animation mode (M13): the Layers panel, the tool strip, the stage and the Properties panel, the stage
-  // settings dialog, and the keyboard: Delete, arrow keys nudge (Shift: 10 px), V R E S G L P
+  // Animation mode (M13, M14): the Layers panel, the tool strip, the stage with the timeline under it
+  // and the Properties panel, the stage settings dialog, and the keyboard: Space plays and pauses,
+  // comma and full stop step a frame, Delete, arrow keys nudge (Shift: 10 px), V R E S G L P
   // B T I choose tools, Ctrl/Cmd + D duplicates, G groups, Shift + G ungroups, 0 fits, + / −
   // zoom; the Edit menu's cut, copy and paste work on the selected objects (N10).
   import type { App } from '../../app/app.ts';
@@ -11,6 +12,7 @@
   import PropertiesPanel from './PropertiesPanel.svelte';
   import Stage from './Stage.svelte';
   import StageSettings from './StageSettings.svelte';
+  import Timeline from './Timeline.svelte';
   import ToolStrip from './ToolStrip.svelte';
 
   let { app }: { app: App } = $props();
@@ -65,7 +67,13 @@
       return;
     }
     if (!shortcutAllowed(e) || animUi.dialog !== null) return;
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (e.key === ' ') {
+      e.preventDefault();
+      anim.togglePlay();
+    } else if (e.key === ',' || e.key === '.') {
+      e.preventDefault();
+      anim.step(e.key === '.' ? 1 : -1);
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       anim.deleteSelection();
     } else if (e.key.startsWith('Arrow')) {
@@ -98,7 +106,10 @@
 <div class="animation-mode">
   <LayersPanel {app} />
   <ToolStrip {app} />
-  <Stage {app} />
+  <div class="centre">
+    <Stage {app} />
+    <Timeline {app} />
+  </div>
   <PropertiesPanel {app} />
 </div>
 {#if animUi.dialog === 'stage'}
@@ -106,6 +117,13 @@
 {/if}
 
 <style>
+  .centre {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
   .animation-mode {
     flex: 1;
     display: flex;
