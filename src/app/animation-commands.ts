@@ -338,7 +338,7 @@ export const moveLayer = (id: Id, index: number): AnimCommand =>
 
 export const setLayer = (
   id: Id,
-  change: Partial<Pick<Layer, 'visible' | 'locked' | 'colour'>>,
+  change: Partial<Pick<Layer, 'visible' | 'locked' | 'colour' | 'mask'>>,
 ): AnimCommand =>
   command(
     change.visible !== undefined

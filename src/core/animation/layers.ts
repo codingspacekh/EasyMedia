@@ -70,7 +70,7 @@ export function renameLayer(doc: AnimationDoc, id: Id, name: string): AnimationD
 export function setLayer(
   doc: AnimationDoc,
   id: Id,
-  change: Partial<Pick<Layer, 'visible' | 'locked' | 'colour'>>,
+  change: Partial<Pick<Layer, 'visible' | 'locked' | 'colour' | 'mask'>>,
 ): AnimationDoc {
   return replaceLayer(doc, { ...layerOf(doc, id), ...change });
 }

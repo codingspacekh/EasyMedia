@@ -1,10 +1,9 @@
 // AN1–AN7, AN13: draws the stage onto any 2D canvas. The preview, the PNG export, the video
 // and GIF exports (M14) and the HTML player (M16) all use this one function, so what the
 // student sees is what is exported (ARCHITECTURE §7.3, as the text drawing).
-import { centreOf, flattenPath, localOutline } from './geometry.ts';
-import { drawOrder } from './layers.ts';
+import { centreOf, flattenPath, localOutline, outlineOf } from './geometry.ts';
 import { stateAt } from './state.ts';
-import type { AnimObject, AnimationDoc, Paint, Stroke, TextObject } from './types.ts';
+import type { AnimObject, AnimationDoc, Layer, Paint, Stroke, TextObject } from './types.ts';
 
 /** The parts of CanvasRenderingContext2D the drawing needs (a recording fake is used in tests). */
 export interface StageCanvas {
@@ -39,6 +38,7 @@ export interface StageCanvas {
   ): void;
   fill(): void;
   stroke(): void;
+  clip(): void;
   fillRect(x: number, y: number, w: number, h: number): void;
   strokeRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
@@ -66,6 +66,12 @@ export interface DrawOptions {
   afterBackground?: (ctx: StageCanvas) => void;
   /** AN9: the frame to draw (every object with its tweened values); frame 0 when absent. */
   frame?: number;
+  /**
+   * AN12: the stage while editing — a mask works only while its layer is locked (the padlock, as
+   * in the coursebook); unlocked, its shapes are shown so they can be moved. Exports leave this
+   * out, so masks always work there.
+   */
+  editing?: boolean;
 }
 
 export const LINE_HEIGHT = 1.2;
@@ -242,5 +248,26 @@ export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOpti
   ctx.fillRect(0, 0, doc.stage.width, doc.stage.height);
   options.afterBackground?.(ctx);
   const shown = options.frame ? stateAt(doc, options.frame) : doc;
-  for (const { object } of drawOrder(shown)) drawObject(ctx, object, options);
+  const layers = shown.layers;
+  const masking = (l: Layer): boolean =>
+    l.mask === true && l.visible && (!options.editing || l.locked);
+  layers.forEach((layer, i) => {
+    if (!layer.visible || masking(layer)) return;
+    const mask = layers[i + 1];
+    if (!mask || !masking(mask)) {
+      for (const object of layer.objects) drawObject(ctx, object, options);
+      return;
+    }
+    // AN12: only what lies under the mask's shapes is seen of this layer.
+    ctx.save();
+    ctx.beginPath();
+    for (const o of mask.objects)
+      for (const outline of outlineOf(o)) {
+        outline.forEach((p, k) => (k === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.closePath();
+      }
+    ctx.clip();
+    for (const object of layer.objects) drawObject(ctx, object, options);
+    ctx.restore();
+  });
 }

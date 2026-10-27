@@ -203,6 +203,8 @@
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, 0, 0);
     drawStage(ctx as unknown as StageCanvas, shown, {
       image,
+      // AN12: a mask works on the stage while its layer is locked, as in the coursebook.
+      editing: true,
       ...(view.grid.show && !view.grid.over ? { afterBackground: drawGrid } : {}),
     });
   });

@@ -156,6 +156,7 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
       (l) =>
         has(l, ['id', 'name'], isString) &&
         has(l, ['visible', 'locked'], isBoolean) &&
+        (l.mask === undefined || isBoolean(l.mask)) &&
         listOf(l.objects, isAnimObject),
     ) &&
     listOf(doc.folders, (f) => has(f, ['id', 'name'], isString)) &&

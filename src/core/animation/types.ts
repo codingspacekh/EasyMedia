@@ -203,6 +203,8 @@ export interface Layer {
   folderId?: Id;
   /** The colour tag shown in the Layers panel. */
   colour?: string;
+  /** AN12: a mask: its shapes restrict what is seen of the layer directly beneath it. */
+  mask?: boolean;
   /** Drawing order: the first object is at the back. */
   objects: AnimObject[];
 }
