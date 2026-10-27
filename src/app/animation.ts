@@ -7,6 +7,7 @@ import {
   createAnimation,
   createEllipse,
   createLine,
+  createPath,
   createPicture,
   createPolygon,
   createRect,
@@ -14,7 +15,7 @@ import {
   createText,
 } from '../core/animation/factory.ts';
 import type { Handle, Point } from '../core/animation/geometry.ts';
-import { findObject } from '../core/animation/layers.ts';
+import { findObject, setFolderOpen as setFolderOpenIn } from '../core/animation/layers.ts';
 import {
   animationFromDisk,
   animationToDisk,
@@ -35,7 +36,16 @@ import type { AppPaths, Dialogs, MediaEngine, ProjectFiles, StageRenderer } from
 import { dirOf, fileNameOf } from '../core/project/relocate.ts';
 
 export type Tool =
-  'select' | 'rect' | 'ellipse' | 'star' | 'polygon' | 'line' | 'pen' | 'text' | 'picture';
+  | 'select'
+  | 'rect'
+  | 'ellipse'
+  | 'star'
+  | 'polygon'
+  | 'line'
+  | 'pen'
+  | 'brush'
+  | 'text'
+  | 'picture';
 
 export type ShapeKind = 'rect' | 'ellipse' | 'star' | 'polygon';
 
@@ -72,7 +82,24 @@ const NO_RENDERER: StageRenderer = {
   renderPng: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
 };
 
-export const isAnimationDirty = (s: AnimationState): boolean => s.history.present !== s.saved;
+/**
+ * Unsaved work: anything but the view settings (rulers, grid, snapping, open folders), which are
+ * saved with the animation but are not edits. The document is immutable, so the other parts are
+ * the same objects until an edit replaces them.
+ */
+export const isAnimationDirty = (s: AnimationState): boolean => {
+  const a = s.history.present;
+  const b = s.saved;
+  if (a === b) return false;
+  return (
+    a.name !== b.name ||
+    a.stage !== b.stage ||
+    a.layers !== b.layers ||
+    a.folders !== b.folders ||
+    a.pictures !== b.pictures ||
+    a.guides !== b.guides
+  );
+};
 
 /** For the window title: "Chapter07_Task1_1 •" or "Untitled animation". */
 export const animationTitle = (s: AnimationState): string =>
@@ -313,6 +340,15 @@ export function createAnimationApp({
       addToStage(createLine(from, to));
     },
 
+    /** A pen (clicked points) or brush (dragged) path (AN3). */
+    addPath(points: Point[], closed: boolean): void {
+      try {
+        addToStage(createPath(points, closed));
+      } catch (error) {
+        showError(error);
+      }
+    },
+
     /** AN4: words at the clicked point, in the default size. */
     addText(at: Point, text = 'Text'): void {
       addToStage(createText(text, at));
@@ -499,6 +535,14 @@ export function createAnimationApp({
     removeFolder: (id: Id) => void run(cmd.removeFolder(id)),
     moveLayerToFolder: (layerId: Id, folderId: Id | null) =>
       void run(cmd.moveLayerToFolder(layerId, folderId)),
+
+    /** Opens or closes a folder in the Layers panel: kept with the animation, not an undo step. */
+    setFolderOpen(id: Id, open: boolean): void {
+      store.update((s) => ({
+        ...s,
+        history: { ...s.history, present: setFolderOpenIn(s.history.present, id, open) },
+      }));
+    },
 
     dispose(): void {
       clearInterval(timer);

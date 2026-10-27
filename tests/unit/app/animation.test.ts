@@ -168,6 +168,10 @@ describe('stage, guides and view (AN1, AN2)', () => {
     expect(s.doc().view.rulers).toBe(true);
     expect(s.doc().view.grid.size).toBe(20);
     expect(s.state().history.past.length).toBe(steps);
+    // Showing the rulers is not an edit: nothing to save.
+    const fresh = setup();
+    fresh.anim.setView({ rulers: true });
+    expect(fresh.anim.isDirty()).toBe(false);
   });
 });
 

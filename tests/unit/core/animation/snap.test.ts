@@ -12,7 +12,12 @@ function doc(view: Partial<AnimationDoc['view']['snap']> = {}, extra: Partial<An
   let d = createAnimation({ name: 'A' });
   d = addObject(d, d.layers[0]!.id, star);
   d = addObject(d, d.layers[0]!.id, mover);
-  return { ...d, view: { ...d.view, snap: { ...d.view.snap, ...view } }, ...extra };
+  // The grid is shown: it attracts only while it is (see the last test).
+  return {
+    ...d,
+    view: { ...d.view, grid: { ...d.view.grid, show: true }, snap: { ...d.view.snap, ...view } },
+    ...extra,
+  };
 }
 
 describe('snapValue', () => {
@@ -80,6 +85,16 @@ describe('snapBox (AN2)', () => {
     const d = doc({ grid: true, guides: false, objects: false });
     expect(snapBox(d, { ...box, x: 105 }, { threshold: 8 / 2, exclude: [] }).dx).toBe(0);
     expect(snapBox(d, { ...box, x: 105 }, { threshold: 8 / 0.5, exclude: [] }).dx).toBe(-5);
+  });
+
+  it('a hidden grid does not attract, even with grid snapping on', () => {
+    const d = doc({ grid: true, guides: false, objects: false });
+    const hidden = { ...d, view: { ...d.view, grid: { ...d.view.grid, show: false } } };
+    expect(snapBox(hidden, box, { threshold: 4, exclude: [mover.id] })).toEqual({
+      dx: 0,
+      dy: 0,
+      to: null,
+    });
   });
 
   it('hidden layers’ objects and the excluded ones do not attract', () => {

@@ -24,13 +24,14 @@ export function teacherNotes(points: readonly SyllabusPoint[]): string {
   const out: string[] = [
     '# EasyMedia — teacher notes',
     '',
-    'Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapter 11, is done in EasyMedia, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks\' key words.',
+    'Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in EasyMedia, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks\' key words.',
     '',
     "_Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's tools: do not edit by hand._",
   ];
   for (const [section, title] of [
     ['11.1', '11.1 Video editing'],
     ['11.2', '11.2 Audio editing'],
+    ['20.1', '20.1 Animation'],
   ] as const) {
     out.push('', `## ${title}`);
     let group = '';

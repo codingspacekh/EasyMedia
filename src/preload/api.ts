@@ -142,7 +142,10 @@ export type MenuAction =
   | 'redo'
   | 'selectAll'
   | 'welcome'
-  | 'licences';
+  | 'licences'
+  | 'newAnimation'
+  | 'openAnimation'
+  | 'exportAnimation';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

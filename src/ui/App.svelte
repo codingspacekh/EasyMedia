@@ -19,11 +19,22 @@
   import AudioToolbar from './audio/AudioToolbar.svelte';
   import LearnMode from './learn/LearnMode.svelte';
   import LearnStatusBar from './learn/LearnStatusBar.svelte';
+  import AnimationMode from './animation/AnimationMode.svelte';
+  import AnimationStatusBar from './animation/AnimationStatusBar.svelte';
+  import AnimationToolbar from './animation/AnimationToolbar.svelte';
+  import { animationTitle } from '../app/animation.ts';
   import type { LearnTab } from './ui-state.svelte.ts';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
-  const modes = ['Video', 'Audio', 'Learn'] as const;
+  const animStore = $derived(app.animation.store);
+  const modes = ['Video', 'Audio', 'Learn', 'Animation'] as const;
+  const MODE_ICONS = {
+    Video: 'video',
+    Audio: 'audio',
+    Learn: 'learn',
+    Animation: 'animation',
+  } as const;
   const LEARN_TABS: [LearnTab, string][] = [
     ['inspect', 'Inspector & sampling'],
     ['formats', 'Formats & compression'],
@@ -35,7 +46,8 @@
   const settings = $derived($store.history.present.settings);
 
   $effect.pre(() => {
-    document.title = projectTitle($store);
+    document.title =
+      ui.mode === 'Animation' ? `${animationTitle($animStore)} — EasyMedia` : projectTitle($store);
   });
 </script>
 
@@ -45,7 +57,7 @@
     <nav class="seg" aria-label="Mode">
       {#each modes as m (m)}
         <button type="button" aria-pressed={ui.mode === m} onclick={() => (ui.mode = m)}>
-          <Icon name={m === 'Video' ? 'video' : m === 'Audio' ? 'audio' : 'learn'} />
+          <Icon name={MODE_ICONS[m]} />
           {m}
         </button>
       {/each}
@@ -53,6 +65,8 @@
     <span class="vsep"></span>
     {#if ui.mode === 'Audio'}
       <AudioToolbar {app} />
+    {:else if ui.mode === 'Animation'}
+      <AnimationToolbar {app} />
     {:else if ui.mode === 'Learn'}
       <div class="seg small" role="tablist" aria-label="Learn">
         {#each LEARN_TABS as [tab, label] (tab)}
@@ -157,6 +171,10 @@
     <main class="workspace">
       <AudioMode {app} />
     </main>
+  {:else if ui.mode === 'Animation'}
+    <main class="workspace">
+      <AnimationMode {app} />
+    </main>
   {:else}
     <main class="workspace">
       <LearnMode {app} />
@@ -166,6 +184,8 @@
     <AudioStatusBar {app} />
   {:else if ui.mode === 'Learn'}
     <LearnStatusBar learn={app.learn} />
+  {:else if ui.mode === 'Animation'}
+    <AnimationStatusBar {app} />
   {:else}
     <StatusBar {app} />
   {/if}

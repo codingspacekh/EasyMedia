@@ -1,7 +1,7 @@
 # EasyMedia — user guide
 
 EasyMedia edits video and sound for Cambridge International AS & A Level IT (9626), Chapter 11.
-It has three modes, chosen at the top left: **Video**, **Audio** and **Learn**.
+It has four modes, chosen at the top left: **Video**, **Audio**, **Learn** and **Animation** (phase 2, syllabus 20.1; this guide's animation chapter arrives with it).
 
 > Rest the mouse on any button to see what it does. Most tools also have a **Why use this?** box:
 > it gives the reason the tool is used, in the words the exam expects.

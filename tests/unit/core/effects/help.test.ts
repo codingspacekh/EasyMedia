@@ -6,7 +6,7 @@ describe('"Why use this?" for every editing tool that is not an effect (T5)', ()
   it.each(TOOLS.map((t) => [t.label, t] as const))(
     '%s has a syllabus point and a "why"',
     (_, t) => {
-      expect(t.syllabus).toMatch(/^11\.[12] /);
+      expect(t.syllabus).toMatch(/^(11\.[12]|20\.1) /);
       expect(WHY[t.id].length).toBeGreaterThan(40);
     },
   );

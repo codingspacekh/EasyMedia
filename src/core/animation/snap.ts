@@ -106,7 +106,8 @@ function snapAxis(
       : [],
   );
   groups.push(snap.objects ? objectCandidates(doc, axis, exclude) : []);
-  groups.push(snap.grid ? gridCandidates(edges, grid.size) : []);
+  // The grid attracts only while it is shown: nothing jumps to lines the student cannot see.
+  groups.push(snap.grid && grid.show ? gridCandidates(edges, grid.size) : []);
   for (const [rank, candidates] of groups.entries()) {
     if (candidates.length === 0) continue;
     let best: AxisSnap | null = null;

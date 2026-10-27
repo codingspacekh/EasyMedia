@@ -61,6 +61,8 @@ export interface CanvasGradientLike {
 export interface DrawOptions {
   /** The loaded image for a picture (an HTMLImageElement in the app); null while loading. */
   image?: (pictureId: string) => unknown | null;
+  /** Drawn after the background and before the objects (the grid behind them, AN2). */
+  afterBackground?: (ctx: StageCanvas) => void;
 }
 
 export const LINE_HEIGHT = 1.2;
@@ -235,5 +237,6 @@ export function drawObject(
 export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOptions = {}): void {
   ctx.fillStyle = doc.stage.background;
   ctx.fillRect(0, 0, doc.stage.width, doc.stage.height);
+  options.afterBackground?.(ctx);
   for (const { object } of drawOrder(doc)) drawObject(ctx, object, options);
 }
