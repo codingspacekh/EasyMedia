@@ -698,6 +698,25 @@ export function createAnimationApp({
       return found ? objectAt(found.object, store.get().frame) : null;
     },
 
+    // ---- paths and morphs (AN10, AN11) ----
+
+    /** AN11: the object follows another object's path (or outline); returns why not. */
+    followPath: (id: Id, sourceId: Id): string | null => edit(cmd.followPath(id, sourceId)),
+    setMotion: (id: Id, change: Parameters<typeof cmd.setMotion>[1]): string | null =>
+      edit(cmd.setMotion(id, change)),
+    removeMotion: (id: Id) => void run(cmd.removeMotion(id)),
+
+    /** AN10: at the playhead the shape becomes the one picked (removed unless kept). */
+    morphInto(
+      id: Id,
+      targetId: Id,
+      { keepTarget = false }: { keepTarget?: boolean } = {},
+    ): string | null {
+      const refused = edit(cmd.morphInto(id, targetId, store.get().frame, keepTarget));
+      if (!refused) patch({ selection: [id] });
+      return refused;
+    },
+
     // ---- keyframes (AN9, AN13) ----
 
     insertKeyframe: (id: Id, property: cmd.PropertyChoice) =>
@@ -845,7 +864,8 @@ export function createAnimationApp({
 
     moveLayer: (id: Id, index: number) => void run(cmd.moveLayer(id, index)),
 
-    toggleLayer(id: Id, what: 'visible' | 'locked'): void {
+    /** AN7, AN12: show / hide, lock / unlock, or make a mask of a layer. */
+    toggleLayer(id: Id, what: 'visible' | 'locked' | 'mask'): void {
       const layer = present().layers.find((l) => l.id === id);
       if (layer && run(cmd.setLayer(id, { [what]: !layer[what] })))
         patch({

@@ -12,6 +12,7 @@ import * as layers from '../core/animation/layers.ts';
 import type { MeasureText } from '../core/animation/letters.ts';
 import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
+import { motionFrom, withMotion } from '../core/animation/motion.ts';
 import * as tween from '../core/animation/tween.ts';
 import type {
   AnimObject,
@@ -19,6 +20,7 @@ import type {
   Easing,
   Id,
   Layer,
+  MotionPath,
   Picture,
   Stage,
   Track,
@@ -126,6 +128,47 @@ export function splitText(
     return next;
   });
 }
+
+// ---- paths and morphs (AN10, AN11) ----
+
+/** The other object, or why not. */
+function other(doc: AnimationDoc, id: Id, otherId: Id, what: string): AnimObject {
+  if (otherId === id) throw new EditError(`Choose another object as the ${what}.`);
+  const found = layers.findObject(doc, otherId);
+  if (!found) throw new EditError(`That ${what} no longer exists.`);
+  return found.object;
+}
+
+/** AN11: the object follows another object's path or outline, from frame 0 to the end. */
+export const followPath = (id: Id, sourceId: Id): AnimCommand =>
+  command('Follow path', (doc) => {
+    const source = other(doc, id, sourceId, 'path');
+    return layers.updateObject(doc, id, (o) =>
+      withMotion(o, motionFrom(source, { from: 0, to: doc.stage.length })),
+    );
+  });
+
+export const setMotion = (
+  id: Id,
+  change: Partial<Pick<MotionPath, 'from' | 'to' | 'orient' | 'even' | 'easing'>>,
+): AnimCommand =>
+  command('Path settings', (doc) =>
+    layers.updateObject(doc, id, (o) => {
+      if (!o.motion) throw new EditError(`${o.name} does not follow a path.`);
+      return withMotion(o, { ...o.motion, ...change });
+    }),
+  );
+
+export const removeMotion = (id: Id): AnimCommand =>
+  command('Remove path', (doc) => layers.updateObject(doc, id, (o) => withMotion(o, undefined)));
+
+/** AN10: at `frame` the object becomes the target's shape; the target goes unless kept. */
+export const morphInto = (id: Id, targetId: Id, frame: number, keepTarget: boolean): AnimCommand =>
+  command('Morph', (doc) => {
+    const target = other(doc, id, targetId, 'shape');
+    const next = layers.updateObject(doc, id, (o) => tween.morphInto(o, target, frame));
+    return keepTarget ? next : layers.removeObjects(next, [targetId]);
+  });
 
 // ---- keyframes (AN9, AN13) ----
 
@@ -341,15 +384,19 @@ export const setLayer = (
   change: Partial<Pick<Layer, 'visible' | 'locked' | 'colour' | 'mask'>>,
 ): AnimCommand =>
   command(
-    change.visible !== undefined
-      ? change.visible
-        ? 'Show layer'
-        : 'Hide layer'
-      : change.locked !== undefined
-        ? change.locked
-          ? 'Lock layer'
-          : 'Unlock layer'
-        : 'Layer colour',
+    change.mask !== undefined
+      ? change.mask
+        ? 'Mask layer'
+        : 'Not a mask'
+      : change.visible !== undefined
+        ? change.visible
+          ? 'Show layer'
+          : 'Hide layer'
+        : change.locked !== undefined
+          ? change.locked
+            ? 'Lock layer'
+            : 'Unlock layer'
+          : 'Layer colour',
     (doc) => layers.setLayer(doc, id, change),
   );
 
