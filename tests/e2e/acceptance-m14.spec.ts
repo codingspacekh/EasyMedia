@@ -73,7 +73,7 @@ test('Task 1.1: a circle tweened over 3 s, seen halfway at 1.50 s, exported as M
     ['Y', '0'],
     ['W', '204'],
     ['H', '204'],
-  ])
+  ] as const)
     await type(page, label, value);
   await goTo(page, '3 s');
   await type(page, 'X', '396');

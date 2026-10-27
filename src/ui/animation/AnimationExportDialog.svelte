@@ -4,6 +4,7 @@
   // before exporting; then the progress, with Cancel.
   import type { App } from '../../app/app.ts';
   import { ANIMATION_FORMATS, type AnimationFormat } from '../../core/animation/export.ts';
+  import { ui } from '../ui-state.svelte.ts';
   import { animUi } from './animation-ui.svelte.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
@@ -32,6 +33,19 @@
     } finally {
       running = false;
       onclose();
+    }
+  }
+
+  /** M14: an MP4 beside the animation file, put on the video timeline; Video mode is shown. */
+  async function sendToVideo(): Promise<void> {
+    running = true;
+    let sent = false;
+    try {
+      sent = await app.sendAnimationToVideo();
+    } finally {
+      running = false;
+      onclose();
+      if (sent) ui.mode = 'Video';
     }
   }
 
@@ -102,6 +116,11 @@
       {#if running}
         <button onclick={() => anim.cancelExport()}>Cancel export</button>
       {:else}
+        <button
+          class="send"
+          title="Save an MP4 beside the animation file and put it on the video timeline"
+          onclick={() => void sendToVideo()}>Send to Video mode</button
+        >
         <button onclick={onclose}>Close</button>
         <button class="primary" onclick={() => void run()}>Export file</button>
       {/if}
@@ -218,5 +237,8 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 14px;
+  }
+  .send {
+    margin-right: auto;
   }
 </style>

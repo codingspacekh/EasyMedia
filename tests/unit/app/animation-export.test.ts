@@ -159,3 +159,57 @@ describe('exporting the animation (AN15)', () => {
     expect(s.bytes.has('/work/Stage.png')).toBe(true);
   });
 });
+
+describe('Send to Video mode (M14)', () => {
+  async function saved() {
+    const s = setup();
+    s.dialogs.saveAnimation.mockResolvedValueOnce('/work/Task1.mvea');
+    await s.anim.save();
+    return s;
+  }
+  const clips = (s: ReturnType<typeof setup>) =>
+    s.app.store
+      .get()
+      .history.present.timeline.main.map((c) =>
+        'assetId' in c
+          ? s.app.store.get().history.present.media.find((m) => m.id === c.assetId)?.path
+          : null,
+      );
+
+  it('exports an MP4 beside the animation file and puts it on the video timeline as a clip', async () => {
+    const s = await saved();
+    expect(await s.app.sendAnimationToVideo()).toBe(true);
+    expect(s.dialogs.exportAnimation).not.toHaveBeenCalled();
+    expect((await s.engine.probe('/work/Task1.mp4')).video).toMatchObject({ codec: 'h264' });
+    expect(clips(s)).toEqual(['/work/Task1.mp4']);
+    expect(s.app.store.get().message?.text).toBe('Added Task1.mp4 to the timeline.');
+  });
+
+  it('sending again updates the same file without a second clip', async () => {
+    const s = await saved();
+    await s.app.sendAnimationToVideo();
+    await s.app.sendAnimationToVideo();
+    expect(clips(s)).toEqual(['/work/Task1.mp4']);
+    expect(s.app.store.get().message?.text).toBe('Updated Task1.mp4 in Video mode.');
+  });
+
+  it('an animation never saved is saved first; closing the save box sends nothing', async () => {
+    const s = setup();
+    expect(await s.app.sendAnimationToVideo()).toBe(false);
+    expect(s.dialogs.saveAnimation).toHaveBeenCalledTimes(1);
+    expect(clips(s)).toEqual([]);
+    s.dialogs.saveAnimation.mockResolvedValueOnce('/work/Fresh.mvea');
+    expect(await s.app.sendAnimationToVideo()).toBe(true);
+    expect(clips(s)).toEqual(['/work/Fresh.mp4']);
+  });
+
+  it('a cancelled export sends nothing', async () => {
+    const s = await saved();
+    s.stageRenderer.renderPng.mockImplementation(async () => {
+      s.anim.cancelExport();
+      return new Uint8Array([1]);
+    });
+    expect(await s.app.sendAnimationToVideo()).toBe(false);
+    expect(clips(s)).toEqual([]);
+  });
+});

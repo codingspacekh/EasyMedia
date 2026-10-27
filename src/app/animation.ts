@@ -347,27 +347,29 @@ export function createAnimationApp({
   /**
    * AN15: every frame drawn by the same drawing as the preview, then made into the chosen file:
    * MP4 or GIF by FFmpeg from frames in the app's folder (removed afterwards), a PNG sequence
-   * beside the chosen name, or the frame at the playhead as one PNG.
+   * beside the chosen name, or the frame at the playhead as one PNG. `chosen` skips the save box
+   * (Send to Video mode). Returns the file made, or null (closed, cancelled or failed).
    */
-  async function exportAnimation(format: AnimationFormat): Promise<void> {
-    if (store.get().exporting || store.get().busy) return;
+  async function exportAnimation(format: AnimationFormat, chosen?: string): Promise<string | null> {
+    if (store.get().exporting || store.get().busy) return null;
     pause();
     const doc = present();
     const { path, frame } = store.get();
     const name = path ? fileNameOf(path).replace(/\.mvea$/i, '') : doc.name;
-    const output = await dialogs.exportAnimation(name, format);
-    if (!output) return;
+    const output = chosen ?? (await dialogs.exportAnimation(name, format));
+    if (!output) return null;
     if (format === 'png') {
       patch({ busy: 'Exporting…' });
       try {
         await files.writeBytes(output, await renderer.renderPng(doc, frame));
         patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.` } });
+        return output;
       } catch (error) {
         showError(error);
+        return null;
       } finally {
         patch({ busy: null });
       }
-      return;
     }
 
     let cancelled = false;
@@ -384,6 +386,7 @@ export function createAnimationApp({
     const { count } = exportedFrames(doc);
     const folder = format === 'png-sequence' ? null : framesFolder();
     const written: string[] = [];
+    let made: string | null = null;
     try {
       show('drawing', 0);
       for (let i = 0; i < count; i++) {
@@ -422,6 +425,7 @@ export function createAnimationApp({
             ? ` MP4 needs even sizes, so it is ${even.width} × ${even.height} (one pixel added).`
             : '';
         patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.${note}` } });
+        made = output;
       } else {
         written.length = 0;
         const first = fileNameOf(sequenceName(output, 0));
@@ -432,6 +436,7 @@ export function createAnimationApp({
             text: count === 1 ? `Saved ${first}.` : `Saved ${count} pictures, ${first} to ${last}.`,
           },
         });
+        made = output;
       }
     } catch (error) {
       if (error instanceof JobCancelledError)
@@ -442,6 +447,7 @@ export function createAnimationApp({
       cancelExporting = null;
       patch({ exporting: null });
     }
+    return made;
   }
 
   function addToStage(object: AnimObject): void {
@@ -512,7 +518,7 @@ export function createAnimationApp({
     saveAs,
 
     /** AN15: the frame at the playhead as a PNG (M13's Export). */
-    exportPng: () => exportAnimation('png'),
+    exportPng: async (): Promise<void> => void (await exportAnimation('png')),
 
     exportAnimation,
 

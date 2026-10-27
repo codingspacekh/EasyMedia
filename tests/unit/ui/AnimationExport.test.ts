@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import App from '../../../src/ui/App.svelte';
 import { animUi } from '../../../src/ui/animation/animation-ui.svelte.ts';
+import { ui } from '../../../src/ui/ui-state.svelte.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
 async function animationMode(width = 600, height = 400) {
@@ -83,5 +84,17 @@ describe('the export dialog (AN15, T7)', () => {
     await fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
     expect(animUi.dialog).toBeNull();
     expect(s.dialogs.exportAnimation).not.toHaveBeenCalled();
+  });
+});
+
+describe('Send to Video mode (M14)', () => {
+  it('makes the MP4 beside the animation, puts it on the video timeline and shows Video mode', async () => {
+    const s = await animationMode();
+    s.dialogs.saveAnimation.mockResolvedValueOnce('/work/Task1.mvea');
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await fireEvent.click(within(dialog()).getByRole('button', { name: 'Send to Video mode' }));
+    await vi.waitFor(() => expect(ui.mode).toBe('Video'));
+    expect(animUi.dialog).toBeNull();
+    expect(s.app.store.get().history.present.timeline.main).toHaveLength(1);
   });
 });
