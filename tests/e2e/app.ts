@@ -5,7 +5,7 @@ import {
   type ElectronApplication,
   type Page,
 } from '@playwright/test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,12 +20,21 @@ export const FAKE_MICROPHONE = [
   '--use-fake-ui-for-media-stream',
 ];
 
-export async function launchApp(switches: readonly string[] = []): Promise<{
+/**
+ * Starts the app. Its Welcome (X7) counts as seen, unless `firstLaunch`; `userData` starts it
+ * again with the user-data folder of an earlier launch.
+ */
+export async function launchApp(
+  switches: readonly string[] = [],
+  { firstLaunch = false, userData: reuse }: { firstLaunch?: boolean; userData?: string } = {},
+): Promise<{
   app: ElectronApplication;
   window: Page;
   userData: string;
 }> {
-  const userData = mkdtempSync(join(tmpdir(), 'mve-e2e-userdata-'));
+  const userData = reuse ?? mkdtempSync(join(tmpdir(), 'mve-e2e-userdata-'));
+  if (!firstLaunch && !reuse)
+    writeFileSync(join(userData, 'preferences.json'), '{"welcomeSeen":true}\n');
   const app = await electron.launch({
     args: [root, ...switches],
     cwd: root,

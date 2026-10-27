@@ -25,7 +25,7 @@ export async function importAudio(
   count: number,
 ) {
   await answerDialogs(app, { open: [file] });
-  await page.getByRole('button', { name: 'Import audio' }).click();
+  await page.getByRole('button', { name: 'Import audio', exact: true }).click();
   await expect(page.getByRole('region', { name: /^Waveform of / })).toHaveCount(count, {
     timeout: 30_000,
   });

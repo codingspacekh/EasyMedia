@@ -51,12 +51,18 @@ jobs:
       - name: All tests (unit, UI, integration with real FFmpeg, acceptance) with coverage gate
         run: npm run coverage
 
-      - name: Download the Electron binary
-        run: node node_modules/electron/install.js
-      - name: Build the app
-        run: npm run build:app
+      - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - name: Build the app, its THIRD_PARTY_LICENSES and its guides
+        run: |
+          npm run build:app
+          npm run licences
+          npm run guides
       - name: End-to-end tests (real app)
         run: npm run test:e2e
+      - name: Package the app and let the packaged app check itself (FFmpeg, pages, fonts)
+        run: npm run package -- --dir
       - name: Keep Playwright traces of failed end-to-end tests
         if: failure()
         uses: actions/upload-artifact@v4

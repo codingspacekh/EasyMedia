@@ -12,6 +12,8 @@
   import StatusBar from './StatusBar.svelte';
   import Timeline from './Timeline.svelte';
   import Tooltip from './Tooltip.svelte';
+  import Licences from './Licences.svelte';
+  import Welcome from './Welcome.svelte';
   import AudioMode from './audio/AudioMode.svelte';
   import AudioStatusBar from './audio/AudioStatusBar.svelte';
   import AudioToolbar from './audio/AudioToolbar.svelte';
@@ -170,6 +172,11 @@
   {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
+  {#if $store.licences !== null}
+    <Licences text={$store.licences} onclose={() => app.closeLicences()} />
+  {:else if $store.welcome}
+    <Welcome {app} />
+  {/if}
 </div>
 <Tooltip />
 

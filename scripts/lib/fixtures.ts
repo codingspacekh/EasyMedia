@@ -217,6 +217,61 @@ export const FIXTURES: FixtureSpec[] = [
     output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
     expect: { durationS: 60, audio: { codec: 'mp3', channels: 1, sampleRate: 44100 } },
   },
+  // ---- Book B practice questions (the Bali tourism video); EQ11-* are not in the repository ----
+  {
+    // Stand-in for EQ11-Bali1.mp4: 1280 × 720 with sound, 5.74 s (it plays 6–11.74 s in the
+    // storyboard). It gets brighter with time (luma 16 + 35 per second), so the first and last
+    // frames (questions 3 and 4) can be told apart.
+    name: 'bali1_720p_5.74s.mp4',
+    group: 'test',
+    inputs: [
+      ...lavfi("color=c=black:s=64x36:r=30:d=5.74,geq=lum='16+35*T':cb=128:cr=128,scale=1280:720"),
+      ...sine(5.74),
+    ],
+    output: [...h264, ...aacStereo],
+    expect: {
+      durationS: 5.74,
+      video: { codec: 'h264', width: 1280, height: 720 },
+      audio: { codec: 'aac', channels: 2, sampleRate: 44100 },
+    },
+  },
+  {
+    // Stand-in for EQ11-Bali2.mp4: 1080p, 7.64 s (17.74–25.38 s in the storyboard), all teal.
+    name: 'bali2_1080p_7.64s.mp4',
+    group: 'test',
+    inputs: [...lavfi('color=c=0x2a9d8f:s=1920x1080:r=30:d=7.64'), ...sine(7.64)],
+    output: [...h264, ...aacStereo],
+    expect: {
+      durationS: 7.64,
+      video: { codec: 'h264', width: 1920, height: 1080 },
+      audio: { codec: 'aac', channels: 2, sampleRate: 44100 },
+    },
+  },
+  {
+    // Stand-in for EQ11-Bali3.mp4: 4:3 (so 16:9 leaves black areas at the sides, where the credits
+    // scroll), 3 s — at 0.25× it lasts the credits' 12 s; all orange.
+    name: 'bali3_4x3_3s.mp4',
+    group: 'test',
+    inputs: [...lavfi('color=c=0xe76f51:s=1440x1080:r=30:d=3'), ...sine(3)],
+    output: [...h264, ...aacStereo],
+    expect: {
+      durationS: 3,
+      video: { codec: 'h264', width: 1440, height: 1080 },
+      audio: { codec: 'aac', channels: 2, sampleRate: 44100 },
+    },
+  },
+  {
+    // Stand-in for EQ11-Bamboo.mp3: stereo music (523 Hz | 659 Hz at 0.25) with background hiss
+    // throughout; the first 2 s are hiss only (the part question 1 removes), 40 s.
+    name: 'bamboo_hiss_40s.mp3',
+    group: 'test',
+    inputs: tone(
+      'gte(t,2)*0.25*sin(2*PI*523*t)+0.02*(2*random(0)-1)|gte(t,2)*0.25*sin(2*PI*659*t)+0.02*(2*random(1)-1)',
+      40,
+    ),
+    output: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    expect: { durationS: 40, audio: { codec: 'mp3', channels: 2, sampleRate: 44100 } },
+  },
   {
     // A voiceover with loud and quiet parts (A19 Compressor, Book B 11.2.22): 300 Hz, 3 s at 0.8
     // then 3 s at 0.08 (20 dB quieter), twice.

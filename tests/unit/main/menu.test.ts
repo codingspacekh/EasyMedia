@@ -95,4 +95,19 @@ describe('X3 native menus', () => {
     expect(view(true)).toContain('toggleDevTools');
     expect(view(false)).not.toContain('toggleDevTools');
   });
+
+  it('Help: Welcome and Licences go to the page; the guides open as web pages (M12)', () => {
+    const send = vi.fn<(a: MenuAction) => void>();
+    const open = vi.fn<(guide: 'user-guide' | 'teacher-notes') => void>();
+    const help = items(find(menuTemplate('win32', send, false, open), 'Help'));
+    expect(help.map((i) => i.label)).toEqual([
+      'Welcome to EasyMedia',
+      'User guide',
+      'Teacher notes',
+      'Licences',
+    ]);
+    for (const i of help) (i.click as () => void)();
+    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'licences']);
+    expect(open.mock.calls.map(([g]) => g)).toEqual(['user-guide', 'teacher-notes']);
+  });
 });

@@ -21,6 +21,9 @@
   ] as const;
 
   let format: (typeof FORMATS)[number][0] = $state('png');
+  /** The file name, following the frame until the student types one. */
+  let typedName: string | null = $state(null);
+  const name = $derived(typedName ?? `Snapshot_${$store.playhead.toFixed(2)}s`);
   let hideText = $state(true);
   let addToTimeline = $state(false);
   let duration = $state(5);
@@ -45,6 +48,7 @@
       addToTimeline,
       duration,
       format,
+      name,
     });
     saving = false;
     if (id !== null) onclose();
@@ -65,6 +69,17 @@
     <label class="check">
       <input type="checkbox" bind:checked={hideText} />
       Hide text (captions, titles, credits)
+    </label>
+
+    <label class="file-name">
+      File name
+      <input
+        type="text"
+        aria-label="File name"
+        value={name}
+        oninput={(e) => (typedName = e.currentTarget.value)}
+      />
+      <span>.{format}</span>
     </label>
 
     <fieldset>
@@ -178,6 +193,24 @@
     font-size: 12px;
     color: var(--tx-2);
     margin-bottom: 4px;
+  }
+  .file-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .file-name input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-2);
+    color: var(--tx-1);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 5px 8px;
+  }
+  .file-name span {
+    color: var(--tx-3);
   }
   .check {
     display: flex;

@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { answerDialogs, launchApp } from './app.ts';
+import { answerDialogs, launchApp, menu } from './app.ts';
+import { shot } from './audio.ts';
 
 test.describe('M4 app shell', () => {
   test('opens the EasyMedia window', async () => {
@@ -13,6 +14,26 @@ test.describe('M4 app shell', () => {
     await expect(page).toHaveTitle('Untitled — EasyMedia');
     await expect(page.getByRole('heading', { name: 'EasyMedia' })).toBeVisible();
     await app.close();
+  });
+
+  test('X7 the first launch shows the Welcome once; Help ▸ Licences shows the licences', async () => {
+    const first = await launchApp([], { firstLaunch: true });
+    const welcome = first.window.getByRole('dialog', { name: 'Welcome to EasyMedia' });
+    await expect(welcome).toBeVisible();
+    await shot(first.window, 'welcome');
+    await welcome.getByRole('button', { name: 'Start' }).click();
+    await expect(welcome).toBeHidden();
+    await first.app.close();
+
+    const again = await launchApp([], { userData: first.userData });
+    await expect(again.window.getByRole('heading', { name: 'EasyMedia' })).toBeVisible();
+    await expect(again.window.getByRole('dialog', { name: 'Welcome to EasyMedia' })).toHaveCount(0);
+    await menu(again.app, 'Help', 'Licences');
+    const licences = again.window.getByRole('dialog', { name: 'Licences' });
+    await expect(licences).toContainText('FFmpeg 9.0.2');
+    await expect(licences).toContainText('SIL OPEN FONT LICENSE');
+    await shot(again.window, 'licences');
+    await again.app.close();
   });
 
   test('ARCHITECTURE §2 security: isolated, sandboxed, no Node.js in the page; only window.mve', async () => {

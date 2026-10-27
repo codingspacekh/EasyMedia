@@ -411,6 +411,20 @@ describe('M4 app use cases', () => {
       ]);
     });
 
+    it('Book B practice questions 3 and 4: the student names the picture (e.g. Bali1)', async () => {
+      const { app, project } = await withTwo();
+      const options = { time: 0, hideText: true, addToTimeline: false, duration: 5 };
+      const named = await app.snapshot({ ...options, name: 'Bali1' });
+      const tidied = await app.snapshot({ ...options, name: ' Bali/2: last? ' });
+      const blank = await app.snapshot({ ...options, name: '   ' });
+      const path = (id: string | null) => project().media.find((m) => m.id === id)!.path;
+      expect([path(named), path(tidied), path(blank)]).toEqual([
+        '/cache/snapshots/Bali1.png',
+        '/cache/snapshots/Bali-2- last-.png', // characters a file name cannot have become "-"
+        '/cache/snapshots/Snapshot_0.00s.png',
+      ]);
+    });
+
     it('with text hidden, the frame is made without captions or title words (Book A 11.11)', async () => {
       const { app, engine } = await withTwo();
       app.edit(addTextItem(createTextItem('caption', 'Bees', 0, { id: 'cap' })));

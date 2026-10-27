@@ -282,7 +282,9 @@ test('P1 + P7 for Audio mode: saved with the project and opened again; closing w
   await answerUnsaved(first.app, 'cancel');
   await first.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
   await expect.poll(() => unsavedAsked(first.app)).toBe(1);
-  await expect(first.window.getByRole('button', { name: 'Import audio' })).toBeVisible();
+  await expect(
+    first.window.getByRole('button', { name: 'Import audio', exact: true }),
+  ).toBeVisible();
   expect(
     await first.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
   ).toBe(1);

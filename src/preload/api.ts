@@ -128,7 +128,9 @@ export type MenuAction =
   | 'package'
   | 'undo'
   | 'redo'
-  | 'selectAll';
+  | 'selectAll'
+  | 'welcome'
+  | 'licences';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

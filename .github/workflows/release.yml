@@ -1,0 +1,64 @@
+name: Release
+
+# M12: pushing a version tag (vX.Y.Z, on the merge into main) builds the installers on each
+# platform, lets each packaged app check itself, and attaches them to a DRAFT GitHub Release.
+# The teacher checks the draft and publishes it. Not signed (README §15, decision 8).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  # Once, before the builds: GitHub allows several drafts for one tag, so if each build made its
+  # own, there would be three drafts (the installers in one, the others empty).
+  draft:
+    name: Draft release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "EasyMedia ${TAG#v}" \
+            --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64). How to install: docs/INSTALL.md."
+
+  installers:
+    name: ${{ matrix.name }}
+    needs: draft
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows x64, os: windows-latest }
+          - { name: macOS Apple Silicon, os: macos-latest }
+          - { name: macOS Intel, os: macos-15-intel }
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - name: The tag matches the version in package.json
+        shell: bash
+        run: test "v$(node -p "require('./package.json').version")" = "$TAG"
+      - name: Download the Electron binary, up to 3 tries (the download sometimes fails)
+        shell: bash
+        run: for i in 1 2 3; do node node_modules/electron/install.js && exit 0; sleep 15; done; exit 1
+      - run: npm run fetch:ffmpeg
+      - name: Build the app, its licences, and the installers; the packaged app checks itself
+        run: npm run dist
+
+      - name: Attach the installers to the draft release
+        shell: bash
+        run: |
+          shopt -s nullglob
+          gh release upload "$TAG" --clobber release/*.exe release/*.zip release/*.dmg

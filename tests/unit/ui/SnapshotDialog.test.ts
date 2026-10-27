@@ -41,6 +41,22 @@ describe('snapshot dialog (V10, screen 09)', () => {
     expect(screen.queryByRole('dialog', { name: 'Snapshot' })).toBeNull();
   });
 
+  it('the picture can be given a file name (Book B practice question 3: "Bali1")', async () => {
+    const { app } = await open();
+    const name = screen.getByLabelText('File name') as HTMLInputElement;
+    expect(name.value).toBe('Snapshot_6.00s');
+    await fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+    expect(name.value).toBe('Snapshot_6.03s'); // follows the frame until the student types one
+    await fireEvent.input(name, { target: { value: 'Bali1' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Previous frame' }));
+    expect(name.value).toBe('Bali1');
+    await fireEvent.click(screen.getByRole('button', { name: 'Add to media' }));
+    await screen.findByText('Added Bali1.png to the media.');
+    expect(app.store.get().history.present.media.map((m) => m.path)).toContain(
+      '/cache/snapshots/Bali1.png',
+    );
+  });
+
   it('explains why a still is useful (T5) and can be cancelled', async () => {
     await open();
     expect(screen.getByText(/background for captions or credits/i)).toBeTruthy();

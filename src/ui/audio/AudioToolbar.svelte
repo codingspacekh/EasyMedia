@@ -367,4 +367,13 @@
     margin: 5px 4px;
     background: var(--line);
   }
+  /* Smaller windows (down to 1100 px): tighter buttons, so Export stays on screen. */
+  @media (max-width: 1300px) {
+    .tools {
+      gap: 3px;
+    }
+    .tbtn {
+      width: 30px;
+    }
+  }
 </style>

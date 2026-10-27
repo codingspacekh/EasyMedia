@@ -3,7 +3,7 @@
 // found in M9: the History list and the waveform blocks).
 import { expect, test } from '@playwright/test';
 import { _electron as electron } from '@playwright/test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
@@ -20,6 +20,7 @@ test('N4 five Amplify steps on 85 s of stereo do not make the page hold more sou
     dir,
     selectFixtures(FIXTURES, 'test').filter((f) => f.name === SONG),
   );
+  writeFileSync(join(dir, 'preferences.json'), '{"welcomeSeen":true}\n'); // no Welcome (X7)
   const app = await electron.launch({
     args: ['--js-flags=--expose-gc', root], // lets the test collect garbage before measuring
     cwd: root,
@@ -39,7 +40,7 @@ test('N4 five Amplify steps on 85 s of stereo do not make the page hold more sou
     .getByRole('button', { name: 'Audio' })
     .click();
   await answerDialogs(app, { open: [join(dir, SONG)] });
-  await page.getByRole('button', { name: 'Import audio' }).click();
+  await page.getByRole('button', { name: 'Import audio', exact: true }).click();
   await expect(page.getByRole('region', { name: /^Waveform of / })).toHaveCount(1, {
     timeout: 30_000,
   });
