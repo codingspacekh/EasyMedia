@@ -6,11 +6,14 @@ import { fromProjectPath, toProjectPath } from '../project/paths.ts';
 import { isColour } from './rules.ts';
 import type { AnimationDoc, ObjectKind } from './types.ts';
 
-export const ANIMATION_SCHEMA = 1;
+export const ANIMATION_SCHEMA = 2;
 export const ANIMATION_DAMAGED = 'This file is not an EasyMedia animation, or it is damaged.';
 
 /** Add an entry whenever the animation format changes (see core/project/migrate.ts). */
-export const ANIMATION_MIGRATIONS: Record<number, Migration> = {};
+export const ANIMATION_MIGRATIONS: Record<number, Migration> = {
+  /** Version 2 (M14): objects may carry keyframe tracks. A v1 file has none, so nothing changes. */
+  1: (v1) => ({ ...v1, schemaVersion: 2 }),
+};
 
 export function serializeAnimation(doc: AnimationDoc): string {
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -80,6 +83,18 @@ function isPaint(p: unknown): boolean {
   }
 }
 
+const isTrack = (t: Obj): boolean =>
+  isString(t.property) &&
+  listOf(
+    t.keyframes,
+    (k) =>
+      isNumber(k.frame) &&
+      (isNumber(k.value) || isString(k.value)) &&
+      isString(k.easing) &&
+      isBoolean(k.hold),
+  ) &&
+  (t.repeat === undefined || t.repeat === 'end' || isNumber(t.repeat));
+
 function isAnimObject(o: Obj): boolean {
   if (!isString(o.kind) || !KINDS.includes(o.kind as ObjectKind)) return false;
   if (!has(o, ['id', 'name'], isString)) return false;
@@ -89,6 +104,7 @@ function isAnimObject(o: Obj): boolean {
     if (!isObject(o.stroke) || !isColour(o.stroke.colour) || !isNumber(o.stroke.width))
       return false;
   }
+  if (o.tracks !== undefined && !listOf(o.tracks, isTrack)) return false;
   switch (o.kind) {
     case 'rect':
       return isNumber(o.radius);

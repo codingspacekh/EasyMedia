@@ -3,6 +3,7 @@ import { EditError } from '../model/errors.ts';
 import { newId } from '../model/factory.ts';
 import { FONTS } from '../text/fonts.ts';
 import { fileNameOf } from '../project/relocate.ts';
+import { shiftTracks } from './geometry.ts';
 import type {
   AnimObject,
   AnimationDoc,
@@ -39,7 +40,7 @@ export function createLayer(name: string, extra: Partial<Layer> = {}): Layer {
 
 export function createAnimation({ name }: { name: string }): AnimationDoc {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name,
     stage: { width: 1280, height: 720, background: '#ffffff', fps: 24, length: 120 },
     layers: [createLayer('Layer 1')],
@@ -177,7 +178,11 @@ export function createGroup(children: readonly AnimObject[]): GroupObject {
   const height = Math.max(...children.map((c) => c.y + c.height)) - y;
   return {
     kind: 'group',
-    children: children.map((c) => ({ ...c, x: c.x - x, y: c.y - y })),
+    children: children.map((c) => ({
+      ...shiftTracks(c, { x: -x, y: -y }),
+      x: c.x - x,
+      y: c.y - y,
+    })),
     ...base('Group', { x, y, width, height }),
     fill: { kind: 'none' },
     stroke: undefined,

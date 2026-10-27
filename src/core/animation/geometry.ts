@@ -200,8 +200,34 @@ export function hitTest(o: AnimObject, p: Point): boolean {
   return o.fill.kind !== 'none' && isClosed(o) && insidePolygon(p, pts);
 }
 
+/**
+ * AN9: adds to every keyframe of the x, y or rotation track, so an object's motion goes where
+ * the object goes (moved, duplicated, grouped, ungrouped).
+ */
+export function shiftTracks<T extends AnimObject>(
+  o: T,
+  by: { x?: number; y?: number; rotation?: number },
+): T {
+  if (!o.tracks) return o;
+  return {
+    ...o,
+    tracks: o.tracks.map((t) => {
+      const d =
+        t.property === 'x' || t.property === 'y' || t.property === 'rotation' ? by[t.property] : 0;
+      if (!d) return t;
+      return {
+        ...t,
+        keyframes: t.keyframes.map((k) =>
+          typeof k.value === 'number' ? { ...k, value: k.value + d } : k,
+        ),
+      };
+    }),
+  };
+}
+
+/** Moves the object and the whole of its motion. */
 export const moved = <T extends AnimObject>(o: T, dx: number, dy: number): T => ({
-  ...o,
+  ...shiftTracks(o, { x: dx, y: dy }),
   x: o.x + dx,
   y: o.y + dy,
 });

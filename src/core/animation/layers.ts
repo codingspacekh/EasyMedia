@@ -3,7 +3,7 @@
 import { EditError } from '../model/errors.ts';
 import { newId } from '../model/factory.ts';
 import { createGroup, createLayer } from './factory.ts';
-import { moved, toStage } from './geometry.ts';
+import { moved, shiftTracks, toStage } from './geometry.ts';
 import type { AnimObject, AnimationDoc, GroupObject, Id, Layer, LayerFolder } from './types.ts';
 
 export interface Found {
@@ -243,7 +243,10 @@ export function groupObjects(
   return { doc: replaceLayer(doc, { ...layer, objects }), group };
 }
 
-/** The children back on the stage, where the group showed them (its move and turn applied). */
+/**
+ * The children back on the stage, where the group showed them (its move and turn applied). Their
+ * own keyframes move with them; the group's own keyframes go with the group.
+ */
 export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
   const { layer, index, object } = requireObject(doc, id);
   editable(layer);
@@ -253,10 +256,12 @@ export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
       x: child.x + child.width / 2,
       y: child.y + child.height / 2,
     });
+    const x = centre.x - child.width / 2;
+    const y = centre.y - child.height / 2;
     return {
-      ...child,
-      x: centre.x - child.width / 2,
-      y: centre.y - child.height / 2,
+      ...shiftTracks(child, { x: x - child.x, y: y - child.y, rotation: object.rotation }),
+      x,
+      y,
       rotation: (((child.rotation + object.rotation) % 360) + 360) % 360,
     };
   });
