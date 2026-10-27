@@ -744,7 +744,7 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M10 Audio effects & recording | ✅ Done ([gate record](acceptance/M10.md)) — Audio mode is saved with the project; pitch in TypeScript (SoundTouch's method) | 2026-10-18 | `v0.10.0` |
 | M11 Teaching layer | ✅ Done ([gate record](acceptance/M11.md)) — plus Audio mode clips, tooltips, 33 transitions, 20 fonts, text looks and animations after the teacher's test | 2026-10-19 | `v0.11.0` |
 | M12 Hardening & v1.0 | 🔶 Teacher's checks passed (2026-10-27); release pending: PR `dev → main`, version 1.0.0, tag `v1.0.0` | | |
-| M13 Animation core | 🔶 In progress (branch `animation`, from 2026-10-27) | | |
+| M13 Animation core | 🔶 Built and passing on the MacBook 2026-10-27 ([gate record](acceptance/M13.md)); the teacher's check on Windows and a Mac is next, then CI on the `animation` branch and the merge into `dev` after `v1.0.0` | | |
 | M14 Timeline & tweens | ⬜ | | |
 | M15 Paths, morphing & masks | ⬜ | | |
 | M16 Pictures, web export & teaching | ⬜ | | |

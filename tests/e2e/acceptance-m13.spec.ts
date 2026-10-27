@@ -2,7 +2,7 @@
 // stage, the star and the circle with their exact numbers, the text), saved as .mvea, exported
 // as a PNG that FFmpeg sees as 600 × 400, closed and opened again; Task 3's stage with rulers
 // and grid; Practical Activity 19.01's layers.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,7 +26,7 @@ async function animationMode(page: Page) {
 }
 
 /** Types an exact value into a Properties / Stage settings box (applied when the box is left). */
-async function type(page: Page, label: string, value: string, within = page) {
+async function type(page: Page, label: string, value: string, within: Page | Locator = page) {
   const box = within.getByLabel(label, { exact: true });
   await box.fill(value);
   await box.press('Tab');

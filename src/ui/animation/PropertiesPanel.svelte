@@ -7,12 +7,19 @@
   import { DEFAULT_STROKE } from '../../core/animation/factory.ts';
   import { findObject } from '../../core/animation/layers.ts';
   import { aspectOf } from '../../core/animation/rules.ts';
-  import type { AnimObject, Dash, Paint, TextAlign } from '../../core/animation/types.ts';
+  import type {
+    AnimObject,
+    Dash,
+    Paint,
+    TextAlign,
+    TextObject,
+  } from '../../core/animation/types.ts';
   import FontPicker from '../FontPicker.svelte';
   import Icon from '../Icon.svelte';
   import Why from '../Why.svelte';
   import { animUi } from './animation-ui.svelte.ts';
   import ColourField from './ColourField.svelte';
+  import { textBox } from './measure.ts';
   import NumField from './NumField.svelte';
 
   let { app }: { app: App } = $props();
@@ -90,6 +97,12 @@
   const fillPatch = (change: Partial<Extract<Paint, { kind: 'linear' }>>) => {
     if (!first || first.fill.kind === 'none') return null;
     return set({ fill: { ...first.fill, ...change } as Paint });
+  };
+  /** AN4: words, font, size and style change the box with them (one undo step). */
+  const textPatch = (change: Partial<TextObject>): string | null => {
+    if (!first || first.kind !== 'text') return null;
+    const next = { ...first, ...change } as TextObject;
+    return set({ ...change, ...textBox(next) } as Partial<AnimObject>);
   };
   const strokePatch = (change: Partial<NonNullable<AnimObject['stroke']>>) => {
     if (!first) return null;
@@ -299,22 +312,18 @@
             bind:this={words}
             value={first.text}
             rows="3"
-            onchange={(e) =>
-              set({ text: (e.currentTarget as HTMLTextAreaElement).value } as Partial<AnimObject>)}
+            onchange={(e) => textPatch({ text: (e.currentTarget as HTMLTextAreaElement).value })}
           ></textarea>
           <div class="field">
             <label for="prop-font">Font</label>
-            <FontPicker
-              value={first.font}
-              onchange={(font) => set({ font } as Partial<AnimObject>)}
-            />
+            <FontPicker value={first.font} onchange={(font) => textPatch({ font })} />
           </div>
           <div class="two">
             <NumField
               label="Size"
               value={first.size}
               unit="px"
-              commit={(v) => set({ size: v } as Partial<AnimObject>)}
+              commit={(v) => textPatch({ size: v })}
             />
             <div class="field">
               <label for="prop-align">Align</label>
@@ -336,13 +345,12 @@
             <button
               class="sm"
               aria-pressed={first.bold}
-              onclick={() => set({ bold: !first!.bold } as Partial<AnimObject>)}
-              ><b>B</b> Bold</button
+              onclick={() => textPatch({ bold: !(first as TextObject).bold })}><b>B</b> Bold</button
             >
             <button
               class="sm"
               aria-pressed={first.italic}
-              onclick={() => set({ italic: !first!.italic } as Partial<AnimObject>)}
+              onclick={() => textPatch({ italic: !(first as TextObject).italic })}
               ><i>I</i> Italic</button
             >
           </div>

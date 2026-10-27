@@ -142,7 +142,9 @@
             />
           {:else}
             <span class="name" title="Double-click to rename">{layer.name}</span>
-            <span class="count">{count(layer)}</span>
+            {#if !(doc.folders.length && layer.id === $store.layerId)}
+              <span class="count">{count(layer)}</span>
+            {/if}
           {/if}
           {#if doc.folders.length && layer.id === $store.layerId}
             <select

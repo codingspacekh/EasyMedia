@@ -28,6 +28,7 @@ import type {
   Id,
   Picture,
   Stage,
+  TextObject,
   ViewSettings,
 } from '../core/animation/types.ts';
 import { EditError, MediaError, ProjectFileError } from '../core/model/errors.ts';
@@ -350,8 +351,13 @@ export function createAnimationApp({
     },
 
     /** AN4: words at the clicked point, in the default size. */
-    addText(at: Point, text = 'Text'): void {
-      addToStage(createText(text, at));
+    addText(
+      at: Point,
+      text = 'Text',
+      measure?: (t: TextObject) => { width: number; height: number },
+    ): void {
+      const made = createText(text, at);
+      addToStage(measure ? { ...made, ...measure(made) } : made);
     },
 
     /** AN5: a picture file chosen by the student, placed at its own size. */

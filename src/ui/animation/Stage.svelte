@@ -31,6 +31,7 @@
   import type { AnimObject, AnimationDoc, Id } from '../../core/animation/types.ts';
   import { toMediaUrl } from '../../core/media-url.ts';
   import { animUi, SNAP_PX } from './animation-ui.svelte.ts';
+  import { textBox } from './measure.ts';
 
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
@@ -346,7 +347,7 @@
     }
     if (tool === 'text') {
       const p = snapPoint(raw, e.altKey);
-      anim.addText({ x: round(p.x), y: round(p.y) });
+      anim.addText({ x: round(p.x), y: round(p.y) }, 'Text', (t) => textBox(t));
       animUi.focusText++;
       return;
     }
