@@ -239,9 +239,19 @@ function scaledPoints(
 /** A new size with the top-left corner kept; a path's points scale with its box. */
 export function setSize<T extends AnimObject>(o: T, width: number, height: number): T {
   const sized = { ...o, width, height };
-  return o.kind === 'path'
-    ? { ...sized, points: scaledPoints(o.points, o, { width, height }) }
-    : sized;
+  if (o.kind === 'path') return { ...sized, points: scaledPoints(o.points, o, { width, height }) };
+  if (o.kind === 'group') {
+    // AN13: a group's children scale with it, keeping their places inside it.
+    const sx = o.width === 0 ? 1 : width / o.width;
+    const sy = o.height === 0 ? 1 : height / o.height;
+    return {
+      ...sized,
+      children: o.children.map((c) =>
+        setSize({ ...c, x: c.x * sx, y: c.y * sy }, c.width * sx, c.height * sy),
+      ),
+    };
+  }
+  return sized;
 }
 
 /**

@@ -202,3 +202,16 @@ describe('moving and resizing', () => {
     expect(corners![0]!.y).toBeCloseTo(0, 6);
   });
 });
+
+describe('groups (AN13)', () => {
+  it('resizing a group scales its children with it', async () => {
+    const { createGroup } = await import('../../../../src/core/animation/factory.ts');
+    const g = createGroup([
+      createRect({ x: 100, y: 500, width: 200, height: 80 }),
+      createEllipse({ x: 120, y: 560, width: 40, height: 40 }),
+    ]);
+    const half = setSize(g, 100, 50);
+    expect(half.children[0]).toMatchObject({ x: 0, y: 0, width: 100, height: 40 });
+    expect(half.children[1]).toMatchObject({ x: 10, y: 30, width: 20, height: 20 });
+  });
+});
