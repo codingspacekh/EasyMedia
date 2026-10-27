@@ -28,11 +28,6 @@ const command = (label: string, apply: (doc: AnimationDoc) => AnimationDoc): Ani
   apply,
 });
 
-const objectsNamed = (doc: AnimationDoc, ids: readonly Id[]) =>
-  ids.length === 1
-    ? (layers.findObject(doc, ids[0]!)?.object.name ?? 'object')
-    : `${ids.length} objects`;
-
 export function addObject(layerId: Id, object: AnimObject): AnimCommand {
   return command(`Add ${object.name}`, (doc) => {
     validateObject(object);
@@ -268,5 +263,3 @@ export function addPicture(layerId: Id, picture: Picture, object: AnimObject): A
     return layers.addObject(withPicture, layerId, object);
   });
 }
-
-export { objectsNamed };
