@@ -68,6 +68,37 @@
     calc: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h8"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    // Animation mode
+    animation:
+      '<path d="M4 20V4"/><path d="M4 16c3-6 6-6 9 0s6 6 7-1"/><circle cx="13" cy="13" r="1.5" fill="currentColor" stroke="none"/>',
+    select: '<path d="m5 3 14 8.5-6 1.5-3.5 5.5z"/>',
+    rect: '<rect x="4" y="5" width="16" height="14" rx="1.5"/>',
+    ellipse: '<ellipse cx="12" cy="12" rx="9" ry="7"/>',
+    star: '<path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/>',
+    polygon: '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/>',
+    line: '<path d="M4 20 20 4"/>',
+    pen: '<path d="M4 20 15 9"/><path d="m13 7 4-4 4 4-4 4z"/>',
+    brush:
+      '<path d="M9.5 14.5 19 5a1.4 1.4 0 0 1 2 2l-9.5 9.5"/><path d="M9.5 14.5c-2.5 0-4 1.5-4 4 0 1-1 2-2.5 2.5 3 .5 7 0 7.5-3.5"/>',
+    text: '<path d="M5 6V4h14v2"/><path d="M12 4v16"/><path d="M9 20h6"/>',
+    picture:
+      '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
+    layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/><path d="m3 17.5 9 5 9-5"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+    eyeOff:
+      '<path d="M2 12s3.5-7 10-7c1.7 0 3.2.5 4.5 1.2M22 12s-3.5 7-10 7c-1.7 0-3.2-.5-4.5-1.2"/><path d="m3 3 18 18"/>',
+    grid: '<path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+    ruler:
+      '<rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 8v3M11 8v3M15 8v3M19 8v3"/>',
+    guides: '<path d="M12 3v18"/><path d="M3 12h18"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    group:
+      '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h2v6"/>',
+    up: '<path d="m6 15 6-6 6 6"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
+    front: '<rect x="3" y="3" width="12" height="12" rx="1"/><path d="M9 21h12V9"/>',
+    back: '<rect x="9" y="9" width="12" height="12" rx="1"/><path d="M15 3H3v12"/>',
   } as const;
   export type IconName = keyof typeof ICONS;
 </script>

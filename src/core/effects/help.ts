@@ -66,6 +66,27 @@ export const WHY = {
     'Overdubbing records a new track — such as a voiceover — while the other tracks play, so the narration fits the music and the moments it talks about.',
   audioExport:
     'Export makes a file that plays on other devices; the project itself only opens in EasyMedia. A lossy format (MP3, AAC) makes a small file for streaming, phones and email; a lossless one (WAV, FLAC) keeps the sound exactly. A lower sample rate, bit rate or mono makes the file smaller but loses quality.',
+  // ---- Animation mode (20.1) ----
+  stage:
+    'The stage is the area where the animation happens: only what is on it is seen. Its size in pixels and its aspect ratio (4:3, 16:9, 16:10, 2.35:1) are set for where the animation will be shown — a web page, a widescreen TV, a phone — and its colour is the background of every frame.',
+  rulersGrid:
+    'Rulers show the coordinates in pixels (0, 0 is the top left), so objects can be placed exactly where a task says. The grid and guides help line objects up with each other; they are only shown while working and never appear in the exported animation.',
+  snapping:
+    'Snapping pulls an object you move onto the nearest grid line (while the grid is shown), guide, edge or centre of another object, so things line up exactly without typing numbers. Hold Alt to move freely.',
+  vectorShapes:
+    'Vector objects are stored as points and equations, so they can be moved, resized, turned and recoloured without losing quality, and the computer can work out the frames in between (tweening). A bitmap picture cannot be tweened the same way.',
+  animText:
+    'Text is an object like any other: it has a font, size, colour and position, and it can be moved, faded and tweened. Splitting a word into letters lets each letter arrive or leave on its own.',
+  animPicture:
+    'A picture (bitmap) can be placed, moved, resized and faded in an animation. To change its parts separately, trace it into vector shapes first; some detail is lost in the trace.',
+  objectProperties:
+    'An object’s properties — its position (x, y), size, rotation, opacity, fill and stroke — decide how it looks in a frame. Tasks give exact values, so they are typed here: the fill is the colour inside, the stroke is the outline, and opacity is how see-through it is (0 % invisible, 100 % solid).',
+  animLayers:
+    'Each layer has its own timeline, so the objects on it are animated independently of the others. The top layer is in front. Locking a layer stops accidental changes; hiding it keeps it out of the way while working. Objects that must move separately — each leg of a stick person — go on separate layers.',
+  animGroup:
+    'A group makes several objects move, turn and scale as one, while each part can keep its own animation — a car’s wheels turn while the car drives. The parts of an animated object are its animation variables.',
+  animExport:
+    'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
 } as const;
 
 export type ToolId = keyof typeof WHY;
@@ -121,6 +142,16 @@ export const TOOLS: Tool[] = [
   tool('removeTrack', 'Remove track', '11.2 adding a track to an audio clip'),
   tool('recording', 'Record', '11.2 overdubbing, including voiceover'),
   tool('audioExport', 'Export audio', '11.2 exporting · sample rates'),
+  tool('stage', 'Stage settings', '20.1 configuring the stage'),
+  tool('rulersGrid', 'Rulers, grid & guides', '20.1 rulers, guides and grid'),
+  tool('snapping', 'Snapping', '20.1 snapping options'),
+  tool('vectorShapes', 'Vector shapes', '20.1 creating vector objects'),
+  tool('animText', 'Text', '20.1 adding text'),
+  tool('animPicture', 'Picture', '20.1 importing and tracing bitmaps'),
+  tool('objectProperties', 'Object properties', '20.1 controlling object properties'),
+  tool('animLayers', 'Layers', '20.1 using layers'),
+  tool('animGroup', 'Group', '20.1 animation variables'),
+  tool('animExport', 'Export animation', '20.1 exporting an animation'),
 ];
 
 export function toolById(id: ToolId): Tool {

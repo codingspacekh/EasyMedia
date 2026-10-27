@@ -79,6 +79,9 @@ describe('P2 main-process IPC handlers', () => {
         unsavedChanges: async () => 'discard',
         openTaskCheck: async () => '/t/Task 11b.mvetask',
         saveTaskCheck: async (name) => `/t/${name}.mvetask`,
+        openAnimation: async () => null,
+        saveAnimation: async () => null,
+        exportAnimation: async () => null,
       },
     });
     expect(await api.invoke('dialog:saveTaskCheck', 'Task 11b')).toEqual({
@@ -125,6 +128,7 @@ describe('P2 main-process IPC handlers', () => {
         remove: async () => {},
         copy: async (from, to) => void copied.push(`${from}→${to}`),
         saveImage: async () => '',
+        writeBytes: async () => {},
       },
     });
     expect(await api.invoke('project:copy', '/etc/passwd', '/usb/x')).toMatchObject({ ok: false });
@@ -147,6 +151,9 @@ describe('P2 main-process IPC handlers', () => {
         saveImage: async (name, png) => {
           saved.push(`${name}:${png.length}`);
           return `/cache/text/${name}.png`;
+        },
+        writeBytes: async (path, bytes) => {
+          saved.push(`${path}:${bytes.length}`);
         },
       },
     });

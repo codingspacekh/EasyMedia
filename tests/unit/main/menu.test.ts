@@ -23,6 +23,9 @@ describe('X3 native menus', () => {
     ['Export Video…', 'CmdOrCtrl+E', 'export'],
     ['Export Audio…', 'CmdOrCtrl+Shift+E', 'exportAudio'],
     ['Package Project…', 'CmdOrCtrl+Shift+P', 'package'],
+    ['New Animation', undefined, 'newAnimation'],
+    ['Open Animation…', undefined, 'openAnimation'],
+    ['Export Animation…', undefined, 'exportAnimation'],
   ])('File ▸ %s (%s) sends "%s" to the page', (label, accelerator, action) => {
     const send = vi.fn<(a: MenuAction) => void>();
     const item = items(find(menuTemplate('darwin', send, false), 'File')).find(

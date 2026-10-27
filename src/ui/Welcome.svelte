@@ -24,6 +24,12 @@
       text: 'See what is inside a media file, work out file sizes, watch how sampling works, compare compressions, and check an export against a task.',
       syllabus: '11.1 · 11.2',
     },
+    {
+      name: 'Animation',
+      icon: 'animation',
+      text: 'Set up a stage, draw vector shapes and text on layers with exact sizes and positions, and export the picture (keyframes and tweens come next).',
+      syllabus: '20.1',
+    },
   ] as const;
 
   const close = () => void app.closeWelcome();
@@ -35,8 +41,8 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Welcome to EasyMedia">
     <h2>Welcome to EasyMedia</h2>
     <p class="lead">
-      A video and sound editor for Cambridge AS & A Level IT, Chapter 11. Choose a mode at the top
-      left.
+      A video, sound and animation editor for Cambridge AS & A Level IT, Chapters 11 and 20. Choose
+      a mode at the top left.
     </p>
     <div class="modes">
       {#each MODES as mode (mode.name)}

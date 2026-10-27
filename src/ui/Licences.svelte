@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Help ▸ Licences (README §16): THIRD_PARTY_LICENSES, readable without the internet.
+  // Help ▸ Licences (README §17): THIRD_PARTY_LICENSES, readable without the internet.
   let { text, onclose }: { text: string; onclose: () => void } = $props();
 </script>
 

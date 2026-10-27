@@ -1,4 +1,4 @@
-// Writes THIRD_PARTY_LICENSES.txt for the installers (README §16), from what the build actually
+// Writes THIRD_PARTY_LICENSES.txt for the installers (README §17), from what the build actually
 // bundled (build-info/, written by `npm run build:app`), the bundled fonts and FFmpeg.
 // Usage: npm run build:app && npm run licences
 import { readdir, readFile, writeFile } from 'node:fs/promises';
