@@ -8,9 +8,11 @@
   import { findObject } from '../../core/animation/layers.ts';
   import { stateAt } from '../../core/animation/state.ts';
   import { aspectOf } from '../../core/animation/rules.ts';
+  import { EASINGS } from '../../core/animation/tween.ts';
   import type {
     AnimObject,
     Dash,
+    Easing,
     Paint,
     TextAlign,
     TextObject,
@@ -35,6 +37,20 @@
     }),
   );
   const first = $derived(found[0]?.object ?? null);
+  let pathError: string | null = $state(null);
+  /** The other objects a path or a morph can be taken from (shapes only for a morph). */
+  const others = (id: string, shapesOnly: boolean): AnimObject[] =>
+    doc.layers
+      .flatMap((l) => l.objects)
+      .filter(
+        (o) =>
+          o.id !== id &&
+          (!shapesOnly || (o.kind !== 'text' && o.kind !== 'picture' && o.kind !== 'group')),
+      );
+  function frames(id: string, which: 'from' | 'to', e: Event): void {
+    const n = Number((e.currentTarget as HTMLInputElement).value);
+    pathError = anim.setMotion(id, { [which]: n });
+  }
   const many = $derived(found.length > 1);
   const KINDS: Record<AnimObject['kind'], string> = {
     rect: 'Rectangle',
@@ -367,6 +383,115 @@
         </div>
       {/if}
 
+      {#if !many}
+        {@const m = first.motion}
+        <div class="sec">
+          <h4>Motion path <span class="syl">20.1 setting paths</span></h4>
+          <div class="field">
+            <label for="prop-follow">Follow path</label>
+            <select
+              id="prop-follow"
+              value=""
+              title="Choose a pen path or shape: the object's centre follows it"
+              onchange={(e) => {
+                const v = (e.currentTarget as HTMLSelectElement).value;
+                if (v) pathError = anim.followPath(first!.id, v);
+              }}
+            >
+              <option value="">{m ? `Following ${m.source ?? 'a path'}` : 'None'}</option>
+              {#each others(first.id, false) as o (o.id)}<option value={o.id}>{o.name}</option
+                >{/each}
+            </select>
+          </div>
+          {#if m}
+            <div class="two">
+              <label class="inline"
+                >From
+                <input
+                  class="frame"
+                  aria-label="Path from frame"
+                  value={m.from}
+                  onchange={(e) => frames(first!.id, 'from', e)}
+                /></label
+              >
+              <label class="inline"
+                >To
+                <input
+                  class="frame"
+                  aria-label="Path to frame"
+                  value={m.to}
+                  onchange={(e) => frames(first!.id, 'to', e)}
+                /></label
+              >
+            </div>
+            <div class="row">
+              <label class="inline" title="Turn with the path, as a car turns with the road"
+                ><input
+                  type="checkbox"
+                  checked={m.orient}
+                  onchange={(e) =>
+                    (pathError = anim.setMotion(first!.id, {
+                      orient: (e.currentTarget as HTMLInputElement).checked,
+                    }))}
+                /> Orient to path</label
+              >
+              <label
+                class="inline"
+                title="The same speed all along the path (off: each part takes the same time)"
+                ><input
+                  type="checkbox"
+                  checked={m.even}
+                  onchange={(e) =>
+                    (pathError = anim.setMotion(first!.id, {
+                      even: (e.currentTarget as HTMLInputElement).checked,
+                    }))}
+                /> Even speed</label
+              >
+            </div>
+            <div class="field">
+              <label for="prop-path-ease">Easing</label>
+              <select
+                id="prop-path-ease"
+                value={m.easing}
+                onchange={(e) =>
+                  (pathError = anim.setMotion(first!.id, {
+                    easing: (e.currentTarget as HTMLSelectElement).value as Easing,
+                  }))}
+              >
+                {#each EASINGS as ez (ez.id)}<option value={ez.id}>{ez.label}</option>{/each}
+              </select>
+            </div>
+            <button class="sm" onclick={() => anim.removeMotion(first!.id)}>Remove path</button>
+          {/if}
+          {#if pathError}<p class="error" role="alert">{pathError}</p>{/if}
+        </div>
+        {#if first.kind !== 'text' && first.kind !== 'picture' && first.kind !== 'group'}
+          <div class="sec">
+            <h4>Morph <span class="syl">20.1 morphing</span></h4>
+            <div class="field">
+              <label for="prop-morph">Morph into</label>
+              <select
+                id="prop-morph"
+                value=""
+                title="At the playhead this shape becomes the one you pick, which is then removed"
+                onchange={(e) => {
+                  const v = (e.currentTarget as HTMLSelectElement).value;
+                  if (v) pathError = anim.morphInto(first!.id, v);
+                }}
+              >
+                <option value="">Pick a shape…</option>
+                {#each others(first.id, true) as o (o.id)}<option value={o.id}>{o.name}</option
+                  >{/each}
+              </select>
+            </div>
+            <p class="hint">
+              Draw the new shape, then pick it here with the playhead where the change should end
+              (frame {$store.frame}).
+            </p>
+          </div>
+        {/if}
+      {/if}
+
       <div class="sec">
         <h4>Arrange</h4>
         <div class="row">
@@ -521,6 +646,16 @@
     font-size: 12px;
     color: var(--tx-2);
     margin: 0 0 8px;
+  }
+  .inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--tx-2);
+  }
+  .frame {
+    width: 56px;
   }
   .row {
     display: flex;

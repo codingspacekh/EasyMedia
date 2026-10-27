@@ -30,6 +30,7 @@ import type {
   AnimationDoc,
   Easing,
   Id,
+  PathObject,
   TweenProperty,
   Picture,
   Stage,
@@ -699,6 +700,16 @@ export function createAnimationApp({
     },
 
     // ---- paths and morphs (AN10, AN11) ----
+
+    /** AN3: a pen path's points and curves edited on the stage (pen.ts), one undo step. */
+    editPath(id: Id, label: string, change: (path: PathObject) => PathObject): void {
+      run(
+        cmd.changeObject(id, label, (o) => {
+          if (o.kind !== 'path') throw new EditError('Only a pen path has points to edit.');
+          return change(o);
+        }),
+      );
+    },
 
     /** AN11: the object follows another object's path (or outline); returns why not. */
     followPath: (id: Id, sourceId: Id): string | null => edit(cmd.followPath(id, sourceId)),

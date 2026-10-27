@@ -129,6 +129,19 @@
               anim.toggleLayer(layer.id, 'locked');
             }}><Icon name={layer.locked ? 'lock' : 'unlock'} size={14} /></button
           >
+          <button
+            class="ghost sm icon-only"
+            class:on={layer.mask}
+            aria-label="Mask {layer.name}"
+            aria-pressed={layer.mask === true}
+            title={layer.mask
+              ? 'This layer is a mask: only what is under its shapes shows of the layer beneath. Lock it to see the effect.'
+              : 'Make this layer a mask for the layer beneath it'}
+            onclick={(e) => {
+              e.stopPropagation();
+              anim.toggleLayer(layer.id, 'mask');
+            }}><Icon name="mask" size={14} /></button
+          >
           {#if renaming === layer.id}
             <input
               class="rename"
@@ -171,6 +184,9 @@
 </aside>
 
 <style>
+  .on {
+    color: var(--accent);
+  }
   .layers {
     width: 230px;
     flex: none;

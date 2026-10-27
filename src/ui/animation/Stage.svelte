@@ -27,9 +27,18 @@
     type Point,
   } from '../../core/animation/geometry.ts';
   import { drawOrder, findObject, updateObject } from '../../core/animation/layers.ts';
+  import {
+    anchorsOnStage,
+    cornerPoint,
+    insertPoint,
+    moveAnchor,
+    moveHandle,
+    pullHandles,
+    removePoint,
+  } from '../../core/animation/pen.ts';
   import { snapBox } from '../../core/animation/snap.ts';
   import { stateAt } from '../../core/animation/state.ts';
-  import type { AnimObject, AnimationDoc, Id } from '../../core/animation/types.ts';
+  import type { AnimObject, AnimationDoc, Id, PathObject } from '../../core/animation/types.ts';
   import { toMediaUrl } from '../../core/media-url.ts';
   import { animUi, SNAP_PX } from './animation-ui.svelte.ts';
   import { textBox } from './measure.ts';
@@ -71,7 +80,10 @@
     | { kind: 'brush'; points: Point[] }
     | { kind: 'resize'; id: Id; handle: Handle; now: Point; lock: boolean }
     | { kind: 'rotate'; id: Id; centre: Point; degrees: number }
-    | { kind: 'guide'; axis: 'x' | 'y'; index: number | null; value: number };
+    | { kind: 'guide'; axis: 'x' | 'y'; index: number | null; value: number }
+    /** AN3: a pen path's point moved, or its curve handles pulled out (Alt). */
+    | { kind: 'anchor'; id: Id; index: number; now: Point; pull: boolean; moved: boolean }
+    | { kind: 'curve'; id: Id; index: number; which: 'in' | 'out'; now: Point; alone: boolean };
   let drag: Drag | null = $state(null);
   /** The pen's points so far (AN3). */
   let pen: Point[] = $state([]);
@@ -154,6 +166,19 @@
         } catch {
           return doc;
         }
+      case 'anchor':
+        if (!d.moved) return doc;
+        return updateObject(doc, d.id, (o) =>
+          o.kind !== 'path'
+            ? o
+            : d.pull
+              ? pullHandles(o, d.index, d.now)
+              : moveAnchor(o, d.index, d.now),
+        );
+      case 'curve':
+        return updateObject(doc, d.id, (o) =>
+          o.kind === 'path' ? moveHandle(o, d.index, d.which, d.now, !d.alone) : o,
+        );
       default:
         return doc;
     }
@@ -446,6 +471,58 @@
     );
   }
 
+  // ---- AN3: a pen path's points and curves ----
+
+  /** The selected object, when it is a pen path that can be edited (not a morph's in-between). */
+  const editablePath = $derived.by((): PathObject | null => {
+    if (!single || $store.tool !== 'select') return null;
+    const own = findObject($store.history.present, single.id)?.object;
+    return own?.kind === 'path' && single.kind === 'path' ? single : null;
+  });
+
+  function startAnchor(e: PointerEvent, index: number): void {
+    e.stopPropagation();
+    if (!editablePath) return;
+    const id = editablePath.id;
+    const pull = e.altKey;
+    drag = { kind: 'anchor', id, index, now: at(e), pull, moved: false };
+    track(
+      (m) => {
+        if (drag?.kind === 'anchor')
+          drag = { ...drag, now: pull ? at(m) : snapPoint(at(m), m.altKey), moved: true };
+      },
+      () => {
+        if (drag?.kind !== 'anchor') return;
+        const { now, moved } = drag;
+        if (!moved && pull) anim.editPath(id, 'Corner point', (p) => cornerPoint(p, index));
+        else if (moved && pull) anim.editPath(id, 'Curve point', (p) => pullHandles(p, index, now));
+        else if (moved) anim.editPath(id, 'Move point', (p) => moveAnchor(p, index, now));
+      },
+    );
+  }
+
+  function startCurve(e: PointerEvent, index: number, which: 'in' | 'out'): void {
+    e.stopPropagation();
+    if (!editablePath) return;
+    const id = editablePath.id;
+    drag = { kind: 'curve', id, index, which, now: at(e), alone: e.altKey };
+    track(
+      (m) => {
+        if (drag?.kind === 'curve') drag = { ...drag, now: at(m), alone: m.altKey };
+      },
+      () => {
+        if (drag?.kind !== 'curve') return;
+        const { now, alone } = drag;
+        anim.editPath(id, 'Move curve handle', (p) => moveHandle(p, index, which, now, !alone));
+      },
+    );
+  }
+
+  function removeAnchor(e: MouseEvent, index: number): void {
+    e.stopPropagation();
+    if (editablePath) anim.editPath(editablePath.id, 'Remove point', (p) => removePoint(p, index));
+  }
+
   function startRotate(e: PointerEvent): void {
     e.stopPropagation();
     if (!single) return;
@@ -501,6 +578,12 @@
       return;
     }
     const hit = pick(at(e));
+    // AN3: a double-click on the selected pen path adds a point there.
+    if (editablePath && hit?.id === editablePath.id) {
+      const p = at(e);
+      anim.editPath(editablePath.id, 'Add point', (path) => insertPoint(path, p));
+      return;
+    }
     if (hit?.kind === 'text') {
       anim.select([hit.id]);
       animUi.focusText++;
@@ -764,6 +847,51 @@
             />
           {/each}
         {/if}
+        {#if editablePath && drag?.kind !== 'move'}
+          {@const shownPath = (findObject(shown, editablePath.id)?.object ??
+            editablePath) as PathObject}
+          {#each anchorsOnStage(shownPath) as a, i (i)}
+            {#each [['in', a.in], ['out', a.out]] as const as [which, h] (which)}
+              {#if h}
+                <line
+                  class="curve"
+                  x1={a.x}
+                  y1={a.y}
+                  x2={h.x}
+                  y2={h.y}
+                  vector-effect="non-scaling-stroke"
+                />
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <circle
+                  class="handle curve-handle"
+                  cx={h.x}
+                  cy={h.y}
+                  r={hs / 2.5}
+                  vector-effect="non-scaling-stroke"
+                  aria-label="Curve handle"
+                  onpointerdown={(e) => startCurve(e, i, which)}
+                />
+              {/if}
+            {/each}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <rect
+              class="handle anchor"
+              x={a.x - hs / 2.5}
+              y={a.y - hs / 2.5}
+              width={(2 * hs) / 2.5}
+              height={(2 * hs) / 2.5}
+              vector-effect="non-scaling-stroke"
+              aria-label="Point {i + 1}"
+              onpointerdown={(e) => startAnchor(e, i)}
+              ondblclick={(e) => removeAnchor(e, i)}
+            >
+              <title
+                >Drag to move · Alt-drag for a curve · Alt-click for a corner · double-click to
+                remove</title
+              >
+            </rect>
+          {/each}
+        {/if}
         {#if drag?.kind === 'marquee'}
           <rect
             class="marquee"
@@ -885,6 +1013,19 @@
   }
   .handle.rotate {
     cursor: grab;
+  }
+  .handle.anchor {
+    fill: var(--accent);
+    stroke: #fff;
+    cursor: move;
+  }
+  .handle.curve-handle {
+    cursor: crosshair;
+  }
+  .curve {
+    stroke: var(--accent);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
   }
   .marquee {
     fill: rgba(79, 140, 255, 0.12);

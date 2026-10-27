@@ -7,7 +7,13 @@
   import type { App } from '../../app/app.ts';
   import { parseFrame, timeLabel } from '../../core/animation/time.ts';
   import { EASINGS, TWEEN_PROPERTIES } from '../../core/animation/tween.ts';
-  import type { AnimObject, Id, Track, TweenProperty } from '../../core/animation/types.ts';
+  import type {
+    AnimObject,
+    Id,
+    MotionPath,
+    Track,
+    TweenProperty,
+  } from '../../core/animation/types.ts';
   import Icon from '../Icon.svelte';
 
   let { app }: { app: App } = $props();
@@ -53,7 +59,9 @@
   type Row =
     | { kind: 'layer'; id: Id; name: string; frames: number[]; open: boolean }
     | { kind: 'object'; id: Id; name: string; frames: number[]; open: boolean; animated: boolean }
-    | { kind: 'property'; id: Id; track: Track };
+    | { kind: 'property'; id: Id; track: Track }
+    /** AN11: the frames an object follows its path. */
+    | { kind: 'motion'; id: Id; motion: MotionPath };
 
   const rows = $derived.by((): Row[] => {
     const out: Row[] = [];
@@ -76,8 +84,9 @@
           name: o.name,
           frames: framesOf([o]),
           open: shown,
-          animated: tracks.length > 0,
+          animated: tracks.length > 0 || o.motion !== undefined,
         });
+        if (shown && o.motion) out.push({ kind: 'motion', id: o.id, motion: o.motion });
         if (shown)
           for (const track of [...tracks].sort(
             (a, b) => ORDER.indexOf(a.property) - ORDER.indexOf(b.property),
@@ -423,6 +432,8 @@
             title="Select {row.name}"
             onclick={() => anim.select([row.id])}>{row.name}</button
           >
+        {:else if row.kind === 'motion'}
+          <span class="name prop">Path{row.motion.orient ? ' (oriented)' : ''}</span>
         {:else}
           <span class="name prop"
             >{LABEL[row.track.property]}{row.track.repeat !== undefined ? ' ↻' : ''}</span
@@ -460,15 +471,24 @@
               class:held={k.hold}
               style:left="{xOf(shownFrame(row.id, row.track.property, k.frame))}px"
               aria-label="{LABEL[row.track.property]} keyframe at frame {k.frame}"
-              title="{LABEL[
-                row.track.property
-              ]} = {k.value} at frame {k.frame}. Drag to move; Alt-drag to copy."
+              title="{LABEL[row.track.property]} = {typeof k.value === 'object'
+                ? 'a shape'
+                : k.value} at frame {k.frame}. Drag to move; Alt-drag to copy."
               onpointerdown={(e) => onKeyDown(e, row.id, row.track.property, k.frame)}
               onclick={() => {
                 if (!moved) picked = { id: row.id, property: row.track.property, frame: k.frame };
               }}
             ></button>
           {/each}
+        {:else if row.kind === 'motion'}
+          <span
+            class="path-bar"
+            style:left="{xOf(row.motion.from)}px"
+            style:width="{(row.motion.to - row.motion.from) * px}px"
+            aria-label="Path from frame {row.motion.from} to {row.motion.to}"
+            title="Follows {row.motion.source ?? 'a path'} from frame {row.motion.from} to {row
+              .motion.to}"
+          ></span>
         {:else}
           {#each row.frames as f (f)}
             <span class="dot" style:left="{xOf(f)}px" aria-hidden="true"></span>
@@ -710,6 +730,15 @@
     margin-top: 0;
     border-top: 2px dashed var(--tx-3);
     background: none;
+  }
+  .path-bar {
+    position: absolute;
+    top: 50%;
+    height: 6px;
+    margin-top: -3px;
+    border-radius: 3px;
+    background: var(--accent);
+    opacity: 0.55;
   }
   .repeat {
     position: absolute;
