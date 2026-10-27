@@ -290,3 +290,23 @@ describe('files (AN16)', () => {
     expect(createAnimation({ name: 'x' }).name).toBe('x');
   });
 });
+
+describe('Split into letters (AN4)', () => {
+  it('Task 2: the selected words become one object per letter, all selected, in one undo step', () => {
+    const s = setup();
+    s.anim.addText({ x: 0, y: 0 }, 'pop');
+    s.anim.splitText();
+    expect(s.objects().map((o) => o.name)).toEqual(['p', 'o', 'p 2']);
+    expect(s.state().selection).toEqual(s.objects().map((o) => o.id));
+    expect(s.state().history.past.at(-1)!.label).toBe('Split into letters');
+    s.anim.undo();
+    expect(s.objects().map((o) => o.name)).toEqual(['pop']);
+  });
+
+  it('a shape cannot be split', () => {
+    const s = setup();
+    s.star();
+    s.anim.splitText();
+    expect(s.state().message?.text).toMatch(/Only text/);
+  });
+});

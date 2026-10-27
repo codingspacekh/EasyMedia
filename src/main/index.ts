@@ -114,6 +114,9 @@ void app.whenReady().then(async () => {
   await mkdir(proxies, { recursive: true });
   const learn = join(app.getPath('userData'), 'learn');
   await mkdir(learn, { recursive: true });
+  // AN15: an animation export's frames wait here for FFmpeg, which removes them afterwards.
+  const animationFrames = join(app.getPath('userData'), 'animation-frames');
+  await mkdir(animationFrames, { recursive: true });
   const allow = createAllowList();
   const hardware = await detectHardwareEncoder(process.platform, encoderTester(binaries.ffmpeg));
 
@@ -141,6 +144,7 @@ void app.whenReady().then(async () => {
       recovery: join(app.getPath('userData'), 'recovery.mve'),
       snapshots: join(app.getPath('userData'), 'snapshots'),
       learn,
+      animationFrames,
       preferences: join(app.getPath('userData'), 'preferences.json'),
       // Installed: next to FFmpeg in the resources; in development: made by "npm run licences".
       licences: app.isPackaged

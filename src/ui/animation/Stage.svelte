@@ -28,6 +28,7 @@
   } from '../../core/animation/geometry.ts';
   import { drawOrder, findObject, updateObject } from '../../core/animation/layers.ts';
   import { snapBox } from '../../core/animation/snap.ts';
+  import { stateAt } from '../../core/animation/state.ts';
   import type { AnimObject, AnimationDoc, Id } from '../../core/animation/types.ts';
   import { toMediaUrl } from '../../core/media-url.ts';
   import { animUi, SNAP_PX } from './animation-ui.svelte.ts';
@@ -36,7 +37,8 @@
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
   const store = $derived(app.animation.store);
-  const doc = $derived($store.history.present);
+  // M14: what the student sees and edits is the animation at the playhead.
+  const doc = $derived(stateAt($store.history.present, $store.frame));
   const stage = $derived(doc.stage);
   const view = $derived(doc.view);
 

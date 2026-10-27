@@ -87,11 +87,11 @@
   class="primary"
   aria-label="Export"
   title={withWhy(
-    'Export the stage as a PNG picture (video, GIF and web exports come with the timeline)',
+    'Export the animation as an MP4 video, an animated GIF, a PNG sequence, or this frame as a PNG',
     'animExport',
   )}
   disabled={$store.busy !== null}
-  onclick={() => void anim.exportPng()}
+  onclick={() => (animUi.dialog = 'export')}
 >
   <Icon name="export" /><span class="long">Export</span>
 </button>

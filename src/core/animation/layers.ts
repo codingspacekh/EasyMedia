@@ -3,7 +3,8 @@
 import { EditError } from '../model/errors.ts';
 import { newId } from '../model/factory.ts';
 import { createGroup, createLayer } from './factory.ts';
-import { moved, toStage } from './geometry.ts';
+import { moved, shiftTracks, toStage } from './geometry.ts';
+import { splitIntoLetters, type MeasureText } from './letters.ts';
 import type { AnimObject, AnimationDoc, GroupObject, Id, Layer, LayerFolder } from './types.ts';
 
 export interface Found {
@@ -243,7 +244,10 @@ export function groupObjects(
   return { doc: replaceLayer(doc, { ...layer, objects }), group };
 }
 
-/** The children back on the stage, where the group showed them (its move and turn applied). */
+/**
+ * The children back on the stage, where the group showed them (its move and turn applied). Their
+ * own keyframes move with them; the group's own keyframes go with the group.
+ */
 export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
   const { layer, index, object } = requireObject(doc, id);
   editable(layer);
@@ -253,14 +257,41 @@ export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
       x: child.x + child.width / 2,
       y: child.y + child.height / 2,
     });
+    const x = centre.x - child.width / 2;
+    const y = centre.y - child.height / 2;
     return {
-      ...child,
-      x: centre.x - child.width / 2,
-      y: centre.y - child.height / 2,
+      ...shiftTracks(child, { x: x - child.x, y: y - child.y, rotation: object.rotation }),
+      x,
+      y,
       rotation: (((child.rotation + object.rotation) % 360) + 360) % 360,
     };
   });
   return replaceLayer(doc, { ...layer, objects: layer.objects.toSpliced(index, 1, ...children) });
+}
+
+/** AN4: the text is replaced, in its place, by one text object per letter (see letters.ts). */
+export function splitText(
+  doc: AnimationDoc,
+  id: Id,
+  measure?: MeasureText,
+): { doc: AnimationDoc; ids: Id[] } {
+  const { layer, index, object } = requireObject(doc, id);
+  editable(layer);
+  if (object.kind !== 'text') throw new EditError('Only text can be split into letters.');
+  const letters = splitIntoLetters(object, measure);
+  // Names are made unique against the rest of the animation, the letters already placed included.
+  let next = replaceLayer(doc, { ...layer, objects: layer.objects.toSpliced(index, 1) });
+  const named: AnimObject[] = [];
+  for (const letter of letters) {
+    const withName = { ...letter, name: uniqueName(next, letter.name) };
+    named.push(withName);
+    const current = next.layers.find((l) => l.id === layer.id)!;
+    next = replaceLayer(next, {
+      ...current,
+      objects: current.objects.toSpliced(index + named.length - 1, 0, withName),
+    });
+  }
+  return { doc: next, ids: named.map((o) => o.id) };
 }
 
 function withNewIds(object: AnimObject): AnimObject {

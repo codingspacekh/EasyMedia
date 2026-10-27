@@ -113,6 +113,15 @@ describe('drawing (AN3, AN4)', () => {
     expect(s.objects()[0]!.opacity).toBe(57);
   });
 
+  it('Split into letters in the Properties panel makes one object per letter (Task 2)', async () => {
+    const s = await animationMode();
+    s.anim.addText({ x: 10, y: 10 }, 'Ying');
+    await Promise.resolve();
+    await fireEvent.click(screen.getByRole('button', { name: 'Split into letters' }));
+    expect(s.objects().map((o) => o.name)).toEqual(['Y', 'i', 'n', 'g']);
+    expect(s.objects()[1]!.x).toBeGreaterThan(s.objects()[0]!.x);
+  });
+
   it('a click with the Text tool adds words where clicked; the words box is focused', async () => {
     const s = await animationMode();
     await fireEvent.click(screen.getByRole('button', { name: 'Text' }));
@@ -239,6 +248,9 @@ describe('stage settings (AN1) and the status bar (AN2)', () => {
     const s = await animationMode();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/a/out.png');
     await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = screen.getByRole('dialog', { name: 'Export animation' });
+    await fireEvent.click(within(dialog).getByRole('radio', { name: /PNG picture of this frame/ }));
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Export file' }));
     await vi.waitFor(() => expect(s.bytes.has('/a/out.png')).toBe(true));
     expect(animUi.dialog).toBeNull();
   });

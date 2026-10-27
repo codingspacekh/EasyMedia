@@ -425,7 +425,9 @@ describe('the Layers panel in detail', () => {
     expect(s.doc().layers[1]!.folderId).toBe(folder.id);
     await fireEvent.click(screen.getByRole('button', { name: 'Close folder Folder' }));
     expect(s.doc().folders[0]!.open).toBe(false);
-    expect(screen.queryByText('Layer 2')).toBeNull();
+    expect(
+      within(screen.getByRole('listbox', { name: 'Layer list' })).queryByText('Layer 2'),
+    ).toBeNull();
     await fireEvent.click(screen.getByRole('button', { name: 'Open folder Folder' }));
     await fireEvent.change(screen.getByLabelText('Folder of Layer 2'), { target: { value: '' } });
     expect(s.doc().layers[1]!.folderId).toBeUndefined();

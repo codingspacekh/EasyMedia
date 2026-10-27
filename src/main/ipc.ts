@@ -1,5 +1,6 @@
 // Main-process side of the IPC contract (P2, ARCHITECTURE §8). Every request is answered with
 // data: a value, or a WireError the page turns back into the right error type.
+import { isAbsolute, relative } from 'node:path';
 import { JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
@@ -114,6 +115,16 @@ export function registerIpc(s: MainServices): void {
       track(key, 'Export audio', s.engine.encodeAudio(audio, output, settings), () =>
         s.allow.add(output),
       ),
+    // AN15: only frames the page drew into the app's own frames folder are made into a file.
+    'media:encodeFrames': async (key, folder, output, options) => {
+      const base = s.paths.animationFrames;
+      const inside = base ? relative(base, folder) : '';
+      if (!base || inside === '' || inside.startsWith('..') || isAbsolute(inside))
+        throw new Error('Only frames drawn by EasyMedia can be exported.');
+      return track(key, 'Export animation', s.engine.encodeFrames(folder, output, options), () =>
+        s.allow.add(output),
+      );
+    },
     'job:cancel': async (key) => {
       jobs.get(key)?.cancel();
       return null;

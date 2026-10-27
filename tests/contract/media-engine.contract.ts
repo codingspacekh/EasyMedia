@@ -25,6 +25,8 @@ export interface ContractSetup {
   missing: string;
   /** A writable path for an output file. */
   out(name: string): string;
+  /** AN15: a folder of `count` PNG frames, frame-00000.png onwards, `width` × `height`. */
+  frames(width: number, height: number, count: number): Promise<string>;
 }
 
 export function mediaEngineContract(name: string, setup: () => ContractSetup): void {
@@ -403,6 +405,82 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         await expect(
           engine.renderVideo(gone, out('gone.mp4'), { projectDir: '/' }).done,
         ).rejects.toThrow(/could not be found/i);
+      });
+    });
+
+    describe('encodeFrames (AN15): an animation drawn as PNG frames, made into a video or GIF', () => {
+      it('72 frames at 24 fps make a 600 × 400 H.264 MP4 of 3.00 s', async () => {
+        const { engine, out, frames } = setup();
+        const folder = await frames(600, 400, 72);
+        const events: JobEvent[] = [];
+        const stop = engine.onJobEvent((e) => events.push(e));
+        const job = engine.encodeFrames(folder, out('anim.mp4'), {
+          format: 'mp4',
+          fps: 24,
+          frames: 72,
+          width: 600,
+          height: 400,
+        });
+        await job.done;
+        stop();
+        const info = await engine.probe(out('anim.mp4'));
+        expect(info).toMatchObject({
+          kind: 'video',
+          container: 'mp4',
+          video: { codec: 'h264', width: 600, height: 400, fps: 24 },
+        });
+        expect(info.duration).toBeCloseTo(3, 1);
+        expect(events.some((e) => e.jobId === job.id && e.type === 'progress')).toBe(true);
+      });
+
+      it('an animated GIF of the same frames, at the stage size', async () => {
+        const { engine, out, frames } = setup();
+        const folder = await frames(600, 400, 72);
+        await engine.encodeFrames(folder, out('anim.gif'), {
+          format: 'gif',
+          fps: 24,
+          frames: 72,
+          width: 600,
+          height: 400,
+        }).done;
+        const info = await engine.probe(out('anim.gif'));
+        expect(info).toMatchObject({
+          kind: 'video',
+          container: 'gif',
+          video: { width: 600, height: 400 },
+        });
+        expect(info.duration).toBeGreaterThan(2.5);
+      });
+
+      it('an odd size (601 × 401) is padded to even for MP4', async () => {
+        const { engine, out, frames } = setup();
+        const folder = await frames(601, 401, 12);
+        await engine.encodeFrames(folder, out('odd.mp4'), {
+          format: 'mp4',
+          fps: 12,
+          frames: 12,
+          width: 601,
+          height: 401,
+        }).done;
+        expect((await engine.probe(out('odd.mp4'))).video).toMatchObject({
+          width: 602,
+          height: 402,
+        });
+      });
+
+      it('Cancel stops the job and leaves no file', async () => {
+        const { engine, out, frames } = setup();
+        const folder = await frames(600, 400, 72);
+        const job = engine.encodeFrames(folder, out('cancelled.mp4'), {
+          format: 'mp4',
+          fps: 24,
+          frames: 72,
+          width: 600,
+          height: 400,
+        });
+        job.cancel();
+        await expect(job.done).rejects.toBeInstanceOf(JobCancelledError);
+        await expect(engine.probe(out('cancelled.mp4'))).rejects.toThrow(MediaError);
       });
     });
   });

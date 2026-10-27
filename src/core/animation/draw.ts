@@ -3,6 +3,7 @@
 // student sees is what is exported (ARCHITECTURE §7.3, as the text drawing).
 import { centreOf, flattenPath, localOutline } from './geometry.ts';
 import { drawOrder } from './layers.ts';
+import { stateAt } from './state.ts';
 import type { AnimObject, AnimationDoc, Paint, Stroke, TextObject } from './types.ts';
 
 /** The parts of CanvasRenderingContext2D the drawing needs (a recording fake is used in tests). */
@@ -63,6 +64,8 @@ export interface DrawOptions {
   image?: (pictureId: string) => unknown | null;
   /** Drawn after the background and before the objects (the grid behind them, AN2). */
   afterBackground?: (ctx: StageCanvas) => void;
+  /** AN9: the frame to draw (every object with its tweened values); frame 0 when absent. */
+  frame?: number;
 }
 
 export const LINE_HEIGHT = 1.2;
@@ -238,5 +241,6 @@ export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOpti
   ctx.fillStyle = doc.stage.background;
   ctx.fillRect(0, 0, doc.stage.width, doc.stage.height);
   options.afterBackground?.(ctx);
-  for (const { object } of drawOrder(doc)) drawObject(ctx, object, options);
+  const shown = options.frame ? stateAt(doc, options.frame) : doc;
+  for (const { object } of drawOrder(shown)) drawObject(ctx, object, options);
 }

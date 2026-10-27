@@ -1,7 +1,9 @@
 // FFmpeg arguments for each background job (inputs and options only; the job queue adds
 // the progress flags and the output path).
 import { basename, dirname, extname, join } from 'node:path';
+import { FRAME_PATTERN } from '../../core/animation/export.ts';
 import type { Seconds } from '../../core/model/time.ts';
+import type { EncodeFramesOptions } from '../../core/ports.ts';
 
 export const PROXY_HEIGHT = 360;
 export const WAVEFORM_SAMPLE_RATE = 8000;
@@ -59,6 +61,28 @@ export function decodeArgs(input: string, channels: number, rate: number): strin
 /** Reads raw samples written by FFmpeg (f32le, side by side). */
 export function rawInputArgs(path: string, rate: number, channels: number): string[] {
   return ['-f', 'f32le', '-ar', String(rate), '-ac', String(channels), '-i', path];
+}
+
+/**
+ * AN15: an animation's PNG frames as an MP4 (H.264, yuv420p, an odd side padded to even) or an
+ * animated GIF that loops, made in two passes in one run: palettegen finds the best 256 colours,
+ * paletteuse draws every frame with them.
+ */
+export function animationArgs(folder: string, { format, fps }: EncodeFramesOptions): string[] {
+  const input = ['-framerate', String(fps), '-i', join(folder, FRAME_PATTERN)];
+  if (format === 'gif')
+    return [
+      ...input,
+      '-vf',
+      'split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3',
+      '-loop',
+      '0',
+    ];
+  return [
+    ...input,
+    ...['-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', '-c:v', 'libx264', '-preset', 'medium'],
+    ...['-crf', '18', '-pix_fmt', 'yuv420p', '-r', String(fps), '-movflags', '+faststart'],
+  ];
 }
 
 /** One frame at `time`; the image format follows the output file's extension (V10). */

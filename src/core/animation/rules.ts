@@ -130,7 +130,8 @@ export function validateObject(object: AnimObject): void {
     case 'text':
       if (!FONTS.some((f) => f.name === object.font))
         throw new EditError(`${object.font} is not a bundled font. Choose one from the list.`);
-      if (!(object.size >= 1)) throw new EditError('The font size must be at least 1 px.');
+      // 0 is allowed: text can grow from nothing (workbook Task 1).
+      if (!(object.size >= 0)) throw new EditError('The font size must be 0 px or more.');
       break;
     case 'path':
       if (object.points.length < 2) throw new EditError('A path needs at least two points.');

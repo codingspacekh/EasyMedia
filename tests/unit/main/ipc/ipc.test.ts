@@ -115,6 +115,7 @@ describe('P2 main-process IPC handlers', () => {
         recovery: '/cache/recovery.mve',
         snapshots: '/cache/snapshots',
         learn: '/cache/learn',
+        animationFrames: '/cache/frames',
       },
     });
   });
@@ -216,6 +217,31 @@ describe('P2 main-process IPC handlers', () => {
     await api.invoke('media:release', reply.value.raw);
     expect(allow.has(reply.value.raw)).toBe(false);
     expect(() => backend.readRaw(reply.value.raw)).toThrow();
+  });
+
+  it('AN15 makes a video only from frames in the app’s own frames folder', async () => {
+    const { api, allow } = inProcessBridge(createMockMediaEngine());
+    const options = { format: 'mp4' as const, fps: 24, frames: 72, width: 600, height: 400 };
+    for (const folder of [
+      '/home/student',
+      '/cache/frames',
+      '/cache/frames/../proxies',
+      '/cache/framesX/a',
+    ])
+      expect(await api.invoke('media:encodeFrames', 'k1', folder, '/out/a.mp4', options)).toEqual({
+        ok: false,
+        error: expect.objectContaining({
+          message: 'Only frames drawn by EasyMedia can be exported.',
+        }),
+      });
+    const finished = new Promise((resolve) =>
+      api.on('job:event', (e) => e.type === 'done' && resolve(e)),
+    );
+    expect(
+      await api.invoke('media:encodeFrames', 'k2', '/cache/frames/export-1', '/out/a.mp4', options),
+    ).toEqual({ ok: true, value: null });
+    await finished;
+    expect(allow.has('/out/a.mp4')).toBe(true);
   });
 
   it('only releases files it made for decoding', async () => {

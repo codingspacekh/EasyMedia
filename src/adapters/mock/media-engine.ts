@@ -17,6 +17,8 @@ import {
 const PROXY_HEIGHT = 360;
 const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const even = (n: number) => 2 * Math.round(n / 2);
+/** An odd side padded up to even, as FFmpeg's pad filter does for MP4. */
+const even2 = (n: number) => n + (n % 2);
 
 export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = {}) {
   const files = new Map(Object.entries(initialFiles));
@@ -254,6 +256,18 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
             ? { bitDepth: settings.bitDepth }
             : {}),
         },
+      }));
+    },
+
+    encodeFrames(_folder, output, { format, fps, frames, width, height }) {
+      const size =
+        format === 'mp4' ? { width: even2(width), height: even2(height) } : { width, height };
+      return job('Export animation', output, () => ({
+        kind: 'video',
+        container: format,
+        duration: frames / fps,
+        sizeBytes: Math.round(width * height * frames * (format === 'gif' ? 0.12 : 0.006)),
+        video: { codec: format === 'mp4' ? 'h264' : 'gif', ...size, fps },
       }));
     },
 

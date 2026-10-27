@@ -34,6 +34,44 @@ export interface Stroke {
   dash: Dash;
 }
 
+/** AN9: how a tween runs from one keyframe to the next. */
+export type Easing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'bounce';
+
+/** AN9: the properties that can have keyframes. Colours are hex; `text` changes at the keyframe. */
+export type TweenProperty =
+  | 'x'
+  | 'y'
+  | 'width'
+  | 'height'
+  | 'rotation'
+  | 'opacity'
+  | 'fillColour'
+  | 'strokeColour'
+  | 'strokeWidth'
+  | 'radius'
+  | 'size'
+  | 'text';
+
+export type KeyValue = number | string;
+
+/** AN9: a value fixed at a frame. `easing` shapes the tween to the next keyframe; `hold` keeps this value until it. */
+export interface Keyframe {
+  frame: number;
+  value: KeyValue;
+  easing: Easing;
+  hold: boolean;
+}
+
+/**
+ * AN9, AN13: one property's keyframes, sorted by frame. `repeat` plays the span from the first
+ * to the last keyframe again after it ends: `'end'` until the animation ends, or n more times.
+ */
+export interface Track {
+  property: TweenProperty;
+  keyframes: Keyframe[];
+  repeat?: 'end' | number;
+}
+
 /** What every object has (AN6). Rotation in degrees, clockwise; opacity 0–100 %. */
 interface ObjectBase {
   id: Id;
@@ -47,6 +85,8 @@ interface ObjectBase {
   fill: Paint;
   /** Absent: no outline. */
   stroke?: Stroke;
+  /** AN9: keyframes, one track per animated property. Absent or empty: the object stays still. */
+  tracks?: Track[];
 }
 
 export interface RectObject extends ObjectBase {
@@ -170,7 +210,8 @@ export interface ViewSettings {
 }
 
 export interface AnimationDoc {
-  schemaVersion: 1;
+  /** 2 since M14 (keyframes); a v1.1.0 app refuses a newer file with a plain message. */
+  schemaVersion: 2;
   name: string;
   stage: Stage;
   layers: Layer[];

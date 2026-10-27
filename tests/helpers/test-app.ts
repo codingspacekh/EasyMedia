@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
-import type { Dialogs, ProbeInfo } from '../../src/core/ports.ts';
+import type { Dialogs, ProbeInfo, StageRenderer } from '../../src/core/ports.ts';
 
 export const VIDEO: ProbeInfo = {
   kind: 'video',
@@ -42,18 +42,24 @@ export function testApp(
   const disk = new Map<string, string>();
   const bytes = new Map<string, Uint8Array>();
   const recorder = createMockRecorder();
+  const stageRenderer = {
+    renderPng: vi.fn<StageRenderer['renderPng']>(async () => new Uint8Array([137, 80, 78, 71])),
+  };
   const app = createApp({
     engine,
     dialogs,
     files: {
       read: async (p) => disk.get(p) ?? Promise.reject(new Error('ENOENT')),
       write: async (p, t) => void disk.set(p, t),
-      remove: async (p) => void disk.delete(p),
+      remove: async (p) => {
+        disk.delete(p);
+        bytes.delete(p);
+      },
       copy: async () => {},
       saveImage: async (name) => `/cache/text/${name}.png`,
       writeBytes: async (p, b) => void bytes.set(p, b),
     },
-    stageRenderer: { renderPng: async () => new Uint8Array([137, 80, 78, 71]) },
+    stageRenderer,
     text: {
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
@@ -69,5 +75,5 @@ export function testApp(
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   };
-  return { app, engine, dialogs, importFiles, recorder, disk, bytes };
+  return { app, engine, dialogs, importFiles, recorder, disk, bytes, stageRenderer };
 }

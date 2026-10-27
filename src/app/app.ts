@@ -478,6 +478,37 @@ export function createApp({
 
     closeLicences: () => patch({ licences: null }),
 
+    /**
+     * M14: the animation as an MP4 beside its file (Task1.mvea → Task1.mp4), imported and put on
+     * the video timeline; sent again, the same file is updated and its clip kept. An animation
+     * never saved is saved first. True when the clip is in Video mode.
+     */
+    async sendAnimationToVideo(): Promise<boolean> {
+      if (!animation.store.get().path) await animation.saveAs();
+      const path = animation.store.get().path;
+      if (!path) return false;
+      const made = await animation.exportAnimation('mp4', `${path.replace(/\.mvea$/i, '')}.mp4`);
+      if (!made) return false;
+      try {
+        const info = await engine.probe(made);
+        const known = present().media.find((m) => m.path === made);
+        if (known) {
+          void prepare(known, info);
+          patch({ message: { kind: 'info', text: `Updated ${fileNameOf(made)} in Video mode.` } });
+          return true;
+        }
+        const asset = assetFromProbe(made, info);
+        run(importMediaCommand(asset));
+        void prepare(asset, info);
+        run(addMainItem(createVideoClip(asset)));
+        patch({ message: { kind: 'info', text: `Added ${fileNameOf(made)} to the timeline.` } });
+        return true;
+      } catch (error) {
+        showError(error);
+        return false;
+      }
+    },
+
     async importMedia(): Promise<void> {
       const chosen = await dialogs.openMedia();
       for (const path of chosen) {

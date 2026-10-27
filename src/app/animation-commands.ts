@@ -2,7 +2,6 @@
 // document from the old one without changing it; the rules live in core/animation.
 import { EditError } from '../core/model/errors.ts';
 import {
-  moved,
   resizeFrom,
   rotated,
   setSize,
@@ -10,14 +9,20 @@ import {
   type Point,
 } from '../core/animation/geometry.ts';
 import * as layers from '../core/animation/layers.ts';
+import type { MeasureText } from '../core/animation/letters.ts';
 import { validateObject, validateStage } from '../core/animation/rules.ts';
+import { changeFps as changeFpsIn } from '../core/animation/time.ts';
+import * as tween from '../core/animation/tween.ts';
 import type {
   AnimObject,
   AnimationDoc,
+  Easing,
   Id,
   Layer,
   Picture,
   Stage,
+  Track,
+  TweenProperty,
 } from '../core/animation/types.ts';
 import type { Command } from './history.ts';
 
@@ -50,25 +55,24 @@ export function changeObject(
   );
 }
 
-/** Exact numbers from the Properties panel, applied to every selected object (AN6). */
-export function setProperties(ids: readonly Id[], patch: Partial<AnimObject>): AnimCommand {
-  const label = `Change ${Object.keys(patch).join(', ')}`;
+/**
+ * AN9: an edit with the playhead on `frame`. The change sees the object as it is at that frame;
+ * what it changes becomes keyframes there (plain changes on a still object at frame 0). The
+ * object is checked as it is kept and as it is shown at that frame.
+ */
+function changeAt(
+  ids: readonly Id[],
+  frame: number,
+  label: string,
+  change: (now: AnimObject) => AnimObject,
+): AnimCommand {
   return command(label, (doc) =>
     ids.reduce(
       (d, id) =>
         layers.updateObject(d, id, (o) => {
-          // A new width or height keeps the top-left corner and scales a path's points.
-          const sized =
-            patch.width !== undefined || patch.height !== undefined
-              ? setSize(o, patch.width ?? o.width, patch.height ?? o.height)
-              : o;
-          const next = {
-            ...sized,
-            ...patch,
-            width: sized.width,
-            height: sized.height,
-          } as AnimObject;
+          const next = tween.editAt(o, frame, change);
           validateObject(next);
+          validateObject(tween.objectAt(next, frame));
           return next;
         }),
       doc,
@@ -76,10 +80,24 @@ export function setProperties(ids: readonly Id[], patch: Partial<AnimObject>): A
   );
 }
 
-export function moveObjects(ids: readonly Id[], dx: number, dy: number): AnimCommand {
-  return command('Move', (doc) =>
-    ids.reduce((d, id) => layers.updateObject(d, id, (o) => moved(o, dx, dy)), doc),
-  );
+/** Exact numbers from the Properties panel, applied to every selected object (AN6) at the playhead. */
+export function setProperties(
+  ids: readonly Id[],
+  patch: Partial<AnimObject>,
+  frame = 0,
+): AnimCommand {
+  return changeAt(ids, frame, `Change ${Object.keys(patch).join(', ')}`, (o) => {
+    // A new width or height keeps the top-left corner and scales a path's points.
+    const sized =
+      patch.width !== undefined || patch.height !== undefined
+        ? setSize(o, patch.width ?? o.width, patch.height ?? o.height)
+        : o;
+    return { ...sized, ...patch, width: sized.width, height: sized.height } as AnimObject;
+  });
+}
+
+export function moveObjects(ids: readonly Id[], dx: number, dy: number, frame = 0): AnimCommand {
+  return changeAt(ids, frame, 'Move', (o) => ({ ...o, x: o.x + dx, y: o.y + dy }));
 }
 
 export function resizeObject(
@@ -87,13 +105,136 @@ export function resizeObject(
   handle: Handle,
   pointer: Point,
   lockRatio: boolean,
+  frame = 0,
 ): AnimCommand {
-  return changeObject(id, 'Resize', (o) => resizeFrom(o, handle, pointer, { lockRatio }));
+  return changeAt([id], frame, 'Resize', (o) => resizeFrom(o, handle, pointer, { lockRatio }));
 }
 
-export function rotateObject(id: Id, degrees: number): AnimCommand {
-  return changeObject(id, 'Rotate', (o) => rotated(o, degrees));
+export function rotateObject(id: Id, degrees: number, frame = 0): AnimCommand {
+  return changeAt([id], frame, 'Rotate', (o) => rotated(o, degrees));
 }
+
+/** AN4: the text becomes one object per letter; the letters' ids are known once it has run. */
+export function splitText(
+  id: Id,
+  measure: MeasureText | undefined,
+  made: (ids: Id[]) => void,
+): AnimCommand {
+  return command('Split into letters', (doc) => {
+    const { doc: next, ids } = layers.splitText(doc, id, measure);
+    made(ids);
+    return next;
+  });
+}
+
+// ---- keyframes (AN9, AN13) ----
+
+export type PropertyChoice = TweenProperty | 'all';
+
+const PROPERTY_LABEL = Object.fromEntries(tween.TWEEN_PROPERTIES.map((p) => [p.id, p.label]));
+
+/** Changes one property's keyframes; an object with none for it is told plainly. */
+function changeTrack(
+  id: Id,
+  property: TweenProperty,
+  label: string,
+  change: (track: Track) => Track,
+): AnimCommand {
+  return command(label, (doc) =>
+    layers.updateObject(doc, id, (o) => {
+      const track = tween.trackOf(o, property);
+      if (!track)
+        throw new EditError(`There is no keyframe for ${PROPERTY_LABEL[property]} on ${o.name}.`);
+      return tween.setTrack(o, change(track));
+    }),
+  );
+}
+
+export const insertKeyframe = (id: Id, property: PropertyChoice, frame: number): AnimCommand =>
+  command('Insert keyframe', (doc) =>
+    layers.updateObject(doc, id, (o) =>
+      (property === 'all' ? tween.keyableProperties(o) : [property]).reduce(
+        (acc, p) => tween.insertKeyframe(acc, p, frame),
+        o,
+      ),
+    ),
+  );
+
+export const removeKeyframe = (id: Id, property: TweenProperty, frame: number): AnimCommand =>
+  changeTrack(id, property, 'Delete keyframe', (t) => tween.removeKeyframe(t, frame));
+
+export const moveKeyframe = (
+  id: Id,
+  property: TweenProperty,
+  frame: number,
+  to: number,
+): AnimCommand =>
+  changeTrack(id, property, 'Move keyframe', (t) => tween.moveKeyframe(t, frame, to));
+
+export const copyKeyframe = (
+  id: Id,
+  property: TweenProperty,
+  frame: number,
+  to: number,
+): AnimCommand =>
+  changeTrack(id, property, 'Copy keyframe', (t) => tween.copyKeyframe(t, frame, to));
+
+const changeKey = (
+  track: Track,
+  frame: number,
+  change: Partial<Pick<Track['keyframes'][number], 'easing' | 'hold'>>,
+): Track => {
+  if (!track.keyframes.some((k) => k.frame === frame))
+    throw new EditError(`There is no keyframe on frame ${frame}.`);
+  return {
+    ...track,
+    keyframes: track.keyframes.map((k) => (k.frame === frame ? { ...k, ...change } : k)),
+  };
+};
+
+export const setEasing = (
+  id: Id,
+  property: TweenProperty,
+  frame: number,
+  easing: Easing,
+): AnimCommand => changeTrack(id, property, 'Easing', (t) => changeKey(t, frame, { easing }));
+
+export const setHold = (
+  id: Id,
+  property: TweenProperty,
+  frame: number,
+  hold: boolean,
+): AnimCommand => changeTrack(id, property, 'Hold', (t) => changeKey(t, frame, { hold }));
+
+export const setRepeat = (
+  id: Id,
+  property: TweenProperty,
+  repeat: 'end' | number | undefined,
+): AnimCommand => changeTrack(id, property, 'Repeat', (t) => tween.withRepeat(t, repeat));
+
+/** Task 1.2: the motion runs back to the start after the last keyframe. */
+export const reverse = (id: Id, property: PropertyChoice): AnimCommand =>
+  property === 'all'
+    ? command('Reverse', (doc) =>
+        layers.updateObject(doc, id, (o) => {
+          const tracks = (o.tracks ?? []).filter((t) => t.keyframes.length >= 2);
+          if (tracks.length === 0)
+            throw new EditError(`${o.name} does not move yet: nothing to reverse.`);
+          return tracks.reduce((acc, t) => tween.setTrack(acc, tween.reversed(t)), o);
+        }),
+      )
+    : changeTrack(id, property, 'Reverse', (t) => tween.reversed(t));
+
+/** AN8: a new frame rate, keeping keyframes at the same times or the same frames. */
+export const setFps = (fps: number, keep: 'times' | 'frames'): AnimCommand =>
+  command('Frame rate', (doc) => changeFpsIn(doc, fps, keep));
+
+export const setLength = (length: number): AnimCommand =>
+  command('Length', (doc) => {
+    const stage = { ...doc.stage, length };
+    validateStage(stage);
+    return { ...doc, stage };
+  });
 
 export function removeObjects(ids: readonly Id[]): AnimCommand {
   return command('Delete', (doc) => layers.removeObjects(doc, ids));

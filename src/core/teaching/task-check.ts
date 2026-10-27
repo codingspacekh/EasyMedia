@@ -7,7 +7,7 @@ import { group } from './file-size.ts';
 
 export interface TaskSpec {
   name: string;
-  /** File type as the media probe names it: mp4, mov, avi, wmv, mpg, mp3, m4a, aac, wav, flac. */
+  /** File type as the media probe names it: mp4, mov, avi, wmv, mpg, gif, mp3, m4a, aac, wav, flac. */
   container?: string;
   width?: number;
   height?: number;
@@ -25,7 +25,20 @@ export interface CheckRow {
   pass: boolean;
 }
 
-export const TASK_FORMATS = ['mp4', 'mov', 'avi', 'wmv', 'mpg', 'mp3', 'm4a', 'aac', 'wav', 'flac'];
+/** M14: gif for animation tasks (AN15). */
+export const TASK_FORMATS = [
+  'mp4',
+  'mov',
+  'avi',
+  'wmv',
+  'mpg',
+  'gif',
+  'mp3',
+  'm4a',
+  'aac',
+  'wav',
+  'flac',
+];
 const DEFAULT_TOLERANCE = 0.5;
 const KIND = 'easymedia-task-check';
 

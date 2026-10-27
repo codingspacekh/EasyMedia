@@ -92,6 +92,8 @@ export function createElectronMediaEngine(
     releaseDecoded: async (raw) => void (await unwrap(api.invoke('media:release', raw))),
     encodeAudio: (audio, output, settings) =>
       startJob((k) => api.invoke('media:encodeAudio', k, audio, output, settings)),
+    encodeFrames: (folder, output, options) =>
+      startJob((k) => api.invoke('media:encodeFrames', k, folder, output, options)),
     onJobEvent(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

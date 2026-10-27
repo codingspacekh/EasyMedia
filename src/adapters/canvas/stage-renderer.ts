@@ -49,20 +49,29 @@ export function createCanvasStageRenderer({
   loadImage = defaultLoadImage,
   loadFonts = defaultLoadFonts,
 }: StageRendererDeps = {}): StageRenderer {
+  // An export draws every frame of one animation: its pictures are loaded once, not per frame.
+  let loaded: { pictures: AnimationDoc['pictures']; images: Map<string, unknown> } | null = null;
+  async function imagesOf(doc: AnimationDoc): Promise<Map<string, unknown>> {
+    if (loaded?.pictures === doc.pictures) return loaded.images;
+    const images = new Map<string, unknown>();
+    await Promise.all(
+      doc.pictures.map(async (p) => {
+        const image = await loadImage(p.path);
+        if (image) images.set(p.id, image);
+      }),
+    );
+    loaded = { pictures: doc.pictures, images };
+    return images;
+  }
+
   return {
-    async renderPng(doc: AnimationDoc): Promise<Uint8Array> {
+    async renderPng(doc: AnimationDoc, frame = 0): Promise<Uint8Array> {
       const canvas = makeCanvas(doc.stage.width, doc.stage.height);
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('No canvas is available to draw the stage.');
-      const images = new Map<string, unknown>();
-      await Promise.all(
-        doc.pictures.map(async (p) => {
-          const image = await loadImage(p.path);
-          if (image) images.set(p.id, image);
-        }),
-      );
+      const images = await imagesOf(doc);
       await loadFonts([...new Set(textFonts(doc.layers.flatMap((l) => l.objects)))]);
-      drawStage(ctx, doc, { image: (id) => images.get(id) ?? null });
+      drawStage(ctx, doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());
     },
