@@ -247,7 +247,8 @@ export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOpti
   ctx.fillStyle = doc.stage.background;
   ctx.fillRect(0, 0, doc.stage.width, doc.stage.height);
   options.afterBackground?.(ctx);
-  const shown = options.frame ? stateAt(doc, options.frame) : doc;
+  // Frame 0 is a frame like any other (an object on a path is at its start, not where drawn).
+  const shown = options.frame === undefined ? doc : stateAt(doc, options.frame);
   const layers = shown.layers;
   const masking = (l: Layer): boolean =>
     l.mask === true && l.visible && (!options.editing || l.locked);
