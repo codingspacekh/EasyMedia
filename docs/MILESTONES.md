@@ -746,6 +746,6 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M12 Hardening & v1.0 | ✅ Done ([gate record](acceptance/M12.md)) — installers for Windows and both Mac chips, self-checking; cross-platform at ≥ 40 dB; the teacher's performance and acceptance runs passed | 2026-10-27 | `v1.0.0` |
 | M13 Animation core | ✅ Done ([gate record](acceptance/M13.md)) — the Animation mode: stage, vector shapes and text with exact numbers, layers and folders, snapping, `.mvea` files, PNG export; the teacher's check on Windows and a Mac passed | 2026-10-27 | `v1.1.0` |
 | M14 Timeline & tweens | ✅ Done ([gate record](acceptance/M14.md)) — keyframes, tweens, the timeline, MP4 / GIF / PNG export, Split into letters, Send to Video mode; the teacher's check passed | 2026-10-27 | `v1.2.0` |
-| M15 Paths, morphing & masks | 🔶 Built and passing on the MacBook 2026-10-27 ([gate record](acceptance/M15.md)): motion paths (several per object), morphing, masks, pen path editing; the teacher's check on Windows and a Mac next | | |
+| M15 Paths, morphing & masks | 🔶 Built and passing on the MacBook 2026-10-27 ([gate record](acceptance/M15.md)): motion paths (several per object), morphing, masks, pen path editing; CI green on all three platforms; the teacher's check on Windows and a Mac next | | |
 | M16 Pictures, web export & teaching | ⬜ | | |
 | M17 Hardening & v2.0 | ⬜ | | |
