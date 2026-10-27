@@ -113,6 +113,15 @@ describe('drawing (AN3, AN4)', () => {
     expect(s.objects()[0]!.opacity).toBe(57);
   });
 
+  it('Split into letters in the Properties panel makes one object per letter (Task 2)', async () => {
+    const s = await animationMode();
+    s.anim.addText({ x: 10, y: 10 }, 'Ying');
+    await Promise.resolve();
+    await fireEvent.click(screen.getByRole('button', { name: 'Split into letters' }));
+    expect(s.objects().map((o) => o.name)).toEqual(['Y', 'i', 'n', 'g']);
+    expect(s.objects()[1]!.x).toBeGreaterThan(s.objects()[0]!.x);
+  });
+
   it('a click with the Text tool adds words where clicked; the words box is focused', async () => {
     const s = await animationMode();
     await fireEvent.click(screen.getByRole('button', { name: 'Text' }));

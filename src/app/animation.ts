@@ -22,6 +22,7 @@ import {
   deserializeAnimation,
   serializeAnimation,
 } from '../core/animation/serialize.ts';
+import type { MeasureText } from '../core/animation/letters.ts';
 import { parseFrame } from '../core/animation/time.ts';
 import { objectAt } from '../core/animation/tween.ts';
 import type {
@@ -621,6 +622,14 @@ export function createAnimationApp({
       if (ids.length === 0) return null;
       pause();
       return edit(cmd.setProperties(ids, patchValues, store.get().frame));
+    },
+
+    /** AN4: the selected text becomes one object per letter, all selected. */
+    splitText(measure?: MeasureText): void {
+      const [id] = liveSelection();
+      if (!id) return;
+      let letters: Id[] = [];
+      if (run(cmd.splitText(id, measure, (ids) => (letters = ids)))) patch({ selection: letters });
     },
 
     moveSelection(dx: number, dy: number): void {

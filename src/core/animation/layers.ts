@@ -4,6 +4,7 @@ import { EditError } from '../model/errors.ts';
 import { newId } from '../model/factory.ts';
 import { createGroup, createLayer } from './factory.ts';
 import { moved, shiftTracks, toStage } from './geometry.ts';
+import { splitIntoLetters, type MeasureText } from './letters.ts';
 import type { AnimObject, AnimationDoc, GroupObject, Id, Layer, LayerFolder } from './types.ts';
 
 export interface Found {
@@ -266,6 +267,31 @@ export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
     };
   });
   return replaceLayer(doc, { ...layer, objects: layer.objects.toSpliced(index, 1, ...children) });
+}
+
+/** AN4: the text is replaced, in its place, by one text object per letter (see letters.ts). */
+export function splitText(
+  doc: AnimationDoc,
+  id: Id,
+  measure?: MeasureText,
+): { doc: AnimationDoc; ids: Id[] } {
+  const { layer, index, object } = requireObject(doc, id);
+  editable(layer);
+  if (object.kind !== 'text') throw new EditError('Only text can be split into letters.');
+  const letters = splitIntoLetters(object, measure);
+  // Names are made unique against the rest of the animation, the letters already placed included.
+  let next = replaceLayer(doc, { ...layer, objects: layer.objects.toSpliced(index, 1) });
+  const named: AnimObject[] = [];
+  for (const letter of letters) {
+    const withName = { ...letter, name: uniqueName(next, letter.name) };
+    named.push(withName);
+    const current = next.layers.find((l) => l.id === layer.id)!;
+    next = replaceLayer(next, {
+      ...current,
+      objects: current.objects.toSpliced(index + named.length - 1, 0, withName),
+    });
+  }
+  return { doc: next, ids: named.map((o) => o.id) };
 }
 
 function withNewIds(object: AnimObject): AnimObject {

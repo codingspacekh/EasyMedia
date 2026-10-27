@@ -9,6 +9,7 @@ import {
   type Point,
 } from '../core/animation/geometry.ts';
 import * as layers from '../core/animation/layers.ts';
+import type { MeasureText } from '../core/animation/letters.ts';
 import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
 import * as tween from '../core/animation/tween.ts';
@@ -111,6 +112,19 @@ export function resizeObject(
 
 export function rotateObject(id: Id, degrees: number, frame = 0): AnimCommand {
   return changeAt([id], frame, 'Rotate', (o) => rotated(o, degrees));
+}
+
+/** AN4: the text becomes one object per letter; the letters' ids are known once it has run. */
+export function splitText(
+  id: Id,
+  measure: MeasureText | undefined,
+  made: (ids: Id[]) => void,
+): AnimCommand {
+  return command('Split into letters', (doc) => {
+    const { doc: next, ids } = layers.splitText(doc, id, measure);
+    made(ids);
+    return next;
+  });
 }
 
 // ---- keyframes (AN9, AN13) ----

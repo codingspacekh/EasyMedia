@@ -357,6 +357,11 @@
               onclick={() => textPatch({ italic: !(first as TextObject).italic })}
               ><i>I</i> Italic</button
             >
+            <button
+              class="sm"
+              title="One text object per letter, so the letters can move one at a time"
+              onclick={() => anim.splitText((t) => textBox(t))}>Split into letters</button
+            >
           </div>
           <Why tool="animText" />
         </div>
