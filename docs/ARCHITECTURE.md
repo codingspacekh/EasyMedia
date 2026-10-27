@@ -110,19 +110,22 @@ EasyMedia/
 │  │  │                       (stage limits, aspect presets, validateObject), geometry.ts (outlines, bounds,
 │  │  │                       hit-test, resize, turn), layers.ts (layers, folders, groups, copies), snap.ts
 │  │  │                       (AN2), draw.ts (one drawing for preview + exports), serialize.ts (.mvea),
-│  │  │                       time.ts (frames ↔ seconds); M14 adds tween.ts, state.ts, export.ts
+│  │  │                       time.ts (frames ↔ seconds, frame-rate change), tween.ts (keyframes,
+│  │  │                       easing, editAt), state.ts (the document at a frame, groups), letters.ts
+│  │  │                       (split into letters), export.ts (formats, sizes, frame names)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts (generic History<T>), commands.ts, store.ts,
 │  │                          preview.ts, proxy-path.ts, audio.ts (Audio mode), learn.ts (Learn mode),
 │  │                          animation.ts + animation-commands.ts (Animation mode)
 │  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13–20);
 │  │                          learn/ (Learn mode, screens 21–22, task checker, glossary); animation/
-│  │                          (Animation mode: Stage, LayersPanel, PropertiesPanel, StageSettings);
+│  │                          (Animation mode: Stage, Timeline, LayersPanel, PropertiesPanel,
+│  │                          StageSettings, AnimationExportDialog);
 │  │                          Why.svelte (T5); menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts),
-│  │  │                       stage-renderer.ts (StageRenderer: the animation's stage as a PNG)
+│  │  │                       stage-renderer.ts (StageRenderer: the animation's stage at a frame as a PNG)
 │  │  ├─ webaudio/            output.ts (AudioOutput: Audio mode playback), recorder.ts (Recorder:
 │  │  │                       getUserMedia + MediaStreamTrackProcessor)
 │  │  ├─ indexeddb/           undo-store.ts (UndoStore: Audio mode undo steps on disk)
@@ -387,7 +390,7 @@ come from `ui/Tooltip.svelte`, one for the whole app: after 0.4 s on a button (o
 focus) it shows the button's title, or an icon-only button's label, with the "Why?" part under
 it; the built-in tooltip is kept away meanwhile.
 
-### 7.8 Animation mode (M13, phase 2)
+### 7.8 Animation mode (M13, M14, phase 2)
 
 Animation mode is a second document type, never mixed into the video project: an
 `AnimationDoc` (`core/animation/types.ts`) — a stage, layers of vector objects, pictures,
@@ -412,6 +415,41 @@ Drawing ─► core/animation/draw.ts drawStage(ctx, doc): background, (grid), e
   OffscreenCanvas → ProjectFiles.writeBytes) and, from M14, every frame of the video and GIF
   exports and the HTML player use this one function
 ```
+
+**Time and keyframes (M14).** Each object may carry `tracks`: one per animated property (x, y,
+width, height, rotation, opacity, fill and outline colours, outline width, corner radius, font
+size, words), each a sorted list of keyframes `{frame, value, easing, hold}` with an optional
+repeat. The object's own values are what it shows where it has no track. The `.mvea` schema is 2
+(version 1 files upgrade unchanged).
+
+```
+Playhead (store.frame, not in the history) ─► stateAt(doc, frame) (core/animation/state.ts):
+  every object with tween.objectAt applied; a group's children keep their own tracks and are
+  placed by the group's move, turn and size (AN13) ─► the stage and the Properties panel show
+  and edit THIS document, so what the student drags is what they see
+Any edit at the playhead ─► tween.editAt(object, frame, change): the change sees the object at
+  that frame; each tweenable value it changes becomes a keyframe there (on a still object at
+  frame 0 it is a plain change); the name, gradients, dash, bold… stay plain changes
+Playback ─► setInterval every 10 ms; frame = start + elapsed × fps (a slow laptop drops frames,
+  not time); a whole-animation loop plays 0 … length − 1 so the end and frame 0 are not both
+  shown; any edit pauses first
+Timeline.svelte ─► rows per layer → object → animated property; keyframe dots, tween bars, hold
+  dashes, repeat marks; dots dragged to move, Alt-dragged to copy; the picked key's easing,
+  hold, repeat, Reverse and Delete — each one command in the history
+```
+
+**Export (M14, AN15).** The page draws every frame (0 … length − 1) with `drawStage` on an
+OffscreenCanvas and writes it as a PNG into the app's own frames folder
+(`AppPaths.animationFrames`, one `export-<id>` folder per export). `MediaEngine.encodeFrames`
+then runs FFmpeg on `frame-%05d.png`: MP4 (H.264, yuv420p, an odd side padded to even) or a
+looping GIF made in two passes in one run (`palettegen`, then `paletteuse`); the job removes the
+frames however it ends, and the IPC channel refuses any folder outside the frames folder. PNG
+frames were chosen over a raw RGBA pipe: a few tens of KB a frame on disk instead of up to 8 MB
+(1080p), through the file and job channels that already exist. A PNG sequence is the same
+drawing written beside the chosen name (`Task1_0001.png`…); the PNG export is the frame at the
+playhead. Progress has two phases (drawing, then FFmpeg) and Cancel stops either one and
+leaves nothing behind. *Send to Video mode* exports the MP4 beside the `.mvea` file and puts it
+on the video timeline as a clip.
 
 The native menus act on the mode that is showing (`ui/menu-actions.ts`): in Animation mode
 New, Open, Save, Save As, Export, Import (a picture), Undo, Redo and Select All go to the

@@ -362,8 +362,17 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
   const key = (property: TweenProperty, value: KeyValue) => {
     result = setPropertyAt(result, property, frame, value);
   };
+  const changed = (p: string) => p in x && x[p] !== n[p];
+  // Position and size are one property each, as in Animate and Hype: moving only X at a frame
+  // also fixes Y there, so the object does not drift on its way to that keyframe.
+  const paired = (p: string) =>
+    (p === 'x' && changed('y')) ||
+    (p === 'y' && changed('x')) ||
+    (p === 'width' && changed('height')) ||
+    (p === 'height' && changed('width'));
   for (const property of [...NUMBER_KEYS, 'radius', 'size', 'text'] as const)
-    if (property in x && x[property] !== n[property]) key(property, x[property] as KeyValue);
+    // (On a still object at frame 0 the partner is set to the value it has: nothing changes.)
+    if (changed(property) || paired(property)) key(property, x[property] as KeyValue);
   // The fill: a new colour is a keyframe; a change of kind (to a gradient, or none) is plain.
   if (next.fill !== now.fill) {
     if (next.fill.kind === 'solid' && now.fill.kind === 'solid') {

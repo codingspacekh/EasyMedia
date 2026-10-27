@@ -254,6 +254,21 @@ describe('an edit at the playhead (AN9)', () => {
     expect(objectAt(moving, 36)).toMatchObject({ x: 218, y: 98, width: 100 });
   });
 
+  it('position and size are keyed as pairs: moving only X at a frame also fixes Y there (Worked Example 19.01)', () => {
+    const ball = createEllipse({ x: 0, y: 0, width: 100, height: 100 });
+    const right = editAt(ball, 15, (o) => ({ ...o, x: 1180 }));
+    expect(trackOf(right, 'y')!.keyframes.map((k) => [k.frame, k.value])).toEqual([
+      [0, 0],
+      [15, 0],
+    ]);
+    const down = editAt(right, 30, (o) => ({ ...o, y: 620 }));
+    expect(objectAt(down, 15)).toMatchObject({ x: 1180, y: 0 });
+    expect(objectAt(down, 22).x).toBe(1180);
+    const wider = editAt(ball, 24, (o) => ({ ...o, width: 200 }));
+    expect(trackOf(wider, 'height')!.keyframes.map((k) => k.value)).toEqual([100, 100]);
+    expect(editAt(ball, 0, (o) => ({ ...o, x: 5 })).tracks).toBeUndefined();
+  });
+
   it('starts from the values at that frame, so a drag mid-tween keys where it was dropped', () => {
     const rect = setPropertyAt(createRect({ x: 0, y: 0 }), 'x', 72, 100);
     const dragged = editAt(rect, 36, (o) => ({ ...o, x: o.x + 10 }));

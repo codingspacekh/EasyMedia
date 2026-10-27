@@ -88,7 +88,9 @@ describe('validateObject (AN6)', () => {
     ).not.toThrow();
     const t = createText('Hi', { x: 0, y: 0 });
     expect(() => validateObject({ ...t, font: 'Comic Sans' })).toThrow(/bundled font/);
-    expect(() => validateObject({ ...t, size: 0 })).toThrow(/at least 1/);
+    // M14: workbook Task 1 grows "Task 1" from a font size of 0 (nothing is drawn yet).
+    expect(() => validateObject({ ...t, size: 0 })).not.toThrow();
+    expect(() => validateObject({ ...t, size: -1 })).toThrow(/0 px or more/);
   });
   it('a star needs 3 or more points and an inner radius between 0 and 1; a polygon 3 or more sides', () => {
     const r = createRect({ x: 0, y: 0 });
