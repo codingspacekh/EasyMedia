@@ -128,6 +128,16 @@ describe('morphing (AN10)', () => {
     expect(objectAt(o, 24).fill).toEqual({ kind: 'solid', colour: '#0000ff' });
   });
 
+  it('a gradient fill is kept as drawn (the Task 1 circle); only solid colours tween', () => {
+    const circle = {
+      ...createEllipse({ x: 0, y: 0, width: 100, height: 100 }),
+      fill: { kind: 'linear' as const, from: '#0000ff', to: '#ff0000', angle: 90 },
+    };
+    const o = morphInto(circle, createRect({ x: 0, y: 0, width: 100, height: 100 }), 24);
+    expect(o.fill).toEqual(circle.fill);
+    expect(trackOf(o, 'fillColour')).toBeUndefined();
+  });
+
   it('only shapes morph: text, pictures and groups are refused', () => {
     expect(() => shapeOf(createText('A', { x: 0, y: 0 }))).toThrow(/Only shapes/);
     expect(() =>

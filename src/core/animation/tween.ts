@@ -1,6 +1,7 @@
 // AN9, AN13: keyframes per property and the values in between (tweening). Pure functions on
 // tracks and objects; the app's commands wrap them so each change is one undo step.
 import { EditError } from '../model/errors.ts';
+import { LINE_HEIGHT, roughTextWidth } from './factory.ts';
 import { setSize, shiftedMotion } from './geometry.ts';
 import { isShapeValue, morphShapes, shapeOf } from './morph.ts';
 import { flattenCurves, pointAtFraction, polylineOf, type Polyline } from './path.ts';
@@ -275,9 +276,15 @@ function setOne(object: AnimObject, property: TweenProperty, value: KeyValue): A
     case 'radius':
       if (object.kind !== 'rect') throw new EditError('Only a rectangle has a corner radius.');
       return { ...object, radius: num(value) };
-    case 'size':
+    case 'size': {
       if (object.kind !== 'text') throw new EditError('Only text has a font size.');
-      return { ...object, size: num(value) };
+      // The box follows the letters, from its top-left corner: as wide per px of size as it was
+      // (from nothing: as the words are roughly), and a line height per line.
+      const size = num(value);
+      const perPx = object.size > 0 ? object.width / object.size : roughTextWidth(object.text, 1);
+      const lines = object.text.split('\n').length;
+      return { ...object, size, width: perPx * size, height: lines * size * LINE_HEIGHT };
+    }
     case 'text':
       if (object.kind !== 'text') throw new EditError('Only text has words.');
       return { ...object, text: str(value) };
@@ -512,7 +519,8 @@ export function morphInto<T extends AnimObject>(object: T, target: AnimObject, f
     y: target.y,
     width: target.width,
     height: target.height,
-    fill: target.fill,
+    // A solid colour tweens to the target's; a gradient or no fill is kept, as drawn.
+    fill: target.fill.kind === 'solid' && now.fill.kind === 'solid' ? target.fill : now.fill,
     ...(target.stroke ? { stroke: target.stroke } : {}),
   }));
   return setPropertyAt(boxed, 'shape', frame, shape);
