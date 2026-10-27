@@ -5,6 +5,7 @@ import type {
   AnimationExportFormat,
   AppPaths,
   DecodedAudioFile,
+  EncodeFramesOptions,
   JobEvent,
   ProbeInfo,
   RenderVideoOptions,
@@ -42,6 +43,10 @@ export interface Channels {
   };
   'media:decodeAudio': { args: [path: string, sampleRate?: number]; result: DecodedAudioFile };
   'media:release': { args: [raw: string]; result: null };
+  'media:encodeFrames': {
+    args: [jobKey: string, folder: string, output: string, options: EncodeFramesOptions];
+    result: null;
+  };
   'media:encodeAudio': {
     args: [
       jobKey: string,
@@ -101,6 +106,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:decodeAudio',
   'media:release',
   'media:encodeAudio',
+  'media:encodeFrames',
   'job:cancel',
   'media:microphoneAccess',
   'app:paths',

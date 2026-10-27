@@ -28,6 +28,7 @@ mediaEngineContract('mock', () => {
   return {
     engine,
     video: '/media/clip.mp4',
+    frames: async () => '/frames/export-1',
     image: '/media/photo.jpg',
     audio: '/media/music.mp3',
     missing: '/media/missing.mp4',

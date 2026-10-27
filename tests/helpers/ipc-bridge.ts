@@ -28,6 +28,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       recovery: '/cache/recovery.mve',
       snapshots: '/cache/snapshots',
       learn: '/cache/learn',
+      animationFrames: '/cache/frames',
     },
     dialogs: {
       openMedia: async () => [],

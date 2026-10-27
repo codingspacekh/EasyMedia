@@ -7,8 +7,10 @@ import {
   createAnimation,
   createGroup,
   createPicture,
+  createRect,
   createText,
 } from '../../../src/core/animation/factory.ts';
+import { setPropertyAt } from '../../../src/core/animation/tween.ts';
 import { addObject } from '../../../src/core/animation/layers.ts';
 
 function fakeCanvas(calls: string[]) {
@@ -81,6 +83,27 @@ describe('createCanvasStageRenderer', () => {
       loadFonts: async () => {},
     });
     await expect(none.renderPng(doc())).rejects.toThrow(/No canvas/);
+  });
+
+  it('M14 draws any frame, loading the pictures once for all the frames of an export', async () => {
+    const calls: string[] = [];
+    const canvas = fakeCanvas(calls);
+    const loadImage = vi.fn(async (path: string) => ({ path }));
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage,
+      loadFonts: async () => {},
+    });
+    let d = doc();
+    const layer = d.layers[0]!;
+    const moving = setPropertyAt(createRect({ x: 0, y: 0, width: 100, height: 100 }), 'x', 72, 396);
+    d = addObject(d, layer.id, moving);
+    await renderer.renderPng(d, 0);
+    expect(calls).toContain('translate(50,50)');
+    calls.length = 0;
+    await renderer.renderPng(d, 36);
+    expect(calls).toContain('translate(248,50)');
+    expect(loadImage).toHaveBeenCalledTimes(1);
   });
 
   it('the default loaders cope without fetch, bitmaps or document fonts', async () => {

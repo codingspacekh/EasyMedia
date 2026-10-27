@@ -126,7 +126,21 @@ export interface MediaEngine {
     output: string,
     settings: AudioExportSettings,
   ): JobHandle;
+  /**
+   * AN15: makes an MP4 or animated GIF from a folder of PNG frames (frame-00000.png onwards,
+   * drawn by the app). The frames are removed when the job ends, however it ends.
+   */
+  encodeFrames(folder: string, output: string, options: EncodeFramesOptions): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
+}
+
+/** AN15: how the frames become a file; an odd width or height is padded to even for MP4. */
+export interface EncodeFramesOptions {
+  format: 'mp4' | 'gif';
+  fps: number;
+  frames: number;
+  width: number;
+  height: number;
 }
 
 /**
@@ -194,8 +208,8 @@ export interface Dialogs {
   exportAnimation(suggestedName: string, format: AnimationExportFormat): Promise<string | null>;
 }
 
-/** AN15: the animation export formats (M13: a picture of the stage; M14 adds mp4, gif; M16 html). */
-export type AnimationExportFormat = 'png';
+/** AN15: the animation export formats (M13: a picture of the stage; M14: mp4, gif, a PNG sequence; M16 html). */
+export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence';
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
 export interface ProjectFiles {
@@ -210,9 +224,9 @@ export interface ProjectFiles {
   writeBytes(path: string, bytes: Uint8Array): Promise<void>;
 }
 
-/** AN15: draws an animation's stage as a picture (an OffscreenCanvas in the app). */
+/** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */
 export interface StageRenderer {
-  renderPng(doc: AnimationDoc): Promise<Uint8Array>;
+  renderPng(doc: AnimationDoc, frame?: number): Promise<Uint8Array>;
 }
 
 /** Draws text as a transparent PNG with the bundled fonts (ARCHITECTURE §7.3). */
@@ -243,4 +257,6 @@ export interface AppPaths {
   licences?: string;
   /** Where unsaved animation work is autosaved (P3, AN16); default: beside `recovery`. */
   animationRecovery?: string;
+  /** AN15: the frames of an animation export wait here for FFmpeg; default: in `proxies`. */
+  animationFrames?: string;
 }

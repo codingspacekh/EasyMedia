@@ -1,5 +1,7 @@
 // UI-only state of Animation mode shared by its panels (not part of the animation, not undoable).
-export type AnimDialog = 'stage' | null;
+import type { AnimationFormat } from '../../core/animation/export.ts';
+
+export type AnimDialog = 'stage' | 'export' | null;
 
 export const animUi = $state({
   /** The pointer's stage coordinates, for the status bar (null when off the stage). */
@@ -8,6 +10,8 @@ export const animUi = $state({
   snapped: null as string | null,
   /** The dialog that is open. */
   dialog: null as AnimDialog,
+  /** AN15: the format last chosen in the export dialog (MP4 at first). */
+  exportFormat: 'mp4' as AnimationFormat,
   /** The Properties panel's W / H lock. */
   lockRatio: false,
   /** A text object was just made: the Properties panel focuses its words. */

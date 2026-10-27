@@ -3,6 +3,7 @@
 // mode, the animation in Animation mode.
 import type { App } from '../app/app.ts';
 import type { MenuAction } from '../preload/api.ts';
+import { animUi } from './animation/animation-ui.svelte.ts';
 import { ui } from './ui-state.svelte.ts';
 
 const inTextBox = () => {
@@ -25,7 +26,7 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
         : audio()
           ? app.audio.importAudio()
           : app.importMedia(),
-    export: () => (anim() ? a.exportPng() : app.exportVideo()),
+    export: () => (anim() ? void (animUi.dialog = 'export') : app.exportVideo()),
     newAnimation: () => {
       ui.mode = 'Animation';
       return a.newAnimation();
@@ -36,7 +37,7 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
     },
     exportAnimation: () => {
       ui.mode = 'Animation';
-      return a.exportPng();
+      animUi.dialog = 'export';
     },
     exportAudio: () => {
       ui.mode = 'Audio';

@@ -113,6 +113,9 @@ test('Workbook Task 1 set-up: stage, star, circle and text with exact numbers; s
   const png = join(dir, 'Chapter07_Task1_1.png');
   await answerDialogs(app, { exportTo: png });
   await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const exportBox = page.getByRole('dialog', { name: 'Export animation' });
+  await exportBox.getByRole('radio', { name: /PNG picture of this frame/ }).check();
+  await exportBox.getByRole('button', { name: 'Export file' }).click();
   await expect.poll(() => exists(png), { timeout: 30_000 }).toBe(true);
   await expect(page.getByText(/Saved Chapter07_Task1_1\.png/)).toBeVisible();
   const info = await createNodeMediaEngine(bundledFfmpeg()).probe(png);

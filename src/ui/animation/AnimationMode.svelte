@@ -11,6 +11,7 @@
   import LayersPanel from './LayersPanel.svelte';
   import PropertiesPanel from './PropertiesPanel.svelte';
   import Stage from './Stage.svelte';
+  import AnimationExportDialog from './AnimationExportDialog.svelte';
   import StageSettings from './StageSettings.svelte';
   import Timeline from './Timeline.svelte';
   import ToolStrip from './ToolStrip.svelte';
@@ -114,6 +115,8 @@
 </div>
 {#if animUi.dialog === 'stage'}
   <StageSettings {app} onclose={() => (animUi.dialog = null)} />
+{:else if animUi.dialog === 'export'}
+  <AnimationExportDialog {app} onclose={() => (animUi.dialog = null)} />
 {/if}
 
 <style>

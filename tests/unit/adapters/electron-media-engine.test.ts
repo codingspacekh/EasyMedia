@@ -38,5 +38,6 @@ mediaEngineContract('Electron adapter over IPC', () => {
     audio: '/media/music.mp3',
     missing: '/media/missing.mp4',
     out: (name) => `/out/${name}`,
+    frames: async () => '/cache/frames/export-1',
   };
 });

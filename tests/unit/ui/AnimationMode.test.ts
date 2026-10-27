@@ -239,6 +239,9 @@ describe('stage settings (AN1) and the status bar (AN2)', () => {
     const s = await animationMode();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/a/out.png');
     await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = screen.getByRole('dialog', { name: 'Export animation' });
+    await fireEvent.click(within(dialog).getByRole('radio', { name: /PNG picture of this frame/ }));
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Export file' }));
     await vi.waitFor(() => expect(s.bytes.has('/a/out.png')).toBe(true));
     expect(animUi.dialog).toBeNull();
   });

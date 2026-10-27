@@ -1,7 +1,7 @@
 // MediaEngine implemented with the bundled ffprobe/ffmpeg (ARCHITECTURE §8).
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -17,6 +17,7 @@ import type { BinaryPaths } from '../ffmpeg/paths.ts';
 import { explainFfmpegError } from '../ffmpeg/errors.ts';
 import { createJobQueue, type RunProcess } from '../jobs/queue.ts';
 import {
+  animationArgs,
   computePeaks,
   decodeArgs,
   frameArgs,
@@ -218,6 +219,20 @@ export function createNodeMediaEngine(
       });
     },
 
+    encodeFrames(folder, output, options) {
+      return queue.run({
+        label: 'Export animation',
+        args: animationArgs(folder, options),
+        output,
+        duration: options.frames / options.fps,
+        prepare: async () => {
+          if (!(await exists(folder)))
+            throw new MediaError('The animation frames could not be found. Export again.');
+        },
+        cleanUp: () => removeFrames(folder),
+      });
+    },
+
     onJobEvent: (listener) => queue.onEvent(listener),
 
     /** Stops every FFmpeg job, e.g. when the app quits, so nothing keeps running afterwards. */
@@ -229,6 +244,17 @@ export function createNodeMediaEngine(
 }
 
 const NO_SOUND = 'This file has no sound to edit.';
+
+/** Removes an export's frames and then their folder; nothing else is ever deleted. */
+async function removeFrames(folder: string): Promise<void> {
+  const names = await readdir(folder).catch(() => [] as string[]);
+  await Promise.all(
+    names
+      .filter((n) => /^frame-\d{5}\.png$/.test(n))
+      .map((n) => rm(join(folder, n), { force: true })),
+  );
+  await rmdir(folder).catch(() => {});
+}
 
 /** A job that could not start (e.g. the project cannot be exported): `done` rejects at once. */
 function failedJob(error: Error): JobHandle {

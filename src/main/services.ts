@@ -33,6 +33,10 @@ const MEDIA_EXTENSIONS = [
 /** AN15: the file types of the animation exports. */
 const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
   png: { label: 'PNG picture', extension: 'png' },
+  mp4: { label: 'MP4 video', extension: 'mp4' },
+  gif: { label: 'Animated GIF', extension: 'gif' },
+  // The frames are saved beside the chosen name: Task1_0001.png, Task1_0002.png…
+  'png-sequence': { label: 'PNG sequence (one picture per frame)', extension: 'png' },
 };
 
 export function electronDialogs(window: () => BrowserWindow | undefined): Dialogs {

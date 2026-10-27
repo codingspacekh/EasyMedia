@@ -2,6 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 import { FIXTURES, generateFixtures, selectFixtures } from '../../../scripts/lib/fixtures.ts';
 import { createNodeMediaEngine } from '../../../src/main/media/engine.ts';
 import { mediaEngineContract } from '../../contract/media-engine.contract.ts';
@@ -28,6 +32,15 @@ mediaEngineContract('Node + FFmpeg', () => ({
   audio: join(media, 'music_stereo_45s.mp3'),
   missing: join(media, 'missing.mp4'),
   out: (name) => join(out, name),
+  // AN15: FFmpeg's test pattern saved as PNG frames, as the app's drawing would save them.
+  frames: async (width, height, count) => {
+    const folder = await mkdtemp(join(out, 'frames-'));
+    await execFileAsync(bundledFfmpeg().ffmpeg, [
+      ...['-v', 'error', '-f', 'lavfi', '-i', `testsrc=size=${width}x${height}:rate=24`],
+      ...['-frames:v', String(count), '-start_number', '0', join(folder, 'frame-%05d.png')],
+    ]);
+    return folder;
+  },
 }));
 
 describe('Node + FFmpeg engine, real-file details', () => {
@@ -42,6 +55,39 @@ describe('Node + FFmpeg engine, real-file details', () => {
     ['tone_dc_offset.wav', 'audio', 'wav'],
   ])('probes %s as %s / %s', async (file, kind, container) => {
     expect(await engine.probe(join(media, file))).toMatchObject({ kind, container });
+  });
+
+  it('AN15 a GIF has one picture per frame (72), loops, and the frames folder is removed after', async () => {
+    const folder = await mkdtemp(join(out, 'gif-frames-'));
+    await execFileAsync(bundledFfmpeg().ffmpeg, [
+      ...['-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=600x400:rate=24'],
+      ...['-frames:v', '72', '-start_number', '0', join(folder, 'frame-%05d.png')],
+    ]);
+    await engine.encodeFrames(folder, join(out, 'count.gif'), {
+      format: 'gif',
+      fps: 24,
+      frames: 72,
+      width: 600,
+      height: 400,
+    }).done;
+    const { stdout } = await execFileAsync(bundledFfmpeg().ffprobe, [
+      ...['-v', 'error', '-count_frames', '-select_streams', 'v:0'],
+      ...['-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', join(out, 'count.gif')],
+    ]);
+    expect(Number(stdout.trim())).toBe(72);
+    await expect(readdir(folder)).rejects.toThrow();
+  });
+
+  it('AN15 frames that are missing give a plain message', async () => {
+    await expect(
+      engine.encodeFrames(join(out, 'no-such-frames'), join(out, 'none.mp4'), {
+        format: 'mp4',
+        fps: 24,
+        frames: 1,
+        width: 600,
+        height: 400,
+      }).done,
+    ).rejects.toThrow(/frames could not be found/);
   });
 
   it('a 4:3 clip keeps its shape in the proxy (480 × 360)', async () => {

@@ -35,9 +35,29 @@ import type {
   TextObject,
   ViewSettings,
 } from '../core/animation/types.ts';
-import { EditError, MediaError, ProjectFileError } from '../core/model/errors.ts';
+import {
+  EditError,
+  JobCancelledError,
+  MediaError,
+  ProjectFileError,
+} from '../core/model/errors.ts';
+import {
+  estimateAnimationSize,
+  evenSize,
+  exportedFrames,
+  frameFile,
+  sequenceName,
+  type AnimationFormat,
+} from '../core/animation/export.ts';
 import { newId } from '../core/model/factory.ts';
-import type { AppPaths, Dialogs, MediaEngine, ProjectFiles, StageRenderer } from '../core/ports.ts';
+import type {
+  AppPaths,
+  Dialogs,
+  JobHandle,
+  MediaEngine,
+  ProjectFiles,
+  StageRenderer,
+} from '../core/ports.ts';
 import { dirOf, fileNameOf } from '../core/project/relocate.ts';
 
 export type Tool =
@@ -72,9 +92,20 @@ export interface AnimationState {
   playing: boolean;
   /** AN8: loop the whole animation, or the frames from `from` to `to` (both shown). */
   loop: Loop;
+  /** AN15: an export of the frames under way (N12: progress and Cancel). */
+  exporting: AnimationExporting | null;
   /** What Animation mode is doing, e.g. "Exporting…". */
   busy: string | null;
   message: { kind: 'error' | 'info'; text: string } | null;
+}
+
+export interface AnimationExporting {
+  format: AnimationFormat;
+  /** Drawing the frames, then FFmpeg making the file (MP4 and GIF only). */
+  phase: 'drawing' | 'encoding';
+  /** 0–1 within the phase. */
+  progress: number;
+  output: string;
 }
 
 export interface Loop {
@@ -146,6 +177,7 @@ export function createAnimationApp({
     frame: 0,
     playing: false,
     loop: { on: false },
+    exporting: null,
     busy: null,
     message: null,
   });
@@ -301,6 +333,117 @@ export function createAnimationApp({
     patch({ selection: ids, ...(first ? { layerId: first.layerId } : {}) });
   }
 
+  // ---- export (AN15) ----
+
+  let cancelExporting: (() => void) | null = null;
+
+  /** A new folder of its own for one export's frames, in the app's frames folder. */
+  function framesFolder(): string {
+    const base = paths.animationFrames ?? `${paths.proxies}/animation-frames`;
+    const sep = base.includes('\\') && !base.includes('/') ? '\\' : '/';
+    return `${base}${sep}export-${newId()}${sep}`;
+  }
+
+  /**
+   * AN15: every frame drawn by the same drawing as the preview, then made into the chosen file:
+   * MP4 or GIF by FFmpeg from frames in the app's folder (removed afterwards), a PNG sequence
+   * beside the chosen name, or the frame at the playhead as one PNG.
+   */
+  async function exportAnimation(format: AnimationFormat): Promise<void> {
+    if (store.get().exporting || store.get().busy) return;
+    pause();
+    const doc = present();
+    const { path, frame } = store.get();
+    const name = path ? fileNameOf(path).replace(/\.mvea$/i, '') : doc.name;
+    const output = await dialogs.exportAnimation(name, format);
+    if (!output) return;
+    if (format === 'png') {
+      patch({ busy: 'Exporting…' });
+      try {
+        await files.writeBytes(output, await renderer.renderPng(doc, frame));
+        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.` } });
+      } catch (error) {
+        showError(error);
+      } finally {
+        patch({ busy: null });
+      }
+      return;
+    }
+
+    let cancelled = false;
+    let job: JobHandle | null = null;
+    cancelExporting = () => {
+      cancelled = true;
+      job?.cancel();
+    };
+    const show = (phase: AnimationExporting['phase'], progress: number) =>
+      patch({ exporting: { format, phase, progress, output } });
+    const stopIfCancelled = () => {
+      if (cancelled) throw new JobCancelledError();
+    };
+    const { count } = exportedFrames(doc);
+    const folder = format === 'png-sequence' ? null : framesFolder();
+    const written: string[] = [];
+    try {
+      show('drawing', 0);
+      for (let i = 0; i < count; i++) {
+        stopIfCancelled();
+        const png = await renderer.renderPng(doc, i);
+        stopIfCancelled();
+        const file = folder ? `${folder}${frameFile(i)}` : sequenceName(output, i);
+        await files.writeBytes(file, png);
+        written.push(file);
+        show('drawing', (i + 1) / count);
+      }
+      if (folder && format !== 'png-sequence') {
+        show('encoding', 0);
+        stopIfCancelled();
+        const { width, height, fps } = doc.stage;
+        const started = engine.encodeFrames(folder.slice(0, -1), output, {
+          format,
+          fps,
+          frames: count,
+          width,
+          height,
+        });
+        job = started;
+        const stop = engine.onJobEvent((e) => {
+          if (e.jobId === started.id && e.type === 'progress') show('encoding', e.ratio);
+        });
+        try {
+          await started.done;
+        } finally {
+          stop();
+        }
+        written.length = 0; // FFmpeg's job removes the frames
+        const even = evenSize(width, height);
+        const note =
+          format === 'mp4' && even.padded
+            ? ` MP4 needs even sizes, so it is ${even.width} × ${even.height} (one pixel added).`
+            : '';
+        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.${note}` } });
+      } else {
+        written.length = 0;
+        const first = fileNameOf(sequenceName(output, 0));
+        const last = fileNameOf(sequenceName(output, count - 1));
+        patch({
+          message: {
+            kind: 'info',
+            text: count === 1 ? `Saved ${first}.` : `Saved ${count} pictures, ${first} to ${last}.`,
+          },
+        });
+      }
+    } catch (error) {
+      if (error instanceof JobCancelledError)
+        patch({ message: { kind: 'info', text: 'Export cancelled.' } });
+      else showError(error);
+    } finally {
+      await Promise.all(written.map((f) => files.remove(f).catch(() => {})));
+      cancelExporting = null;
+      patch({ exporting: null });
+    }
+  }
+
   function addToStage(object: AnimObject): void {
     if (run(cmd.addObject(store.get().layerId, object))) {
       const added = present()
@@ -368,21 +511,27 @@ export function createAnimationApp({
     save,
     saveAs,
 
-    /** AN15 (M13): the stage as a PNG, to a file the student names. */
-    async exportPng(): Promise<void> {
-      const { path } = store.get();
-      const name = path ? fileNameOf(path).replace(/\.mvea$/i, '') : present().name;
-      const output = await dialogs.exportAnimation(name, 'png');
-      if (!output) return;
-      patch({ busy: 'Exporting…' });
-      try {
-        await files.writeBytes(output, await renderer.renderPng(present()));
-        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.` } });
-      } catch (error) {
-        showError(error);
-      } finally {
-        patch({ busy: null });
-      }
+    /** AN15: the frame at the playhead as a PNG (M13's Export). */
+    exportPng: () => exportAnimation('png'),
+
+    exportAnimation,
+
+    /** N12: stops an export while it draws the frames or while FFmpeg makes the file. */
+    cancelExport(): void {
+      cancelExporting?.();
+    },
+
+    /** T7: what the export dialog shows before exporting. */
+    exportSummary(format: AnimationFormat) {
+      const doc = present();
+      const { count, seconds } = exportedFrames(doc);
+      const { width, height } = doc.stage;
+      return {
+        frames: format === 'png' ? 1 : count,
+        seconds,
+        bytes: estimateAnimationSize(doc, format),
+        size: format === 'mp4' ? evenSize(width, height) : { width, height, padded: false },
+      };
     },
 
     // ---- selection and tools ----
