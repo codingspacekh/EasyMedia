@@ -89,6 +89,19 @@ describe('T6 task checker', () => {
     expect(result.pass).toBe(true);
   });
 
+  it('M14: an animated GIF can be the task (exam-style question 3), saved and opened again', () => {
+    const gif: TaskSpec = { name: 'Films by Ying', container: 'gif', width: 600, height: 400 };
+    const made: ProbeInfo = {
+      kind: 'video',
+      container: 'gif',
+      duration: 4,
+      sizeBytes: 900_000,
+      video: { codec: 'gif', width: 600, height: 400 },
+    };
+    expect(checkFile(gif, made).pass).toBe(true);
+    expect(parseTaskSpec(serializeTaskSpec(gif))).toEqual(gif);
+  });
+
   it('saves a task as a small file and opens it again', () => {
     expect(parseTaskSpec(serializeTaskSpec(spec))).toEqual(spec);
   });
