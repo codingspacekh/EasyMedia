@@ -5,13 +5,13 @@ import App from '../../../src/ui/App.svelte';
 import { testApp } from '../../helpers/test-app.ts';
 
 describe('Welcome', () => {
-  it('introduces the three modes and where work is saved; Start closes it', async () => {
+  it('introduces the four modes and where work is saved; Start closes it', async () => {
     const { app } = testApp();
     render(App, { props: { app } });
     expect(screen.queryByRole('dialog', { name: 'Welcome to EasyMedia' })).toBeNull();
     app.showWelcome();
     const welcome = await screen.findByRole('dialog', { name: 'Welcome to EasyMedia' });
-    for (const mode of ['Video', 'Audio', 'Learn'])
+    for (const mode of ['Video', 'Audio', 'Learn', 'Animation'])
       expect(within(welcome).getByRole('heading', { name: mode })).toBeTruthy();
     expect(welcome.textContent).toMatch(/Package Project/);
     expect(welcome.textContent).toMatch(/Help ▸ Welcome/);

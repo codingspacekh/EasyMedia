@@ -46,7 +46,7 @@ describe('installers', () => {
     expect(config.mac!.extendInfo).toMatchObject({
       NSMicrophoneUsageDescription: expect.stringMatching(/record.*voiceover/i),
     });
-    // Not notarised (README §15, decision 8): signed ad hoc, so Apple Silicon Macs run it; the
+    // Not notarised (README §16, decision 8): signed ad hoc, so Apple Silicon Macs run it; the
     // hardened runtime is only for notarised apps (with an ad-hoc signature it can stop launch).
     expect(config.mac!.identity).toBe('-');
     expect(config.mac!.hardenedRuntime).toBe(false);

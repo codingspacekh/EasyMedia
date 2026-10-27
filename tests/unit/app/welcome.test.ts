@@ -1,4 +1,4 @@
-// X7: a Welcome on the first launch (once), Help ▸ Welcome again; Help ▸ Licences (README §16).
+// X7: a Welcome on the first launch (once), Help ▸ Welcome again; Help ▸ Licences (README §17).
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../../src/app/app.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
@@ -17,6 +17,7 @@ function setup(disk = new Map<string, string>()) {
       remove: async (p) => void disk.delete(p),
       copy: async () => {},
       saveImage: async (name) => `/cache/${name}.png`,
+      writeBytes: async () => {},
     },
     text: { draw: async (_t, _s, frame) => ({ png: new Uint8Array(1), ...frame }) },
     paths: {

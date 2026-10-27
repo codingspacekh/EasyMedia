@@ -63,6 +63,9 @@ function setup(
     unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
     openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
     saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
+    openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
+    saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
+    exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
   };
   const copies: string[] = [];
   const files = {
@@ -75,6 +78,7 @@ function setup(
     remove: async (path: string) => void disk.delete(path),
     copy: async (from: string, to: string) => void copies.push(`${from} → ${to}`),
     saveImage: vi.fn(async (name: string) => `/cache/text/${name}.png`),
+    writeBytes: async () => {},
   };
   // Every text picture is 10 bytes; credits blocks are 300 px tall.
   const text = {

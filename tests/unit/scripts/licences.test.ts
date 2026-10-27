@@ -1,4 +1,4 @@
-// M12 / README §16: THIRD_PARTY_LICENSES lists everything shipped that EasyMedia did not write.
+// M12 / README §17: THIRD_PARTY_LICENSES lists everything shipped that EasyMedia did not write.
 import { describe, expect, it } from 'vitest';
 import {
   bundledPackages,

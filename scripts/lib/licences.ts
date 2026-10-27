@@ -1,4 +1,4 @@
-// README §16: THIRD_PARTY_LICENSES — everything shipped in the installers that EasyMedia did not
+// README §17: THIRD_PARTY_LICENSES — everything shipped in the installers that EasyMedia did not
 // write, with its licence. Pure: scripts/licences.ts reads the inputs from disk.
 
 export interface LicenceInputs {

@@ -1,6 +1,6 @@
 # EasyMedia — teacher notes
 
-Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapter 11, is done in EasyMedia, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks' key words.
+Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in EasyMedia, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks' key words.
 
 _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's tools: do not edit by hand._
 
@@ -114,3 +114,43 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | how the different compression methods affect the audio quality | Learn ▸ Formats & compression: WAV, FLAC and MP3 at three bit rates, played side by side; Audio ▸ Effect ▸ Compressor (dynamic range) | Compressor |
 | saving in files v containers | Learn ▸ Media inspector ▸ "File vs container" | — |
 | lossy and lossless | Learn ▸ Media inspector (codecs marked lossy / lossless / uncompressed) and the compression comparison | — |
+
+## 20.1 Animation
+
+### Using software tools for the creation and editing of computer animations
+
+| Syllabus point | Where in EasyMedia | Tools |
+|---|---|---|
+| creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience | Animation ▸ the stage, timeline and export; Learn ▸ Animation (M16) | — |
+| configuring the stage/frame/canvas: colour, size | Animation ▸ the stage chip (600 × 400 · 24 fps · colour) at the top | Stage settings |
+| configuring the stage: the aspect ratio using rulers, guides and grid settings | Animation ▸ the stage chip (4:3, 16:9, 16:10, 2.35:1 presets); Rulers, Grid and Guides on the toolbar | Rulers, grid & guides |
+| configuring the stage: snapping options | Animation ▸ Snap on the toolbar (grid, guides, objects, pixels); the status bar says what it snapped to | Snapping |
+| importing and creating vector objects | Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar | Vector shapes |
+| importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the toolbar, then Trace bitmap (M16) | Picture |
+| importing and creating vector objects: adding text | Animation ▸ Text on the toolbar | Text |
+| controlling object properties: stroke and fill settings; size, position and orientation; transparency | Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke) | Object properties |
+| setting paths | Animation ▸ Follow path… on a tween (M15) | — |
+| using layers | Animation ▸ the Layers panel (add, rename, order, lock, hide, folders) | Layers |
+| applying masks | Animation ▸ Mask on a layer (M15) | — |
+| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop (M14) | — |
+| exporting an animation for its application | Animation ▸ Export on the toolbar | Export animation |
+
+### The basic principles of animation
+
+| Syllabus point | Where in EasyMedia | Tools |
+|---|---|---|
+| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline (M14); the rulers show coordinates; Learn ▸ Animation (M16) | — |
+| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline (M14) and Morph into… (M15) | — |
+
+### Different animation types and methods
+
+| Syllabus point | Where in EasyMedia | Tools |
+|---|---|---|
+| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse (M16) | — |
+
+### Components of an animation and animation variables
+
+| Syllabus point | Where in EasyMedia | Tools |
+|---|---|---|
+| the primary (main focus, such as main characters), the secondary (sound, background), other components | Learn ▸ Animation (M16) | — |
+| the use of animation variables to control the position of an animated object or parts of an animated object | Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (M16) | Group |

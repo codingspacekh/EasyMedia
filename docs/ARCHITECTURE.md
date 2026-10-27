@@ -106,15 +106,23 @@ EasyMedia/
 │  │  │                       noise, compressor)
 │  │  ├─ teaching/            file-size.ts (T2), sampling.ts (T4), inspect.ts (T1), format-guide.ts (T7),
 │  │  │                       task-check.ts (T6), glossary.ts; the "why" texts (T5) are effects/help.ts
+│  │  ├─ animation/           phase 2 (AN1–AN18): types.ts (stage, layers, objects), factory.ts, rules.ts
+│  │  │                       (stage limits, aspect presets, validateObject), geometry.ts (outlines, bounds,
+│  │  │                       hit-test, resize, turn), layers.ts (layers, folders, groups, copies), snap.ts
+│  │  │                       (AN2), draw.ts (one drawing for preview + exports), serialize.ts (.mvea),
+│  │  │                       time.ts (frames ↔ seconds); M14 adds tween.ts, state.ts, export.ts
 │  │  └─ ports.ts             interfaces only
-│  ├─ app/                    app.ts (use cases), history.ts, commands.ts, store.ts, preview.ts, proxy-path.ts,
-│  │                          audio.ts (Audio mode), learn.ts (Learn mode)
+│  ├─ app/                    app.ts (use cases), history.ts (generic History<T>), commands.ts, store.ts,
+│  │                          preview.ts, proxy-path.ts, audio.ts (Audio mode), learn.ts (Learn mode),
+│  │                          animation.ts + animation-commands.ts (Animation mode)
 │  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13–20);
-│  │                          learn/ (Learn mode, screens 21–22, task checker, glossary); Why.svelte (T5);
-│  │                          menu-actions.ts (native menus act on the mode showing)
+│  │                          learn/ (Learn mode, screens 21–22, task checker, glossary); animation/
+│  │                          (Animation mode: Stage, LayersPanel, PropertiesPanel, StageSettings);
+│  │                          Why.svelte (T5); menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
-│  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts)
+│  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts),
+│  │  │                       stage-renderer.ts (StageRenderer: the animation's stage as a PNG)
 │  │  ├─ webaudio/            output.ts (AudioOutput: Audio mode playback), recorder.ts (Recorder:
 │  │  │                       getUserMedia + MediaStreamTrackProcessor)
 │  │  ├─ indexeddb/           undo-store.ts (UndoStore: Audio mode undo steps on disk)
@@ -379,6 +387,38 @@ come from `ui/Tooltip.svelte`, one for the whole app: after 0.4 s on a button (o
 focus) it shows the button's title, or an icon-only button's label, with the "Why?" part under
 it; the built-in tooltip is kept away meanwhile.
 
+### 7.8 Animation mode (M13, phase 2)
+
+Animation mode is a second document type, never mixed into the video project: an
+`AnimationDoc` (`core/animation/types.ts`) — a stage, layers of vector objects, pictures,
+guides and view settings — saved in its own `.mvea` file (`core/animation/serialize.ts`,
+picture paths relative to the file, X1). It has its own store and history in
+`app/animation.ts`, on the same generic `History<T>` and `Command<T>` as the video project (P4),
+so every edit is one immutable document and undo restores it exactly. View settings (rulers,
+grid, snapping, open folders) are kept with the file but are not edits: they change the
+present document without an undo step and do not count as unsaved work.
+
+```
+Toolbar tool ─► Stage.svelte (pointer) ─► live preview: the document with the drag applied
+  (updateObject / moved / resizeFrom / rotated in a $derived, never in the history)
+  ─► on pointer-up ONE command: addObject · moveObjects · resizeObject · rotateObject …
+  ─► app/animation-commands.ts checks it (rules.ts: validateObject, validateStage)
+  ─► core/animation/layers.ts applies it (locked and hidden layers refuse edits)
+Properties panel ─► setProperties(ids, patch) (exact numbers, one command, the field shows why not)
+Snapping ─► core/animation/snap.ts: guides › other objects' box edges and centres › the grid
+  (only while shown) › whole pixels, within SNAP_PX / zoom stage px; the hint goes to the status bar
+Drawing ─► core/animation/draw.ts drawStage(ctx, doc): background, (grid), every visible layer's
+  objects in order — the preview canvas, the PNG export (adapters/canvas/stage-renderer.ts,
+  OffscreenCanvas → ProjectFiles.writeBytes) and, from M14, every frame of the video and GIF
+  exports and the HTML player use this one function
+```
+
+The native menus act on the mode that is showing (`ui/menu-actions.ts`): in Animation mode
+New, Open, Save, Save As, Export, Import (a picture), Undo, Redo and Select All go to the
+animation; File ▸ New Animation / Open Animation… / Export Animation… switch to it first. Closing
+the window asks about unsaved animation work as it does for the project (P7); autosave writes
+the animation beside the project's recovery file (P3).
+
 ## 8. Ports and IPC contract
 
 ```ts
@@ -471,4 +511,4 @@ The full TDD workflow, coverage targets and per-milestone test gates are in [`MI
 | Snapshot | Vitest | `compile()` output for each coursebook task |
 | Integration | Vitest + real FFmpeg | Export short clips; check result with ffprobe (duration, resolution, codec) |
 | End-to-end | Playwright (Electron) | Import → edit → export flows on Windows and macOS in CI |
-| Acceptance | Manual checklist | All coursebook activities (README §13) |
+| Acceptance | Manual checklist | All coursebook activities (README §14) |

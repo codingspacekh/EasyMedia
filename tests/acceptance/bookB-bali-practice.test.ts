@@ -89,6 +89,9 @@ function session() {
     unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'discard'),
     openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
     saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
+    openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
+    saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
+    exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
   };
   const app: App = createApp({
     engine,
@@ -106,6 +109,10 @@ function session() {
         const path = folder.file(`${name}.png`);
         await writeFile(path, png);
         return path;
+      },
+      writeBytes: async (p, b) => {
+        await mkdir(dirname(p), { recursive: true });
+        await writeFile(p, b);
       },
     },
     text: blockText,

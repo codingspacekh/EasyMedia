@@ -3,7 +3,7 @@
 // labels). The teacher notes are made from this (scripts/guides.ts).
 
 export interface SyllabusPoint {
-  section: '11.1' | '11.2';
+  section: '11.1' | '11.2' | '20.1';
   group: string;
   point: string;
   /** Where in EasyMedia (mode ▸ place). */
@@ -35,6 +35,12 @@ const a = (point: string, where: string, tools?: string[]) =>
 const whyV = (point: string, where: string) => p('11.1', WHY_V, point, where);
 const whyA = (point: string, where: string) => p('11.2', WHY_A, point, where);
 const WHY_BOX = 'the "Why use this?" box of the tool, and the glossary (Learn ▸ Glossary)';
+const ANIM_TOOLS = 'Using software tools for the creation and editing of computer animations';
+const ANIM_PRINCIPLES = 'The basic principles of animation';
+const ANIM_TYPES = 'Different animation types and methods';
+const ANIM_PARTS = 'Components of an animation and animation variables';
+const an = (point: string, where: string, tools?: string[]) =>
+  p('20.1', ANIM_TOOLS, point, where, tools);
 
 export const SYLLABUS: readonly SyllabusPoint[] = [
   // ---- 11.1 Video editing ----
@@ -266,6 +272,87 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     COMPRESS,
     'lossy and lossless',
     'Learn ▸ Media inspector (codecs marked lossy / lossless / uncompressed) and the compression comparison',
+  ),
+  // ---- 20.1 Animation (phase 2; the theory pages arrive in M16) ----
+  an(
+    'creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience',
+    'Animation ▸ the stage, timeline and export; Learn ▸ Animation (M16)',
+  ),
+  an(
+    'configuring the stage/frame/canvas: colour, size',
+    'Animation ▸ the stage chip (600 × 400 · 24 fps · colour) at the top',
+    ['20.1 configuring the stage'],
+  ),
+  an(
+    'configuring the stage: the aspect ratio using rulers, guides and grid settings',
+    'Animation ▸ the stage chip (4:3, 16:9, 16:10, 2.35:1 presets); Rulers, Grid and Guides on the toolbar',
+    ['20.1 rulers, guides and grid'],
+  ),
+  an(
+    'configuring the stage: snapping options',
+    'Animation ▸ Snap on the toolbar (grid, guides, objects, pixels); the status bar says what it snapped to',
+    ['20.1 snapping options'],
+  ),
+  an(
+    'importing and creating vector objects',
+    'Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar',
+    ['20.1 creating vector objects'],
+  ),
+  an(
+    'importing and creating vector objects: tracing bitmaps',
+    'Animation ▸ Picture on the toolbar, then Trace bitmap (M16)',
+    ['20.1 importing and tracing bitmaps'],
+  ),
+  an('importing and creating vector objects: adding text', 'Animation ▸ Text on the toolbar', [
+    '20.1 adding text',
+  ]),
+  an(
+    'controlling object properties: stroke and fill settings; size, position and orientation; transparency',
+    'Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke)',
+    ['20.1 controlling object properties'],
+  ),
+  an('setting paths', 'Animation ▸ Follow path… on a tween (M15)'),
+  an('using layers', 'Animation ▸ the Layers panel (add, rename, order, lock, hide, folders)', [
+    '20.1 using layers',
+  ]),
+  an('applying masks', 'Animation ▸ Mask on a layer (M15)'),
+  an(
+    'controlling animations by adjusting frame rates, looping or stopping animations',
+    'Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop (M14)',
+  ),
+  an('exporting an animation for its application', 'Animation ▸ Export on the toolbar', [
+    '20.1 exporting an animation',
+  ]),
+  p(
+    '20.1',
+    ANIM_PRINCIPLES,
+    'frames, key frames, property key frames, timings, coordinates',
+    'Animation ▸ the timeline (M14); the rulers show coordinates; Learn ▸ Animation (M16)',
+  ),
+  p(
+    '20.1',
+    ANIM_PRINCIPLES,
+    'inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates',
+    'Animation ▸ keyframes on the timeline (M14) and Morph into… (M15)',
+  ),
+  p(
+    '20.1',
+    ANIM_TYPES,
+    'cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types',
+    'Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse (M16)',
+  ),
+  p(
+    '20.1',
+    ANIM_PARTS,
+    'the primary (main focus, such as main characters), the secondary (sound, background), other components',
+    'Learn ▸ Animation (M16)',
+  ),
+  p(
+    '20.1',
+    ANIM_PARTS,
+    'the use of animation variables to control the position of an animated object or parts of an animated object',
+    'Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (M16)',
+    ['20.1 animation variables'],
   ),
 ];
 
