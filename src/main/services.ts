@@ -1,6 +1,6 @@
 // Real file dialogs and project-file I/O for the main process.
 import { dialog, type BrowserWindow } from 'electron';
-import type { Dialogs, ProjectFiles } from '../core/ports.ts';
+import type { AnimationExportFormat, Dialogs, ProjectFiles } from '../core/ports.ts';
 import { CONTAINERS } from '../core/render/formats.ts';
 import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -29,6 +29,11 @@ const MEDIA_EXTENSIONS = [
   'ogg',
   'wma',
 ];
+
+/** AN15: the file types of the animation exports. */
+const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
+  png: { label: 'PNG picture', extension: 'png' },
+};
 
 export function electronDialogs(window: () => BrowserWindow | undefined): Dialogs {
   const win = () => window() as BrowserWindow;
@@ -112,6 +117,31 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
+    async openAnimation() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Open animation',
+        properties: ['openFile'],
+        filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async saveAnimation(name) {
+      const r = await dialog.showSaveDialog(win(), {
+        title: 'Save animation',
+        defaultPath: `${name}.mvea`,
+        filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+      });
+      return r.canceled ? null : (r.filePath ?? null);
+    },
+    async exportAnimation(name, format) {
+      const { label, extension } = ANIMATION_EXPORTS[format];
+      const r = await dialog.showSaveDialog(win(), {
+        title: 'Export animation',
+        defaultPath: `${name}.${extension}`,
+        filters: [{ name: label, extensions: [extension] }],
+      });
+      return r.canceled ? null : (r.filePath ?? null);
+    },
     async chooseFolder(title) {
       const r = await dialog.showOpenDialog(win(), {
         title,
@@ -147,5 +177,9 @@ export const projectFiles = (textFolder: string): ProjectFiles => ({
     const path = join(textFolder, `${name}.png`);
     await writeFile(path, png);
     return path;
+  },
+  async writeBytes(path, bytes) {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, bytes);
   },
 });

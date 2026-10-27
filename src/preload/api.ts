@@ -2,6 +2,7 @@
 // Only the request channels listed in CHANNELS exist (P2).
 import type { Project } from '../core/model/types.ts';
 import type {
+  AnimationExportFormat,
   AppPaths,
   DecodedAudioFile,
   JobEvent,
@@ -70,6 +71,12 @@ export interface Channels {
   'dialog:unsavedChanges': { args: []; result: 'save' | 'discard' | 'cancel' };
   'dialog:openTaskCheck': { args: []; result: string | null };
   'dialog:saveTaskCheck': { args: [suggestedName: string]; result: string | null };
+  'dialog:openAnimation': { args: []; result: string | null };
+  'dialog:saveAnimation': { args: [suggestedName: string]; result: string | null };
+  'dialog:exportAnimation': {
+    args: [suggestedName: string, format: AnimationExportFormat];
+    result: string | null;
+  };
   /** P7: the page's answer to app:closeRequested. */
   'app:closeAnswer': { args: [close: boolean]; result: null };
   'project:read': { args: [path: string]; result: string };
@@ -77,6 +84,7 @@ export interface Channels {
   'project:remove': { args: [path: string]; result: null };
   'project:copy': { args: [from: string, to: string]; result: null };
   'project:saveImage': { args: [name: string, png: Uint8Array]; result: string };
+  'project:writeBytes': { args: [path: string, bytes: Uint8Array]; result: null };
 }
 
 export type Channel = keyof Channels;
@@ -106,12 +114,16 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:unsavedChanges',
   'dialog:openTaskCheck',
   'dialog:saveTaskCheck',
+  'dialog:openAnimation',
+  'dialog:saveAnimation',
+  'dialog:exportAnimation',
   'app:closeAnswer',
   'project:read',
   'project:write',
   'project:remove',
   'project:copy',
   'project:saveImage',
+  'project:writeBytes',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */

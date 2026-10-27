@@ -2,6 +2,7 @@
 // Interfaces only. Adapters implement them: Node/FFmpeg in src/main, a fake in src/adapters/mock.
 import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
+import type { AnimationDoc } from './animation/types.ts';
 import type { TextImage } from './render/compile.ts';
 import type { Container, ExportSettings } from './render/formats.ts';
 import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
@@ -185,7 +186,16 @@ export interface Dialogs {
   openTaskCheck(): Promise<string | null>;
   /** T6: where to save a task check for the students. */
   saveTaskCheck(suggestedName: string): Promise<string | null>;
+  /** AN16: an animation (.mvea) to open. */
+  openAnimation(): Promise<string | null>;
+  /** AN16: where to save an animation. */
+  saveAnimation(suggestedName: string): Promise<string | null>;
+  /** AN15: where to save an exported animation; the file type follows the format. */
+  exportAnimation(suggestedName: string, format: AnimationExportFormat): Promise<string | null>;
 }
+
+/** AN15: the animation export formats (M13: a picture of the stage; M14 adds mp4, gif; M16 html). */
+export type AnimationExportFormat = 'png';
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
 export interface ProjectFiles {
@@ -196,6 +206,13 @@ export interface ProjectFiles {
   copy(from: string, to: string): Promise<void>;
   /** Saves a PNG in the app's own folder (not the student's) and returns its path. */
   saveImage(name: string, png: Uint8Array): Promise<string>;
+  /** Writes a file the student named (an exported picture, AN15). */
+  writeBytes(path: string, bytes: Uint8Array): Promise<void>;
+}
+
+/** AN15: draws an animation's stage as a picture (an OffscreenCanvas in the app). */
+export interface StageRenderer {
+  renderPng(doc: AnimationDoc): Promise<Uint8Array>;
 }
 
 /** Draws text as a transparent PNG with the bundled fonts (ARCHITECTURE §7.3). */
@@ -224,4 +241,6 @@ export interface AppPaths {
   preferences?: string;
   /** README §17: THIRD_PARTY_LICENSES.txt, for Help ▸ Licences. */
   licences?: string;
+  /** Where unsaved animation work is autosaved (P3, AN16); default: beside `recovery`. */
+  animationRecovery?: string;
 }

@@ -40,6 +40,9 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       unsavedChanges: async () => 'cancel',
       openTaskCheck: async () => null,
       saveTaskCheck: async () => null,
+      openAnimation: async () => null,
+      saveAnimation: async () => null,
+      exportAnimation: async () => null,
     },
     files: {
       read: async (path) => {
@@ -51,6 +54,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       remove: async (path) => void files.delete(path),
       copy: async () => {},
       saveImage: async (name) => `/cache/text/${name}.png`,
+      writeBytes: async () => {},
     },
     microphoneAccess: async () => true,
     closeAnswer: () => {},

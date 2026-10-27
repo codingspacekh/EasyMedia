@@ -128,6 +128,9 @@ export function registerIpc(s: MainServices): void {
     'dialog:unsavedChanges': () => s.dialogs.unsavedChanges(),
     'dialog:openTaskCheck': () => s.dialogs.openTaskCheck(),
     'dialog:saveTaskCheck': (name) => s.dialogs.saveTaskCheck(name),
+    'dialog:openAnimation': () => s.dialogs.openAnimation(),
+    'dialog:saveAnimation': (name) => s.dialogs.saveAnimation(name),
+    'dialog:exportAnimation': (name, format) => s.dialogs.exportAnimation(name, format),
     'app:closeAnswer': async (close) => {
       s.closeAnswer(close === true);
       return null;
@@ -146,6 +149,10 @@ export function registerIpc(s: MainServices): void {
     'project:copy': async (from, to) => {
       if (!s.allow.has(from)) throw new Error('Only files opened in EasyMedia can be copied.');
       await s.files.copy(from, to);
+      return null;
+    },
+    'project:writeBytes': async (path, bytes) => {
+      await s.files.writeBytes(path, bytes);
       return null;
     },
     'project:saveImage': async (name, png) => {

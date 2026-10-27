@@ -8,6 +8,7 @@ import {
   relinkMedia,
   removeItem,
 } from './commands.ts';
+import { createAnimationApp } from './animation.ts';
 import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
 import { createLearnApp } from './learn.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
@@ -37,6 +38,7 @@ import type {
   MediaEngine,
   ProbeInfo,
   ProjectFiles,
+  StageRenderer,
   TextRenderer,
   Recorder,
   UndoStore,
@@ -100,6 +102,8 @@ export interface AppDeps {
   audioUndoStore?: UndoStore;
   /** A14: the microphone for recording in Audio mode (MediaStream in the app). */
   audioRecorder?: Recorder;
+  /** AN15: draws an animation's stage as a picture (an OffscreenCanvas in the app). */
+  stageRenderer?: StageRenderer;
   autosaveMs?: number;
 }
 
@@ -126,6 +130,7 @@ export function createApp({
   audioOutput = SILENT_OUTPUT,
   audioUndoStore,
   audioRecorder,
+  stageRenderer,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -392,6 +397,15 @@ export function createApp({
   });
   /** Learn mode (T1, T3, T6): never changes the project. */
   const learn = createLearnApp({ engine, dialogs, files, paths });
+  /** Animation mode (AN1–AN18): its own document and file (M13). */
+  const animation = createAnimationApp({
+    dialogs,
+    files,
+    paths,
+    engine,
+    autosaveMs,
+    ...(stageRenderer ? { renderer: stageRenderer } : {}),
+  });
 
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
   audio.store.subscribe(() => {
@@ -403,9 +417,11 @@ export function createApp({
 
     audio,
     learn,
+    animation,
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
+      await animation.start();
       // X7: the Welcome, on the first launch only.
       if (paths.preferences) {
         const seen = await files
@@ -787,18 +803,20 @@ export function createApp({
      * true when it may close.
      */
     async confirmClose(): Promise<boolean> {
-      if (!isDirty(store.get())) return true;
+      if (!isDirty(store.get()) && !animation.isDirty()) return true;
       const answer = await dialogs.unsavedChanges();
       if (answer === 'cancel') return false;
       if (answer === 'discard') return true;
-      await save();
-      return !isDirty(store.get());
+      if (isDirty(store.get())) await save();
+      if (animation.isDirty()) await animation.save();
+      return !isDirty(store.get()) && !animation.isDirty();
     },
 
     dispose(): void {
       clearInterval(timer);
       stopListening();
       audio.dispose();
+      animation.dispose();
     },
   };
 }
