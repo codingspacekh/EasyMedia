@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Animation mode (M13): the Layers panel, the stage and the Properties panel, the stage
+  // Animation mode (M13): the Layers panel, the tool strip, the stage and the Properties panel, the stage
   // settings dialog, and the keyboard: Delete, arrow keys nudge (Shift: 10 px), V R E S G L P
   // B T I choose tools, Ctrl/Cmd + D duplicates, G groups, Shift + G ungroups, 0 fits, + / −
   // zoom; the Edit menu's cut, copy and paste work on the selected objects (N10).
@@ -11,6 +11,7 @@
   import PropertiesPanel from './PropertiesPanel.svelte';
   import Stage from './Stage.svelte';
   import StageSettings from './StageSettings.svelte';
+  import ToolStrip from './ToolStrip.svelte';
 
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
@@ -96,6 +97,7 @@
 
 <div class="animation-mode">
   <LayersPanel {app} />
+  <ToolStrip {app} />
   <Stage {app} />
   <PropertiesPanel {app} />
 </div>

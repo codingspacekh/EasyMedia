@@ -221,6 +221,8 @@
     align-items: center;
     gap: 10px;
     padding: 0 12px;
+    min-width: 0;
+    overflow: hidden;
     background: var(--bg-1);
     border-bottom: 1px solid var(--line);
   }

@@ -114,7 +114,7 @@
   <div class="panel-h">Properties</div>
   <div class="body">
     {#if !first}
-      <p class="hint">Click an object on the stage, or draw one with a tool at the top.</p>
+      <p class="hint">Click an object on the stage, or draw one with a tool from the strip on the left.</p>
       <div class="sec">
         <h4>Stage</h4>
         <table class="facts">

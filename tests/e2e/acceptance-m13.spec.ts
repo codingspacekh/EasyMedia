@@ -166,3 +166,20 @@ test('Workbook Task 3 stage (1024 × 768, #CBCDF0, rulers and grid) and Activity
   await shot(page, 'animation-m13-task3-layers');
   await app.close();
 });
+
+test('N10: at 1100 × 700 the header fits — no horizontal scroll, Export in view, tools in the strip', async () => {
+  const { app, window: page } = await launchApp();
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1100, 700));
+  await animationMode(page);
+  await expect(page.getByRole('toolbar', { name: 'Animation tools' })).toBeVisible();
+  const fits = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    width: document.documentElement.clientWidth,
+  }));
+  expect(fits.scroll).toBeLessThanOrEqual(fits.width);
+  const exportBox = (await page.getByRole('button', { name: 'Export' }).boundingBox())!;
+  expect(exportBox.x + exportBox.width).toBeLessThanOrEqual(fits.width);
+  await expect(page.getByRole('button', { name: 'Brush' })).toBeVisible();
+  await shot(page, 'animation-m13-narrow');
+  await app.close();
+});
