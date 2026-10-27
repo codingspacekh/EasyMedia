@@ -123,3 +123,91 @@ test('Task 1.1: a circle tweened over 3 s, seen halfway at 1.50 s, exported as M
   expect(stdout.trim()).toBe('600,400,72');
   await app.close();
 });
+
+test('Exam-style question 3, Films by Ying: 16:10, F B Y bounce in from the left (Y first), stay 2 s, fade, loop, GIF', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  await page
+    .getByRole('navigation', { name: 'Mode' })
+    .getByRole('button', { name: 'Animation' })
+    .click();
+
+  // 16:10 (1280 × 800), 6 s.
+  await page.getByRole('button', { name: /^Stage settings/ }).click();
+  const settings = page.getByRole('dialog', { name: 'Stage settings' });
+  await settings
+    .getByRole('group', { name: 'Aspect ratio' })
+    .getByRole('button', { name: '16:10' })
+    .click();
+  await type(page, 'Length', '144');
+  await settings.getByRole('button', { name: 'Apply' }).click();
+  await expect(
+    page.getByRole('button', { name: /^Stage settings: 16:10 · 1280 × 800/ }),
+  ).toBeVisible();
+
+  // The outline, then the letters, split so each can move on its own.
+  await page.getByRole('button', { name: 'Rectangle' }).click();
+  const stage = page.getByRole('application', { name: 'Stage' });
+  const box = (await stage.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.25);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.75, { steps: 5 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'Text' }).click();
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
+  const words = page.getByLabel('Words');
+  await words.fill('FBY');
+  await words.press('Tab');
+  await type(page, 'Size', '200');
+  await page.getByRole('button', { name: 'Split into letters' }).click();
+
+  const timeline = page.getByRole('region', { name: 'Timeline' });
+  const pick = (letter: string) =>
+    timeline.getByRole('button', { name: letter, exact: true }).click();
+  const xBox = page.getByLabel('X', { exact: true });
+
+  // Y, then B, then F: each from x = −300 at its start to where it was, with a bounce.
+  for (const [i, letter] of ['Y', 'B', 'F'].entries()) {
+    await pick(letter);
+    await goTo(page, '0');
+    const home = await xBox.inputValue();
+    await type(page, 'X', '-300');
+    if (i > 0) {
+      await goTo(page, String(24 * i));
+      await timeline.getByRole('button', { name: 'Insert keyframe' }).click();
+    }
+    await goTo(page, String(24 * i + 24));
+    await type(page, 'X', home);
+    await timeline.getByRole('button', { name: `X keyframe at frame ${24 * i}` }).click();
+    await page.getByLabel('Easing').selectOption('bounce');
+  }
+  // At 0.50 s the Y is on its way and the F still waits off the stage.
+  await goTo(page, '12');
+  await pick('F');
+  await expect(xBox).toHaveValue('-300.00');
+
+  // All three stay for 2 s, then fade out over the last second.
+  for (const letter of ['F', 'B', 'Y']) {
+    await pick(letter);
+    await goTo(page, '120');
+    await timeline.getByRole('button', { name: 'Insert keyframe' }).click();
+    await goTo(page, '144');
+    await type(page, 'Opacity', '0');
+  }
+  await timeline.getByRole('button', { name: 'Loop' }).click();
+  await expect(timeline.getByRole('button', { name: 'Loop' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  const gif = join(dir, 'FilmsByYing.gif');
+  await answerDialogs(app, { exportTo: gif });
+  await exportAs(page, /Animated GIF/);
+  await expect.poll(() => exists(gif), { timeout: 60_000 }).toBe(true);
+  const { stdout } = await execFileAsync(bundledFfmpeg().ffprobe, [
+    ...['-v', 'error', '-count_frames', '-select_streams', 'v:0'],
+    ...['-show_entries', 'stream=nb_read_frames,width,height', '-of', 'csv=p=0', gif],
+  ]);
+  expect(stdout.trim()).toBe('1280,800,144');
+  await app.close();
+});
