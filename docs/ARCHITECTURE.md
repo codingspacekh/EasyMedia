@@ -453,6 +453,21 @@ playhead. Progress has two phases (drawing, then FFmpeg) and Cancel stops either
 leaves nothing behind. *Send to Video mode* exports the MP4 beside the `.mvea` file and puts it
 on the video timeline as a clip.
 
+**HTML web animation (M16, AN15).** No frames are drawn: the drawing itself goes into one
+self-contained `.html` file (`core/animation/html.ts` `webPage`). It holds the document as JSON
+(every `<` written as `<`, so a student's `</script>` cannot end it; picture paths cut to
+the file name), each picture on the stage as a `data:` URL, an `@font-face` for each font file
+the text needs (`fontsNeeded` → `core/text/fonts.ts` `faceFor`: one file per font and style,
+not the whole family) and the player script. The player is `src/player/boot.ts` around
+`core/animation/player.ts` (a pure clock: the frame for a time at the stage's fps, looping;
+pause, continue, restart, go to frame) and the same `drawStage`, bundled by Vite into one IIFE,
+`out/player.js` (`vite.electron.config.ts --mode player`, about 15 KB). The page cannot read
+files (§2), so a `PageAssets` port goes through the main process: `page:player` reads
+`out/player.js`; `page:picture` reads a picture on the allow-list; `page:font` reads a font of
+the built pages by its asset name (the page knows the hashed names through `import.meta.glob`
+in `ui/main.ts`, so the main process never guesses Vite's hash). A picture that cannot be read
+is left out and named.
+
 **Paths, morphs and masks (M15).** `objectAt` applies, in order: the property tracks (the
 `shape` track last, so it is drawn in the box the size tracks give), then the motion paths.
 

@@ -30,7 +30,13 @@ describe('the export dialog (AN15, T7)', () => {
     await animationMode();
     await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
     const d = within(dialog());
-    for (const name of ['MP4 video', 'Animated GIF', 'PNG sequence', 'PNG picture of this frame'])
+    for (const name of [
+      'MP4 video',
+      'Animated GIF',
+      'HTML web animation',
+      'PNG sequence',
+      'PNG picture of this frame',
+    ])
       expect(d.getByRole('radio', { name: new RegExp(name) })).toBeTruthy();
     expect((d.getByRole('radio', { name: /MP4 video/ }) as HTMLInputElement).checked).toBe(true);
     expect(d.getByText('72 frames · 3.00 s · about 108 KB')).toBeTruthy();
@@ -43,6 +49,26 @@ describe('the export dialog (AN15, T7)', () => {
     await fireEvent.click(within(dialog()).getByRole('radio', { name: /Animated GIF/ }));
     expect(within(dialog()).getByText(/At most 256 colours/)).toBeTruthy();
     expect(within(dialog()).getByText('72 frames · 3.00 s · about 2.1 MB')).toBeTruthy();
+  });
+
+  it('AN15: choosing HTML shows a small page that plays in any browser, then makes it', async () => {
+    const s = await animationMode();
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.html');
+    let release = () => {};
+    s.pageAssets.playerScript.mockImplementationOnce(
+      () => new Promise((resolve) => (release = () => resolve('/* player */'))),
+    );
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await fireEvent.click(within(dialog()).getByRole('radio', { name: /HTML web animation/ }));
+    expect(
+      within(dialog()).getByText(/plays in any web browser, without the internet/),
+    ).toBeTruthy();
+    expect(within(dialog()).getByText('72 frames · 3.00 s · about 40 KB')).toBeTruthy();
+    await fireEvent.click(within(dialog()).getByRole('button', { name: 'Export file' }));
+    await vi.waitFor(() => expect(within(dialog()).getByText('Making the web page…')).toBeTruthy());
+    release();
+    await vi.waitFor(() => expect(animUi.dialog).toBeNull());
+    expect(s.disk.get('/work/Task1.html')).toContain('/* player */');
   });
 
   it('an odd-sized stage: MP4 says it will be padded to even', async () => {

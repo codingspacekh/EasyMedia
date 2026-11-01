@@ -161,3 +161,61 @@ test('AN5 Trace bitmap turns a picture into coloured shapes that export the same
   expect(near(await rgb(shot, 110, 110), [255, 255, 255])).toBe(true); // the white shape
   await app.close();
 });
+
+test('AN15 HTML web animation: one file that plays by itself in a browser, with its picture and font', async () => {
+  test.setTimeout(240_000);
+  const png = join(dir, 'paris.png');
+  await execFileAsync(bundledFfmpeg().ffmpeg, [
+    ...['-v', 'error', '-f', 'lavfi', '-i', 'color=red:s=120x80', '-frames:v', '1', png],
+  ]);
+  const { app, window: page } = await launchApp();
+  await animationMode(page);
+  await answerDialogs(app, { open: [png] });
+  await placePicture(page, 'paris.png', [100, 100]);
+  await tools(page).getByRole('button', { name: 'Text', exact: true }).click();
+  const stage = (await page.getByRole('application', { name: 'Stage' }).boundingBox())!;
+  await page.mouse.click(stage.x + stage.width * 0.6, stage.y + stage.height * 0.7);
+
+  const html = join(dir, 'Paris.html');
+  await answerDialogs(app, { exportTo: html });
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export animation' });
+  await dialog.getByRole('radio', { name: /HTML web animation/ }).check();
+  await dialog.getByRole('button', { name: 'Export file' }).click();
+  await expect(dialog).toBeHidden({ timeout: 60_000 });
+  await expect.poll(() => exists(html), { timeout: 30_000 }).toBe(true);
+  const text = await readFile(html, 'utf8');
+  expect(text).not.toMatch(/https?:\/\//);
+  expect(text).not.toContain(dir); // no path of the student's folder
+
+  // A plain browser window of its own, with nothing of the app: the page alone must play.
+  const seen = await app.evaluate(async ({ BrowserWindow }, file) => {
+    const win = new BrowserWindow({ show: false, width: 800, height: 600 });
+    await win.loadFile(file);
+    const read = () =>
+      win.webContents.executeJavaScript(`(() => {
+        const p = window.easymedia && window.easymedia.player;
+        if (!p) return null;
+        const c = document.getElementById('stage');
+        const px = c.getContext('2d').getImageData(150, 140, 1, 1).data;
+        const fonts = [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family);
+        return { state: p.state(), size: [c.width, c.height], pixel: [...px].slice(0, 3), fonts };
+      })()`);
+    let first = null;
+    for (let i = 0; i < 100 && !first; i++) {
+      first = await read();
+      if (!first) await new Promise((r) => setTimeout(r, 100));
+    }
+    await new Promise((r) => setTimeout(r, 600));
+    const later = await read();
+    win.destroy();
+    return { first, later };
+  }, html);
+  expect(seen.first).not.toBeNull();
+  expect(seen.first.size).toEqual([1280, 720]);
+  expect(near(seen.first.pixel, [255, 0, 0])).toBe(true); // the picture, from inside the file
+  expect(seen.later.state.playing).toBe(true);
+  expect(seen.later.state.frame).toBeGreaterThan(seen.first.state.frame); // it plays
+  expect(seen.later.fonts.join(' ')).toMatch(/Inter/); // the text's font, from inside the file
+  await app.close();
+});

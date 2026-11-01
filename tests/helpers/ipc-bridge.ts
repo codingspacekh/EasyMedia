@@ -60,6 +60,11 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
     },
     microphoneAccess: async () => true,
     closeAnswer: () => {},
+    pageFiles: {
+      player: '/app/out/player.js',
+      assets: '/app/dist/assets',
+      read: async (path) => Promise.reject(new Error(`ENOENT ${path}`)),
+    },
     ...overrides,
   });
   const api: MveApi = {

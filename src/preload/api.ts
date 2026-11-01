@@ -91,6 +91,12 @@ export interface Channels {
   'project:copy': { args: [from: string, to: string]; result: null };
   'project:saveImage': { args: [name: string, png: Uint8Array]; result: string };
   'project:writeBytes': { args: [path: string, bytes: Uint8Array]; result: null };
+  /** AN15: the HTML web animation's player script. */
+  'page:player': { args: []; result: string };
+  /** AN15: a picture the app opened, as a data: URL. */
+  'page:picture': { args: [path: string]; result: string };
+  /** AN15: a bundled font file of the built pages (its file name in assets/), as a data: URL. */
+  'page:font': { args: [assetName: string]; result: string };
 }
 
 export type Channel = keyof Channels;
@@ -132,6 +138,9 @@ export const CHANNELS: readonly Channel[] = [
   'project:copy',
   'project:saveImage',
   'project:writeBytes',
+  'page:player',
+  'page:picture',
+  'page:font',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */

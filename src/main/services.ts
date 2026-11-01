@@ -40,6 +40,7 @@ const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extensio
   gif: { label: 'Animated GIF', extension: 'gif' },
   // The frames are saved beside the chosen name: Task1_0001.png, Task1_0002.png…
   'png-sequence': { label: 'PNG sequence (one picture per frame)', extension: 'png' },
+  html: { label: 'HTML web animation', extension: 'html' },
 };
 
 export function electronDialogs(window: () => BrowserWindow | undefined): Dialogs {

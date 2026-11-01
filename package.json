@@ -26,7 +26,7 @@
     "fixtures": "node scripts/make-fixtures.ts",
     "render": "node scripts/render.ts",
     "spike": "electron spikes/m0-electron/main.cjs",
-    "build:app": "vite build && vite build -c vite.electron.config.ts --mode main && vite build -c vite.electron.config.ts --mode preload",
+    "build:app": "vite build && vite build -c vite.electron.config.ts --mode main && vite build -c vite.electron.config.ts --mode preload && vite build -c vite.electron.config.ts --mode player",
     "app": "npm run build:app && node scripts/dev-app-name.ts && electron .",
     "test:e2e": "playwright test",
     "licences": "node scripts/licences.ts",

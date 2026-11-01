@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
-import type { Dialogs, ProbeInfo, StageRenderer } from '../../src/core/ports.ts';
+import type { Dialogs, PageAssets, ProbeInfo, StageRenderer } from '../../src/core/ports.ts';
 
 export const VIDEO: ProbeInfo = {
   kind: 'video',
@@ -53,6 +53,16 @@ export function testApp(
       data: new Uint8ClampedArray([255, 255, 255, 255]),
     })),
   };
+  /** AN15: the web page's player and files, as data: URLs named after the file. */
+  const pageAssets = {
+    playerScript: vi.fn<PageAssets['playerScript']>(async () => '/* player */'),
+    pictureDataUrl: vi.fn<PageAssets['pictureDataUrl']>(
+      async (path) => `data:image/jpeg;base64,${btoa(path)}`,
+    ),
+    fontDataUrl: vi.fn<PageAssets['fontDataUrl']>(
+      async (file) => `data:font/ttf;base64,${btoa(file)}`,
+    ),
+  };
   const app = createApp({
     engine,
     dialogs,
@@ -68,6 +78,7 @@ export function testApp(
       writeBytes: async (p, b) => void bytes.set(p, b),
     },
     stageRenderer,
+    pageAssets,
     text: {
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
@@ -83,5 +94,16 @@ export function testApp(
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   };
-  return { app, engine, dialogs, importFiles, recorder, disk, bytes, copies, stageRenderer };
+  return {
+    app,
+    engine,
+    dialogs,
+    importFiles,
+    recorder,
+    disk,
+    bytes,
+    copies,
+    stageRenderer,
+    pageAssets,
+  };
 }

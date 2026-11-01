@@ -58,12 +58,14 @@ import {
   sequenceName,
   type AnimationFormat,
 } from '../core/animation/export.ts';
+import { fontsNeeded, picturesUsed, webPage } from '../core/animation/html.ts';
 import { newId } from '../core/model/factory.ts';
 import type {
   AppPaths,
   Dialogs,
   JobHandle,
   MediaEngine,
+  PageAssets,
   ProjectFiles,
   StageRenderer,
 } from '../core/ports.ts';
@@ -129,6 +131,8 @@ export interface AnimationDeps {
   paths: AppPaths;
   engine: MediaEngine;
   renderer?: StageRenderer;
+  /** AN15: what an HTML web animation carries inside it (read by the main process in the app). */
+  pageAssets?: PageAssets;
   autosaveMs?: number;
 }
 
@@ -137,6 +141,11 @@ const UNEXPECTED = 'Something went wrong. Please try again.';
 const NO_RENDERER: StageRenderer = {
   renderPng: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
   pixels: () => Promise.reject(new EditError('Tracing needs the EasyMedia app.')),
+};
+const NO_PAGE_ASSETS: PageAssets = {
+  playerScript: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
+  pictureDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
+  fontDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
 };
 
 /**
@@ -178,6 +187,7 @@ export function createAnimationApp({
   paths,
   engine,
   renderer = NO_RENDERER,
+  pageAssets = NO_PAGE_ASSETS,
   autosaveMs = 60_000,
 }: AnimationDeps) {
   const fresh = createAnimation({ name: 'Untitled' });
@@ -406,6 +416,52 @@ export function createAnimationApp({
   }
 
   /**
+   * AN15: the web page: the animation with its player, pictures and fonts inside. A picture that
+   * cannot be read is left out (the player shows the rest) and named in the message.
+   */
+  async function exportWebPage(doc: AnimationDoc, output: string): Promise<string | null> {
+    patch({ busy: 'Exporting…' });
+    try {
+      const [player, fonts, read] = await Promise.all([
+        pageAssets.playerScript(),
+        Promise.all(
+          fontsNeeded(doc).map(async (face) => ({
+            face,
+            url: await pageAssets.fontDataUrl(face.file),
+          })),
+        ),
+        Promise.all(
+          picturesUsed(doc).map(async (p) => ({
+            picture: p,
+            url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
+          })),
+        ),
+      ]);
+      const pictures: Record<Id, string> = {};
+      for (const { picture, url } of read) if (url) pictures[picture.id] = url;
+      await files.write(output, webPage(doc, { player, pictures, fonts }));
+      const missing = read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path));
+      const saved = fileNameOf(output);
+      patch({
+        message: {
+          kind: 'info',
+          text: missing.length
+            ? `Saved ${saved} without ${missing.join(', ')}: ${
+                missing.length === 1 ? 'that picture' : 'those pictures'
+              } could not be read.`
+            : `Saved ${saved}. Open it in any web browser: it plays without the internet.`,
+        },
+      });
+      return output;
+    } catch (error) {
+      showError(error);
+      return null;
+    } finally {
+      patch({ busy: null });
+    }
+  }
+
+  /**
    * AN15: every frame drawn by the same drawing as the preview, then made into the chosen file:
    * MP4 or GIF by FFmpeg from frames in the app's folder (removed afterwards), a PNG sequence
    * beside the chosen name, or the frame at the playhead as one PNG. `chosen` skips the save box
@@ -419,6 +475,7 @@ export function createAnimationApp({
     const name = path ? fileNameOf(path).replace(/\.mvea$/i, '') : doc.name;
     const output = chosen ?? (await dialogs.exportAnimation(name, format));
     if (!output) return null;
+    if (format === 'html') return exportWebPage(doc, output);
     if (format === 'png') {
       patch({ busy: 'Exporting…' });
       try {

@@ -1,10 +1,11 @@
 // AN15: exporting an animation. Every frame is drawn by draw.ts (the same drawing as the preview)
 // and made into the file the student chose: MP4 and animated GIF through FFmpeg, a PNG sequence
-// (one picture per frame) or the frame at the playhead as one PNG. The pros and cons of each
+// (one picture per frame) or the frame at the playhead as one PNG; or the drawing itself goes into
+// a web page that plays it (html.ts). The pros and cons of each
 // format and the estimated size are shown before exporting (T7).
 import type { AnimationDoc } from './types.ts';
 
-export type AnimationFormat = 'mp4' | 'gif' | 'png-sequence' | 'png';
+export type AnimationFormat = 'mp4' | 'gif' | 'html' | 'png-sequence' | 'png';
 
 export interface AnimationFormatInfo {
   id: AnimationFormat;
@@ -35,6 +36,17 @@ export const ANIMATION_FORMATS: readonly AnimationFormatInfo[] = [
       'At most 256 colours: gradients become bands',
       'Much bigger than MP4 for the same animation; no sound',
     ],
+  },
+  {
+    id: 'html',
+    label: 'HTML web animation',
+    use: 'A web page, a school website, a presentation',
+    pros: [
+      'One file that plays in any web browser, without the internet, and loops',
+      'Sharp at any size: the shapes are drawn, not stored as pictures',
+      'Can have Pause and Continue buttons',
+    ],
+    cons: ['Needs a web browser: it cannot be put in a video', 'No sound'],
   },
   {
     id: 'png-sequence',
@@ -74,6 +86,9 @@ export function evenSize(width: number, height: number) {
 const PNG_BYTES_PER_PIXEL = 0.15;
 const GIF_BYTES_PER_PIXEL = 0.12;
 const MP4_BITS_PER_PIXEL = 0.05;
+/** A web page: the player and the animation's data, then each picture (a JPG, inside as text). */
+const HTML_PAGE_BYTES = 40_000;
+const HTML_PICTURE_BYTES_PER_PIXEL = 0.5;
 
 /** T7: the estimated file size in bytes (all frames for a sequence). */
 export function estimateAnimationSize(doc: AnimationDoc, format: AnimationFormat): number {
@@ -88,6 +103,11 @@ export function estimateAnimationSize(doc: AnimationDoc, format: AnimationFormat
       return pixels * GIF_BYTES_PER_PIXEL * count;
     case 'mp4':
       return (pixels * MP4_BITS_PER_PIXEL * count) / 8;
+    case 'html':
+      return (
+        HTML_PAGE_BYTES +
+        doc.pictures.reduce((sum, p) => sum + p.width * p.height * HTML_PICTURE_BYTES_PER_PIXEL, 0)
+      );
   }
 }
 

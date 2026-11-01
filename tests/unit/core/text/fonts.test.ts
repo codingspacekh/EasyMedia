@@ -2,7 +2,13 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FONT_GROUPS, FONTS, validateTextStyle } from '../../../../src/core/text/fonts.ts';
+import {
+  FONT_FACES,
+  FONT_GROUPS,
+  FONTS,
+  faceFor,
+  validateTextStyle,
+} from '../../../../src/core/text/fonts.ts';
 import type { TextStyle } from '../../../../src/core/model/types.ts';
 
 const root = join(import.meta.dirname, '../../../..');
@@ -57,5 +63,25 @@ describe('X2 bundled fonts', () => {
   it('every bundled font can be chosen; a font that is not bundled is refused', () => {
     for (const font of FONTS) expect(() => validateTextStyle(style(font.name))).not.toThrow();
     expect(() => validateTextStyle(style('Comic Sans MS'))).toThrow(/choose one of the fonts/i);
+  });
+
+  it('AN15: the font files are listed as fonts.css lists them (a web page carries its own)', () => {
+    const rules = [...css.matchAll(/@font-face \{([\s\S]*?)\}/g)].map((m) => ({
+      family: /font-family: '([^']+)'/.exec(m[1]!)![1],
+      style: /font-style: (\w+)/.exec(m[1]!)![1],
+      weight: /font-weight: ([^;]+);/.exec(m[1]!)![1],
+      file: /fonts\/([^']+)'/.exec(m[1]!)![1],
+    }));
+    expect(FONT_FACES).toEqual(rules);
+  });
+
+  it('AN15: the one file a text needs — the italic file for italic, the bold one for bold', () => {
+    expect(faceFor('Inter', false, false)?.file).toBe('Inter.ttf');
+    expect(faceFor('Inter', true, true)?.file).toBe('Inter-Italic.ttf');
+    expect(faceFor('Courier Prime', true, false)?.file).toBe('CourierPrime-Bold.ttf');
+    expect(faceFor('Courier Prime', true, true)?.file).toBe('CourierPrime-BoldItalic.ttf');
+    // Only one file: the browser makes it bold or italic, as in the app.
+    expect(faceFor('Anton', true, true)?.file).toBe('Anton-Regular.ttf');
+    expect(faceFor('Comic Sans MS', false, false)).toBeNull();
   });
 });

@@ -212,7 +212,7 @@ export interface Dialogs {
 }
 
 /** AN15: the animation export formats (M13: a picture of the stage; M14: mp4, gif, a PNG sequence; M16 html). */
-export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence';
+export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence' | 'html';
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
 export interface ProjectFiles {
@@ -225,6 +225,19 @@ export interface ProjectFiles {
   saveImage(name: string, png: Uint8Array): Promise<string>;
   /** Writes a file the student named (an exported picture, AN15). */
   writeBytes(path: string, bytes: Uint8Array): Promise<void>;
+}
+
+/**
+ * AN15: what an HTML web animation carries inside it, so it plays without the internet. The page
+ * cannot read files itself (ARCHITECTURE §2): the main process reads them.
+ */
+export interface PageAssets {
+  /** The player's script (core/animation/player.ts and draw.ts, bundled at build time). */
+  playerScript(): Promise<string>;
+  /** A picture the app has opened, as a data: URL. */
+  pictureDataUrl(path: string): Promise<string>;
+  /** A bundled font file, by its name in resources/fonts (e.g. "Inter.ttf"), as a data: URL. */
+  fontDataUrl(file: string): Promise<string>;
 }
 
 /** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */

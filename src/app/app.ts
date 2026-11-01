@@ -38,6 +38,7 @@ import type {
   MediaEngine,
   ProbeInfo,
   ProjectFiles,
+  PageAssets,
   StageRenderer,
   TextRenderer,
   Recorder,
@@ -110,6 +111,8 @@ export interface AppDeps {
   audioRecorder?: Recorder;
   /** AN15: draws an animation's stage as a picture (an OffscreenCanvas in the app). */
   stageRenderer?: StageRenderer;
+  /** AN15: what an HTML web animation carries inside it. */
+  pageAssets?: PageAssets;
   autosaveMs?: number;
 }
 
@@ -137,6 +140,7 @@ export function createApp({
   audioUndoStore,
   audioRecorder,
   stageRenderer,
+  pageAssets,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -411,6 +415,7 @@ export function createApp({
     engine,
     autosaveMs,
     ...(stageRenderer ? { renderer: stageRenderer } : {}),
+    ...(pageAssets ? { pageAssets } : {}),
   });
 
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".

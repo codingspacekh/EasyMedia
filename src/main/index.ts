@@ -1,7 +1,7 @@
 // Electron main process (ARCHITECTURE §2).
 import { app, BrowserWindow, ipcMain, Menu, protocol, shell, systemPreferences } from 'electron';
 import { execFile } from 'node:child_process';
-import { access, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
@@ -154,6 +154,12 @@ void app.whenReady().then(async () => {
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
     closeAnswer: (close) => closeGuard?.answer(close),
+    // AN15: the web page player is built beside main.cjs; the fonts are the built pages' own.
+    pageFiles: {
+      player: join(__dirname, 'player.js'),
+      assets: join(APP_ROOT, 'dist', 'assets'),
+      read: async (path) => new Uint8Array(await readFile(path)),
+    },
     microphoneAccess: microphoneAccess(
       process.platform,
       systemPreferences,

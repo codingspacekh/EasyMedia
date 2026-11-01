@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Export animation (AN15, T7, N12): MP4, animated GIF, PNG sequence or the frame at the
-  // playhead as a PNG, each with its pros and cons; the frames, the length and the estimated size
+  // Export animation (AN15, T7, N12): MP4, animated GIF, an HTML web animation, PNG sequence or
+  // the frame at the playhead as a PNG, each with its pros and cons; the frames, the length and the estimated size
   // before exporting; then the progress, with Cancel.
   import type { App } from '../../app/app.ts';
   import { ANIMATION_FORMATS, type AnimationFormat } from '../../core/animation/export.ts';
@@ -54,6 +54,7 @@
   }
 
   const phaseText = $derived.by(() => {
+    if (!exporting && $store.busy && animUi.exportFormat === 'html') return 'Making the web page…';
     if (!exporting) return 'Choosing where to save…';
     if (exporting.phase === 'encoding')
       return `Making the ${exporting.format === 'gif' ? 'GIF' : 'MP4'}…`;
