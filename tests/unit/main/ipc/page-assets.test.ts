@@ -1,6 +1,7 @@
 // AN15: the HTML web animation's files, read by the main process for the page (it cannot read
 // files itself): the player's script, a picture the app has opened and a bundled font, each as a
 // data: URL. Only pictures the app opened, and only the app's own font files, can be read.
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { createMockMediaEngine } from '../../../../src/adapters/mock/media-engine.ts';
 import { createElectronPageAssets } from '../../../../src/adapters/electron/page-assets.ts';
@@ -12,7 +13,8 @@ const base64 = (text: string) => Buffer.from(text).toString('base64');
 function setup(show = vi.fn(async () => {})) {
   const disk = new Map<string, Uint8Array>([
     ['/app/out/player.js', bytes('/* player */')],
-    ['/app/dist/assets/Inter-B2xq_9aZ.ttf', bytes('font')],
+    // As the main process makes it: with \ on Windows.
+    [join('/app/dist/assets', 'Inter-B2xq_9aZ.ttf'), bytes('font')],
     ['/work/Paris1.jpg', bytes('jpeg')],
     ['/work/star.svg', bytes('<svg/>')],
     ['/work/secret.txt', bytes('secret')],
