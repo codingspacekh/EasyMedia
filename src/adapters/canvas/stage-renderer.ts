@@ -20,15 +20,46 @@ export interface StageRendererDeps {
   loadFonts?: (fonts: string[]) => Promise<void>;
 }
 
-const defaultLoadImage = async (path: string): Promise<unknown | null> => {
+export interface PictureLoaders {
+  fetch: (url: string) => Promise<{ ok: boolean; blob(): Promise<Blob> }>;
+  createImageBitmap: (blob: Blob) => Promise<unknown>;
+  /** An <img> of the file's bytes, decoded. */
+  loadElement: (blob: Blob) => Promise<unknown>;
+}
+
+const browserLoaders = (): PictureLoaders => ({
+  fetch: (url) => fetch(url),
+  createImageBitmap: (blob) => createImageBitmap(blob),
+  async loadElement(blob) {
+    // From a data: URL (the page's own): an <img> from media:// would count as another site's
+    // picture and the canvas could then not be saved; blob: URLs are not allowed by the page.
+    const img = new Image();
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(await blob.text())}`;
+    await img.decode();
+    return img;
+  },
+});
+
+/**
+ * AN5: a picture file as something drawImage accepts; null when it cannot be loaded. A bitmap
+ * cannot be made from an SVG, so an SVG is drawn from an <img> (it keeps its size from the file).
+ */
+export async function loadPicture(
+  path: string,
+  loaders: PictureLoaders = browserLoaders(),
+): Promise<unknown | null> {
   try {
-    const response = await fetch(toMediaUrl(path));
+    const response = await loaders.fetch(toMediaUrl(path));
     if (!response.ok) return null;
-    return await createImageBitmap(await response.blob());
+    const blob = await response.blob();
+    if (blob.type === 'image/svg+xml') return await loaders.loadElement(blob);
+    return await loaders.createImageBitmap(blob);
   } catch {
     return null;
   }
-};
+}
+
+const defaultLoadImage = (path: string): Promise<unknown | null> => loadPicture(path);
 
 const defaultLoadFonts = async (fonts: string[]): Promise<void> => {
   const set = (globalThis as { document?: { fonts?: FontFaceSet } }).document?.fonts;

@@ -202,6 +202,8 @@ export interface Dialogs {
   saveTaskCheck(suggestedName: string): Promise<string | null>;
   /** AN16: an animation (.mvea) to open. */
   openAnimation(): Promise<string | null>;
+  /** AN5: a picture for the stage (PNG, JPG, GIF, BMP or SVG). */
+  openPicture(): Promise<string | null>;
   /** AN16: where to save an animation. */
   saveAnimation(suggestedName: string): Promise<string | null>;
   /** AN15: where to save an exported animation; the file type follows the format. */

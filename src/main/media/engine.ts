@@ -27,6 +27,7 @@ import {
   waveformArgs,
 } from './jobs.ts';
 import { parseProbe, type FfprobeJson } from './probe.ts';
+import { svgSize } from '../../core/animation/svg.ts';
 
 const execFileAsync = promisify(execFile);
 const exists = (path: string) =>
@@ -63,7 +64,11 @@ export function createNodeMediaEngine(
     } finally {
       checks.delete(running.child);
     }
-    return parseProbe(JSON.parse(stdout) as FfprobeJson);
+    const info = parseProbe(JSON.parse(stdout) as FfprobeJson);
+    // AN5: FFmpeg recognises an SVG but cannot draw it, so it knows no size: the file gives it.
+    if (info.container === 'svg' && info.video)
+      info.video = { ...info.video, ...svgSize(await readFile(path, 'utf8')) };
+    return info;
   }
 
   async function decodeAudioToFile(input: string, sampleRate?: number) {

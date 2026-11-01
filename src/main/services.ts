@@ -30,6 +30,9 @@ const MEDIA_EXTENSIONS = [
   'wma',
 ];
 
+/** AN5: pictures for Animation mode; SVG only here, as FFmpeg cannot draw it for a video. */
+const PICTURE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'];
+
 /** AN15: the file types of the animation exports. */
 const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
   png: { label: 'PNG picture', extension: 'png' },
@@ -126,6 +129,14 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         title: 'Open animation',
         properties: ['openFile'],
         filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async openPicture() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Add a picture',
+        properties: ['openFile'],
+        filters: [{ name: 'Pictures', extensions: PICTURE_EXTENSIONS }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },

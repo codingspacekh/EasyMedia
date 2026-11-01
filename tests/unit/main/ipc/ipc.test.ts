@@ -80,6 +80,7 @@ describe('P2 main-process IPC handlers', () => {
         openTaskCheck: async () => '/t/Task 11b.mvetask',
         saveTaskCheck: async (name) => `/t/${name}.mvetask`,
         openAnimation: async () => null,
+        openPicture: async () => null,
         saveAnimation: async () => null,
         exportAnimation: async () => null,
       },

@@ -143,7 +143,7 @@ describe('the drawing tools', () => {
   it('the Picture tool places a chosen file; a right button does nothing', async () => {
     const s = await mode();
     await s.tool('Picture');
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/photo.jpg']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
     await fireEvent.pointerDown(s.stage(), { clientX: 30, clientY: 40, button: 0 });
     await vi.waitFor(() => expect(s.objects()).toHaveLength(1));
     expect(s.objects()[0]).toMatchObject({ kind: 'picture', x: 30, y: 40 });

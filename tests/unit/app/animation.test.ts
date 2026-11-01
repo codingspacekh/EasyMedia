@@ -268,7 +268,7 @@ describe('files (AN16)', () => {
 
   it('a picture file becomes a picture object at its own size', async () => {
     const s = setup();
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/photo.jpg']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
     await s.anim.addPicture({ x: 10, y: 20 });
     expect(s.doc().pictures[0]).toMatchObject({ path: '/m/photo.jpg', width: 100, height: 100 });
     expect(s.objects()[0]).toMatchObject({
@@ -278,7 +278,7 @@ describe('files (AN16)', () => {
       width: 100,
       height: 100,
     });
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/clip.mp4']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/clip.mp4');
     await s.anim.addPicture({ x: 0, y: 0 });
     expect(s.state().message?.text).toMatch(/picture/i);
   });

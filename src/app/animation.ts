@@ -60,7 +60,7 @@ import type {
   ProjectFiles,
   StageRenderer,
 } from '../core/ports.ts';
-import { dirOf, fileNameOf } from '../core/project/relocate.ts';
+import { dirOf, fileNameOf, uniqueFileName } from '../core/project/relocate.ts';
 
 export type Tool =
   | 'select'
@@ -290,6 +290,33 @@ export function createAnimationApp({
 
   const recovery = recoveryPathOf(paths);
 
+  /**
+   * AN5: opens a document after checking each picture, which also lets the page show it (the main
+   * process serves only files it has checked). Pictures that have gone are named; the rest opens.
+   */
+  async function loadChecked(doc: AnimationDoc, path: string | null, saved?: AnimationDoc) {
+    const missing = (
+      await Promise.all(
+        doc.pictures.map((p) =>
+          engine.probe(p.path).then(
+            () => null,
+            () => fileNameOf(p.path),
+          ),
+        ),
+      )
+    ).filter((name) => name !== null);
+    load(doc, path, saved);
+    if (missing.length > 0)
+      patch({
+        message: {
+          kind: 'error',
+          text: `${missing.length === 1 ? 'This picture' : 'These pictures'} could not be found, so ${
+            missing.length === 1 ? 'it is' : 'they are'
+          } not shown: ${missing.join(', ')}. Put ${missing.length === 1 ? 'it' : 'them'} back beside the animation file and open it again.`,
+        },
+      });
+  }
+
   async function writeTo(path: string): Promise<void> {
     const doc = present();
     try {
@@ -482,7 +509,7 @@ export function createAnimationApp({
         if (
           await dialogs.confirm('EasyMedia closed before your animation was saved. Restore it?')
         ) {
-          load(lost, null, createAnimation({ name: 'Untitled' }));
+          await loadChecked(lost, null, createAnimation({ name: 'Untitled' }));
           return;
         }
       } catch {
@@ -510,7 +537,7 @@ export function createAnimationApp({
       if (!path) return;
       try {
         const doc = animationFromDisk(deserializeAnimation(await files.read(path)), dirOf(path));
-        load(doc, path);
+        await loadChecked(doc, path);
       } catch (error) {
         showError(error);
       }
@@ -518,6 +545,36 @@ export function createAnimationApp({
 
     save,
     saveAs,
+
+    /** P2: copies the animation and its pictures into one folder, to hand in or move. */
+    async packageAnimation(): Promise<void> {
+      const dir = await dialogs.chooseFolder('Choose an empty folder for the packaged animation');
+      if (!dir) return;
+      const { path } = store.get();
+      const doc = present();
+      const name = path ? fileNameOf(path).replace(/\.mvea$/i, '') : doc.name;
+      try {
+        const used = new Set<string>();
+        const pictures: Picture[] = [];
+        for (const picture of doc.pictures) {
+          const file = `${dir}/pictures/${uniqueFileName(fileNameOf(picture.path), used)}`;
+          await files.copy(picture.path, file);
+          pictures.push({ ...picture, path: file });
+        }
+        await files.write(
+          `${dir}/${name}.mvea`,
+          serializeAnimation(animationToDisk({ ...doc, pictures }, dir)),
+        );
+        patch({
+          message: {
+            kind: 'info',
+            text: `Packaged into ${dir}. Open ${name}.mvea there on any computer.`,
+          },
+        });
+      } catch (error) {
+        showError(error);
+      }
+    },
 
     /** AN15: the frame at the playhead as a PNG (M13's Export). */
     exportPng: async (): Promise<void> => void (await exportAnimation('png')),
@@ -592,11 +649,12 @@ export function createAnimationApp({
 
     /** AN5: a picture file chosen by the student, placed at its own size. */
     async addPicture(at: Point): Promise<void> {
-      const [path] = await dialogs.openMedia();
+      const path = await dialogs.openPicture();
       if (!path) return;
       try {
         const info = await engine.probe(path);
-        if (info.kind !== 'image' || !info.video)
+        // FFmpeg calls a GIF a video (it can have several pictures); its first picture is shown.
+        if ((info.kind !== 'image' && info.container !== 'gif') || !info.video)
           throw new EditError('Choose a picture file, such as a PNG or JPG.');
         const known = present().pictures.find((p) => p.path === path);
         const picture: Picture = known ?? {

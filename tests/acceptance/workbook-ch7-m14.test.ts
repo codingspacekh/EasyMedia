@@ -229,7 +229,7 @@ describe('Workbook Task 3 — the Paris slide show', () => {
     s.type(paris, 48, { opacity: 0 });
     const slides: Id[] = [];
     const add = async (path: string, from: 'left' | 'right', enter: number) => {
-      s.dialogs.openMedia.mockResolvedValueOnce([path]);
+      s.dialogs.openPicture.mockResolvedValueOnce(path);
       await s.anim.addPicture({ x: 0, y: AT.y });
       const id = s.last().id;
       const w = s.at(id, 0).width;

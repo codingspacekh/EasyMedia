@@ -45,7 +45,13 @@ import type {
 } from '../core/ports.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
-import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
+import {
+  dirOf,
+  fileNameOf,
+  projectFromDisk,
+  projectToDisk,
+  uniqueFileName,
+} from '../core/project/relocate.ts';
 import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
@@ -719,7 +725,7 @@ export function createApp({
         const used = new Set<string>();
         const media: MediaAsset[] = [];
         for (const asset of project.media) {
-          const file = uniqueName(fileNameOf(asset.path), used);
+          const file = uniqueFileName(fileNameOf(asset.path), used);
           await files.copy(asset.path, `${dir}/media/${file}`);
           media.push({ ...asset, path: `media/${file}` });
         }
@@ -853,13 +859,3 @@ export function createApp({
 }
 
 export type App = ReturnType<typeof createApp>;
-
-/** "clip.mp4", then "clip-2.mp4", "clip-3.mp4"… for files with the same name. */
-function uniqueName(file: string, used: Set<string>): string {
-  const dot = file.lastIndexOf('.');
-  const [base, ext] = dot > 0 ? [file.slice(0, dot), file.slice(dot)] : [file, ''];
-  let name = file;
-  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base}-${n}${ext}`;
-  used.add(name.toLowerCase());
-  return name;
-}

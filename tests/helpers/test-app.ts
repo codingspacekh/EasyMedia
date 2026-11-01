@@ -36,11 +36,14 @@ export function testApp(
     openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
     saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
     openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
+    openPicture: vi.fn<Dialogs['openPicture']>(async () => null),
     saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
     exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
   };
   const disk = new Map<string, string>();
   const bytes = new Map<string, Uint8Array>();
+  /** Files copied (P2), [from, to]. */
+  const copies: [string, string][] = [];
   const recorder = createMockRecorder();
   const stageRenderer = {
     renderPng: vi.fn<StageRenderer['renderPng']>(async () => new Uint8Array([137, 80, 78, 71])),
@@ -55,7 +58,7 @@ export function testApp(
         disk.delete(p);
         bytes.delete(p);
       },
-      copy: async () => {},
+      copy: async (from, to) => void copies.push([from, to]),
       saveImage: async (name) => `/cache/text/${name}.png`,
       writeBytes: async (p, b) => void bytes.set(p, b),
     },
@@ -75,5 +78,5 @@ export function testApp(
     dialogs.openMedia.mockResolvedValueOnce(paths);
     await app.importMedia();
   };
-  return { app, engine, dialogs, importFiles, recorder, disk, bytes, stageRenderer };
+  return { app, engine, dialogs, importFiles, recorder, disk, bytes, copies, stageRenderer };
 }

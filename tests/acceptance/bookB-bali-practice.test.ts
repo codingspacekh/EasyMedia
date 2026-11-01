@@ -90,6 +90,7 @@ function session() {
     openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
     saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
     openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
+    openPicture: vi.fn<Dialogs['openPicture']>(async () => null),
     saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
     exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
   };

@@ -63,6 +63,7 @@ describe('media:// file server', () => {
     ['a.mov', 'video/quicktime'],
     ['a.png', 'image/png'],
     ['a.JPG', 'image/jpeg'],
+    ['star.svg', 'image/svg+xml'],
     ['a.mp3', 'audio/mpeg'],
     ['a.wav', 'audio/wav'],
     ['a.xyz', 'application/octet-stream'],

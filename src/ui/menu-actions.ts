@@ -43,7 +43,7 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
       ui.mode = 'Audio';
       ui.audioExport = true;
     },
-    package: app.packageProject,
+    package: () => (anim() ? a.packageAnimation() : app.packageProject()),
     undo: () => (anim() ? a.undo() : audio() ? app.audio.undo() : app.undo()),
     redo: () => (anim() ? a.redo() : audio() ? app.audio.redo() : app.redo()),
     welcome: app.showWelcome,

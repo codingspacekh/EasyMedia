@@ -355,7 +355,7 @@ describe('Workbook Task 6 — Computers of the 1980s (WB p.105–107)', () => {
     const ids: Id[] = [];
     for (const [i, name] of COMPUTERS.entries()) {
       const s0 = 168 + 72 * i;
-      s.dialogs.openMedia.mockResolvedValueOnce([`/task6/${name}.png`]);
+      s.dialogs.openPicture.mockResolvedValueOnce(`/task6/${name}.png`);
       await s.anim.addPicture({ x: 0, y: 0 });
       const id = s.last().id;
       ids.push(id);
@@ -654,7 +654,7 @@ describe("Coursebook exam-style question 2 — Henry's Homes (CB p.465–466)", 
     const s = studio({ '/henry/Henry logo.jpg': picture(240, 120) });
     s.stage({ width: 1280, height: 720, background: '#cfe8ff', length: 240 });
     // The logo on the left pulses: bigger, then back, again and again.
-    s.dialogs.openMedia.mockResolvedValueOnce(['/henry/Henry logo.jpg']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/henry/Henry logo.jpg');
     await s.anim.addPicture({ x: 40, y: 300 });
     const logo = s.last().id;
     s.type(logo, 12, { x: 16, y: 288, width: 288, height: 144 });

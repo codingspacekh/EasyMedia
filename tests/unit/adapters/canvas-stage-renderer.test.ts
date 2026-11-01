@@ -1,7 +1,11 @@
 // AN15: the stage drawn on an OffscreenCanvas and saved as a PNG, with the pictures and fonts
 // it needs loaded first. The canvas and loaders are fakes here; the real ones run in the app.
 import { describe, expect, it, vi } from 'vitest';
-import { createCanvasStageRenderer } from '../../../src/adapters/canvas/stage-renderer.ts';
+import {
+  createCanvasStageRenderer,
+  loadPicture,
+} from '../../../src/adapters/canvas/stage-renderer.ts';
+import { toMediaUrl } from '../../../src/core/media-url.ts';
 import type { StageCanvas } from '../../../src/core/animation/draw.ts';
 import {
   createAnimation,
@@ -121,5 +125,36 @@ describe('createCanvasStageRenderer', () => {
       globalThis.fetch = original;
     }
     expect(calls.some((c) => c.startsWith('strokeRect('))).toBe(true);
+  });
+});
+
+describe('loading pictures (AN5)', () => {
+  const blob = (type: string) => new Blob(['x'], { type });
+  const deps = (type: string, ok = true) => ({
+    fetch: vi.fn(async () => ({ ok, blob: async () => blob(type) })),
+    createImageBitmap: vi.fn(async () => {
+      if (type === 'image/svg+xml') throw new Error('The source image could not be decoded.');
+      return 'bitmap';
+    }),
+    loadElement: vi.fn(async (b: Blob) => `element ${b.type}`),
+  });
+
+  it('AN5 a PNG or JPG is decoded to a bitmap', async () => {
+    const d = deps('image/png');
+    expect(await loadPicture('/m/photo.png', d)).toBe('bitmap');
+    expect(d.loadElement).not.toHaveBeenCalled();
+  });
+
+  it('AN5 an SVG (which a bitmap cannot be made from) is loaded as an image element', async () => {
+    const d = deps('image/svg+xml');
+    expect(await loadPicture('/m/star.svg', d)).toBe('element image/svg+xml');
+    expect(d.fetch).toHaveBeenCalledWith(toMediaUrl('/m/star.svg'));
+  });
+
+  it('AN5 a file that cannot be served or drawn is null (the picture is left out)', async () => {
+    expect(await loadPicture('/m/gone.png', deps('image/png', false))).toBeNull();
+    const d = deps('image/svg+xml');
+    d.loadElement.mockRejectedValueOnce(new Error('broken'));
+    expect(await loadPicture('/m/bad.svg', d)).toBeNull();
   });
 });
