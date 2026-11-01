@@ -6,6 +6,7 @@ import {
   loadPicture,
 } from '../../../src/adapters/canvas/stage-renderer.ts';
 import { toMediaUrl } from '../../../src/core/media-url.ts';
+import { MediaError } from '../../../src/core/model/errors.ts';
 import type { StageCanvas } from '../../../src/core/animation/draw.ts';
 import {
   createAnimation,
@@ -156,5 +157,29 @@ describe('loading pictures (AN5)', () => {
     const d = deps('image/svg+xml');
     d.loadElement.mockRejectedValueOnce(new Error('broken'));
     expect(await loadPicture('/m/bad.svg', d)).toBeNull();
+  });
+});
+
+describe('reading a picture’s pixels for Trace bitmap (AN5)', () => {
+  it('AN5 draws the picture scaled down to fit the longest side and reads its pixels', async () => {
+    const calls: string[] = [];
+    const canvas = fakeCanvas(calls);
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage: async () => ({ width: 400, height: 200 }),
+    });
+    expect(await renderer.pixels('/m/Paris1.jpg', 100)).toMatchObject({ width: 100, height: 50 });
+    expect(canvas.sizes).toEqual([[100, 50]]);
+    expect(calls).toEqual(['drawImage(image,0,0,100,50)', 'getImageData(0,0,100,50)']);
+  });
+
+  it('AN5 a small picture is read at its own size; one that cannot be loaded says so', async () => {
+    const canvas = fakeCanvas([]);
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage: async (path) => (path.endsWith('gone.png') ? null : { width: 30, height: 20 }),
+    });
+    expect(await renderer.pixels('/m/small.png', 100)).toMatchObject({ width: 30, height: 20 });
+    await expect(renderer.pixels('/m/gone.png', 100)).rejects.toThrow(MediaError);
   });
 });

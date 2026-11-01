@@ -77,6 +77,8 @@ export const WHY = {
     'Vector objects are stored as points and equations, so they can be moved, resized, turned and recoloured without losing quality, and the computer can work out the frames in between (tweening). A bitmap picture cannot be tweened the same way.',
   animText:
     'Text is an object like any other: it has a font, size, colour and position, and it can be moved, faded and tweened. Splitting a word into letters lets each letter arrive or leave on its own.',
+  animTrace:
+    'Trace bitmap turns a picture into vector shapes, one for each area of colour, so its parts can be recoloured, moved and animated separately and it can be resized without blurring. Some detail is lost: fewer colours and less detail give fewer, simpler shapes.',
   animPicture:
     'A picture (bitmap) can be placed, moved, resized and faded in an animation. To change its parts separately, trace it into vector shapes first; some detail is lost in the trace.',
   objectProperties:
@@ -156,6 +158,7 @@ export const TOOLS: Tool[] = [
   tool('vectorShapes', 'Vector shapes', '20.1 creating vector objects'),
   tool('animText', 'Text', '20.1 adding text'),
   tool('animPicture', 'Picture', '20.1 importing and tracing bitmaps'),
+  tool('animTrace', 'Trace bitmap', '20.1 importing and tracing bitmaps'),
   tool('objectProperties', 'Object properties', '20.1 controlling object properties'),
   tool('animLayers', 'Layers', '20.1 using layers'),
   tool('animGroup', 'Group', '20.1 animation variables'),

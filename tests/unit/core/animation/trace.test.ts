@@ -2,7 +2,14 @@
 // to outlines, simplified (detail) and smoothed into Bézier paths; the largest region first, so the
 // regions inside others are drawn over them.
 import { describe, expect, it } from 'vitest';
-import { quantise, traceBitmap, type Pixels } from '../../../../src/core/animation/trace.ts';
+import { createPicture } from '../../../../src/core/animation/factory.ts';
+import {
+  quantise,
+  traceBitmap,
+  tracedGroup,
+  type Pixels,
+} from '../../../../src/core/animation/trace.ts';
+import type { PathObject } from '../../../../src/core/animation/types.ts';
 
 type RGBA = [number, number, number, number];
 const WHITE: RGBA = [255, 255, 255, 255];
@@ -120,5 +127,62 @@ describe('traceBitmap (AN5)', () => {
       (r) => r.colour === '#e6141e',
     );
     expect(red).toHaveLength(2);
+  });
+});
+
+describe('tracedGroup (AN5)', () => {
+  const photo = {
+    ...createPicture({ id: 'p1', path: '/m/circle.png', width: 100, height: 80 }, { x: 0, y: 0 }),
+    x: 40,
+    y: 30,
+    width: 200,
+    height: 120,
+    rotation: 15,
+    opacity: 80,
+    tracks: [
+      {
+        property: 'x' as const,
+        keyframes: [{ frame: 0, value: 40, easing: 'linear' as const, hold: false }],
+      },
+    ],
+  };
+
+  it('AN5 the traced shapes take the picture’s place, size, turn, opacity and keyframes, as a group', () => {
+    const regions = traceBitmap(circle, { colours: 2, detail: 70, smoothing: 50 });
+    const group = tracedGroup(photo, regions, { width: 100, height: 80 });
+    expect(group).toMatchObject({
+      kind: 'group',
+      name: 'Traced circle.png',
+      x: 40,
+      y: 30,
+      width: 200,
+      height: 120,
+      rotation: 15,
+      opacity: 80,
+      tracks: photo.tracks,
+    });
+    expect(group.children).toHaveLength(2);
+    // The picture was traced at 100 × 80 and is shown at 200 × 120: twice as wide, 1.5 times as high.
+    const [white, red] = group.children as PathObject[];
+    expect(white).toMatchObject({
+      kind: 'path',
+      closed: true,
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 120,
+    });
+    expect(white!.fill).toEqual({ kind: 'solid', colour: '#ffffff' });
+    expect(white!.stroke).toBeUndefined();
+    expect(red!.name).toBe('Colour 2');
+    expect(Math.abs(red!.x - 40)).toBeLessThanOrEqual(4);
+    expect(Math.abs(red!.y - 15)).toBeLessThanOrEqual(3);
+    expect(Math.abs(red!.width - 120)).toBeLessThanOrEqual(8);
+    // Handles move with their points.
+    const p = red!.points.find((q) => q.out)!;
+    expect(p.out!.x - p.x).toBeCloseTo(
+      (regions[1]!.points.find((q) => q.out)!.out!.x - regions[1]!.points.find((q) => q.out)!.x) *
+        2,
+    );
   });
 });

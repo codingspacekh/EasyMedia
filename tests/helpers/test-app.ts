@@ -47,6 +47,11 @@ export function testApp(
   const recorder = createMockRecorder();
   const stageRenderer = {
     renderPng: vi.fn<StageRenderer['renderPng']>(async () => new Uint8Array([137, 80, 78, 71])),
+    pixels: vi.fn<StageRenderer['pixels']>(async () => ({
+      width: 1,
+      height: 1,
+      data: new Uint8ClampedArray([255, 255, 255, 255]),
+    })),
   };
   const app = createApp({
     engine,

@@ -3,6 +3,9 @@
 // Animation, which copies the animation and its pictures into one folder.
 import { describe, expect, it } from 'vitest';
 import { deserializeAnimation } from '../../../src/core/animation/serialize.ts';
+import type { Pixels } from '../../../src/core/animation/trace.ts';
+import type { GroupObject } from '../../../src/core/animation/types.ts';
+import { TRACE_MAX_SIDE, TRACE_PREVIEW_SIDE } from '../../../src/app/animation.ts';
 import { MediaError } from '../../../src/core/model/errors.ts';
 import type { ProbeInfo } from '../../../src/core/ports.ts';
 import { IMAGE, testApp } from '../../helpers/test-app.ts';
@@ -152,5 +155,87 @@ describe('Package Animation (P2, AN5)', () => {
       text: expect.stringContaining('disk is full'),
     });
     expect(s.disk.has('/usb/Untitled.mvea')).toBe(false);
+  });
+});
+
+describe('Trace bitmap (AN5)', () => {
+  /** A red square (20–60) on white, 80 × 80, as the canvas reads it. */
+  const square: Pixels = (() => {
+    const data = new Uint8ClampedArray(80 * 80 * 4);
+    for (let i = 0; i < 80 * 80; i++) {
+      const [x, y] = [i % 80, Math.floor(i / 80)];
+      data.set(
+        x >= 20 && x < 60 && y >= 20 && y < 60 ? [230, 20, 30, 255] : [255, 255, 255, 255],
+        i * 4,
+      );
+    }
+    return { width: 80, height: 80, data };
+  })();
+  const options = { colours: 2, detail: 60, smoothing: 0 };
+
+  async function withPicture() {
+    const s = setup();
+    s.stageRenderer.pixels.mockResolvedValue(square);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
+    await s.anim.addPicture({ x: 10, y: 20 });
+    return s;
+  }
+
+  it('AN5 the selected picture becomes a group of filled shapes in its place, selected; one undo brings it back', async () => {
+    const s = await withPicture();
+    await s.anim.traceBitmap(options);
+    expect(s.stageRenderer.pixels).toHaveBeenCalledWith('/m/photo.jpg', TRACE_MAX_SIDE);
+    const group = s.objects()[0] as GroupObject;
+    expect(group).toMatchObject({
+      kind: 'group',
+      name: 'Traced photo.jpg',
+      x: 10,
+      y: 20,
+      width: 100,
+      height: 100,
+    });
+    expect(group.children.map((c) => (c.fill.kind === 'solid' ? c.fill.colour : ''))).toEqual([
+      '#ffffff',
+      '#e6141e',
+    ]);
+    // The 80 px picture is shown at 100 px: the square's corner at 20 px is at 25.
+    expect(group.children[1]).toMatchObject({ x: 25, y: 25, width: 50, height: 50 });
+    expect(s.state().selection).toEqual([group.id]);
+    s.anim.undo();
+    expect(s.objects()[0]).toMatchObject({ kind: 'picture' });
+  });
+
+  it('AN5 the preview traces a small copy and does not change the animation', async () => {
+    const s = await withPicture();
+    const before = s.doc();
+    const preview = await s.anim.tracePreview(options);
+    expect(s.stageRenderer.pixels).toHaveBeenCalledWith('/m/photo.jpg', TRACE_PREVIEW_SIDE);
+    expect(preview).toMatchObject({ width: 80, height: 80 });
+    expect(preview!.regions).toHaveLength(2);
+    expect(s.doc()).toBe(before);
+  });
+
+  it('AN5 only a picture can be traced; a see-through picture or one that cannot be read says so', async () => {
+    const s = await withPicture();
+    s.anim.addShape('rect', { x: 0, y: 0, width: 10, height: 10 });
+    await s.anim.traceBitmap(options);
+    expect(s.state().message).toMatchObject({
+      kind: 'error',
+      text: expect.stringMatching(/picture/i),
+    });
+    expect(await s.anim.tracePreview(options)).toBeNull();
+
+    s.anim.select([s.objects()[0]!.id]);
+    s.stageRenderer.pixels.mockResolvedValueOnce({
+      width: 2,
+      height: 2,
+      data: new Uint8ClampedArray(16),
+    });
+    await s.anim.traceBitmap(options);
+    expect(s.state().message?.text).toMatch(/see-through/);
+    s.stageRenderer.pixels.mockRejectedValueOnce(new MediaError('This picture could not be read.'));
+    await s.anim.traceBitmap(options);
+    expect(s.state().message?.text).toMatch(/could not be read/);
+    expect(s.objects()[0]).toMatchObject({ kind: 'picture' });
   });
 });

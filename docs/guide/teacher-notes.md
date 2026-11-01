@@ -126,7 +126,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | configuring the stage: the aspect ratio using rulers, guides and grid settings | Animation ▸ the stage chip (4:3, 16:9, 16:10, 2.35:1 presets); Rulers, Grid and Guides on the toolbar | Rulers, grid & guides |
 | configuring the stage: snapping options | Animation ▸ Snap on the toolbar (grid, guides, objects, pixels); the status bar says what it snapped to | Snapping |
 | importing and creating vector objects | Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar | Vector shapes |
-| importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the toolbar, then Trace bitmap (M16) | Picture |
+| importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the toolbar, then Trace bitmap (M16) | Picture, Trace bitmap |
 | importing and creating vector objects: adding text | Animation ▸ Text on the toolbar | Text |
 | controlling object properties: stroke and fill settings; size, position and orientation; transparency | Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke) | Object properties |
 | setting paths | Animation ▸ Properties ▸ Motion path (Follow path, Orient to path); a pen path’s points and curves are edited on the stage | Motion path |

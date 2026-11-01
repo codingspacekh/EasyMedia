@@ -454,6 +454,13 @@ export function removeGuide(axis: GuideAxis, index: number): AnimCommand {
   }));
 }
 
+/** One object swapped for another in the same place in its layer (AN5: a picture for its tracing). */
+export const replaceObject = (id: Id, object: AnimObject, label: string): AnimCommand =>
+  command(label, (doc) => {
+    validateObject(object);
+    return layers.updateObject(doc, id, () => object);
+  });
+
 /** AN5: a picture file (once) and an object showing it. */
 export function addPicture(layerId: Id, picture: Picture, object: AnimObject): AnimCommand {
   return command(`Add ${object.name}`, (doc) => {

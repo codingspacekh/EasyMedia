@@ -12,6 +12,7 @@
   import PropertiesPanel from './PropertiesPanel.svelte';
   import Stage from './Stage.svelte';
   import AnimationExportDialog from './AnimationExportDialog.svelte';
+  import TraceDialog from './TraceDialog.svelte';
   import StageSettings from './StageSettings.svelte';
   import Timeline from './Timeline.svelte';
   import ToolStrip from './ToolStrip.svelte';
@@ -117,6 +118,8 @@
   <StageSettings {app} onclose={() => (animUi.dialog = null)} />
 {:else if animUi.dialog === 'export'}
   <AnimationExportDialog {app} onclose={() => (animUi.dialog = null)} />
+{:else if animUi.dialog === 'trace'}
+  <TraceDialog {app} onclose={() => (animUi.dialog = null)} />
 {/if}
 
 <style>

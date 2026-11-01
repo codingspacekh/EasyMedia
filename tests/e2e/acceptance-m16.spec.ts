@@ -133,3 +133,31 @@ test('AN5 an SVG and a PNG are placed, exported, opened again in a new start and
   expect(await readFile(join(folder, 'Pictures.mvea'), 'utf8')).toContain('"pictures/red.png"');
   await second.app.close();
 });
+
+test('AN5 Trace bitmap turns a picture into coloured shapes that export the same', async () => {
+  test.setTimeout(240_000);
+  // A red square on white, 100 × 100.
+  const png = join(dir, 'square.png');
+  await execFileAsync(bundledFfmpeg().ffmpeg, [
+    ...['-v', 'error', '-filter_complex'],
+    'color=white:s=100x100,format=rgb24[bg];color=red:s=50x50,format=rgb24[fg];[bg][fg]overlay=25:25:format=rgb',
+    ...['-frames:v', '1', png],
+  ]);
+  const { app, window: page } = await launchApp();
+  await animationMode(page);
+  await answerDialogs(app, { open: [png] });
+  await placePicture(page, 'square.png', [100, 100]);
+
+  await page.getByRole('button', { name: 'Trace bitmap…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Trace bitmap' });
+  await expect(dialog.getByText(/2 shapes in 2 colours/)).toBeVisible({ timeout: 20_000 });
+  await dialog.getByRole('button', { name: 'Trace', exact: true }).click();
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByText('Traced square.png').first()).toBeVisible();
+
+  const shot = join(dir, 'traced.png');
+  await exportPng(page, app, shot);
+  expect(near(await rgb(shot, 150, 150), [255, 0, 0])).toBe(true); // the red shape
+  expect(near(await rgb(shot, 110, 110), [255, 255, 255])).toBe(true); // the white shape
+  await app.close();
+});

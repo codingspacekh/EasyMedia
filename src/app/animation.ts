@@ -24,6 +24,12 @@ import {
 } from '../core/animation/serialize.ts';
 import type { MeasureText } from '../core/animation/letters.ts';
 import { parseFrame } from '../core/animation/time.ts';
+import {
+  traceBitmap,
+  tracedGroup,
+  type TraceOptions,
+  type TracedRegion,
+} from '../core/animation/trace.ts';
 import { objectAt } from '../core/animation/tween.ts';
 import type {
   AnimObject,
@@ -33,6 +39,7 @@ import type {
   PathObject,
   TweenProperty,
   Picture,
+  PictureObject,
   Stage,
   TextObject,
   ViewSettings,
@@ -129,6 +136,7 @@ const DISCARD = 'You have unsaved animation work. Discard it and';
 const UNEXPECTED = 'Something went wrong. Please try again.';
 const NO_RENDERER: StageRenderer = {
   renderPng: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
+  pixels: () => Promise.reject(new EditError('Tracing needs the EasyMedia app.')),
 };
 
 /**
@@ -158,6 +166,11 @@ export const animationTitle = (s: AnimationState): string =>
 
 const recoveryPathOf = (paths: AppPaths): string =>
   paths.animationRecovery ?? paths.recovery.replace(/\.mve$/i, '') + '.mvea';
+
+/** AN5: pictures are traced at most this size (px on the longer side), to keep tracing quick. */
+export const TRACE_MAX_SIDE = 1200;
+/** AN5: the Trace bitmap dialog's preview traces a copy this small. */
+export const TRACE_PREVIEW_SIDE = 240;
 
 export function createAnimationApp({
   dialogs,
@@ -266,6 +279,25 @@ export function createAnimationApp({
     } catch (error) {
       return error instanceof EditError ? error.message : UNEXPECTED;
     }
+  }
+
+  /** AN5: the one selected object if it is a picture, with its file. */
+  function selectedPicture(): { object: PictureObject; path: string } | null {
+    const ids = liveSelection();
+    const found = ids.length === 1 ? findObject(present(), ids[0]!) : null;
+    if (found?.object.kind !== 'picture') return null;
+    const { pictureId } = found.object;
+    const file = present().pictures.find((p) => p.id === pictureId);
+    return file ? { object: found.object, path: file.path } : null;
+  }
+
+  async function tracePicture(
+    picture: { path: string },
+    maxSide: number,
+    options: TraceOptions,
+  ): Promise<{ width: number; height: number; regions: TracedRegion[] }> {
+    const pixels = await renderer.pixels(picture.path, maxSide);
+    return { width: pixels.width, height: pixels.height, regions: traceBitmap(pixels, options) };
   }
 
   /** The selection without objects that no longer exist. */
@@ -674,6 +706,36 @@ export function createAnimationApp({
     // ---- editing the selection ----
 
     edit,
+
+    /** AN5: the selected picture becomes a group of filled shapes traced from it (one undo step). */
+    async traceBitmap(options: TraceOptions): Promise<void> {
+      const picture = selectedPicture();
+      if (!picture) {
+        patch({ message: { kind: 'error', text: 'Select a picture to trace it.' } });
+        return;
+      }
+      patch({ busy: 'Tracing…' });
+      try {
+        const traced = await tracePicture(picture, TRACE_MAX_SIDE, options);
+        if (traced.regions.length === 0)
+          throw new EditError('There is nothing to trace: the picture is see-through.');
+        const group = tracedGroup(picture.object, traced.regions, traced);
+        if (run(cmd.replaceObject(picture.object.id, group, 'Trace bitmap')))
+          patch({ selection: [group.id] });
+      } catch (error) {
+        showError(error);
+      } finally {
+        patch({ busy: null });
+      }
+    },
+
+    /** AN5: what Trace bitmap would make, from a small copy, for the dialog; null if no picture. */
+    async tracePreview(
+      options: TraceOptions,
+    ): Promise<{ width: number; height: number; regions: TracedRegion[] } | null> {
+      const picture = selectedPicture();
+      return picture ? tracePicture(picture, TRACE_PREVIEW_SIDE, options) : null;
+    },
 
     /** AN6: exact numbers for every selected object; returns why not, for the field. */
     setProperties(patchValues: Partial<AnimObject>): string | null {

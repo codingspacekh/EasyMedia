@@ -3,7 +3,9 @@
 // simplified (Ramer–Douglas–Peucker: the detail setting) and given curve handles (the smoothing
 // setting). The regions come largest first, so a region inside another is drawn over it; holes are
 // not cut, as the regions in them cover them. Detail is lost, as the coursebook warns.
-import type { PathPoint } from './types.ts';
+import { fileNameOf } from '../project/relocate.ts';
+import { createGroup, createPath } from './factory.ts';
+import type { GroupObject, PathObject, PathPoint, PictureObject } from './types.ts';
 
 /** RGBA pixels, row by row (an ImageData in the app). */
 export interface Pixels {
@@ -298,4 +300,52 @@ function smooth(points: { x: number; y: number }[], smoothing: number): PathPoin
     const ty = (after.y - before.y) * f;
     return { x: p.x, y: p.y, in: { x: p.x - tx, y: p.y - ty }, out: { x: p.x + tx, y: p.y + ty } };
   });
+}
+
+/**
+ * AN5: the traced regions as a group of filled shapes in the picture's place: its box, turn,
+ * opacity and keyframes, so it can be edited and animated part by part. `traced` is the size the
+ * pixels were read at.
+ */
+export function tracedGroup(
+  picture: PictureObject,
+  regions: readonly TracedRegion[],
+  traced: { width: number; height: number },
+): GroupObject {
+  const sx = picture.width / traced.width;
+  const sy = picture.height / traced.height;
+  const scale = (p: { x: number; y: number }) => ({ x: p.x * sx, y: p.y * sy });
+  const children = regions.map((region, i): PathObject => {
+    const shape = createPath(region.points.map(scale), true, `Colour ${i + 1}`);
+    const at = (p: { x: number; y: number }) => {
+      const q = scale(p);
+      return { x: q.x - shape.x, y: q.y - shape.y };
+    };
+    return {
+      ...shape,
+      points: region.points.map((p) => ({
+        ...at(p),
+        ...(p.in ? { in: at(p.in) } : {}),
+        ...(p.out ? { out: at(p.out) } : {}),
+      })),
+      fill: { kind: 'solid', colour: region.colour },
+      stroke: undefined,
+    };
+  });
+  const { id } = createGroup(children);
+  return {
+    kind: 'group',
+    id,
+    name: `Traced ${fileNameOf(picture.name)}`,
+    x: picture.x,
+    y: picture.y,
+    width: picture.width,
+    height: picture.height,
+    rotation: picture.rotation,
+    opacity: picture.opacity,
+    fill: { kind: 'none' },
+    children,
+    ...(picture.tracks ? { tracks: picture.tracks } : {}),
+    ...(picture.paths ? { paths: picture.paths } : {}),
+  };
 }

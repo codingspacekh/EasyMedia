@@ -2,7 +2,10 @@
 // same drawing as the preview — and saved as a PNG. Pictures are fetched through media://.
 import { drawStage, fontOf, type StageCanvas } from '../../core/animation/draw.ts';
 import type { AnimObject, AnimationDoc } from '../../core/animation/types.ts';
+import type { Pixels } from '../../core/animation/trace.ts';
 import { toMediaUrl } from '../../core/media-url.ts';
+import { MediaError } from '../../core/model/errors.ts';
+import { fileNameOf } from '../../core/project/relocate.ts';
 import type { StageRenderer } from '../../core/ports.ts';
 
 export interface StageRendererDeps {
@@ -105,6 +108,21 @@ export function createCanvasStageRenderer({
       drawStage(ctx, doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());
+    },
+
+    async pixels(path: string, maxSide: number): Promise<Pixels> {
+      const image = (await loadImage(path)) as { width: number; height: number } | null;
+      if (!image || !(image.width > 0) || !(image.height > 0))
+        throw new MediaError(`${fileNameOf(path)} could not be read as a picture.`);
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const ctx = makeCanvas(width, height).getContext('2d') as
+        | (StageCanvas & { getImageData(x: number, y: number, w: number, h: number): ImageData })
+        | null;
+      if (!ctx) throw new Error('No canvas is available to read the picture.');
+      ctx.drawImage(image, 0, 0, width, height);
+      return { width, height, data: ctx.getImageData(0, 0, width, height).data };
     },
   };
 }

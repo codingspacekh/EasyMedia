@@ -3,6 +3,7 @@
 import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
 import type { AnimationDoc } from './animation/types.ts';
+import type { Pixels } from './animation/trace.ts';
 import type { TextImage } from './render/compile.ts';
 import type { Container, ExportSettings } from './render/formats.ts';
 import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
@@ -229,6 +230,8 @@ export interface ProjectFiles {
 /** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */
 export interface StageRenderer {
   renderPng(doc: AnimationDoc, frame?: number): Promise<Uint8Array>;
+  /** AN5: a picture's pixels, scaled down to at most `maxSide` px on its longer side. */
+  pixels(path: string, maxSide: number): Promise<Pixels>;
 }
 
 /** Draws text as a transparent PNG with the bundled fonts (ARCHITECTURE §7.3). */

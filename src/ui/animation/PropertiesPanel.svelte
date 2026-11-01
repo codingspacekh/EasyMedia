@@ -202,6 +202,14 @@
         </div>
       </div>
 
+      {#if first.kind === 'picture' && !many}
+        <div class="sec">
+          <h4>Picture <span class="syl">20.1 tracing bitmaps</span></h4>
+          <button class="sm" onclick={() => (animUi.dialog = 'trace')}>Trace bitmap…</button>
+          <Why tool="animTrace" />
+        </div>
+      {/if}
+
       {#if first.kind !== 'picture' && first.kind !== 'group'}
         <div class="sec">
           <h4>Fill</h4>
