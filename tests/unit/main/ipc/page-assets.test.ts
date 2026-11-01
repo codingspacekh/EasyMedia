@@ -1,7 +1,7 @@
 // AN15: the HTML web animation's files, read by the main process for the page (it cannot read
 // files itself): the player's script, a picture the app has opened and a bundled font, each as a
 // data: URL. Only pictures the app opened, and only the app's own font files, can be read.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createMockMediaEngine } from '../../../../src/adapters/mock/media-engine.ts';
 import { createElectronPageAssets } from '../../../../src/adapters/electron/page-assets.ts';
 import { inProcessBridge } from '../../../helpers/ipc-bridge.ts';
@@ -9,7 +9,7 @@ import { inProcessBridge } from '../../../helpers/ipc-bridge.ts';
 const bytes = (text: string) => new TextEncoder().encode(text);
 const base64 = (text: string) => Buffer.from(text).toString('base64');
 
-function setup() {
+function setup(show = vi.fn(async () => {})) {
   const disk = new Map<string, Uint8Array>([
     ['/app/out/player.js', bytes('/* player */')],
     ['/app/dist/assets/Inter-B2xq_9aZ.ttf', bytes('font')],
@@ -22,6 +22,7 @@ function setup() {
       player: '/app/out/player.js',
       assets: '/app/dist/assets',
       read: async (path) => disk.get(path) ?? Promise.reject(new Error(`ENOENT ${path}`)),
+      show,
     },
   });
   const assets = createElectronPageAssets(bridge.api, {
@@ -71,5 +72,13 @@ describe('the web page’s files (AN15)', () => {
     expect(await font('../out/main.cjs')).toMatchObject({ ok: false });
     expect(await font('..\\secret.ttf')).toMatchObject({ ok: false });
     expect(await font('index.html')).toMatchObject({ ok: false });
+  });
+
+  it('AN18 Test: the page is shown in a window of its own, the stage’s size', async () => {
+    const show = vi.fn(async () => {});
+    const s = setup(show);
+    await s.assets.openTest('<!DOCTYPE html>', 'Chapter07_Task4', 1024, 768);
+    expect(show).toHaveBeenCalledWith('<!DOCTYPE html>', 'Chapter07_Task4', 1024, 768);
+    expect(await s.api.invoke('page:test', '<p>', 'x', 0, 10)).toMatchObject({ ok: false });
   });
 });

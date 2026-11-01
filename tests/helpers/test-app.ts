@@ -62,6 +62,7 @@ export function testApp(
     fontDataUrl: vi.fn<PageAssets['fontDataUrl']>(
       async (file) => `data:font/ttf;base64,${btoa(file)}`,
     ),
+    openTest: vi.fn<PageAssets['openTest']>(async () => {}),
   };
   const app = createApp({
     engine,

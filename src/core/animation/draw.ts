@@ -3,7 +3,15 @@
 // student sees is what is exported (ARCHITECTURE §7.3, as the text drawing).
 import { centreOf, flattenPath, localOutline, outlineOf } from './geometry.ts';
 import { stateAt } from './state.ts';
-import type { AnimObject, AnimationDoc, Layer, Paint, Stroke, TextObject } from './types.ts';
+import type {
+  AnimObject,
+  AnimationDoc,
+  ButtonObject,
+  Layer,
+  Paint,
+  Stroke,
+  TextObject,
+} from './types.ts';
 
 /** The parts of CanvasRenderingContext2D the drawing needs (a recording fake is used in tests). */
 export interface StageCanvas {
@@ -83,6 +91,27 @@ export function fontOf(t: TextObject): string {
   return `${t.italic ? 'italic ' : ''}${t.bold ? 700 : 400} ${t.size}px "${t.font}"`;
 }
 
+/** AN18: a button's label is drawn in the bundled Inter, semi-bold. */
+export const BUTTON_FONT = 'Inter';
+export const buttonFontOf = (b: ButtonObject): string => `600 ${b.size}px "${BUTTON_FONT}"`;
+/** A button's corners: rounded a little, as a browser's own buttons. */
+const BUTTON_RADIUS = 3;
+
+/** The CSS fonts the objects' text and button labels need loaded before drawing, each once. */
+export function fontsUsed(objects: readonly AnimObject[]): string[] {
+  const walk = (list: readonly AnimObject[]): string[] =>
+    list.flatMap((o) =>
+      o.kind === 'text'
+        ? [fontOf(o)]
+        : o.kind === 'button'
+          ? [buttonFontOf(o)]
+          : o.kind === 'group'
+            ? walk(o.children)
+            : [],
+    );
+  return [...new Set(walk(objects))];
+}
+
 /** The paint as a canvas style, inside a box centred on (0, 0). */
 function styleOf(ctx: StageCanvas, paint: Paint, w: number, h: number): string | object | null {
   switch (paint.kind) {
@@ -126,6 +155,23 @@ function applyStroke(ctx: StageCanvas, stroke: Stroke): void {
   }
 }
 
+/** A rectangle with rounded corners, centred on (0, 0). */
+function roundedRect(ctx: StageCanvas, w: number, h: number, radius: number): void {
+  const ox = -w / 2;
+  const oy = -h / 2;
+  const r = Math.min(radius, w / 2, h / 2);
+  ctx.moveTo(ox + r, oy);
+  ctx.lineTo(ox + w - r, oy);
+  ctx.arc(ox + w - r, oy + r, r, -Math.PI / 2, 0);
+  ctx.lineTo(ox + w, oy + h - r);
+  ctx.arc(ox + w - r, oy + h - r, r, 0, Math.PI / 2);
+  ctx.lineTo(ox + r, oy + h);
+  ctx.arc(ox + r, oy + h - r, r, Math.PI / 2, Math.PI);
+  ctx.lineTo(ox, oy + r);
+  ctx.arc(ox + r, oy + r, r, Math.PI, 1.5 * Math.PI);
+  ctx.closePath();
+}
+
 /** Traces the object's outline as a path, in its own box moved so its centre is (0, 0). */
 function tracePath(ctx: StageCanvas, o: AnimObject): void {
   const ox = -o.width / 2;
@@ -135,19 +181,8 @@ function tracePath(ctx: StageCanvas, o: AnimObject): void {
     ctx.ellipse(0, 0, o.width / 2, o.height / 2, 0, 0, TAU);
     return;
   }
-  if (o.kind === 'rect' && o.radius > 0) {
-    const r = Math.min(o.radius, o.width / 2, o.height / 2);
-    const { width: w, height: h } = o;
-    ctx.moveTo(ox + r, oy);
-    ctx.lineTo(ox + w - r, oy);
-    ctx.arc(ox + w - r, oy + r, r, -Math.PI / 2, 0);
-    ctx.lineTo(ox + w, oy + h - r);
-    ctx.arc(ox + w - r, oy + h - r, r, 0, Math.PI / 2);
-    ctx.lineTo(ox + r, oy + h);
-    ctx.arc(ox + r, oy + h - r, r, Math.PI / 2, Math.PI);
-    ctx.lineTo(ox, oy + r);
-    ctx.arc(ox + r, oy + r, r, Math.PI, 1.5 * Math.PI);
-    ctx.closePath();
+  if ((o.kind === 'rect' && o.radius > 0) || o.kind === 'button') {
+    roundedRect(ctx, o.width, o.height, o.kind === 'rect' ? o.radius : BUTTON_RADIUS);
     return;
   }
   if (o.kind === 'path' && o.points.some((p) => p.in || p.out)) {
@@ -236,6 +271,14 @@ export function drawObject(
       if (o.stroke && o.stroke.width > 0) {
         applyStroke(ctx, o.stroke);
         ctx.stroke();
+      }
+      if (o.kind === 'button') {
+        // AN18: the label in the middle of the box.
+        ctx.font = buttonFontOf(o);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = o.colour;
+        ctx.fillText(o.label, 0, 0);
       }
     }
   }

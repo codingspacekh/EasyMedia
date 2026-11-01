@@ -10,7 +10,12 @@ import {
   validateStage,
 } from '../../../../src/core/animation/rules.ts';
 import { framesFor, secondsFor } from '../../../../src/core/animation/time.ts';
-import { createAnimation, createRect, createText } from '../../../../src/core/animation/factory.ts';
+import {
+  createAnimation,
+  createButton,
+  createRect,
+  createText,
+} from '../../../../src/core/animation/factory.ts';
 
 describe('aspect ratio (AN1, AN2)', () => {
   it.each([
@@ -68,6 +73,16 @@ describe('validateStage (AN1)', () => {
 });
 
 describe('validateObject (AN6)', () => {
+  it('AN18: a button needs words on it, a label size, a colour and a whole frame to go to', () => {
+    const b = createButton('goto', { x: 0, y: 0 });
+    expect(() => validateObject(b)).not.toThrow();
+    expect(() => validateObject({ ...b, label: '  ' })).toThrow(/needs words/);
+    expect(() => validateObject({ ...b, size: 0 })).toThrow(/label size/);
+    expect(() => validateObject({ ...b, colour: 'black' })).toThrow(/colour such as/);
+    expect(() => validateObject({ ...b, frame: -1 })).toThrow(/frame 0 or later/);
+    expect(() => validateObject({ ...b, frame: 2.5 })).toThrow(/frame 0 or later/);
+  });
+
   it('keeps opacity within 0–100 %, sizes at 0 or more, strokes at 0 or more', () => {
     const r = createRect({ x: 0, y: 0 });
     expect(() => validateObject({ ...r, opacity: 101 })).toThrow(/0 and 100/);

@@ -84,10 +84,22 @@
   onclick={() => anim.redo()}><Icon name="redo" /></button
 >
 <button
+  class="ghost"
+  aria-label="Test"
+  title={withWhy(
+    'Test: play the animation as its web page in a window of its own, where its buttons work (Ctrl+Enter)',
+    'animButton',
+  )}
+  disabled={$store.busy !== null}
+  onclick={() => void anim.testAnimation()}
+>
+  <Icon name="test" /><span class="long">Test</span>
+</button>
+<button
   class="primary"
   aria-label="Export"
   title={withWhy(
-    'Export the animation as an MP4 video, an animated GIF, a PNG sequence, or this frame as a PNG',
+    'Export the animation as an MP4 video, an animated GIF, an HTML web page, a PNG sequence, or this frame as a PNG',
     'animExport',
   )}
   disabled={$store.busy !== null}

@@ -5,6 +5,7 @@ import { createHistory, execute, redo, undo, type History } from './history.ts';
 import { createStore, type Store } from './store.ts';
 import {
   createAnimation,
+  createButton,
   createEllipse,
   createLine,
   createPath,
@@ -34,6 +35,7 @@ import { objectAt } from '../core/animation/tween.ts';
 import type {
   AnimObject,
   AnimationDoc,
+  ButtonAction,
   Easing,
   Id,
   PathObject,
@@ -81,7 +83,8 @@ export type Tool =
   | 'pen'
   | 'brush'
   | 'text'
-  | 'picture';
+  | 'picture'
+  | 'button';
 
 export type ShapeKind = 'rect' | 'ellipse' | 'star' | 'polygon';
 
@@ -146,6 +149,7 @@ const NO_PAGE_ASSETS: PageAssets = {
   playerScript: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
   pictureDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
   fontDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
+  openTest: () => Promise.reject(new EditError('Testing needs the EasyMedia app.')),
 };
 
 /**
@@ -417,30 +421,37 @@ export function createAnimationApp({
 
   /**
    * AN15: the web page: the animation with its player, pictures and fonts inside. A picture that
-   * cannot be read is left out (the player shows the rest) and named in the message.
+   * cannot be read is left out (the player shows the rest) and its file named in `missing`.
    */
+  async function makePage(doc: AnimationDoc): Promise<{ html: string; missing: string[] }> {
+    const [player, fonts, read] = await Promise.all([
+      pageAssets.playerScript(),
+      Promise.all(
+        fontsNeeded(doc).map(async (face) => ({
+          face,
+          url: await pageAssets.fontDataUrl(face.file),
+        })),
+      ),
+      Promise.all(
+        picturesUsed(doc).map(async (p) => ({
+          picture: p,
+          url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
+        })),
+      ),
+    ]);
+    const pictures: Record<Id, string> = {};
+    for (const { picture, url } of read) if (url) pictures[picture.id] = url;
+    return {
+      html: webPage(doc, { player, pictures, fonts }),
+      missing: read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path)),
+    };
+  }
+
   async function exportWebPage(doc: AnimationDoc, output: string): Promise<string | null> {
     patch({ busy: 'Exporting…' });
     try {
-      const [player, fonts, read] = await Promise.all([
-        pageAssets.playerScript(),
-        Promise.all(
-          fontsNeeded(doc).map(async (face) => ({
-            face,
-            url: await pageAssets.fontDataUrl(face.file),
-          })),
-        ),
-        Promise.all(
-          picturesUsed(doc).map(async (p) => ({
-            picture: p,
-            url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
-          })),
-        ),
-      ]);
-      const pictures: Record<Id, string> = {};
-      for (const { picture, url } of read) if (url) pictures[picture.id] = url;
-      await files.write(output, webPage(doc, { player, pictures, fonts }));
-      const missing = read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path));
+      const { html, missing } = await makePage(doc);
+      await files.write(output, html);
       const saved = fileNameOf(output);
       patch({
         message: {
@@ -734,6 +745,46 @@ export function createAnimationApp({
     ): void {
       const made = createText(text, at);
       addToStage(measure ? { ...made, ...measure(made) } : made);
+    },
+
+    /** AN18: a button (Pause at first) at the clicked point. */
+    addButton(at: Point): void {
+      addToStage(createButton('pause', at));
+    },
+
+    /** AN18: what the selected buttons do (one undo step). */
+    setButtonAction(action: ButtonAction): string | null {
+      return edit(cmd.setButtonAction(store.get().selection, action));
+    },
+
+    /**
+     * AN18: Test — the animation as its web page in a window of its own, where it plays and its
+     * buttons work, as the exported file will in a browser.
+     */
+    async testAnimation(): Promise<void> {
+      if (store.get().busy) return;
+      pause();
+      const doc = present();
+      patch({ busy: 'Opening the test…' });
+      try {
+        const { html, missing } = await makePage(doc);
+        const { path } = store.get();
+        const name = path ? fileNameOf(path).replace(/\.mvea$/i, '') : doc.name;
+        await pageAssets.openTest(html, name, doc.stage.width, doc.stage.height);
+        if (missing.length)
+          patch({
+            message: {
+              kind: 'info',
+              text: `Testing without ${missing.join(', ')}: ${
+                missing.length === 1 ? 'that picture' : 'those pictures'
+              } could not be read.`,
+            },
+          });
+      } catch (error) {
+        showError(error);
+      } finally {
+        patch({ busy: null });
+      }
     },
 
     /** AN5: a picture file chosen by the student, placed at its own size. */

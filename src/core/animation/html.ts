@@ -3,6 +3,7 @@
 // script at build time), so it plays at the stage's size, looping, in any browser without the
 // internet — and with the Pause / Continue buttons of AN18.
 import { faceFor, type FontFile } from '../text/fonts.ts';
+import { BUTTON_FONT } from './draw.ts';
 import { fileNameOf } from '../project/relocate.ts';
 import type { AnimObject, AnimationDoc, Id, Picture, TextObject } from './types.ts';
 
@@ -25,13 +26,24 @@ export interface PageData {
   pictures: Record<Id, string>;
 }
 
-const texts = (objects: readonly AnimObject[]): TextObject[] =>
-  objects.flatMap((o) => (o.kind === 'text' ? [o] : o.kind === 'group' ? texts(o.children) : []));
+/** The font, weight and style of each text and button label, inside groups too. */
+const lettering = (
+  objects: readonly AnimObject[],
+): Pick<TextObject, 'font' | 'bold' | 'italic'>[] =>
+  objects.flatMap((o) =>
+    o.kind === 'text'
+      ? [o]
+      : o.kind === 'button'
+        ? [{ font: BUTTON_FONT, bold: false, italic: false }]
+        : o.kind === 'group'
+          ? lettering(o.children)
+          : [],
+  );
 
-/** The bundled font files the animation's text uses, each once, in drawing order. */
+/** The bundled font files the animation's text and buttons use, each once, in drawing order. */
 export function fontsNeeded(doc: AnimationDoc): FontFile[] {
   const files = new Map<string, FontFile>();
-  for (const t of texts(doc.layers.flatMap((l) => l.objects))) {
+  for (const t of lettering(doc.layers.flatMap((l) => l.objects))) {
     const face = faceFor(t.font, t.bold, t.italic);
     if (face) files.set(face.file, face);
   }
@@ -80,7 +92,8 @@ export function webPage(doc: AnimationDoc, assets: WebPageAssets): string {
 ${assets.fonts.map(fontFace).join('\n')}
 html, body { margin: 0; height: 100%; background: #1d2026; }
 body { display: flex; align-items: center; justify-content: center; }
-#stage { display: block; max-width: 100vw; max-height: 100vh; width: ${width}px; height: auto; }
+/* The stage's size, or smaller to fit the window, never stretched. */
+#stage { display: block; width: min(${width}px, 100vw, calc(100vh * ${width} / ${height})); height: auto; }
 </style>
 </head>
 <body>

@@ -5,6 +5,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createAnimation,
+  createButton,
   createPicture,
   createRect,
   createText,
@@ -122,5 +123,52 @@ describe('the web page’s player (AN15)', () => {
     expect(await boot(deps().d)).toBeNull();
     load(page(moving()));
     expect(await boot(deps({ context: () => null }).d)).toBeNull();
+  });
+
+  it('AN18: clicking Pause stops on the frame and Continue plays on (workbook Task 4)', async () => {
+    let doc = moving();
+    doc = addObject(doc, doc.layers[0]!.id, createButton('pause', { x: 10, y: 300 }));
+    doc = addObject(doc, doc.layers[0]!.id, createButton('continue', { x: 10, y: 340 }));
+    load(page(doc));
+    let now = 1000;
+    const { d, calls, refresh } = deps({ now: () => now });
+    const started = (await boot(d))!;
+    const canvas = document.getElementById('stage')!;
+    // The page shows the 600 × 400 stage at half size, 20 px from the window's corner.
+    canvas.getBoundingClientRect = () =>
+      ({ left: 20, top: 20, width: 300, height: 200 }) as DOMRect;
+    const click = (x: number, y: number) =>
+      canvas.dispatchEvent(
+        new MouseEvent('click', { clientX: 20 + x / 2, clientY: 20 + y / 2, bubbles: true }),
+      );
+
+    now = 1000 + 500; // frame 12
+    click(50, 312);
+    expect(started.player.state()).toEqual({ frame: 12, playing: false });
+    calls.length = 0;
+    refresh(1000 + 2000);
+    expect(started.player.state().frame).toBe(12);
+
+    now = 1000 + 2000;
+    click(50, 352);
+    expect(started.player.state().playing).toBe(true);
+    refresh(1000 + 2500);
+    expect(started.player.state().frame).toBe(24);
+
+    click(300, 100); // not on a button: nothing changes
+    expect(started.player.state().playing).toBe(true);
+  });
+
+  it('AN18: the pointer becomes a hand over a button', async () => {
+    let doc = moving();
+    doc = addObject(doc, doc.layers[0]!.id, createButton('pause', { x: 10, y: 300 }));
+    load(page(doc));
+    await boot(deps().d);
+    const canvas = document.getElementById('stage')!;
+    canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400 }) as DOMRect;
+    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 312 }));
+    expect(canvas.style.cursor).toBe('pointer');
+    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 100 }));
+    expect(canvas.style.cursor).toBe('');
   });
 });

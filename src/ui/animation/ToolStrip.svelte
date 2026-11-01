@@ -41,6 +41,12 @@
     ['brush', 'Brush', 'brush', withWhy('Draw freehand (B)', 'vectorShapes')],
     ['text', 'Text', 'text', withWhy('Click to add text (T)', 'animText')],
     ['picture', 'Picture', 'picture', withWhy('Click to place a picture file (I)', 'animPicture')],
+    [
+      'button',
+      'Button',
+      'button',
+      withWhy('Click to place a button: Pause, Continue, Restart or Go to frame (U)', 'animButton'),
+    ],
   ];
   const snapping = $derived(
     view.snap.grid || view.snap.guides || view.snap.objects || view.snap.pixels,

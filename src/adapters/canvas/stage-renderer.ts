@@ -1,7 +1,7 @@
 // StageRenderer (AN15) on an OffscreenCanvas: the stage drawn by core/animation/draw.ts — the
 // same drawing as the preview — and saved as a PNG. Pictures are fetched through media://.
-import { drawStage, fontOf, type StageCanvas } from '../../core/animation/draw.ts';
-import type { AnimObject, AnimationDoc } from '../../core/animation/types.ts';
+import { drawStage, fontsUsed, type StageCanvas } from '../../core/animation/draw.ts';
+import type { AnimationDoc } from '../../core/animation/types.ts';
 import type { Pixels } from '../../core/animation/trace.ts';
 import { toMediaUrl } from '../../core/media-url.ts';
 import { MediaError } from '../../core/model/errors.ts';
@@ -70,11 +70,6 @@ const defaultLoadFonts = async (fonts: string[]): Promise<void> => {
   await Promise.all(fonts.map((f) => set.load(f).catch(() => [])));
 };
 
-const textFonts = (objects: readonly AnimObject[]): string[] =>
-  objects.flatMap((o) =>
-    o.kind === 'text' ? [fontOf(o)] : o.kind === 'group' ? textFonts(o.children) : [],
-  );
-
 export function createCanvasStageRenderer({
   makeCanvas = (w, h) =>
     new OffscreenCanvas(w, h) as unknown as ReturnType<
@@ -104,7 +99,7 @@ export function createCanvasStageRenderer({
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('No canvas is available to draw the stage.');
       const images = await imagesOf(doc);
-      await loadFonts([...new Set(textFonts(doc.layers.flatMap((l) => l.objects)))]);
+      await loadFonts(fontsUsed(doc.layers.flatMap((l) => l.objects)));
       drawStage(ctx, doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());

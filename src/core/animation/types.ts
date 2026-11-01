@@ -179,6 +179,23 @@ export interface PictureObject extends ObjectBase {
   pictureId: Id;
 }
 
+/** AN18: what a button does when it is clicked (in the HTML page and in Test). */
+export type ButtonAction = 'pause' | 'continue' | 'restart' | 'goto';
+
+/**
+ * AN18: a button (workbook Task 4: Pause and Continue). Its box is filled and outlined as a shape;
+ * the label is drawn in the middle in the bundled Inter, `size` px, in `colour`.
+ */
+export interface ButtonObject extends ObjectBase {
+  kind: 'button';
+  label: string;
+  action: ButtonAction;
+  /** For "Go to frame": the frame to go to. */
+  frame?: number;
+  size: number;
+  colour: string;
+}
+
 /** AN13: a group's children are placed inside its box and move, turn and scale with it. */
 export interface GroupObject extends ObjectBase {
   kind: 'group';
@@ -193,6 +210,7 @@ export type AnimObject =
   | PathObject
   | TextObject
   | PictureObject
+  | ButtonObject
   | GroupObject;
 
 export type ObjectKind = AnimObject['kind'];
@@ -243,8 +261,11 @@ export interface ViewSettings {
 }
 
 export interface AnimationDoc {
-  /** 2 since M14 (keyframes), 3 since M15 (paths, morphs, masks); older apps refuse newer files. */
-  schemaVersion: 3;
+  /**
+   * 2 since M14 (keyframes), 3 since M15 (paths, morphs, masks), 4 since M16 (buttons); older apps
+   * refuse newer files.
+   */
+  schemaVersion: 4;
   name: string;
   stage: Stage;
   layers: Layer[];

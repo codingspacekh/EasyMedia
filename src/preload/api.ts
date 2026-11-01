@@ -97,6 +97,11 @@ export interface Channels {
   'page:picture': { args: [path: string]; result: string };
   /** AN15: a bundled font file of the built pages (its file name in assets/), as a data: URL. */
   'page:font': { args: [assetName: string]; result: string };
+  /** AN18: Test — shows a web page in a window of its own. */
+  'page:test': {
+    args: [html: string, title: string, width: number, height: number];
+    result: null;
+  };
 }
 
 export type Channel = keyof Channels;
@@ -141,6 +146,7 @@ export const CHANNELS: readonly Channel[] = [
   'page:player',
   'page:picture',
   'page:font',
+  'page:test',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */

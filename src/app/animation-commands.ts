@@ -14,9 +14,11 @@ import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
 import { motionFrom, withPaths } from '../core/animation/motion.ts';
 import * as tween from '../core/animation/tween.ts';
+import { BUTTON_LABELS } from '../core/animation/factory.ts';
 import type {
   AnimObject,
   AnimationDoc,
+  ButtonAction,
   Easing,
   Id,
   Layer,
@@ -75,6 +77,36 @@ function changeAt(
           const next = tween.editAt(o, frame, change);
           validateObject(next);
           validateObject(tween.objectAt(next, frame));
+          return next;
+        }),
+      doc,
+    ),
+  );
+}
+
+/**
+ * AN18: what the selected buttons do. A label (and name) still saying the old action follows the
+ * new one ("Pause" becomes "Continue"); words the student typed stay. Only Go to frame keeps a frame.
+ */
+export function setButtonAction(ids: readonly Id[], action: ButtonAction): AnimCommand {
+  // Not a timed edit (no keyframes): the button simply does something else.
+  return command('Button action', (doc) =>
+    ids.reduce(
+      (d, id) =>
+        layers.updateObject(d, id, (o) => {
+          if (o.kind !== 'button') return o;
+          const { frame, ...rest } = o;
+          // The name follows too while it is the old action's ("Pause", "Pause 2").
+          const old = BUTTON_LABELS[o.action];
+          const named = o.name === old || new RegExp(`^${old} \\d+$`).test(o.name);
+          const next: AnimObject = {
+            ...rest,
+            action,
+            name: named ? layers.uniqueName(d, BUTTON_LABELS[action]) : o.name,
+            label: o.label === old ? BUTTON_LABELS[action] : o.label,
+            ...(action === 'goto' ? { frame: frame ?? 0 } : {}),
+          };
+          validateObject(next);
           return next;
         }),
       doc,

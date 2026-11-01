@@ -6,7 +6,7 @@ import { fromProjectPath, toProjectPath } from '../project/paths.ts';
 import { isColour } from './rules.ts';
 import type { AnimationDoc, ObjectKind } from './types.ts';
 
-export const ANIMATION_SCHEMA = 3;
+export const ANIMATION_SCHEMA = 4;
 export const ANIMATION_DAMAGED = 'This file is not an EasyMedia animation, or it is damaged.';
 
 /** Add an entry whenever the animation format changes (see core/project/migrate.ts). */
@@ -15,6 +15,8 @@ export const ANIMATION_MIGRATIONS: Record<number, Migration> = {
   1: (v1) => ({ ...v1, schemaVersion: 2 }),
   /** Version 3 (M15): motion paths, shape keyframes and mask layers; a v2 file has none. */
   2: (v2) => ({ ...v2, schemaVersion: 3 }),
+  /** Version 4 (M16): button objects (AN18); a v3 file has none. */
+  3: (v3) => ({ ...v3, schemaVersion: 4 }),
 };
 
 export function serializeAnimation(doc: AnimationDoc): string {
@@ -66,8 +68,11 @@ const KINDS: ObjectKind[] = [
   'path',
   'text',
   'picture',
+  'button',
   'group',
 ];
+
+const ACTIONS = ['pause', 'continue', 'restart', 'goto'];
 
 function isPaint(p: unknown): boolean {
   if (!isObject(p)) return false;
@@ -136,6 +141,14 @@ function isAnimObject(o: Obj): boolean {
       );
     case 'picture':
       return isString(o.pictureId);
+    case 'button':
+      return (
+        isString(o.label) &&
+        ACTIONS.includes(o.action as string) &&
+        (o.frame === undefined || isNumber(o.frame)) &&
+        isNumber(o.size) &&
+        isColour(o.colour)
+      );
     case 'group':
       return listOf(o.children, isAnimObject);
     default:

@@ -132,7 +132,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | setting paths | Animation ▸ Properties ▸ Motion path (Follow path, Orient to path); a pen path’s points and curves are edited on the stage | Motion path |
 | using layers | Animation ▸ the Layers panel (add, rename, order, lock, hide, folders) | Layers |
 | applying masks | Animation ▸ the Mask button on a layer (lock the layer to see it work) | Mask |
-| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop | — |
+| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, and Button (Pause, Continue, Restart, Go to frame) tried with Test | Button |
 | exporting an animation for its application | Animation ▸ Export on the toolbar | Export animation |
 
 ### The basic principles of animation

@@ -31,6 +31,8 @@ export interface PageFiles {
   /** The built pages' assets folder (dist/assets), where the bundled fonts are. */
   assets: string;
   read(path: string): Promise<Uint8Array>;
+  /** AN18: Test — shows the page in a window of its own, the stage's size. */
+  show(html: string, title: string, width: number, height: number): Promise<void>;
 }
 
 /** AN5: the picture types Animation mode opens, by extension. */
@@ -203,6 +205,12 @@ export function registerIpc(s: MainServices): void {
       if (!/^[\w-]+(\.[\w-]+)*\.ttf$/.test(name))
         throw new EditError('That is not a bundled font.');
       return dataUrl('font/ttf', await s.pageFiles.read(join(s.pageFiles.assets, name)));
+    },
+    'page:test': async (html, title, width, height) => {
+      if (typeof html !== 'string' || !(width > 0) || !(height > 0))
+        throw new EditError('There is nothing to test.');
+      await s.pageFiles.show(html, String(title), width, height);
+      return null;
     },
     'project:saveImage': async (name, png) => {
       if (!/^[\w-]{1,100}$/.test(name)) throw new Error('A text picture needs a plain name.');

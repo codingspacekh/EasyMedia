@@ -95,6 +95,8 @@ export const WHY = {
     'Morphing (shape tweening) changes one shape into another, with every in-between shape generated: a circle can become a square, or a cloud a sun. The colour, size and position can change at the same time.',
   animMask:
     'A mask is a layer whose shapes decide what can be seen of the layer beneath it: only the parts under the shapes show. A moving mask, such as a spotlight, reveals the picture or the words as it passes.',
+  animButton:
+    'Buttons let the viewer control the animation: Pause stops it so a picture can be studied, Continue plays on, Restart plays it again and Go to frame jumps to a part. They work in an HTML web animation (and in Test); a video or GIF cannot be clicked, so there they are only pictures of buttons.',
   animExport:
     'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
 } as const;
@@ -166,6 +168,7 @@ export const TOOLS: Tool[] = [
   tool('animPath', 'Motion path', '20.1 setting paths'),
   tool('animMorph', 'Morph', '20.1 morphing'),
   tool('animMask', 'Mask', '20.1 applying masks'),
+  tool('animButton', 'Button', '20.1 controlling animations by stopping them'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
 ];
 

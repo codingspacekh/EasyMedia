@@ -468,6 +468,18 @@ the built pages by its asset name (the page knows the hashed names through `impo
 in `ui/main.ts`, so the main process never guesses Vite's hash). A picture that cannot be read
 is left out and named.
 
+**Buttons and Test (M16, AN18).** A `button` object (schema 4) has a label, an action (`pause`,
+`continue`, `restart`, `goto` with a frame), a label size and colour; it is a box like a picture
+(`isShape` false: it hit-tests by its box and cannot morph) and `drawStage` draws it as a rounded
+box with its label, so video and GIF exports show it as a picture. `core/animation/buttons.ts`
+`buttonAt(doc, frame, point)` finds the object on top at a click, as a browser does (a covered,
+faded-out or hidden button cannot be clicked; groups are entered with `toLocal`); the player's
+`press` does the action. Clicks on the app's stage select objects for editing, so the buttons are
+tried with **Test** (Ctrl+Enter, as Animate's Test Movie): the same web page the HTML export
+makes, written into the app's folder and shown by the main process in a window of its own
+(`page:test`: sandboxed, no preload, no navigation or new windows). The app's own page could not
+host it: its Content-Security-Policy refuses inline scripts.
+
 **Paths, morphs and masks (M15).** `objectAt` applies, in order: the property tracks (the
 `shape` track last, so it is drawn in the box the size tracks give), then the motion paths.
 

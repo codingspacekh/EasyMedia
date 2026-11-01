@@ -219,3 +219,89 @@ test('AN15 HTML web animation: one file that plays by itself in a browser, with 
   expect(seen.later.fonts.join(' ')).toMatch(/Inter/); // the text's font, from inside the file
   await app.close();
 });
+
+/** In a window showing an animation's web page: clicks at a stage point, as a viewer would. */
+const clickScript = (x: number, y: number) => `(() => {
+  const c = document.getElementById('stage');
+  const r = c.getBoundingClientRect();
+  const at = { clientX: r.left + ${x} * r.width / c.width, clientY: r.top + ${y} * r.height / c.height, bubbles: true };
+  c.dispatchEvent(new MouseEvent('click', at));
+  return window.easymedia.player.state();
+})()`;
+
+test('AN18 workbook Task 4: Pause and Continue buttons work in Test and in the exported web page', async () => {
+  test.setTimeout(240_000);
+  const { app, window: page } = await launchApp();
+  await animationMode(page);
+  const stage = (await page.getByRole('application', { name: 'Stage' }).boundingBox())!;
+  const place = async (x: number, y: number) => {
+    await tools(page).getByRole('button', { name: 'Button', exact: true }).click();
+    await page.mouse.click(stage.x + stage.width * 0.5, stage.y + stage.height * 0.5);
+    await type(page, 'X', String(x));
+    await type(page, 'Y', String(y));
+  };
+  await place(10, 10);
+  await place(10, 40);
+  await page.getByLabel('Action', { exact: true }).selectOption('continue');
+  await expect(page.getByLabel('Label', { exact: true })).toHaveValue('Continue');
+  // Something that moves, so playing and pausing can be seen.
+  await tools(page).getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await page.mouse.move(stage.x + stage.width * 0.3, stage.y + stage.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(stage.x + stage.width * 0.4, stage.y + stage.height * 0.4);
+  await page.mouse.up();
+
+  // Test: the page in a window of its own, where the buttons work.
+  await page.getByRole('button', { name: 'Test', exact: true }).click();
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((w) => w.getTitle() === 'Test: Untitled'),
+      ),
+    )
+    .toBe(true);
+  const inTest = (script: string) =>
+    app.evaluate(async ({ BrowserWindow }, s) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.getTitle() === 'Test: Untitled')!;
+      for (let i = 0; i < 100; i++) {
+        if (await win.webContents.executeJavaScript('!!window.easymedia')) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return win.webContents.executeJavaScript(s);
+    }, script);
+  const paused = await inTest(clickScript(55, 22));
+  expect(paused.playing).toBe(false);
+  await new Promise((r) => setTimeout(r, 400));
+  expect(await inTest('window.easymedia.player.state()')).toEqual(paused); // still on that frame
+  expect((await inTest(clickScript(55, 52))).playing).toBe(true);
+
+  // The exported web page does the same in a plain browser window.
+  const html = join(dir, 'Chapter07_Task4.html');
+  await answerDialogs(app, { exportTo: html });
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export animation' });
+  await dialog.getByRole('radio', { name: /HTML web animation/ }).check();
+  await dialog.getByRole('button', { name: 'Export file' }).click();
+  await expect.poll(() => exists(html), { timeout: 30_000 }).toBe(true);
+  const states = await app.evaluate(
+    async ({ BrowserWindow }, [file, pause, resume]) => {
+      const win = new BrowserWindow({ show: false, width: 1300, height: 760 });
+      await win.loadFile(file);
+      for (let i = 0; i < 100; i++) {
+        if (await win.webContents.executeJavaScript('!!window.easymedia')) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      const afterPause = await win.webContents.executeJavaScript(pause);
+      await new Promise((r) => setTimeout(r, 400));
+      const later = await win.webContents.executeJavaScript('window.easymedia.player.state()');
+      const afterContinue = await win.webContents.executeJavaScript(resume);
+      win.destroy();
+      return { afterPause, later, afterContinue };
+    },
+    [html, clickScript(55, 22), clickScript(55, 52)] as const,
+  );
+  expect(states.afterPause.playing).toBe(false);
+  expect(states.later).toEqual(states.afterPause);
+  expect(states.afterContinue.playing).toBe(true);
+  await app.close();
+});

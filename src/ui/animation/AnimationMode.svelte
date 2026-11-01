@@ -32,6 +32,7 @@
     b: 'brush',
     t: 'text',
     i: 'picture',
+    u: 'button',
   };
 
   function busy(target: EventTarget | null): boolean {
@@ -54,6 +55,10 @@
         e.preventDefault();
         if (e.shiftKey) anim.ungroup();
         else anim.group();
+      } else if (key === 'enter') {
+        // AN18: Test, as Animate's Test Movie (Ctrl+Enter).
+        e.preventDefault();
+        void anim.testAnimation();
       } else if (key === '0') {
         e.preventDefault();
         anim.setZoom('fit');

@@ -324,7 +324,8 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ]),
   an(
     'controlling animations by adjusting frame rates, looping or stopping animations',
-    'Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop',
+    'Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, and Button (Pause, Continue, Restart, Go to frame) tried with Test',
+    ['20.1 controlling animations by stopping them'],
   ),
   an('exporting an animation for its application', 'Animation ▸ Export on the toolbar', [
     '20.1 exporting an animation',

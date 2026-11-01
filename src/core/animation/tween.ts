@@ -220,8 +220,8 @@ const str = (v: KeyValue): string => String(v);
 
 /** AN10: the object drawn as the outline of a shape keyframe, in its own box. */
 function asShape(o: AnimObject, v: ShapeValue): PathObject {
-  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group')
-    throw new EditError('Only shapes can morph: not text, pictures or groups.');
+  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'button' || o.kind === 'group')
+    throw new EditError('Only shapes can morph: not text, pictures, buttons or groups.');
   const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, paths } = o;
   return {
     kind: 'path',

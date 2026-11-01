@@ -64,6 +64,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       player: '/app/out/player.js',
       assets: '/app/dist/assets',
       read: async (path) => Promise.reject(new Error(`ENOENT ${path}`)),
+      show: async () => {},
     },
     ...overrides,
   });

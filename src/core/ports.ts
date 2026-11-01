@@ -238,6 +238,11 @@ export interface PageAssets {
   pictureDataUrl(path: string): Promise<string>;
   /** A bundled font file, by its name in resources/fonts (e.g. "Inter.ttf"), as a data: URL. */
   fontDataUrl(file: string): Promise<string>;
+  /**
+   * AN18: Test — shows a web page in a window of its own, sized for the stage, where it plays and
+   * its buttons work, as the exported file will in a browser.
+   */
+  openTest(html: string, title: string, width: number, height: number): Promise<void>;
 }
 
 /** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */

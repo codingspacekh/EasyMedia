@@ -385,6 +385,11 @@
       void anim.addPicture({ x: round(p.x), y: round(p.y) });
       return;
     }
+    if (tool === 'button') {
+      const p = snapPoint(raw, e.altKey);
+      anim.addButton({ x: round(p.x), y: round(p.y) });
+      return;
+    }
     if (tool === 'pen') {
       const p = snapPoint(raw, e.altKey);
       const first = pen[0];
