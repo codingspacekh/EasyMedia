@@ -85,6 +85,14 @@ export const WHY = {
     'Each layer has its own timeline, so the objects on it are animated independently of the others. The top layer is in front. Locking a layer stops accidental changes; hiding it keeps it out of the way while working. Objects that must move separately — each leg of a stick person — go on separate layers.',
   animGroup:
     'A group makes several objects move, turn and scale as one, while each part can keep its own animation — a car’s wheels turn while the car drives. The parts of an animated object are its animation variables.',
+  animTimeline:
+    'The timeline shows the frames; a keyframe fixes a value at a frame and the frames in between are generated (inbetweening, or tweening). Easing makes a change start or end gently; a hold keeps a value until the next keyframe, as in frame-by-frame animation.',
+  animPath:
+    'A motion path is the line an object follows between two frames, so it can move along a curve, such as a car on a winding road. Orient to path turns the object with the path, as the car turns with the road.',
+  animMorph:
+    'Morphing (shape tweening) changes one shape into another, with every in-between shape generated: a circle can become a square, or a cloud a sun. The colour, size and position can change at the same time.',
+  animMask:
+    'A mask is a layer whose shapes decide what can be seen of the layer beneath it: only the parts under the shapes show. A moving mask, such as a spotlight, reveals the picture or the words as it passes.',
   animExport:
     'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
 } as const;
@@ -151,6 +159,10 @@ export const TOOLS: Tool[] = [
   tool('objectProperties', 'Object properties', '20.1 controlling object properties'),
   tool('animLayers', 'Layers', '20.1 using layers'),
   tool('animGroup', 'Group', '20.1 animation variables'),
+  tool('animTimeline', 'Timeline and keyframes', '20.1 frames, key frames and tweening'),
+  tool('animPath', 'Motion path', '20.1 setting paths'),
+  tool('animMorph', 'Morph', '20.1 morphing'),
+  tool('animMask', 'Mask', '20.1 applying masks'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
 ];
 

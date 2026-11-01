@@ -23,7 +23,9 @@ export async function projectFolder(fixtureNames: string[]) {
     /** Imports a file the way the app will: probe it, store a project-relative path. */
     asset: async (name: string, id: string): Promise<MediaAsset> =>
       assetFromProbe(name, await engine.probe(join(dir, name)), { id }),
-    cleanUp: () => rm(dir, { recursive: true, force: true }),
+    // A background job (a proxy, a thumbnail) can still be writing as the tests end: retry the
+    // delete briefly instead of failing on "directory not empty" (seen on macOS Intel CI).
+    cleanUp: () => rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }),
   };
 }
 

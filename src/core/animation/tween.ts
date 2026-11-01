@@ -1,9 +1,22 @@
 // AN9, AN13: keyframes per property and the values in between (tweening). Pure functions on
 // tracks and objects; the app's commands wrap them so each change is one undo step.
 import { EditError } from '../model/errors.ts';
-import { setSize } from './geometry.ts';
+import { LINE_HEIGHT, roughTextWidth } from './factory.ts';
+import { setSize, shiftedMotion } from './geometry.ts';
+import { isShapeValue, morphShapes, shapeOf } from './morph.ts';
+import { flattenCurves, pointAtFraction, polylineOf, type Polyline } from './path.ts';
 import { isColour } from './rules.ts';
-import type { AnimObject, Easing, Keyframe, KeyValue, Track, TweenProperty } from './types.ts';
+import type {
+  AnimObject,
+  Easing,
+  Keyframe,
+  KeyValue,
+  MotionPath,
+  PathObject,
+  ShapeValue,
+  Track,
+  TweenProperty,
+} from './types.ts';
 
 export const EASINGS: readonly { id: Easing; label: string; hint: string }[] = [
   { id: 'linear', label: 'Linear', hint: 'The same speed all the way' },
@@ -26,6 +39,7 @@ export const TWEEN_PROPERTIES: readonly { id: TweenProperty; label: string }[] =
   { id: 'radius', label: 'Corner radius' },
   { id: 'size', label: 'Font size' },
   { id: 'text', label: 'Words' },
+  { id: 'shape', label: 'Shape' },
 ];
 
 /** The CSS-style bounce used by the text animations too: lands, then bounces smaller and smaller. */
@@ -67,8 +81,9 @@ function mixColours(a: string, b: string, t: number): string {
   return `#${ca.map((v, i) => hex2(v + (cb[i]! - v) * t)).join('')}`;
 }
 
-/** The value `t` (0–1) of the way from `a` to `b`: numbers and colours blend; words switch at the end. */
+/** The value `t` (0–1) of the way from `a` to `b`: numbers, colours and shapes blend; words switch at the end. */
 export function interpolate(a: KeyValue, b: KeyValue, t: number): KeyValue {
+  if (isShapeValue(a) && isShapeValue(b)) return morphShapes(a, b, t);
   if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * t;
   if (typeof a === 'string' && typeof b === 'string' && isColour(a) && isColour(b))
     return mixColours(a, b, t);
@@ -193,6 +208,8 @@ export function propertyOf(object: AnimObject, property: TweenProperty): KeyValu
     case 'text':
       if (object.kind !== 'text') throw new EditError('Only text has words.');
       return object.text;
+    case 'shape':
+      return shapeOf(object);
     default:
       return object[property];
   }
@@ -200,6 +217,30 @@ export function propertyOf(object: AnimObject, property: TweenProperty): KeyValu
 
 const num = (v: KeyValue): number => (typeof v === 'number' ? v : Number(v));
 const str = (v: KeyValue): string => String(v);
+
+/** AN10: the object drawn as the outline of a shape keyframe, in its own box. */
+function asShape(o: AnimObject, v: ShapeValue): PathObject {
+  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group')
+    throw new EditError('Only shapes can morph: not text, pictures or groups.');
+  const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, paths } = o;
+  return {
+    kind: 'path',
+    id,
+    name,
+    x,
+    y,
+    width,
+    height,
+    rotation,
+    opacity,
+    fill,
+    ...(stroke ? { stroke } : {}),
+    ...(tracks ? { tracks } : {}),
+    ...(paths ? { paths } : {}),
+    points: v.points.map((p) => ({ x: p.x * width, y: p.y * height })),
+    closed: v.closed,
+  };
+}
 
 /** The object with one property set (its own value, not a keyframe). */
 export function withProperty<T extends AnimObject>(
@@ -235,12 +276,21 @@ function setOne(object: AnimObject, property: TweenProperty, value: KeyValue): A
     case 'radius':
       if (object.kind !== 'rect') throw new EditError('Only a rectangle has a corner radius.');
       return { ...object, radius: num(value) };
-    case 'size':
+    case 'size': {
       if (object.kind !== 'text') throw new EditError('Only text has a font size.');
-      return { ...object, size: num(value) };
+      // The box follows the letters, from its top-left corner: as wide per px of size as it was
+      // (from nothing: as the words are roughly), and a line height per line.
+      const size = num(value);
+      const perPx = object.size > 0 ? object.width / object.size : roughTextWidth(object.text, 1);
+      const lines = object.text.split('\n').length;
+      return { ...object, size, width: perPx * size, height: lines * size * LINE_HEIGHT };
+    }
     case 'text':
       if (object.kind !== 'text') throw new EditError('Only text has words.');
       return { ...object, text: str(value) };
+    case 'shape':
+      if (!isShapeValue(value)) throw new EditError('A shape keyframe needs an outline.');
+      return asShape(object, value);
     case 'width':
     case 'height': {
       const width = property === 'width' ? num(value) : object.width;
@@ -307,13 +357,52 @@ export function setTrack<T extends AnimObject>(object: T, track: Track): T {
   return withTrack(object, track);
 }
 
-/** The object as it is at a frame: every track applied; a group's children too (AN13). */
+// A motion path's polyline is worked out once and kept with it (paths are immutable).
+const polylines = new WeakMap<MotionPath, Polyline>();
+const polylineFor = (m: MotionPath): Polyline => {
+  let line = polylines.get(m);
+  if (!line) {
+    line = polylineOf(flattenCurves(m.points, m.closed), m.closed);
+    polylines.set(m, line);
+  }
+  return line;
+};
+
+/** AN11: the path that places the object at a frame: the one running, or the last one before. */
+function pathAt(paths: readonly MotionPath[], frame: number): MotionPath {
+  let current = paths[0]!;
+  for (const p of paths) if (p.from <= frame) current = p;
+  return current;
+}
+
+/** AN11: the object's centre on its path at a frame; turned with it when oriented. */
+function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
+  const t = (Math.max(m.from, Math.min(m.to, frame)) - m.from) / (m.to - m.from);
+  const p = pointAtFraction(polylineFor(m), ease(m.easing, t), m.even);
+  return {
+    ...o,
+    x: p.x - o.width / 2,
+    y: p.y - o.height / 2,
+    ...(m.orient ? { rotation: o.rotation + p.angle } : {}),
+  };
+}
+
+/**
+ * The object as it is at a frame: every track applied; a group's children too (AN13). With shape
+ * keyframes (AN10) a shape is drawn as a path, whatever kind it was drawn as.
+ */
 export function objectAt<T extends AnimObject>(object: T, frame: number): T {
   let o: T = object;
-  for (const track of object.tracks ?? []) {
+  // The shape goes last, so it is drawn in the box the size keyframes give (AN10).
+  const tracks = object.tracks ?? [];
+  for (const track of [
+    ...tracks.filter((t) => t.property !== 'shape'),
+    ...tracks.filter((t) => t.property === 'shape'),
+  ]) {
     if (track.keyframes.length === 0) continue;
     o = withProperty(o, track.property, valueAt(track, frame));
   }
+  if (object.paths?.length) o = onPath(o, pathAt(object.paths, frame), frame);
   if (o.kind === 'group') return { ...o, children: o.children.map((c) => objectAt(c, frame)) };
   return o;
 }
@@ -359,6 +448,13 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
     )
       plain[key] = x[key];
   let result = { ...object, ...plain } as T;
+  // AN11: on a path, a move takes the path with it (its position keyframes are not used).
+  const path = object.paths?.length ? object.paths : undefined;
+  if (path && (x.x !== n.x || x.y !== n.y)) {
+    const dx = (x.x as number) - (n.x as number);
+    const dy = (x.y as number) - (n.y as number);
+    result = { ...result, paths: path.map((p) => shiftedMotion(p, dx, dy)) };
+  }
   const key = (property: TweenProperty, value: KeyValue) => {
     result = setPropertyAt(result, property, frame, value);
   };
@@ -372,7 +468,8 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
     (p === 'height' && changed('width'));
   for (const property of [...NUMBER_KEYS, 'radius', 'size', 'text'] as const)
     // (On a still object at frame 0 the partner is set to the value it has: nothing changes.)
-    if (changed(property) || paired(property)) key(property, x[property] as KeyValue);
+    if (path && (property === 'x' || property === 'y')) continue;
+    else if (changed(property) || paired(property)) key(property, x[property] as KeyValue);
   // The fill: a new colour is a keyframe; a change of kind (to a gradient, or none) is plain.
   if (next.fill !== now.fill) {
     if (next.fill.kind === 'solid' && now.fill.kind === 'solid') {
@@ -406,4 +503,25 @@ export function keyableProperties(object: AnimObject): TweenProperty[] {
     ...(object.kind === 'rect' ? (['radius'] as const) : []),
     ...(object.kind === 'text' ? (['size'] as const) : []),
   ];
+}
+
+/**
+ * AN10: *Morph into…* — at `frame` the object takes the target's outline, box and colours: a
+ * shape keyframe (the first one, at frame 0, is the object's own outline) and keyframes for the
+ * position, size, fill and outline, so all of them change together.
+ */
+export function morphInto<T extends AnimObject>(object: T, target: AnimObject, frame: number): T {
+  const shape = shapeOf(target);
+  shapeOf(object);
+  const boxed = editAt(object, frame, (now) => ({
+    ...now,
+    x: target.x,
+    y: target.y,
+    width: target.width,
+    height: target.height,
+    // A solid colour tweens to the target's; a gradient or no fill is kept, as drawn.
+    fill: target.fill.kind === 'solid' && now.fill.kind === 'solid' ? target.fill : now.fill,
+    ...(target.stroke ? { stroke: target.stroke } : {}),
+  }));
+  return setPropertyAt(boxed, 'shape', frame, shape);
 }

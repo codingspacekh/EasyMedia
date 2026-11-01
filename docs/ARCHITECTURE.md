@@ -112,7 +112,9 @@ EasyMedia/
 │  │  │                       (AN2), draw.ts (one drawing for preview + exports), serialize.ts (.mvea),
 │  │  │                       time.ts (frames ↔ seconds, frame-rate change), tween.ts (keyframes,
 │  │  │                       easing, editAt), state.ts (the document at a frame, groups), letters.ts
-│  │  │                       (split into letters), export.ts (formats, sizes, frame names)
+│  │  │                       (split into letters), export.ts (formats, sizes, frame names), path.ts
+│  │  │                       (lengths, points along a path), motion.ts (motion paths), morph.ts (shape
+│  │  │                       tweens), pen.ts (editing a pen path's points)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts (generic History<T>), commands.ts, store.ts,
 │  │                          preview.ts, proxy-path.ts, audio.ts (Audio mode), learn.ts (Learn mode),
@@ -390,7 +392,7 @@ come from `ui/Tooltip.svelte`, one for the whole app: after 0.4 s on a button (o
 focus) it shows the button's title, or an icon-only button's label, with the "Why?" part under
 it; the built-in tooltip is kept away meanwhile.
 
-### 7.8 Animation mode (M13, M14, phase 2)
+### 7.8 Animation mode (M13–M15, phase 2)
 
 Animation mode is a second document type, never mixed into the video project: an
 `AnimationDoc` (`core/animation/types.ts`) — a stage, layers of vector objects, pictures,
@@ -450,6 +452,23 @@ drawing written beside the chosen name (`Task1_0001.png`…); the PNG export is 
 playhead. Progress has two phases (drawing, then FFmpeg) and Cancel stops either one and
 leaves nothing behind. *Send to Video mode* exports the MP4 beside the `.mvea` file and puts it
 on the video timeline as a clip.
+
+**Paths, morphs and masks (M15).** `objectAt` applies, in order: the property tracks (the
+`shape` track last, so it is drawn in the box the size tracks give), then the motion paths.
+
+```
+paths[] (AN11) ─► in frame order, never overlapping; the one running (or the last one before)
+  places the centre: pointAtFraction(polyline, ease(t), even), turned by the heading when
+  oriented. A path is copied from any object (motion.ts motionFrom: a pen path keeps its curves,
+  a shape gives its outline), so the guide can be hidden or deleted; moving the object moves them
+shape track (AN10) ─► keyframes hold outlines in the box scaled to 0–1; morph.ts resamples both
+  to 64 points by length, lines them up (same way round, closest start) and blends; the object
+  is drawn as a path; Morph into… keys the target's outline, box and solid colour together
+mask layer (AN12) ─► drawStage clips the layer directly beneath to the mask's outlines (ctx.clip)
+  and does not draw the mask; with { editing: true } (the stage) only while the mask is locked
+pen paths (AN3) ─► pen.ts edits anchors and handles in stage coordinates; the stage shows the
+  points instead of the box handles for a selected pen path
+```
 
 The native menus act on the mode that is showing (`ui/menu-actions.ts`): in Animation mode
 New, Open, Save, Save As, Export, Import (a picture), Undo, Redo and Select All go to the

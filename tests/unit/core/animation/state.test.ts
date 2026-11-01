@@ -16,6 +16,7 @@ import {
   ungroup,
   updateObject,
 } from '../../../../src/core/animation/layers.ts';
+import { withPaths } from '../../../../src/core/animation/motion.ts';
 import { placementOf, stateAt } from '../../../../src/core/animation/state.ts';
 import { setPropertyAt } from '../../../../src/core/animation/tween.ts';
 import type { AnimationDoc } from '../../../../src/core/animation/types.ts';
@@ -56,6 +57,40 @@ describe('the document at a frame (AN9)', () => {
     }) as unknown as StageCanvas;
     drawStage(ctx, doc, { frame: 36 });
     expect(translates[0]).toEqual([300, 102]);
+  });
+});
+
+describe('frame 0 is a frame like any other', () => {
+  it('drawn at frame 0, an object on a path is at the path’s start, not where it was drawn', () => {
+    const doc = createAnimation({ name: 'f0' });
+    const car = withPaths(createRect({ x: 0, y: 0, width: 60, height: 24 }), [
+      {
+        points: [
+          { x: 32, y: 216 },
+          { x: 320, y: 108 },
+        ],
+        closed: false,
+        from: 0,
+        to: 48,
+        orient: false,
+        even: true,
+        easing: 'linear',
+      },
+    ]);
+    const translates: number[][] = [];
+    const ctx = new Proxy({} as Record<string, unknown>, {
+      get: (target, key: string) =>
+        key in target
+          ? target[key]
+          : (...args: unknown[]) => {
+              if (key === 'translate') translates.push(args as number[]);
+              if (key.startsWith('create')) return { addColorStop: () => {} };
+              return undefined;
+            },
+      set: (target, key: string, value) => ((target[key] = value), true),
+    }) as unknown as StageCanvas;
+    drawStage(ctx, addObject(doc, doc.layers[0]!.id, car), { frame: 0 });
+    expect(translates[0]).toEqual([32, 216]);
   });
 });
 

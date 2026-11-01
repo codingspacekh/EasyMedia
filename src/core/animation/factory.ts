@@ -40,7 +40,7 @@ export function createLayer(name: string, extra: Partial<Layer> = {}): Layer {
 
 export function createAnimation({ name }: { name: string }): AnimationDoc {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     name,
     stage: { width: 1280, height: 720, background: '#ffffff', fps: 24, length: 120 },
     layers: [createLayer('Layer 1')],

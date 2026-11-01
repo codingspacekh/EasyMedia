@@ -30,6 +30,7 @@ import type {
   AnimationDoc,
   Easing,
   Id,
+  PathObject,
   TweenProperty,
   Picture,
   Stage,
@@ -698,6 +699,36 @@ export function createAnimationApp({
       return found ? objectAt(found.object, store.get().frame) : null;
     },
 
+    // ---- paths and morphs (AN10, AN11) ----
+
+    /** AN3: a pen path's points and curves edited on the stage (pen.ts), one undo step. */
+    editPath(id: Id, label: string, change: (path: PathObject) => PathObject): void {
+      run(
+        cmd.changeObject(id, label, (o) => {
+          if (o.kind !== 'path') throw new EditError('Only a pen path has points to edit.');
+          return change(o);
+        }),
+      );
+    },
+
+    /** AN11: the object follows another object's path (or outline); returns why not. */
+    followPath: (id: Id, sourceId: Id): string | null => edit(cmd.followPath(id, sourceId)),
+    /** The frames, Orient to path, even speed or easing of one of its paths (0 = the first). */
+    setMotion: (id: Id, index: number, change: cmd.PathChange): string | null =>
+      edit(cmd.setMotion(id, index, change)),
+    removeMotion: (id: Id, index: number) => void run(cmd.removeMotion(id, index)),
+
+    /** AN10: at the playhead the shape becomes the one picked (removed unless kept). */
+    morphInto(
+      id: Id,
+      targetId: Id,
+      { keepTarget = false }: { keepTarget?: boolean } = {},
+    ): string | null {
+      const refused = edit(cmd.morphInto(id, targetId, store.get().frame, keepTarget));
+      if (!refused) patch({ selection: [id] });
+      return refused;
+    },
+
     // ---- keyframes (AN9, AN13) ----
 
     insertKeyframe: (id: Id, property: cmd.PropertyChoice) =>
@@ -845,7 +876,8 @@ export function createAnimationApp({
 
     moveLayer: (id: Id, index: number) => void run(cmd.moveLayer(id, index)),
 
-    toggleLayer(id: Id, what: 'visible' | 'locked'): void {
+    /** AN7, AN12: show / hide, lock / unlock, or make a mask of a layer. */
+    toggleLayer(id: Id, what: 'visible' | 'locked' | 'mask'): void {
       const layer = present().layers.find((l) => l.id === id);
       if (layer && run(cmd.setLayer(id, { [what]: !layer[what] })))
         patch({

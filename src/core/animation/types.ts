@@ -50,9 +50,16 @@ export type TweenProperty =
   | 'strokeWidth'
   | 'radius'
   | 'size'
-  | 'text';
+  | 'text'
+  | 'shape';
 
-export type KeyValue = number | string;
+/** AN10: a shape keyframe's outline, in the object's box scaled to 0–1. */
+export interface ShapeValue {
+  points: { x: number; y: number }[];
+  closed: boolean;
+}
+
+export type KeyValue = number | string | ShapeValue;
 
 /** AN9: a value fixed at a frame. `easing` shapes the tween to the next keyframe; `hold` keeps this value until it. */
 export interface Keyframe {
@@ -72,6 +79,24 @@ export interface Track {
   repeat?: 'end' | number;
 }
 
+/**
+ * AN11: a motion path. Between `from` and `to` the object's centre follows the path (in its
+ * parent's coordinates: the stage for an object on a layer), at even speed or with an equal share
+ * of the time per segment, eased; before and after, it waits at the ends. Oriented, it also turns
+ * with the path (a car on a road), on top of its own rotation.
+ */
+export interface MotionPath {
+  points: PathPoint[];
+  closed: boolean;
+  from: number;
+  to: number;
+  orient: boolean;
+  even: boolean;
+  easing: Easing;
+  /** The name of the path or shape it was taken from, for the Properties panel. */
+  source?: string;
+}
+
 /** What every object has (AN6). Rotation in degrees, clockwise; opacity 0–100 %. */
 interface ObjectBase {
   id: Id;
@@ -87,6 +112,12 @@ interface ObjectBase {
   stroke?: Stroke;
   /** AN9: keyframes, one track per animated property. Absent or empty: the object stays still. */
   tracks?: Track[];
+  /**
+   * AN11: the paths the object follows, in frame order, never overlapping (Task 6: out along one,
+   * back along another). Before the first it waits at its start, between two at the end of the one
+   * before, after the last at its end. Its position keyframes are not used while it has paths.
+   */
+  paths?: MotionPath[];
 }
 
 export interface RectObject extends ObjectBase {
@@ -176,6 +207,8 @@ export interface Layer {
   folderId?: Id;
   /** The colour tag shown in the Layers panel. */
   colour?: string;
+  /** AN12: a mask: its shapes restrict what is seen of the layer directly beneath it. */
+  mask?: boolean;
   /** Drawing order: the first object is at the back. */
   objects: AnimObject[];
 }
@@ -210,8 +243,8 @@ export interface ViewSettings {
 }
 
 export interface AnimationDoc {
-  /** 2 since M14 (keyframes); a v1.1.0 app refuses a newer file with a plain message. */
-  schemaVersion: 2;
+  /** 2 since M14 (keyframes), 3 since M15 (paths, morphs, masks); older apps refuse newer files. */
+  schemaVersion: 3;
   name: string;
   stage: Stage;
   layers: Layer[];

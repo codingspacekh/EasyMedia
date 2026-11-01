@@ -17,7 +17,7 @@ import {
 describe('createAnimation', () => {
   it('AN1 starts as a 1280 × 720 white stage at 24 fps lasting 5 s (120 frames)', () => {
     const doc = createAnimation({ name: 'Untitled' });
-    expect(doc.schemaVersion).toBe(2);
+    expect(doc.schemaVersion).toBe(3);
     expect(doc.name).toBe('Untitled');
     expect(doc.stage).toEqual({
       width: 1280,

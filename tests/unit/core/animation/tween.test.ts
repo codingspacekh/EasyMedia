@@ -69,6 +69,22 @@ describe('tweens with Task 1 numbers (AN9)', () => {
     expect(objectAt(text, 18)).toMatchObject({ size: 16 });
   });
 
+  it('the text box grows and shrinks with the font size, from its top-left corner', () => {
+    let text = { ...createText('Hi\nyou', { x: 10, y: 20, size: 40 }), width: 80 };
+    text = setPropertyAt(text, 'size', 24, 20);
+    expect(objectAt(text, 24)).toMatchObject({ x: 10, y: 20, size: 20, width: 40, height: 48 });
+    // From nothing: the box is worked out from the words.
+    const fromZero = setPropertyAt(
+      setPropertyAt(createText('Task 1', { x: 193, y: 73 }), 'size', 0, 0),
+      'size',
+      72,
+      64,
+    );
+    expect(objectAt(fromZero, 0)).toMatchObject({ width: 0, height: 0 });
+    expect(objectAt(fromZero, 72).height).toBeCloseTo(64 * 1.2, 6);
+    expect(objectAt(fromZero, 72).width).toBeGreaterThan(100);
+  });
+
   it("a star's turn 0 → 360° in 72 frames, repeated, is 90° at frame 18 and 90° again at frame 90", () => {
     let star = createStar({ x: 128, y: 102, width: 135, height: 135 });
     star = setPropertyAt(star, 'rotation', 72, 360);

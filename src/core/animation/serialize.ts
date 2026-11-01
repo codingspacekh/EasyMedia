@@ -6,13 +6,15 @@ import { fromProjectPath, toProjectPath } from '../project/paths.ts';
 import { isColour } from './rules.ts';
 import type { AnimationDoc, ObjectKind } from './types.ts';
 
-export const ANIMATION_SCHEMA = 2;
+export const ANIMATION_SCHEMA = 3;
 export const ANIMATION_DAMAGED = 'This file is not an EasyMedia animation, or it is damaged.';
 
 /** Add an entry whenever the animation format changes (see core/project/migrate.ts). */
 export const ANIMATION_MIGRATIONS: Record<number, Migration> = {
   /** Version 2 (M14): objects may carry keyframe tracks. A v1 file has none, so nothing changes. */
   1: (v1) => ({ ...v1, schemaVersion: 2 }),
+  /** Version 3 (M15): motion paths, shape keyframes and mask layers; a v2 file has none. */
+  2: (v2) => ({ ...v2, schemaVersion: 3 }),
 };
 
 export function serializeAnimation(doc: AnimationDoc): string {
@@ -89,11 +91,22 @@ const isTrack = (t: Obj): boolean =>
     t.keyframes,
     (k) =>
       isNumber(k.frame) &&
-      (isNumber(k.value) || isString(k.value)) &&
+      (isNumber(k.value) ||
+        isString(k.value) ||
+        (isObject(k.value) && isPathPoints(k.value.points) && isBoolean(k.value.closed))) &&
       isString(k.easing) &&
       isBoolean(k.hold),
   ) &&
   (t.repeat === undefined || t.repeat === 'end' || isNumber(t.repeat));
+
+const isPathPoints = (v: unknown) => listOf(v, (p) => has(p, ['x', 'y'], isNumber));
+
+const isMotion = (m: unknown): boolean =>
+  isObject(m) &&
+  isPathPoints(m.points) &&
+  has(m, ['closed', 'orient', 'even'], isBoolean) &&
+  has(m, ['from', 'to'], isNumber) &&
+  isString(m.easing);
 
 function isAnimObject(o: Obj): boolean {
   if (!isString(o.kind) || !KINDS.includes(o.kind as ObjectKind)) return false;
@@ -105,6 +118,7 @@ function isAnimObject(o: Obj): boolean {
       return false;
   }
   if (o.tracks !== undefined && !listOf(o.tracks, isTrack)) return false;
+  if (o.paths !== undefined && !(Array.isArray(o.paths) && o.paths.every(isMotion))) return false;
   switch (o.kind) {
     case 'rect':
       return isNumber(o.radius);
@@ -142,6 +156,7 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
       (l) =>
         has(l, ['id', 'name'], isString) &&
         has(l, ['visible', 'locked'], isBoolean) &&
+        (l.mask === undefined || isBoolean(l.mask)) &&
         listOf(l.objects, isAnimObject),
     ) &&
     listOf(doc.folders, (f) => has(f, ['id', 'name'], isString)) &&

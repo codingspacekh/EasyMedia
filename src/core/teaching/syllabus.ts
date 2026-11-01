@@ -311,14 +311,20 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     'Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke)',
     ['20.1 controlling object properties'],
   ),
-  an('setting paths', 'Animation ▸ Follow path… on a tween (M15)'),
+  an(
+    'setting paths',
+    'Animation ▸ Properties ▸ Motion path (Follow path, Orient to path); a pen path’s points and curves are edited on the stage',
+    ['20.1 setting paths'],
+  ),
   an('using layers', 'Animation ▸ the Layers panel (add, rename, order, lock, hide, folders)', [
     '20.1 using layers',
   ]),
-  an('applying masks', 'Animation ▸ Mask on a layer (M15)'),
+  an('applying masks', 'Animation ▸ the Mask button on a layer (lock the layer to see it work)', [
+    '20.1 applying masks',
+  ]),
   an(
     'controlling animations by adjusting frame rates, looping or stopping animations',
-    'Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop (M14)',
+    'Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop',
   ),
   an('exporting an animation for its application', 'Animation ▸ Export on the toolbar', [
     '20.1 exporting an animation',
@@ -327,13 +333,15 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     '20.1',
     ANIM_PRINCIPLES,
     'frames, key frames, property key frames, timings, coordinates',
-    'Animation ▸ the timeline (M14); the rulers show coordinates; Learn ▸ Animation (M16)',
+    'Animation ▸ the timeline; the rulers show coordinates; Learn ▸ Animation (M16)',
+    ['20.1 frames, key frames and tweening'],
   ),
   p(
     '20.1',
     ANIM_PRINCIPLES,
     'inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates',
-    'Animation ▸ keyframes on the timeline (M14) and Morph into… (M15)',
+    'Animation ▸ keyframes on the timeline, and Properties ▸ Morph into…',
+    ['20.1 frames, key frames and tweening', '20.1 morphing'],
   ),
   p(
     '20.1',

@@ -129,18 +129,18 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the toolbar, then Trace bitmap (M16) | Picture |
 | importing and creating vector objects: adding text | Animation ▸ Text on the toolbar | Text |
 | controlling object properties: stroke and fill settings; size, position and orientation; transparency | Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke) | Object properties |
-| setting paths | Animation ▸ Follow path… on a tween (M15) | — |
+| setting paths | Animation ▸ Properties ▸ Motion path (Follow path, Orient to path); a pen path’s points and curves are edited on the stage | Motion path |
 | using layers | Animation ▸ the Layers panel (add, rename, order, lock, hide, folders) | Layers |
-| applying masks | Animation ▸ Mask on a layer (M15) | — |
-| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop (M14) | — |
+| applying masks | Animation ▸ the Mask button on a layer (lock the layer to see it work) | Mask |
+| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop | — |
 | exporting an animation for its application | Animation ▸ Export on the toolbar | Export animation |
 
 ### The basic principles of animation
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline (M14); the rulers show coordinates; Learn ▸ Animation (M16) | — |
-| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline (M14) and Morph into… (M15) | — |
+| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline; the rulers show coordinates; Learn ▸ Animation (M16) | Timeline and keyframes |
+| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Morph |
 
 ### Different animation types and methods
 
