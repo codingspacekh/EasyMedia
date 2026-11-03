@@ -53,6 +53,23 @@ const menuItem = async (menu: 'Tracks' | 'Effect', item: string | RegExp) => {
   await fireEvent.click(screen.getByRole('menuitem', { name: item }));
 };
 
+describe('A20 the selected clip in the side panel', () => {
+  it("shows the clip's start as a time box; typing 10 makes the sound start after 10 s (M/J/24 Q6)", async () => {
+    const { audio, doc } = await audioMode('/m/Voiceover_3.wav');
+    expect(screen.queryByLabelText('Starts at', { exact: true })).toBeNull();
+    audio.selectClip(doc().tracks[0]!.clips[0]!.id);
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText('Starts at', { exact: true })).toBeTruthy(),
+    );
+    expect((screen.getByLabelText('Starts at', { exact: true }) as HTMLInputElement).value).toBe(
+      '0.00',
+    );
+    await typeTime('Starts at', '10');
+    expect(doc().tracks[0]!.clips[0]!.offset).toBe(10);
+    expect(screen.getByText(/plays 10\.00 – 12\.00 s/i)).toBeTruthy();
+  });
+});
+
 describe('Audio mode layout', () => {
   it('shows the audio toolbar and asks for a sound first', async () => {
     await audioMode();

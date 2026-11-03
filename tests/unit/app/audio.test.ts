@@ -366,6 +366,24 @@ describe('clips, as on the video timeline: click, split, drag, trim, join, delet
     expect(s.state().clip).toBe(right.id);
   });
 
+  it('A20 a clip can be given a typed start (M/J/23 Q4: the part after the split starts later)', async () => {
+    const s = await music();
+    s.audio.selectClip(s.doc().tracks[0]!.clips[0]!.id);
+    s.audio.setPosition(2);
+    s.audio.split();
+    const right = s.doc().tracks[0]!.clips.find((c) => c.offset === 2)!;
+    expect(s.audio.setClipStart(right.id, 3.25)).toBeNull();
+    expect(clips(s)).toEqual([
+      [0, 2],
+      [3.25, 4],
+    ]);
+    expect(s.state().history.past.at(-1)!.label).toBe('Clip starts at 3.25 s');
+    expect(s.state().clip).toBe(right.id);
+    // On top of the first part: refused, with the reason; nothing moves.
+    expect(s.audio.setClipStart(right.id, 1)).toMatch(/overlap|on top/i);
+    expect(clips(s)[1]).toEqual([3.25, 4]);
+  });
+
   it('Split with no clip selected splits every track under the playhead', async () => {
     const s = setup();
     await s.importFiles('/m/Task_11j_audio_1.mp3', '/m/Task_11j_audio_2.mp3');

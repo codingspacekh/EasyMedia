@@ -1,15 +1,18 @@
 <script lang="ts">
   // Side panel (screen 13): facts about the selected track — with why the uncompressed size is
-  // what it is (T2 in brief) — and the History of edits (A18).
+  // what it is (T2 in brief) — the selected clip's start, typed (A20), and the History (A18).
   import type { App } from '../../app/app.ts';
-  import { trackDuration } from '../../core/audio/pcm.ts';
+  import { findClip } from '../../core/audio/edit.ts';
+  import { clipEnd, trackDuration } from '../../core/audio/pcm.ts';
   import { hz, wavBytes } from '../../core/render/audio-formats.ts';
   import Icon from '../Icon.svelte';
+  import TimeField from '../TimeField.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.audio.store);
   const doc = $derived($store.history.present);
   const track = $derived(doc.tracks.find((t) => $store.selection.tracks.includes(t.id)));
+  const clip = $derived($store.clip ? findClip(doc, $store.clip)?.clip : undefined);
   // Labels only: holding the steps themselves would keep their samples in memory (N4).
   const past = $derived($store.history.past.map((c) => c.label));
   const future = $derived($store.history.future.map((c) => c.label));
@@ -58,6 +61,20 @@
       <p class="hint">Click a track to see its details.</p>
     {/if}
   </div>
+  {#if clip}
+    <div class="panel-h">Selected clip</div>
+    <div class="sec">
+      <TimeField
+        label="Starts at"
+        value={clip.offset}
+        commit={(seconds) => app.audio.setClipStart(clip.id, seconds)}
+      />
+      <p class="hint">
+        Plays {clip.offset.toFixed(2)} – {clipEnd(clip, doc.rate).toFixed(2)} s. Silence before it, when
+        nothing else plays there.
+      </p>
+    </div>
+  {/if}
   <div class="panel-h">History</div>
   <ol class="hist">
     {#each past as label, i (i)}

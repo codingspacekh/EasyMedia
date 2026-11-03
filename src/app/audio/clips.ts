@@ -37,6 +37,18 @@ export function clipActions(ctx: AudioContext) {
       selectClipOnly(id);
     },
 
+    /**
+     * A20: the clip starts at a typed time (Audio mode's side panel). Returns why it cannot,
+     * such as another clip already there; nothing moves then.
+     */
+    setClipStart(id: Id, offset: Seconds): string | null {
+      const problem = tryEdit(`Clip starts at ${offset.toFixed(2)} s`, (tx) =>
+        moveClip(tx, id, offset),
+      );
+      if (!problem) selectClipOnly(id);
+      return problem;
+    },
+
     /** Drag a clip's start or end edge. */
     trimClip(id: Id, side: 'start' | 'end', time: Seconds): void {
       run(side === 'start' ? 'Trim clip start' : 'Trim clip end', (tx) =>
