@@ -16,13 +16,14 @@ const task1 = () => {
 };
 
 describe('animation export (AN15)', () => {
-  it('offers MP4, animated GIF, a web page, PNG sequence and a picture of the frame, each with pros and cons', () => {
+  it('offers MP4, animated GIF, a web page, PNG sequence and a picture of the frame (PNG or SVG), each with pros and cons', () => {
     expect(ANIMATION_FORMATS.map((f) => f.id)).toEqual([
       'mp4',
       'gif',
       'html',
       'png-sequence',
       'png',
+      'svg',
     ]);
     for (const f of ANIMATION_FORMATS) {
       expect(f.label.length).toBeGreaterThan(2);

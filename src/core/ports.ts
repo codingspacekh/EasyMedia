@@ -227,7 +227,7 @@ export interface Dialogs {
 }
 
 /** AN15: the animation export formats (M13: a picture of the stage; M14: mp4, gif, a PNG sequence; M16 html). */
-export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence' | 'html';
+export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence' | 'html' | 'svg';
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
 export interface ProjectFiles {

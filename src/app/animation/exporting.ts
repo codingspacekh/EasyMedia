@@ -13,6 +13,7 @@ import {
 import { fontsNeeded, picturesUsed, webPage } from '../../core/animation/html.ts';
 import type { AnimationDoc, Id } from '../../core/animation/types.ts';
 import { TRANSPARENT } from '../../core/animation/rules.ts';
+import { stageSvg } from '../../core/animation/svg-export.ts';
 import { newId } from '../../core/model/factory.ts';
 import type { JobHandle } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
@@ -91,6 +92,37 @@ export function exportActions(ctx: AnimationContext) {
     };
   }
 
+  /** AN22: the frame at the playhead as an SVG, its pictures inside (one not read is left out). */
+  async function exportSvg(doc: AnimationDoc, frame: number, output: string) {
+    patch({ busy: 'Exporting…' });
+    try {
+      const read = await Promise.all(
+        picturesUsed(doc).map(async (p) => ({
+          picture: p,
+          url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
+        })),
+      );
+      const pictures: Record<Id, string> = {};
+      for (const { picture, url } of read) if (url) pictures[picture.id] = url;
+      await files.write(output, stageSvg(doc, frame, pictures));
+      const missing = read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path));
+      patch({
+        message: {
+          kind: 'info',
+          text: missing.length
+            ? `Saved ${fileNameOf(output)} without ${missing.join(', ')}: could not be read.`
+            : `Saved ${fileNameOf(output)}.`,
+        },
+      });
+      return output;
+    } catch (error) {
+      showError(error);
+      return null;
+    } finally {
+      patch({ busy: null });
+    }
+  }
+
   async function exportWebPage(doc: AnimationDoc, output: string): Promise<string | null> {
     patch({ busy: 'Exporting…' });
     try {
@@ -133,6 +165,7 @@ export function exportActions(ctx: AnimationContext) {
     const output = chosen ?? (await dialogs.exportAnimation(ctx.fileBase(), format));
     if (!output) return null;
     if (format === 'html') return exportWebPage(doc, output);
+    if (format === 'svg') return exportSvg(doc, frame, output);
     if (format === 'png') {
       patch({ busy: 'Exporting…' });
       try {
@@ -246,7 +279,7 @@ export function exportActions(ctx: AnimationContext) {
       const { count, seconds } = exportedFrames(doc);
       const { width, height } = doc.stage;
       return {
-        frames: format === 'png' ? 1 : count,
+        frames: format === 'png' || format === 'svg' ? 1 : count,
         seconds,
         bytes: estimateAnimationSize(doc, format),
         size: format === 'mp4' ? evenSize(width, height) : { width, height, padded: false },

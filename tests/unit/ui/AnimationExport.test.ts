@@ -36,11 +36,20 @@ describe('the export dialog (AN15, T7)', () => {
       'HTML web animation',
       'PNG sequence',
       'PNG picture of this frame',
+      'SVG picture of this frame',
     ])
       expect(d.getByRole('radio', { name: new RegExp(name) })).toBeTruthy();
     expect((d.getByRole('radio', { name: /MP4 video/ }) as HTMLInputElement).checked).toBe(true);
     expect(d.getByText('72 frames · 3.00 s · about 108 KB')).toBeTruthy();
     expect(d.getByText(/Plays almost everywhere/)).toBeTruthy();
+  });
+
+  it('AN22 choosing SVG explains it is a vector picture of one frame', async () => {
+    await animationMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await fireEvent.click(within(dialog()).getByRole('radio', { name: /SVG picture/ }));
+    expect(within(dialog()).getByText(/sharp at any size/i)).toBeTruthy();
+    expect(within(dialog()).getByText(/1 frame/)).toBeTruthy();
   });
 
   it('choosing GIF shows its pros and cons and a bigger size', async () => {

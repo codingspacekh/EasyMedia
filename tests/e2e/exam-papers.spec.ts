@@ -1,6 +1,7 @@
 // M17a: steps of real 9626 papers through the real app, where only the real canvas and FFmpeg
 // can show the result. AN21 (M/J/23 Conveyor, M/J/26 Gas): a stage with no background exports
-// a PNG and a GIF that are see-through around the drawing.
+// a PNG and a GIF that are see-through around the drawing. AN22 (O/N/25 Apple): the SVG of a
+// frame looks like the PNG of the same frame.
 import { expect, test, type Page } from '@playwright/test';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -86,5 +87,74 @@ test('AN21 Conveyor / Gas: a transparent 400 × 100 stage exports a see-through 
   await expect.poll(() => exists(gif), { timeout: 60_000 }).toBe(true);
   expect((await pixel(gif, 5, 5, 400))[3]).toBe(0);
   expect((await pixel(gif, 200, 50, 400))[3]).toBe(255);
+  await app.close();
+});
+
+test('AN22 Apple: the SVG of a frame, drawn by a browser, matches the PNG of that frame', async () => {
+  test.setTimeout(180_000);
+  const { app, window: page } = await launchApp();
+  await page
+    .getByRole('navigation', { name: 'Mode' })
+    .getByRole('button', { name: 'Animation' })
+    .click();
+  const stage = page.getByRole('application', { name: 'Stage' });
+  const draw = async (tool: string, from: [number, number], to: [number, number]) => {
+    await page.getByRole('button', { name: tool, exact: true }).click();
+    const box = (await stage.boundingBox())!;
+    await page.mouse.move(box.x + box.width * from[0], box.y + box.height * from[1]);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * to[0], box.y + box.height * to[1], { steps: 5 });
+    await page.mouse.up();
+  };
+  await draw('Ellipse', [0.1, 0.1], [0.4, 0.6]);
+  await draw('Star', [0.45, 0.2], [0.7, 0.8]);
+  await draw('Rectangle', [0.72, 0.3], [0.95, 0.9]);
+  await type(page, 'Rotation', '30'); // turned 30°
+
+  const png = join(dir, 'Apple.png');
+  const svg = join(dir, 'Apple_ZZ999_9999.svg');
+  await answerDialogs(app, { exportTo: png });
+  await exportAs(page, /PNG picture of this frame/);
+  await expect.poll(() => exists(png), { timeout: 30_000 }).toBe(true);
+  await answerDialogs(app, { exportTo: svg });
+  await exportAs(page, /SVG picture of this frame/);
+  await expect.poll(() => exists(svg), { timeout: 30_000 }).toBe(true);
+
+  const pngUrl = `data:image/png;base64,${(await readFile(png)).toString('base64')}`;
+  const svgUrl = `data:image/svg+xml;base64,${(await readFile(svg)).toString('base64')}`;
+  const differ = await page.evaluate(
+    async ([a, b]) => {
+      const load = (src: string) =>
+        new Promise<HTMLImageElement>((done, fail) => {
+          const img = new Image();
+          img.onload = () => done(img);
+          img.onerror = fail;
+          img.src = src;
+        });
+      const [p, s] = await Promise.all([load(a!), load(b!)]);
+      const pixels = (img: HTMLImageElement) => {
+        const c = document.createElement('canvas');
+        c.width = p.naturalWidth;
+        c.height = p.naturalHeight;
+        const g = c.getContext('2d')!;
+        g.drawImage(img, 0, 0, c.width, c.height);
+        return g.getImageData(0, 0, c.width, c.height).data;
+      };
+      const [x, y] = [pixels(p), pixels(s)];
+      let off = 0;
+      for (let i = 0; i < x.length; i += 4) {
+        const d = Math.max(
+          Math.abs(x[i]! - y[i]!),
+          Math.abs(x[i + 1]! - y[i + 1]!),
+          Math.abs(x[i + 2]! - y[i + 2]!),
+        );
+        if (d > 64) off++;
+      }
+      return off / (x.length / 4);
+    },
+    [pngUrl, svgUrl],
+  );
+  // Only the edges' smoothing may differ: well under 1 % of the pixels.
+  expect(differ).toBeLessThan(0.01);
   await app.close();
 });

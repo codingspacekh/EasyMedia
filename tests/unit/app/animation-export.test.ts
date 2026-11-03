@@ -38,6 +38,20 @@ describe('exporting the animation (AN15)', () => {
     expect(s.anim.store.get().history.present.stage.background).toBe('none');
   });
 
+  it('AN22 SVG: the frame at the playhead as vector shapes (O/N/25 Apple_ZZ999_9999.svg)', async () => {
+    const s = setup();
+    s.anim.setFrame(72);
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Apple_ZZ999_9999.svg');
+    await s.anim.exportAnimation('svg');
+    expect(s.dialogs.exportAnimation).toHaveBeenCalledWith('Untitled', 'svg');
+    const svg = s.disk.get('/work/Apple_ZZ999_9999.svg')!;
+    expect(svg).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="600" height="400"/);
+    // The circle at frame 72 has moved to x 396: its right edge is at 600.
+    expect(svg).toMatch(/<path d="M600 102A102 102 0 1 1 396 102/);
+    expect(s.stageRenderer.renderPng).not.toHaveBeenCalled();
+    expect(s.state().message?.text).toBe('Saved Apple_ZZ999_9999.svg.');
+  });
+
   it('MP4: frames 0–71 drawn, made into a 600 × 400, 24 fps, 3.00 s H.264 video', async () => {
     const s = setup();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.mp4');

@@ -1,11 +1,11 @@
 // AN15: exporting an animation. Every frame is drawn by draw.ts (the same drawing as the preview)
 // and made into the file the student chose: MP4 and animated GIF through FFmpeg, a PNG sequence
-// (one picture per frame) or the frame at the playhead as one PNG; or the drawing itself goes into
-// a web page that plays it (html.ts). The pros and cons of each
+// (one picture per frame) or the frame at the playhead as one PNG or as an SVG of vector shapes
+// (svg-export.ts); or the drawing itself goes into a web page that plays it (html.ts). The pros and cons of each
 // format and the estimated size are shown before exporting (T7).
 import type { AnimationDoc } from './types.ts';
 
-export type AnimationFormat = 'mp4' | 'gif' | 'html' | 'png-sequence' | 'png';
+export type AnimationFormat = 'mp4' | 'gif' | 'html' | 'png-sequence' | 'png' | 'svg';
 
 export interface AnimationFormatInfo {
   id: AnimationFormat;
@@ -62,6 +62,19 @@ export const ANIMATION_FORMATS: readonly AnimationFormatInfo[] = [
     pros: ['Lossless picture of the frame at the playhead'],
     cons: ['A single frame: nothing moves'],
   },
+  {
+    id: 'svg',
+    label: 'SVG picture of this frame',
+    use: 'A vector picture: a logo, an icon, a printout, other drawing software',
+    pros: [
+      'Vector: sharp at any size, as the shapes are stored, not pixels',
+      'Each shape can be edited in other drawing software; small for flat shapes',
+    ],
+    cons: [
+      'A single frame: nothing moves',
+      'Pictures inside make it big; text looks different where its font is not installed',
+    ],
+  },
 ];
 
 /** The frames exported: 0 to length − 1, so a 3 s animation at 24 fps is 72 frames, 3.00 s. */
@@ -86,6 +99,9 @@ export function evenSize(width: number, height: number) {
 const PNG_BYTES_PER_PIXEL = 0.15;
 const GIF_BYTES_PER_PIXEL = 0.12;
 const MP4_BITS_PER_PIXEL = 0.05;
+/** An SVG: a little per shape, and each picture inside as text, as in the web page. */
+const SVG_BYTES = 1_000;
+const SVG_BYTES_PER_OBJECT = 250;
 /** A web page: the player and the animation's data, then each picture (a JPG, inside as text). */
 const HTML_PAGE_BYTES = 40_000;
 const HTML_PICTURE_BYTES_PER_PIXEL = 0.5;
@@ -106,6 +122,12 @@ export function estimateAnimationSize(doc: AnimationDoc, format: AnimationFormat
     case 'html':
       return (
         HTML_PAGE_BYTES +
+        doc.pictures.reduce((sum, p) => sum + p.width * p.height * HTML_PICTURE_BYTES_PER_PIXEL, 0)
+      );
+    case 'svg':
+      return (
+        SVG_BYTES +
+        doc.layers.reduce((sum, l) => sum + l.objects.length * SVG_BYTES_PER_OBJECT, 0) +
         doc.pictures.reduce((sum, p) => sum + p.width * p.height * HTML_PICTURE_BYTES_PER_PIXEL, 0)
       );
   }
