@@ -1,7 +1,8 @@
 # EasyMedia — user guide
 
-EasyMedia edits video and sound for Cambridge International AS & A Level IT (9626), Chapter 11.
-It has four modes, chosen at the top left: **Video**, **Audio**, **Learn** and **Animation** (phase 2, syllabus 20.1; this guide's animation chapter arrives with it).
+EasyMedia edits video, sound and animation for Cambridge International AS & A Level IT (9626),
+syllabus sections 11 and 20.1. It has four modes, chosen at the top left: **Video**, **Audio**,
+**Learn** and **Animation**.
 
 > Rest the mouse on any button to see what it does. Most tools also have a **Why use this?** box:
 > it gives the reason the tool is used, in the words the exam expects.
@@ -11,10 +12,11 @@ It has four modes, chosen at the top left: **Video**, **Audio**, **Learn** and *
 1. [Saving and moving your work](#saving-and-moving-your-work)
 2. [Video mode](#video-mode)
 3. [Audio mode](#audio-mode)
-4. [Learn mode](#learn-mode)
-5. [Keyboard shortcuts](#keyboard-shortcuts)
-6. [Coursebook tasks, step by step](#coursebook-tasks-step-by-step)
-7. [If something goes wrong](#if-something-goes-wrong)
+4. [Animation mode](#animation-mode)
+5. [Learn mode](#learn-mode)
+6. [Keyboard shortcuts](#keyboard-shortcuts)
+7. [Coursebook tasks, step by step](#coursebook-tasks-step-by-step)
+8. [If something goes wrong](#if-something-goes-wrong)
 
 ## Saving and moving your work
 
@@ -151,6 +153,73 @@ after a 3-second count-in, the other tracks play while you speak (overdubbing). 
 **Export** (or **File ▸ Export Audio…**): MP3, M4A, AAC, WAV or FLAC; sample rate, bit rate, mono
 or stereo, and tags. It shows the estimated size next to the same sound as a WAV.
 
+## Animation mode
+
+An animation is its own file (`.mvea`): **File ▸ New Animation**, **Open Animation…**, and Save
+while Animation mode is showing. **File ▸ Package Project…** in Animation mode copies the animation
+and its pictures into one folder, to hand in or take to another computer.
+
+### 1. Set up the stage
+
+Click the chip at the top (for example **3:2 · 600 × 400 · 24 fps**) to set the stage's **width
+and height** in pixels (or an aspect ratio preset: 4:3, 16:9, 16:10, 2.35:1), its **colour**, the
+**frame rate** and the **length**. Only what is on the stage is in the animation; (0, 0) is its
+top-left corner.
+
+The tool strip beside the stage has **Rulers** (drag a guide out of a ruler), **Grid** and
+**Snap** (to the grid, guides and other objects; hold <kbd>Alt</kbd> to move freely).
+
+### 2. Draw and place objects
+
+| To… | Do this |
+|---|---|
+| Draw a shape | **Rectangle**, **Ellipse**, **Star**, **Polygon** or **Line**, then drag on the stage (<kbd>Shift</kbd> for a square or circle). |
+| Draw a path | **Pen**: click points, double-click or <kbd>Enter</kbd> to finish (click the first point to close it). **Brush**: draw freehand. |
+| Add words | **Text**, click the stage, type in the Properties panel. **Split into letters** gives each letter its own object. |
+| Add a picture | **Picture**, click the stage, choose a PNG, JPG, GIF, BMP or SVG. **Trace bitmap…** turns it into vector shapes. |
+| Add a button | **Button** (Pause, Continue, Restart or Go to frame) for the web page. |
+| Set exact numbers | The **Properties** panel: X, Y, W, H, rotation, opacity, fill (solid or gradient) and outline. |
+| Make one object of several | Select them, **Group** (<kbd>Ctrl</kbd>+<kbd>G</kbd>); **Ungroup** (<kbd>Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>G</kbd>). |
+
+### 3. Layers
+
+Each layer has its own timeline; the top layer is in front. In the **Layers** panel: **New layer**,
+**New folder**, move up and down, rename (double-click), **Hide**, **Lock** (the padlock) and
+**Mask** — a mask's shapes show only the part of the layer beneath that they cover (lock the mask
+layer to see it work).
+
+### 4. Animate: keyframes and tweens
+
+Move the playhead (click the timeline's ruler, or type a frame or a time such as `3 s` in **Go
+to…**), then change the object — drag it, or type a new value. That makes a **keyframe** there,
+and EasyMedia works out every frame in between (a **tween**). Click a keyframe dot to choose its
+**easing**, **Hold** it, **Repeat** or **Reverse** it.
+
+- **Motion path**: draw a path, then select the object ▸ Properties ▸ **Follow path** (tick
+  **Orient to path** to turn with it).
+- **Morph** (shape tween): Properties ▸ **Morph into** another shape at the playhead.
+- **Loop** and **Stop** on the timeline; **Test** (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>) plays the
+  animation as its web page, where its buttons work.
+
+### 5. Stop motion and frame-by-frame
+
+- **Stop motion**: name your photographs in order (frame01, frame02…) and put them in one folder.
+  Click **Import frames** on the tool strip, choose how many pictures a second (12 is usual), then
+  **Choose folder…**. They go on a new layer, each held for its frames; the stage is made longer if
+  needed.
+- **Frame-by-frame** (as a flip book): on the timeline click **Frame-by-frame** to make the current
+  layer one. Move the playhead and click **Duplicate frame** (<kbd>F6</kbd>) to copy the drawing and
+  change it a little, or **Insert blank keyframe** (<kbd>F7</kbd>) to start an empty one. **Onion
+  skin** shows the drawings before and after faintly. Remove a keyframe with the delete button (or
+  <kbd>⇧</kbd>+<kbd>F6</kbd>).
+
+### 6. Export
+
+**Export** (or **File ▸ Export Animation…**): an **MP4 video**, an **animated GIF** (loops), an
+**HTML web animation** (one file that plays in any browser, with its buttons), a **PNG sequence**
+(one picture per frame) or a **PNG picture of this frame**. The dialog shows the size, length and
+advantages of each. **Send to Video mode** puts the exported MP4 on the video timeline.
+
 ## Learn mode
 
 - **Inspector & sampling**: drop or choose any media file to see what is inside it (container,
@@ -160,8 +229,12 @@ or stereo, and tags. It shows the estimated size next to the same sound as a WAV
   is stored.
 - **Formats & compression**: the format guide, and real comparisons of the same sound or video saved
   in different formats, with their sizes, to play side by side.
+- **Animation**: the types of animation with their advantages and disadvantages, the principles
+  (frames, key frames, timings, tweening), the components and animation variables, and the same
+  motion at 5, 12 and 24 fps side by side.
 - **Task checker**: your teacher gives you a `.mvetask` file; open it and your export to see whether
-  it has the right format, size, length and sound.
+  it has the right format, size, length, frame rate, sound and looping. For a PNG sequence, select
+  all its pictures.
 - **Glossary**: the coursebooks' key words.
 
 ## Keyboard shortcuts
@@ -178,6 +251,11 @@ or stereo, and tags. It shows the estimated size next to the same sound as a WAV
 | <kbd>Ctrl</kbd>+<kbd>N</kbd>, <kbd>O</kbd>, <kbd>S</kbd> | New, open, save project |
 | <kbd>Ctrl</kbd>+<kbd>I</kbd> | Import |
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>E</kbd> | Export video / export audio |
+| <kbd>,</kbd> and <kbd>.</kbd> | Animation mode: previous / next frame |
+| <kbd>V</kbd> <kbd>R</kbd> <kbd>E</kbd> <kbd>S</kbd> <kbd>G</kbd> <kbd>L</kbd> <kbd>P</kbd> <kbd>B</kbd> <kbd>T</kbd> <kbd>I</kbd> <kbd>U</kbd> | Animation mode: Select, Rectangle, Ellipse, Star, Polygon, Line, Pen, Brush, Text, Picture, Button |
+| <kbd>F6</kbd> / <kbd>F7</kbd> | Animation mode: Duplicate frame / Insert blank keyframe (frame-by-frame layer) |
+| <kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd> | Animation mode: duplicate, group |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Animation mode: Test (play as a web page) |
 
 ## Coursebook tasks, step by step
 
@@ -201,10 +279,22 @@ reduction ▸ **Get noise profile**; select all ▸ Noise reduction ▸ Apply. S
 Put the cursor at 17.7 s ▸ **Insert silence** 7.7 s. Select each fade's part ▸ Fade in / Fade out.
 Select from 37.3 s to the end ▸ <kbd>Delete</kbd>. Export as MP3, stereo, 44 100 Hz.
 
+**A star that turns once** (workbook Chapter 7, Task 1): stage chip ▸ 600 × 400; **Star**, then
+type X 128, Y 102, W 135, H 135 in Properties; playhead to `3 s` (frame 72 at 24 fps) ▸ Rotation
+360; Export ▸ MP4.
+
+**Pause and Continue buttons** (Task 4): **Button** twice; set one to **Pause** and one to
+**Continue** in Properties; **Test** to try them; Export ▸ HTML web animation.
+
+**A stop-motion clip** (coursebook 19.1): photographs in one folder ▸ **Import frames** ▸ 12
+pictures a second ▸ Choose folder…; Export ▸ MP4.
+
 ## If something goes wrong
 
 - **A file is missing** (it was moved or renamed): its item in the media bin says so; click
   **Locate…** and find it. Use **Package Project** next time you move a project.
+- **A picture in an animation is missing**: it shows as a dashed box; open the animation from the
+  folder the pictures are in, or use Package Project next time.
 - **An export fails**: the message says why in plain words. Your project is not changed. Try
   another format or a smaller size, and make sure there is free space on the disk.
 - **The microphone does not work**: see "Microphone" in the install guide (`INSTALL.md`), then close
