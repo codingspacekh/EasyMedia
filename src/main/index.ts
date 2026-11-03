@@ -29,7 +29,7 @@ import { recordPerformance } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
 import { selfCheck } from './self-check.ts';
-import { setUpUpdates } from './update-setup.ts';
+import { readUpdateConfig, setUpUpdates } from './update-setup.ts';
 import { electronDialogs, projectFiles } from './services.ts';
 
 const APP_ROOT = join(__dirname, '..');
@@ -143,7 +143,13 @@ async function runSelfCheck(file: string): Promise<void> {
     (title) => ({ name: 'window', ok: true, detail: title }),
     (error: Error) => ({ name: 'window', ok: false, detail: error.message }),
   );
-  const checks = [...result.checks, loaded];
+  // M17a: electron-updater is in the package, and the update address it was built with.
+  const config = readUpdateConfig(join(RESOURCES, 'updates.json'));
+  const updates = await import('electron-updater').then(
+    () => ({ name: 'updates', ok: true, detail: config.url ?? 'off (no update address)' }),
+    (error: Error) => ({ name: 'updates', ok: false, detail: error.message }),
+  );
+  const checks = [...result.checks, loaded, updates];
   const ok = checks.every((c) => c.ok);
   await writeFile(file, `${JSON.stringify({ ok, version: app.getVersion(), checks }, null, 2)}\n`);
   app.exit(ok ? 0 : 1);

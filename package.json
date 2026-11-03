@@ -32,13 +32,15 @@
     "licences": "node scripts/licences.ts",
     "dist": "npm run build:app && npm run licences && npm run guides && npm run package",
     "package": "node scripts/package.ts",
-    "guides": "node scripts/guides.ts"
+    "guides": "node scripts/guides.ts",
+    "release:mac": "node scripts/release-mac.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@testing-library/svelte": "5.4.2",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "24.19.0",
     "@vitest/coverage-v8": "5.0.2",
     "electron": "44.5.0",
@@ -46,6 +48,7 @@
     "eslint": "10.11.0",
     "eslint-plugin-svelte": "3.23.0",
     "globals": "17.12.0",
+    "js-yaml": "^4.3.2",
     "jsdom": "30.1.1",
     "marked": "18.0.14",
     "prettier": "3.9.9",

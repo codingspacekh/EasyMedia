@@ -1,8 +1,12 @@
 name: Release
 
-# M12: pushing a version tag (vX.Y.Z, on the merge into main) builds the installers on each
-# platform, lets each packaged app check itself, and attaches them to a DRAFT GitHub Release.
-# The teacher checks the draft and publishes it. Not signed (README §15, decision 8).
+# M12: pushing a version tag (vX.Y.Z, on the merge into main) makes a DRAFT GitHub Release and
+# builds the Windows installer into it; the packaged app checks itself.
+# M17a: the installers carry the update address (this repo's latest release), and latest.yml is
+# added for the installed apps to find the next version. The two Mac installers are built on the
+# maintainer's Mac, signed with their certificate so Macs can update by themselves:
+# `npm run release:mac` adds them to the same draft. Publishing the draft releases it to every
+# installed OneEditor.
 on:
   push:
     tags: ['v*']
@@ -22,7 +26,7 @@ jobs:
     steps:
       - run: |
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "OneEditor ${TAG#v}" \
-            --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64). How to install: docs/INSTALL.md."
+            --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64; added by npm run release:mac). How to install: docs/INSTALL.md."
 
   installers:
     name: ${{ matrix.name }}
@@ -33,11 +37,10 @@ jobs:
       matrix:
         include:
           - { name: Windows x64, os: windows-latest }
-          - { name: macOS Apple Silicon, os: macos-latest }
-          - { name: macOS Intel, os: macos-15-intel }
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ github.ref_name }}
+      ONEEDITOR_UPDATE_URL: https://github.com/${{ github.repository }}/releases/latest/download
     steps:
       - uses: actions/checkout@v5
 
@@ -61,4 +64,4 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          gh release upload "$TAG" --clobber release/*.exe release/*.zip release/*.dmg
+          gh release upload "$TAG" --clobber release/*.exe release/*.zip release/*.blockmap release/latest.yml

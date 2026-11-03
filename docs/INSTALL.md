@@ -1,7 +1,8 @@
 # Installing OneEditor
 
 OneEditor is free. Download it from the project's **Releases** page on GitHub
-(<https://github.com/codingspacekh/EasyMedia/releases>), under the newest version, in **Assets**.
+(<https://github.com/codingspacekh/OneEditor/releases>), under the newest version, in **Assets**.
+You install it **once**: after that, new versions arrive in the app (see *Updates* below).
 
 | Your computer | Download | Size |
 |---|---|---|
@@ -48,6 +49,23 @@ Security ▸ Microphone ▸ OneEditor**.
 
 **Uninstall:** drag OneEditor from Applications to the Bin. Your projects are kept.
 
+## Updates
+
+From version 1.5 OneEditor looks for a newer version when it opens and every 6 hours (only the
+version's name is asked for: nothing about you or your work is sent).
+
+1. When one is out, a note at the bottom of the window says **"OneEditor 1.5.1 is out"**, with
+   **What's new** and **Download**. Keep working while it downloads.
+2. When it says **"1.5.1 is ready"**, click **Restart and update**, or **Later**: then it goes in
+   the next time you close OneEditor. It never restarts by itself, and your projects are never
+   touched.
+3. After the update, the note says **"Updated to 1.5.1"** once, with what is new.
+
+**Help ▸ Check for Updates…** shows your version, looks now, and has **Download updates by
+itself** (off at first: turn it on to skip the Download step). Without the internet nothing is
+said; it looks again later. A Mac that cannot put the update in by itself downloads the new
+`.dmg` to **Downloads** instead: **Open it** and drag OneEditor into Applications again.
+
 ## The first time you open it
 
 A **Welcome** page shows the three modes (Video, Audio, Learn) and where your work is saved.
@@ -62,6 +80,10 @@ A **Welcome** page shows the three modes (Video, Audio, Learn) and where your wo
 
 ## For teachers
 
+- **Releasing a new version** (the maintainer): push the version tag; the Release workflow makes
+  a draft release with the Windows installer. On the Mac with the signing certificate, run
+  `npm run release:mac` to add the two Mac installers. Check the draft, then **publish** it: every
+  installed OneEditor (1.5 or later) sees it within 6 hours, or at its next start.
 - The licences of everything OneEditor includes are in **Help ▸ Licences** (also
   `THIRD_PARTY_LICENSES.txt` in the installation).
 - The **Task checker** (Learn mode) lets you save a task's expected format, size and length as a

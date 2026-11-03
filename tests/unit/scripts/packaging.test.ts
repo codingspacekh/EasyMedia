@@ -1,6 +1,6 @@
 // M12: the installers (electron-builder) carry everything the app needs on each platform.
 import { describe, expect, it } from 'vitest';
-import config from '../../../electron-builder.config.ts';
+import config, { configFor } from '../../../electron-builder.config.ts';
 
 const resources = (list: unknown) =>
   (list as { from: string; to: string }[]).map((r) => `${r.from} → ${r.to}`);
@@ -19,6 +19,8 @@ describe('installers', () => {
       // Chromium's licences (the Mac build would otherwise leave them out).
       'node_modules/electron/dist/LICENSES.chromium.html → LICENSES.chromium.html',
       'build-info/guides → guides',
+      // M17a: the update address (none: updates are off), written by scripts/package.ts.
+      'build-info/updates.json → updates.json',
     ]);
   });
 
@@ -38,7 +40,8 @@ describe('installers', () => {
     // Two downloads of about half the size of one universal DMG (which carries both of each).
     // No chip list here: it would override `--arm64` / `--x64`, so each Mac runner would also
     // build the other chip's DMG without its FFmpeg (and upload it over the good one).
-    expect(config.mac!.target).toEqual(['dmg']);
+    // M17a: and the zip the updater takes a new version from.
+    expect(config.mac!.target).toEqual(['dmg', 'zip']);
     expect(resources(config.mac!.extraResources)).toEqual([
       'resources/ffmpeg/darwin-${arch} → ffmpeg/darwin-${arch}',
     ]);
@@ -54,6 +57,22 @@ describe('installers', () => {
 
   it('nothing is published by the build itself (the release workflow uploads a draft)', () => {
     expect(config.publish).toBeNull();
+  });
+
+  const url = 'https://github.com/codingspacekh/OneEditor/releases/latest/download';
+  it('M17a a release build has the update address, so latest.yml and latest-mac.yml are made', () => {
+    const release = configFor({ ONEEDITOR_UPDATE_URL: url }, '1.5.0');
+    expect(release.publish).toEqual([{ provider: 'generic', url }]);
+    // What's new (src/main/whats-new.json) goes into the feed, for the app to show.
+    expect(release.releaseInfo!.releaseNotes).toMatch(/^- The app is now called OneEditor/);
+    expect(() => configFor({ ONEEDITOR_UPDATE_URL: url }, '9.9.9')).toThrow(/what's new/i);
+  });
+
+  it("M17a a Mac release is signed with the maintainer's certificate (CSC_NAME), else ad hoc", () => {
+    expect(configFor({ CSC_NAME: 'ZISPP Gradebook' }, '1.5.0').mac!.identity).toBe(
+      'ZISPP Gradebook',
+    );
+    expect(configFor({}, '1.5.0').mac!.identity).toBe('-');
   });
 });
 
@@ -77,6 +96,27 @@ describe('packaging this computer’s build (scripts/package.ts)', () => {
       'release/mac/OneEditor.app/Contents/MacOS/OneEditor',
     );
     expect(packagedProgram('win32', 'x64')).toBe('release/win-unpacked/OneEditor.exe');
+  });
+});
+
+describe('M17a the update address in the installed app (scripts/package.ts)', () => {
+  it('updates.json: the address, and whether a Mac build is signed with the certificate', async () => {
+    const { updateConfig, macFeedName } = await import('../../../scripts/lib/package.ts');
+    const url = 'https://github.com/codingspacekh/OneEditor/releases/latest/download';
+    expect(
+      updateConfig({ ONEEDITOR_UPDATE_URL: url, CSC_NAME: 'ZISPP Gradebook' }, 'darwin'),
+    ).toEqual({ url, macSigned: true });
+    expect(updateConfig({ ONEEDITOR_UPDATE_URL: url }, 'darwin')).toEqual({
+      url,
+      macSigned: false,
+    });
+    expect(updateConfig({ ONEEDITOR_UPDATE_URL: url, CSC_NAME: 'x' }, 'win32')).toEqual({
+      url,
+      macSigned: false,
+    });
+    expect(updateConfig({}, 'win32')).toEqual({ url: null, macSigned: false });
+    // Each Mac build's own feed, kept apart until both are merged into latest-mac.yml.
+    expect(macFeedName('arm64')).toBe('latest-mac-arm64.yml');
   });
 });
 
