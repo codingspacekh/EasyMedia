@@ -14,6 +14,7 @@ import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
 import { motionFrom, withPaths } from '../core/animation/motion.ts';
 import * as frames from '../core/animation/frames.ts';
+import { applyEffect as withEffect, effectOf } from '../core/animation/effects.ts';
 import * as tween from '../core/animation/tween.ts';
 import { BUTTON_LABELS } from '../core/animation/factory.ts';
 import type {
@@ -565,3 +566,39 @@ export const removeDrawing = (layerId: Id, frame: number): AnimCommand =>
   command('Remove keyframe', (doc) =>
     layers.changeLayer(doc, layerId, (layer) => frames.removeDrawing(layer, frame)),
   );
+
+// ---- library and effects (AN19, AN20) ----
+
+/** AN19: a background on a layer of its own, at the bottom, behind everything. */
+export function addBackground(object: AnimObject, made: (layerId: Id) => void): AnimCommand {
+  return command(`Add ${object.name}`, (doc) => {
+    validateObject(object);
+    const { doc: withLayer, layer } = layers.addLayer(doc, 'Background');
+    const atBottom = layers.moveLayer(withLayer, layer.id, 0);
+    made(layer.id);
+    return layers.addObject(atBottom, layer.id, object);
+  });
+}
+
+/**
+ * AN20: an effect on each object from `start` over `length` frames (one undo step); the stage is
+ * made longer if the effect runs past its end.
+ */
+export function applyEffect(
+  ids: readonly Id[],
+  effectId: string,
+  start: number,
+  length: number,
+): AnimCommand {
+  return command(effectOf(effectId)?.label ?? 'Effect', (doc) => {
+    let next = doc;
+    for (const id of ids)
+      next = layers.updateObject(next, id, (o) => {
+        const changed = withEffect(o, effectId, start, length, doc.stage);
+        validateObject(changed);
+        return changed;
+      });
+    const end = start + Math.round(length);
+    return end > next.stage.length ? { ...next, stage: { ...next.stage, length: end } } : next;
+  });
+}

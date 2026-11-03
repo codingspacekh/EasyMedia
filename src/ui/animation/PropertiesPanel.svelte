@@ -25,6 +25,7 @@
   import Why from '../Why.svelte';
   import { animUi } from './animation-ui.svelte.ts';
   import ColourField from './ColourField.svelte';
+  import EffectsSection from './EffectsSection.svelte';
   import { textBox } from './measure.ts';
   import NumField from './NumField.svelte';
 
@@ -565,6 +566,7 @@
         {/if}
       {/if}
 
+      <EffectsSection {app} />
       <div class="sec">
         <h4>Arrange</h4>
         <div class="row">

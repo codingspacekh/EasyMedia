@@ -189,6 +189,15 @@ The tool strip beside the stage has **Rulers** (drag a guide out of a ruler), **
 | Set exact numbers | The **Properties** panel: X, Y, W, H, rotation, opacity, fill (solid or gradient) and outline. |
 | Make one object of several | Select them, **Group** (<kbd>Ctrl</kbd>+<kbd>G</kbd>); **Ungroup** (<kbd>Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>G</kbd>). |
 
+### Ready-made pictures: the Library
+
+**Library** on the tool strip (or <kbd>K</kbd>) has cartoons (a child, animals, vehicles, a tree, a
+house…), icons and symbols (arrows, ticks and crosses, speech bubbles, weather, flowchart shapes)
+and backgrounds (sky and grass, underwater, night, sunset, a classroom, a city). Search or choose a
+category, then click one: a picture goes in the middle of the stage; a background fills the stage on
+a layer of its own, behind everything. Each is a group of named shapes — Ungroup it to recolour or
+animate a part, such as a car's wheels.
+
 ### 3. Layers
 
 Each layer has its own timeline; the top layer is in front. In the **Layers** panel: **New layer**,
@@ -206,6 +215,10 @@ and EasyMedia works out every frame in between (a **tween**). Click a keyframe d
 - **Motion path**: draw a path, then select the object ▸ Properties ▸ **Follow path** (tick
   **Orient to path** to turn with it).
 - **Morph** (shape tween): Properties ▸ **Morph into** another shape at the playhead.
+- **Effects**: select objects, move the playhead to where it should start, then Properties ▸
+  **Effects**: choose one (fade in or out, fly in or out, zoom, bounce in, spin, pulse, shake,
+  wobble, typewriter for text, blink), type how long it **lasts**, and **Add effect**. It only adds
+  keyframes, so you can change them on the timeline; Undo takes it away.
 - **Loop** and **Stop** on the timeline; **Test** (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>) plays the
   animation as its web page, where its buttons work.
 
@@ -265,6 +278,7 @@ opens over any editor.
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>E</kbd> | Export video / export audio |
 | <kbd>,</kbd> and <kbd>.</kbd> | Animation mode: previous / next frame |
 | <kbd>V</kbd> <kbd>R</kbd> <kbd>E</kbd> <kbd>S</kbd> <kbd>G</kbd> <kbd>L</kbd> <kbd>P</kbd> <kbd>B</kbd> <kbd>T</kbd> <kbd>I</kbd> <kbd>U</kbd> | Animation mode: Select, Rectangle, Ellipse, Star, Polygon, Line, Pen, Brush, Text, Picture, Button |
+| <kbd>K</kbd> | Animation mode: the Library |
 | <kbd>F6</kbd> / <kbd>F7</kbd> | Animation mode: Duplicate frame / Insert blank keyframe (frame-by-frame layer) |
 | <kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd> | Animation mode: duplicate, group |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Animation mode: Test (play as a web page) |

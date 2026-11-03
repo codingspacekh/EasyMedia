@@ -125,7 +125,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | configuring the stage/frame/canvas: colour, size | Animation ▸ the stage chip (600 × 400 · 24 fps · colour) at the top | Stage settings |
 | configuring the stage: the aspect ratio using rulers, guides and grid settings | Animation ▸ the stage chip (4:3, 16:9, 16:10, 2.35:1 presets); Rulers, Grid and Guides on the toolbar | Rulers, grid & guides |
 | configuring the stage: snapping options | Animation ▸ Snap on the toolbar (grid, guides, objects, pixels); the status bar says what it snapped to | Snapping |
-| importing and creating vector objects | Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar | Vector shapes |
+| importing and creating vector objects | Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar | Vector shapes, Library |
 | importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the tool strip, then Properties ▸ Trace bitmap… | Picture, Trace bitmap |
 | importing and creating vector objects: adding text | Animation ▸ Text on the toolbar | Text |
 | controlling object properties: stroke and fill settings; size, position and orientation; transparency | Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke) | Object properties |
@@ -139,14 +139,14 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline (keyframes per property); the rulers show coordinates; Learn ▸ Animation (principles, and the frame-rate demonstration) | Timeline and keyframes, Frame-by-frame layer |
-| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Frame-by-frame layer, Morph |
+| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline (keyframes per property); the rulers show coordinates; Learn ▸ Animation (principles, and the frame-rate demonstration) | Timeline and keyframes, Frame-by-frame layer, Effects |
+| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Frame-by-frame layer, Effects, Morph |
 
 ### Different animation types and methods
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (types of animation, with advantages and disadvantages); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation | Import frames (stop motion), Timeline and keyframes, Frame-by-frame layer |
+| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (types of animation, with advantages and disadvantages); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation | Import frames (stop motion), Timeline and keyframes, Frame-by-frame layer, Effects |
 
 ### Components of an animation and animation variables
 

@@ -101,6 +101,10 @@ export const WHY = {
     'Stop motion makes still photographs move: an object (a clay model, a toy) is moved a little between photographs, and the photographs are shown one after another, a few each second. Import frames puts a folder of them on a layer, each held for its frames; 12 pictures a second is smooth enough and halves the photographs needed for 24.',
   animFrameByFrame:
     'Frame-by-frame animation draws every keyframe separately, as the pages of a flip book or the cels of cel animation: it gives complete control over every change (a face changing expression, a flowchart step lighting up) but takes far longer than a tween. Duplicate frame copies the drawing to change it a little; onion skin shows the drawings before and after faintly to keep the steps even.',
+  animLibrary:
+    'The library gives ready-made pictures, icons and backgrounds drawn as vector shapes, so a scene can be built quickly and every part (a wheel, an eye, a cloud) can still be recoloured and animated on its own. The background is a secondary component; the characters are the primary ones.',
+  animEffects:
+    'An effect adds the keyframes of a common motion in one click: a fade or a fly-in brings an object on, a fade or a fly-out takes it away, and a pulse, shake or spin draws the eye to it. The computer works out the frames in between (tweening), and the keyframes can still be changed on the timeline.',
   animExport:
     'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
 } as const;
@@ -175,6 +179,8 @@ export const TOOLS: Tool[] = [
   tool('animButton', 'Button', '20.1 controlling animations by stopping them'),
   tool('animStopMotion', 'Import frames (stop motion)', '20.1 stop motion'),
   tool('animFrameByFrame', 'Frame-by-frame layer', '20.1 frames, key frames and tweening'),
+  tool('animLibrary', 'Library', '20.1 creating vector objects'),
+  tool('animEffects', 'Effects', '20.1 frames, key frames and tweening'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
 ];
 

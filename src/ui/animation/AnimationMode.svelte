@@ -16,6 +16,7 @@
   import AnimationExportDialog from './AnimationExportDialog.svelte';
   import TraceDialog from './TraceDialog.svelte';
   import ImportFramesDialog from './ImportFramesDialog.svelte';
+  import LibraryDialog from './LibraryDialog.svelte';
   import StageSettings from './StageSettings.svelte';
   import Timeline from './Timeline.svelte';
   import ToolStrip from './ToolStrip.svelte';
@@ -77,6 +78,12 @@
       return;
     }
     if (!shortcutAllowed(e) || animUi.dialog !== null) return;
+    if (e.key.toLowerCase() === 'k' && !e.shiftKey) {
+      // AN19: the library.
+      e.preventDefault();
+      animUi.dialog = 'library';
+      return;
+    }
     if (e.key === 'F6' || e.key === 'F7') {
       // AN14: as Animate — F6 a keyframe copying the drawing, F7 a blank one (Shift: remove).
       e.preventDefault();
@@ -137,6 +144,8 @@
   <TraceDialog {app} onclose={() => (animUi.dialog = null)} />
 {:else if animUi.dialog === 'frames'}
   <ImportFramesDialog {app} onclose={() => (animUi.dialog = null)} />
+{:else if animUi.dialog === 'library'}
+  <LibraryDialog {app} onclose={() => (animUi.dialog = null)} />
 {/if}
 
 <style>

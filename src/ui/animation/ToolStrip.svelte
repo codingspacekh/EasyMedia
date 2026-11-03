@@ -69,6 +69,15 @@
   <div class="hsep"></div>
   <button
     class="tbtn"
+    aria-label="Library"
+    title={withWhy(
+      'Library: ready-made cartoons, icons and backgrounds to add to the stage (K)',
+      'animLibrary',
+    )}
+    onclick={() => (animUi.dialog = 'library')}><Icon name="sparkles" /></button
+  >
+  <button
+    class="tbtn"
     aria-label="Import frames"
     title={withWhy(
       'Import frames: a folder of pictures shown one after another (stop motion)',

@@ -17,6 +17,7 @@ import {
 } from '../core/animation/factory.ts';
 import type { Handle, Point } from '../core/animation/geometry.ts';
 import { findObject, setFolderOpen as setFolderOpenIn } from '../core/animation/layers.ts';
+import { itemById, placeItem } from '../core/animation/library/index.ts';
 import {
   drawingAt,
   isShown,
@@ -884,6 +885,35 @@ export function createAnimationApp({
       } finally {
         patch({ busy: null });
       }
+    },
+
+    /**
+     * AN19: a library item on the stage: a picture in the middle of the current layer (selected),
+     * a background on a layer of its own at the bottom. One undo step; null or why not.
+     */
+    addFromLibrary(itemId: string): string | null {
+      const item = itemById(itemId);
+      if (!item) return 'That picture is not in the library.';
+      const object = placeItem(item, present().stage);
+      if (item.category === 'backgrounds') {
+        let layerId: Id | null = null;
+        const error = edit(cmd.addBackground(object, (id) => (layerId = id)));
+        if (error === null && layerId) patch({ layerId, selection: [object.id], tool: 'select' });
+        return error;
+      }
+      const layer = currentLayer();
+      const placed = layer ? placeIn(layer, object, store.get().frame) : object;
+      const error = edit(cmd.addObject(store.get().layerId, placed));
+      if (error === null) patch({ selection: [placed.id], tool: 'select' });
+      return error;
+    },
+
+    /** AN20: an effect on the selected objects from the playhead, `seconds` long (one undo step). */
+    applyEffect(effectId: string, seconds: number): string | null {
+      const ids = liveSelection();
+      if (ids.length === 0) return 'Select the objects to give the effect to.';
+      const frames = Math.round(seconds * present().stage.fps);
+      return edit(cmd.applyEffect(ids, effectId, store.get().frame, frames));
     },
 
     /** AN14: the current layer becomes frame-by-frame; what is on it is the first drawing. */
