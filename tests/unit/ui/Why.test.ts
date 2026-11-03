@@ -10,6 +10,7 @@ import MediaBin from '../../../src/ui/MediaBin.svelte';
 import ProjectSettings from '../../../src/ui/ProjectSettings.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
 import { testApp } from '../../helpers/test-app.ts';
+import { expectWhy } from '../../helpers/why.ts';
 
 /** The section under a heading that starts with `name`. */
 const section = (name: string) =>
@@ -29,32 +30,32 @@ describe('T5 every editing tool links to why it is used', () => {
     const t = await videoClip();
     t.app.select(t.app.store.get().history.present.timeline.main[0]!.id);
     render(Inspector, { props: { app: t.app } });
-    expect(section('Trim').textContent).toContain(WHY.trim);
-    expect(section('Speed').textContent).toContain(WHY.speed);
+    expectWhy(section('Trim').textContent, WHY.trim);
+    expectWhy(section('Speed').textContent, WHY.speed);
     await fireEvent.click(screen.getByRole('tab', { name: 'Audio' }));
-    expect(section('Clip sound').textContent).toContain(WHY.clipSound);
-    expect(section('Separate sound').textContent).toContain(WHY.separateSound);
+    expectWhy(section('Clip sound').textContent, WHY.clipSound);
+    expectWhy(section('Separate sound').textContent, WHY.separateSound);
   });
 
   it('a still image: its duration', async () => {
     const t = await videoClip();
     t.app.select(t.app.store.get().history.present.timeline.main[1]!.id);
     render(Inspector, { props: { app: t.app } });
-    expect(section('Duration').textContent).toContain(WHY.duration);
+    expectWhy(section('Duration').textContent, WHY.duration);
   });
 
   it.each(['caption', 'subtitle', 'credits'] as const)('text: %s', (kind) => {
     const t = testApp();
     t.app.addText(kind);
     render(Inspector, { props: { app: t.app } });
-    expect(section('Text').textContent).toContain(WHY[kind]);
+    expectWhy(section('Text').textContent, WHY[kind]);
   });
 
   it('text: a title slide', async () => {
     const t = testApp();
     t.app.addTitle();
     render(Inspector, { props: { app: t.app } });
-    expect(section('Text').textContent).toContain(WHY.title);
+    expectWhy(section('Text').textContent, WHY.title);
   });
 
   it('resize & crop', async () => {
@@ -76,7 +77,7 @@ describe('T5 every editing tool links to why it is used', () => {
   it('project settings: the aspect ratio', () => {
     const t = testApp();
     render(ProjectSettings, { props: { app: t.app, onclose: () => {} } });
-    expect(screen.getByRole('dialog').textContent).toContain(WHY.aspectRatio);
+    expectWhy(screen.getByRole('dialog').textContent, WHY.aspectRatio);
   });
 
   it('timeline: split and join, delete (tooltips)', async () => {

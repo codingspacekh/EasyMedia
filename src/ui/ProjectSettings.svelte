@@ -1,9 +1,9 @@
 <script lang="ts">
+  import Why from './Why.svelte';
   // Project settings (V1, screen 11): aspect ratio, resolution, frame rate, fit.
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
   import { setProjectSettings } from '../app/commands.ts';
-  import { WHY } from '../core/effects/help.ts';
   import type { ProjectSettings } from '../core/model/types.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
@@ -124,10 +124,7 @@
       {/each}
     </fieldset>
 
-    <p class="why">
-      <b>Why does aspect ratio matter?</b>
-      {WHY.aspectRatio}
-    </p>
+    <Why tool="aspectRatio" title="Why does aspect ratio matter?" open />
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 
     <div class="actions">
@@ -205,14 +202,6 @@
   .hint {
     color: var(--tx-3);
     font-size: 11.5px;
-  }
-  .why {
-    font-size: 12px;
-    color: var(--tx-2);
-    background: rgba(79, 140, 255, 0.08);
-    border: 1px solid rgba(79, 140, 255, 0.25);
-    border-radius: 6px;
-    padding: 10px;
   }
   .error {
     color: var(--danger);

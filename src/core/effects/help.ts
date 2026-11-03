@@ -34,7 +34,7 @@ export const WHY = {
   transition:
     'A transition decides how one clip changes into the next. A plain cut is quick; dissolves and fades are smoother. Too many different transitions distract the audience.',
   snapshot:
-    'A still holds an important moment on screen, can be a background for captions or credits, or can be edited in an image editor and put back into the video.',
+    'A still holds an important moment on screen. It can be a background for captions or credits, or be edited in an image editor and put back into the video.',
   audio:
     'Sound gets an emotional response from the viewer: music sets the mood, a voiceover (narration) explains what is happening, and sound effects emphasise the action. Lowering the music under the voice keeps the words clear.',
   export:
@@ -180,6 +180,31 @@ export const TOOLS: Tool[] = [
 
 export function toolById(id: ToolId): Tool {
   return TOOLS.find((t) => t.id === id)!;
+}
+
+/** N17: a "Why use this?" text arranged to read at a glance: a short answer, then its reasons. */
+export interface Explained {
+  answer: string;
+  reasons: string[];
+}
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
+/** Where a long first sentence divides: a list after a colon, ", so …", or an example. */
+const DIVIDE = /^(.*?)(?::\s+|,\s+(?=so\s)|\s+—\s+(?=for example)|,\s+(?=for example))(.+)$/s;
+
+/**
+ * Splits a why-text into its first sentence (the answer) and the rest (the reasons); a first
+ * sentence that is the only one divides at a colon, ", so" or "for example". The words are kept
+ * exactly; only the arrangement changes.
+ */
+export function explain(text: string): Explained {
+  const sentences = text.trim().split(/(?<=[.!?])\s+(?=[A-Z“"(])/);
+  const first = sentences[0] ?? '';
+  const reasons = sentences.slice(1);
+  const parts = DIVIDE.exec(first);
+  if (!parts || (reasons.length > 0 && first.length <= 150)) return { answer: first, reasons };
+  return { answer: sentence(parts[1]!), reasons: [capital(parts[2]!), ...reasons] };
 }
 
 /** A toolbar button's or menu item's tooltip: what it does, then why it is used (T5). */

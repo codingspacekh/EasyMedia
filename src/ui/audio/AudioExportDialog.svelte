@@ -1,10 +1,10 @@
 <script lang="ts">
+  import Why from '../Why.svelte';
   // Export audio (screen 20; A15–A17, T7): format, sample rate, bit rate (constant / variable),
   // channels (force mono), resolution, tags, the estimated size compared with WAV, and the
   // advantages and disadvantages of the chosen format.
   import { untrack } from 'svelte';
   import type { App } from '../../app/app.ts';
-  import { WHY } from '../../core/effects/help.ts';
   import {
     AUDIO_FORMATS,
     SAMPLE_RATES,
@@ -204,10 +204,7 @@
       </div>
     </details>
 
-    <details class="why">
-      <summary>Why choose a format, rate and size?</summary>
-      <p>{WHY.audioExport}</p>
-    </details>
+    <Why tool="audioExport" title="Why choose a format, rate and size?" />
 
     <div class="actions">
       <span class="spacer"></span>
@@ -357,11 +354,6 @@
     cursor: pointer;
     color: var(--accent);
     font-size: 12px;
-  }
-  .why p {
-    margin: 4px 0 0;
-    font-size: 12px;
-    color: var(--tx-2);
   }
   .actions {
     display: flex;

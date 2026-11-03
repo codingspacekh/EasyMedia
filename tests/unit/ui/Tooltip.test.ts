@@ -56,7 +56,10 @@ describe('tooltips on buttons', () => {
     await vi.advanceTimersByTimeAsync(TOOLTIP_DELAY);
     const tip = screen.getByRole('tooltip');
     expect(tip.querySelector('.what')!.textContent).toBe('Cut (Ctrl/Cmd + X)');
-    expect(tip.querySelector('.why')!.textContent).toBe('Why? Cut removes the selected sound.');
+    expect(tip.querySelector('.why .answer')!.textContent).toBe(
+      'Why? Cut removes the selected sound.',
+    );
+    expect(tip.querySelectorAll('.why li')).toHaveLength(0);
   });
 
   it('shows on keyboard focus too; a click or Escape hides it', async () => {

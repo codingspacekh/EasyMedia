@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Why from '../Why.svelte';
   // An effect's dialog, generated from its parameter schema (P7): the settings, a note or warning,
   // the syllabus point and "Why use this?" (T5), Preview (A18), Cancel and Apply.
   import { untrack } from 'svelte';
@@ -54,7 +55,6 @@
   // The dialog starts from the settings it was given.
   let params: Params = $state(untrack(() => ({ ...initial })));
   let error: string | null = $state(null);
-  let showWhy = $state(false);
   const line = $derived(note?.(params) ?? null);
 
   function change(next: Params): string | null {
@@ -107,12 +107,7 @@
     {/if}
     {#if line}<p class="note">{line}</p>{/if}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <div class="why">
-      <button class="ghost sm" aria-expanded={showWhy} onclick={() => (showWhy = !showWhy)}
-        ><Icon name="learn" size={14} /> Why use this?</button
-      >
-      {#if showWhy}<p>{why}</p>{/if}
-    </div>
+    <Why text={why} />
     <div class="actions">
       {#if preview}
         <button onclick={() => (error = preview({ ...params }))}
@@ -192,11 +187,6 @@
     margin: 0;
     font-size: 12px;
     color: var(--danger);
-  }
-  .why p {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: var(--tx-2);
   }
   .actions {
     display: flex;

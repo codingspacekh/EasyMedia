@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Why from './Why.svelte';
   // Fades, filters, pan & zoom and the transition into a clip, picture or title (screens 05–07;
   // V7, V8, V9, V15). Every tool explains why it is used (T5).
   import type { App } from '../app/app.ts';
@@ -56,10 +57,7 @@
 </script>
 
 {#snippet why(text: string)}
-  <details class="why">
-    <summary>Why use this?</summary>
-    <p>{text}</p>
-  </details>
+  <Why {text} />
 {/snippet}
 
 <section>
@@ -296,16 +294,6 @@
     color: var(--tx-3);
     font-size: 11.5px;
     margin: 0;
-  }
-  .why summary {
-    cursor: pointer;
-    color: var(--accent);
-    font-size: 11.5px;
-  }
-  .why p {
-    margin: 4px 0 0;
-    font-size: 11.5px;
-    color: var(--tx-2);
   }
   .error {
     margin: 0;

@@ -222,7 +222,7 @@ test('A19 Compressor: presets, the input → output curve, before and after (scr
     await dialog.getByLabel('Preset').selectOption({ label: 'Strong' });
     await expect(dialog.getByLabel('Ratio')).toHaveValue('6');
     await dialog.getByLabel('Preset').selectOption({ label: 'Voice' });
-    await dialog.getByRole('button', { name: 'Why use this?' }).click();
+    await dialog.getByText('Why use this?').click();
     await expect(dialog.getByText(/not file compression/)).toBeVisible();
     await shot(page, 'compressor');
   });
