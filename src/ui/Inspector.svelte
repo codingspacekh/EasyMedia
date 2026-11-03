@@ -284,8 +284,9 @@
 
 <style>
   .inspector {
-    width: 332px;
-    flex: none;
+    /* N16: the size is the panel slot's (App, PanelSlot.svelte). */
+    flex: 1;
+    min-width: 0;
     border-left: 1px solid var(--line);
     background: var(--bg-1);
     overflow: auto;

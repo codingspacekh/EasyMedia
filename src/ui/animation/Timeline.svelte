@@ -669,7 +669,8 @@
   .grid {
     position: relative;
     flex: none;
-    height: 152px;
+    /* N16: the rows' height is the panel slot's (the bar above may wrap on a small window). */
+    height: var(--panel-size, 152px);
     overflow: auto;
     display: grid;
     grid-template-columns: var(--label-w) max-content;

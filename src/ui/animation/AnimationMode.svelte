@@ -10,6 +10,7 @@
   import { shortcutAllowed } from '../keys.ts';
   import { animUi, ZOOM_STEPS } from './animation-ui.svelte.ts';
   import LayersPanel from './LayersPanel.svelte';
+  import PanelSlot from '../PanelSlot.svelte';
   import PropertiesPanel from './PropertiesPanel.svelte';
   import Stage from './Stage.svelte';
   import AnimationExportDialog from './AnimationExportDialog.svelte';
@@ -120,13 +121,13 @@
 <svelte:document oncut={clipboard('cut')} oncopy={clipboard('copy')} onpaste={clipboard('paste')} />
 
 <div class="animation-mode">
-  <LayersPanel {app} />
+  <PanelSlot layout={app.layout} id="animation.layers"><LayersPanel {app} /></PanelSlot>
   <ToolStrip {app} />
   <div class="centre">
     <Stage {app} />
-    <Timeline {app} />
+    <PanelSlot layout={app.layout} id="animation.timeline"><Timeline {app} /></PanelSlot>
   </div>
-  <PropertiesPanel {app} />
+  <PanelSlot layout={app.layout} id="animation.properties"><PropertiesPanel {app} /></PanelSlot>
 </div>
 {#if animUi.dialog === 'stage'}
   <StageSettings {app} onclose={() => (animUi.dialog = null)} />

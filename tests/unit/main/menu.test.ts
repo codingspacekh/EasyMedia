@@ -142,4 +142,23 @@ describe('X3 native menus', () => {
       'glossary',
     ]);
   });
+
+  it("N16 View shows or hides the editor's left panel, right panel and timeline, and resets the layout", () => {
+    const send = vi.fn<(a: MenuAction) => void>();
+    const view = items(find(menuTemplate('win32', send, false), 'View'));
+    const ours = view.filter((i) => i.click);
+    expect(ours.map((i) => [i.label, i.accelerator])).toEqual([
+      ['Show / Hide Left Panel', 'CmdOrCtrl+Alt+1'],
+      ['Show / Hide Right Panel', 'CmdOrCtrl+Alt+2'],
+      ['Show / Hide Timeline', 'CmdOrCtrl+Alt+3'],
+      ['Reset Layout', undefined],
+    ]);
+    for (const i of ours) (i.click as () => void)();
+    expect(send.mock.calls.map((c) => c[0])).toEqual([
+      'toggleLeft',
+      'toggleRight',
+      'toggleBottom',
+      'resetLayout',
+    ]);
+  });
 });

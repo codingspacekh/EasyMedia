@@ -22,6 +22,8 @@ export const IMAGE: ProbeInfo = {
 
 export function testApp(
   media: Record<string, ProbeInfo> = { '/m/clip.mp4': VIDEO, '/m/photo.jpg': IMAGE },
+  /** Where preferences.json is (N16, X7); none by default. */
+  { preferences }: { preferences?: string } = {},
 ) {
   const engine = createMockMediaEngine(media);
   const dialogs = {
@@ -90,6 +92,7 @@ export function testApp(
       recovery: '/cache/recovery.mve',
       snapshots: '/cache/snapshots',
       learn: '/cache/learn',
+      ...(preferences ? { preferences } : {}),
     },
     audioRecorder: recorder,
   });

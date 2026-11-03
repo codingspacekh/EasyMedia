@@ -13,6 +13,8 @@ import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
 import { createLearnApp } from './learn.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
 import { proxyPathFor } from './proxy-path.ts';
+import { createLayoutApp } from './layout.ts';
+import { createPreferences } from './preferences.ts';
 import { createStore, type Store } from './store.ts';
 import {
   EditError,
@@ -407,6 +409,8 @@ export function createApp({
   });
   /** Learn mode (T1, T3, T6): never changes the project. */
   const learn = createLearnApp({ engine, dialogs, files, paths });
+  const preferences = createPreferences(files, paths);
+  const layout = createLayoutApp(preferences);
   /** Animation mode (AN1–AN18): its own document and file (M13). */
   const animation = createAnimationApp({
     dialogs,
@@ -429,18 +433,16 @@ export function createApp({
     audio,
     learn,
     animation,
+    /** N16: the panels' sizes and which are shown. */
+    layout,
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
       await animation.start();
+      await layout.load();
       // X7: the Welcome, on the first launch only.
-      if (paths.preferences) {
-        const seen = await files
-          .read(paths.preferences)
-          .then((t) => JSON.parse(t).welcomeSeen === true)
-          .catch(() => false);
-        if (!seen) patch({ welcome: true });
-      }
+      if (paths.preferences && (await preferences.read()).welcomeSeen !== true)
+        patch({ welcome: true });
       let text: string;
       try {
         text = await files.read(paths.recovery);
@@ -466,10 +468,7 @@ export function createApp({
     /** Closes the Welcome; it does not show by itself again. */
     async closeWelcome(): Promise<void> {
       patch({ welcome: false });
-      if (paths.preferences)
-        await files
-          .write(paths.preferences, `${JSON.stringify({ welcomeSeen: true })}\n`)
-          .catch(() => {});
+      await preferences.update({ welcomeSeen: true });
     },
 
     /** Help ▸ Licences: the third-party licences shipped with the app (README §17). */

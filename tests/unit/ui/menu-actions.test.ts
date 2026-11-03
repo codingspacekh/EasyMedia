@@ -73,4 +73,22 @@ describe('menu actions follow the mode', () => {
     expect([ui.mode, ui.glossary]).toEqual(['Audio', true]);
     ui.glossary = false;
   });
+
+  it('N16 View ▸ Show / Hide acts on the panels of the editor that is showing; Reset Layout on all', async () => {
+    const { app } = testApp();
+    const actions = menuActions(app);
+    ui.mode = 'Animation';
+    await actions.toggleLeft();
+    await actions.toggleBottom();
+    expect(app.layout.store.get().hidden).toEqual(['animation.layers', 'animation.timeline']);
+    ui.mode = 'Video';
+    await actions.toggleRight();
+    expect(app.layout.store.get().hidden).toContain('video.inspector');
+    ui.mode = 'Audio';
+    await actions.toggleLeft(); // Audio mode has no left panel: nothing changes
+    expect(app.layout.store.get().hidden).toHaveLength(3);
+    await actions.resetLayout();
+    expect(app.layout.store.get().hidden).toEqual([]);
+    ui.mode = 'Video';
+  });
 });

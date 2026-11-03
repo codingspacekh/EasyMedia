@@ -15,6 +15,9 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
   const audio = () => ui.mode === 'Audio';
   const anim = () => ui.mode === 'Animation';
   const a = app.animation;
+  /** N16: the panel on that edge of the editor that is showing (none in Learn). */
+  const toggleEdge = (edge: 'left' | 'right' | 'bottom') =>
+    ui.mode === 'Learn' ? Promise.resolve() : app.layout.toggleEdge(ui.mode, edge);
   return {
     new: () => (anim() ? a.newAnimation() : app.newProject()),
     open: () => (anim() ? a.open() : app.open()),
@@ -53,6 +56,10 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
     glossary: () => {
       ui.glossary = true;
     },
+    toggleLeft: () => toggleEdge('left'),
+    toggleRight: () => toggleEdge('right'),
+    toggleBottom: () => toggleEdge('bottom'),
+    resetLayout: () => app.layout.reset(),
     welcome: app.showWelcome,
     licences: app.showLicences,
     selectAll: () => {

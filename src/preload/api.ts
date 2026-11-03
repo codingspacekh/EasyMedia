@@ -177,7 +177,11 @@ export type MenuAction =
   | 'learnFormats'
   | 'learnAnimation'
   | 'learnTask'
-  | 'glossary';
+  | 'glossary'
+  | 'toggleLeft'
+  | 'toggleRight'
+  | 'toggleBottom'
+  | 'resetLayout';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

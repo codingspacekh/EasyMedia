@@ -30,6 +30,14 @@ and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 - EasyMedia saves your work in the background. If it closes unexpectedly, it offers to restore your
   work the next time it opens.
 
+### Arrange the panels
+
+Drag the edge between a panel and the work area to make the panel wider or narrower (or the
+timeline taller); double-click the edge for its usual size. The small arrow on the edge hides the
+panel, and the thin strip left behind shows it again. **View ▸ Show / Hide Left Panel**, **Right
+Panel** and **Timeline** do the same, and **View ▸ Reset Layout** puts everything back. EasyMedia
+remembers your layout.
+
 ## Video mode
 
 ### 1. Set up the project
@@ -260,6 +268,7 @@ opens over any editor.
 | <kbd>F6</kbd> / <kbd>F7</kbd> | Animation mode: Duplicate frame / Insert blank keyframe (frame-by-frame layer) |
 | <kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd> | Animation mode: duplicate, group |
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Animation mode: Test (play as a web page) |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> | Show or hide the left panel / right panel / timeline |
 
 ## Coursebook tasks, step by step
 

@@ -59,6 +59,12 @@ export function menuTemplate(
     {
       label: 'View',
       submenu: [
+        // N16: the panels of the editor that is showing.
+        item('Show / Hide Left Panel', 'CmdOrCtrl+Alt+1', 'toggleLeft'),
+        item('Show / Hide Right Panel', 'CmdOrCtrl+Alt+2', 'toggleRight'),
+        item('Show / Hide Timeline', 'CmdOrCtrl+Alt+3', 'toggleBottom'),
+        item('Reset Layout', '', 'resetLayout'),
+        { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },

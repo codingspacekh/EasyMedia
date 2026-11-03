@@ -25,6 +25,7 @@
   import { animationTitle } from '../app/animation.ts';
   import { EDITORS, leaveLearn, type LearnTab } from './ui-state.svelte.ts';
   import Glossary from './learn/Glossary.svelte';
+  import PanelSlot from './PanelSlot.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
@@ -169,11 +170,11 @@
   </header>
   {#if ui.mode === 'Video'}
     <main class="workspace">
-      <MediaBin {app} />
+      <PanelSlot layout={app.layout} id="video.bin"><MediaBin {app} /></PanelSlot>
       <Preview {app} />
-      <Inspector {app} />
+      <PanelSlot layout={app.layout} id="video.inspector"><Inspector {app} /></PanelSlot>
     </main>
-    <Timeline {app} />
+    <PanelSlot layout={app.layout} id="video.timeline"><Timeline {app} /></PanelSlot>
   {:else if ui.mode === 'Audio'}
     <main class="workspace">
       <AudioMode {app} />

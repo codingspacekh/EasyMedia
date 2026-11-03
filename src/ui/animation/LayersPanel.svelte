@@ -188,8 +188,9 @@
     color: var(--accent);
   }
   .layers {
-    width: 230px;
-    flex: none;
+    /* N16: the size is the panel slot's (App, PanelSlot.svelte). */
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;

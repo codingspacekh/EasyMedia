@@ -492,7 +492,8 @@
 
 <style>
   .timeline {
-    height: 300px;
+    /* N16: the height is the panel slot's. */
+    height: var(--panel-size, 300px);
     flex: none;
     display: flex;
     flex-direction: column;
