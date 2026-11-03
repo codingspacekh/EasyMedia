@@ -214,6 +214,8 @@ Phase 2 (decided 2026-10-27): the same app gains an **Animation** mode for sylla
 | **AN16** | (Project) | Save / open `.mvea` animation files (JSON, picture paths relative to the file, X1); autosave and crash recovery (P3); unlimited undo / redo; *Package* with its pictures (P2); *Send to Video mode* puts an export on the video timeline. | `core/animation/serialize.ts` |
 | **AN17** | The basic principles of animation; different animation types and methods; components of an animation; advantages and disadvantages of animation types | **Learn ▸ Animation**: cel, stop motion, time lapse, flip book, CGI, 2D and 3D with advantages and disadvantages; frames, key frames, property key frames, timings, coordinates, tweening and morphing; primary and secondary components; animation variables and avars. "Why use this?" on every animation tool (T5); glossary entries; the **task checker** (T6) checks an exported animation (size, frame rate, length, format, whether it loops). | `core/teaching/`, Learn mode |
 | **AN18** | Controlling animations by stopping them | **Button** objects (Pause, Continue, Restart, Go to frame) that work in the preview and in the HTML export (workbook Task 4). Built last: the only interactive feature. | HTML player |
+| **AN19** | Importing and creating vector objects; components of an animation | A built-in **Library**: cartoon clip-art (people, animals, vehicles, nature, buildings…), icons and symbols (arrows, stars, ticks, speech bubbles, weather, flowchart shapes…) and stage **backgrounds** (sky and grass, underwater, night, classroom…). Every item is made of the app's own vector shapes, grouped, so its parts can be recoloured and animated separately (animation variables); drawn for EasyMedia, so free to use in any work. Searchable, by category. | `core/animation/library/` |
+| **AN20** | Inbetweening (tweening) tools; controlling animations | **One-click effects** on the selected objects, starting at the playhead: fade in / out, fly in / out (from any side), zoom in / out, bounce in, spin, pulse, shake, wobble, typewriter (text appears letter by letter), blink. Each effect is only ordinary keyframes, so it can be changed afterwards on the timeline and is undone in one step. | `core/animation/effects.ts` |
 
 ### AN15 — Animation export formats
 
@@ -271,6 +273,9 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | **N12** | Responsiveness | Long operations (proxies, export, heavy effects) run in the background with a progress bar and a Cancel button; the UI never freezes. |
 | **N13** | Maintainability | Single maintainer: TypeScript throughout; the project → FFmpeg command builder has unit tests; CI builds both platforms on every change. |
 | **N14** | Licensing | All bundled components are open source and GPL-3.0-compatible (see §17). |
+| **N15** | Usability | **Learn** is opened from the menu bar's **Learn** menu (Inspector & sampling, Formats & compression, Animation theory, Task checker, Glossary); it fills the window and **Back** returns to the editor. The mode switch holds the three editors: Video, Audio, Animation. |
+| **N16** | Usability | The editors' side panels and timelines can be **resized** by dragging their edges (or with the arrow keys on the edge) and **shown or hidden** (View menu and a button on each panel); sizes are remembered between sessions; *Reset layout* restores them. |
+| **N17** | Readability | **"Why use this?"** is shown as a short answer first, then the reasons as separate points, in at least 13 px text with comfortable line spacing and contrast (WCAG AA), with the syllabus point it belongs to. |
 
 ## 11. Architecture
 
@@ -421,6 +426,8 @@ Version 2.0 (phase 2) is accepted when, in addition, every animation task below 
 | 11 | Animation timeline model (2026-10-27) | **Frame-based** (frames numbered, a frame rate), as the syllabus and the coursebook speak of frames and key frames, with the **time in seconds shown alongside** because the workbook's tasks give times in seconds. Keyframes are **per object property** (as Hype), not per layer (as Animate): simpler for students and enough for every task. |
 | 12 | Animation files (2026-10-27) | Animations are saved in their own **`.mvea`** files (the tasks say "save in the native format"); *Send to Video mode* puts an exported animation on the video timeline. The `.mve` video project format is unchanged. |
 | 13 | Versions (2026-10-27) | Each animation milestone tags `v1.<n>.0` (M13 → v1.1.0 … M16 → v1.4.0); M17 releases **v2.0.0**. |
+| 14 | Learn mode (2026-11-03) | Learn moves from the mode switch to a **Learn menu** in the menu bar; a chosen page fills the window with a Back button (simplest on small laptop screens). |
+| 15 | Workspace, library and effects (2026-11-03) | Resizable, hideable panels (N16), a clearer "Why use this?" (N17), a built-in library (AN19) and one-click effects (AN20) are milestone **M16b**; it is released **together with M16 as v1.4.0** at the maintainer's request. The library is drawn for EasyMedia from its own shapes, so it carries no third-party licence. |
 
 Still open:
 
