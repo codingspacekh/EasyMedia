@@ -123,9 +123,11 @@ describe('M4 app use cases', () => {
     it('imports a video: "preparing" with progress until its proxy is ready', async () => {
       const { app, state, project, importFiles } = setup();
       const progress: number[] = [];
+      const sizes: unknown[] = [];
       app.store.subscribe((s) => {
         const a = Object.values(s.assets)[0];
         if (a?.state === 'preparing') progress.push(a.progress);
+        if (a?.state === 'preparing') sizes.push(a.size);
       });
       await importFiles('/m/clip.mp4');
       expect(project().media).toMatchObject([
@@ -140,6 +142,9 @@ describe('M4 app use cases', () => {
         }),
       );
       expect(progress).toContain(0.5);
+      // V17: its size is known while preparing (Export offers it), and stays during progress.
+      expect(sizes.length).toBeGreaterThan(1);
+      expect(sizes.every((z) => JSON.stringify(z) === '{"width":1920,"height":1080}')).toBe(true);
     });
 
     it('a still image or sound file is ready at once, with no proxy', async () => {

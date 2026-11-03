@@ -13,6 +13,7 @@
     estimateSize,
     formatNotes,
     presetSettings,
+    validateExport,
     videoKbps,
     type Compression,
     type Container,
@@ -22,6 +23,8 @@
     type Quality,
   } from '../core/render/formats.ts';
   import Icon, { type IconName } from './Icon.svelte';
+  import NumberField from './NumberField.svelte';
+  import { fileNameOf } from '../core/project/relocate.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
   const store = $derived(app.store);
@@ -32,6 +35,19 @@
     untrack(() => presetSettings('youtube', app.store.get().history.present.settings)),
   );
   let alsoSave = $state(true);
+  /** V17: a width and height typed by the student. */
+  let customSize = $state(false);
+
+  /** A typed width or height, checked as the export will check it. */
+  function setSide(side: 'width' | 'height', n: number): string | null {
+    try {
+      validateExport({ ...format, [side]: n });
+    } catch (error) {
+      return (error as Error).message;
+    }
+    change({ [side]: n });
+    return null;
+  }
 
   const QUALITIES: Quality[] = ['low', 'medium', 'high', 'best'];
   const QUALITY_NAMES: Record<Quality, string> = {
@@ -53,16 +69,28 @@
   const summary = $derived(app.exportSummary(format));
   const notes = $derived(formatNotes(format.container, format.compression));
 
-  /** Sizes offered: the project's shape at common sizes, plus the DVD sizes. */
+  /**
+   * Sizes offered: the project's, each video's own (V17: "the same resolution as the original
+   * file", e.g. 852 × 480), the project's shape at common sizes, and the DVD sizes; or Custom.
+   */
   const sizes = $derived.by(() => {
     const s = project.settings;
     const even = (n: number) => 2 * Math.round(n / 2);
+    const sources = project.timeline.main.flatMap((item) => {
+      if (item.type !== 'video') return [];
+      const size = $store.assets[item.assetId]?.size;
+      const asset = project.media.find((m) => m.id === item.assetId);
+      return size && asset
+        ? [{ w: even(size.width), h: even(size.height), note: `same as ${fileNameOf(asset.path)}` }]
+        : [];
+    });
     const byHeight = [1080, 720, 540, 480, 360].map((h) => ({
       w: even((h * s.width) / s.height),
       h,
     }));
     const list = [
       { w: s.width, h: s.height, note: 'same as project' },
+      ...sources,
       ...byHeight.map((x) => ({ ...x, note: x.h === 1080 ? 'Full HD' : x.h === 720 ? 'HD' : '' })),
       { w: 720, h: 576, note: 'DVD PAL' },
       { w: 720, h: 480, note: 'DVD NTSC' },
@@ -181,8 +209,10 @@
         <label for="export-size">Resolution</label>
         <select
           id="export-size"
-          value="{format.width}x{format.height}"
+          value={customSize ? 'custom' : `${format.width}x${format.height}`}
           onchange={(e) => {
+            customSize = e.currentTarget.value === 'custom';
+            if (customSize) return;
             const [w, h] = e.currentTarget.value.split('x').map(Number);
             change({ width: w!, height: h! });
           }}
@@ -190,7 +220,26 @@
           {#each sizes as s (`${s.w}x${s.h}`)}
             <option value="{s.w}x{s.h}">{s.w} × {s.h}{s.note ? ` (${s.note})` : ''}</option>
           {/each}
+          <option value="custom">Custom size…</option>
         </select>
+        {#if customSize}
+          <div class="custom-size">
+            <NumberField
+              label="Width"
+              value={format.width}
+              unit="px"
+              example="854"
+              commit={(n) => setSide('width', n)}
+            />
+            <NumberField
+              label="Height"
+              value={format.height}
+              unit="px"
+              example="480"
+              commit={(n) => setSide('height', n)}
+            />
+          </div>
+        {/if}
         <label for="export-fps">Frame rate</label>
         <select
           id="export-fps"
@@ -261,6 +310,9 @@
 </Dialog>
 
 <style>
+  .custom-size {
+    grid-column: 1 / -1;
+  }
   h3 {
     font-size: 12px;
     color: var(--tx-2);

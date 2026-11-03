@@ -186,7 +186,9 @@ export function createApp({
   const stopListening = engine.onJobEvent((e) => {
     if (e.type !== 'progress') return;
     const assetId = proxyJobs.get(e.jobId);
-    if (assetId) setAsset(assetId, { state: 'preparing', progress: e.ratio });
+    // The facts already known (its size, fps) stay while the preview copy is made.
+    if (assetId)
+      setAsset(assetId, { ...store.get().assets[assetId], state: 'preparing', progress: e.ratio });
     const ex = store.get().exporting;
     if (exportJob?.id === e.jobId && ex.state === 'running')
       patch({ exporting: { ...ex, progress: e.ratio } });
@@ -227,7 +229,8 @@ export function createApp({
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
-    setAsset(asset.id, { state: 'preparing', progress: 0 });
+    // V17: its size is known from the probe, before the preview copy is made.
+    setAsset(asset.id, { state: 'preparing', progress: 0, ...facts });
     try {
       await engine.probe(proxyPath); // made earlier: reuse it
     } catch {
