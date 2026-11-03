@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 import { answerDialogs } from './app.ts';
 
 /** Screenshots for comparing with the design screens (not checked by the tests). */
-export const shots = process.env.EASYMEDIA_SHOTS;
+export const shots = process.env.ONEEDITOR_SHOTS;
 
 export async function shot(page: Page, name: string) {
   if (shots) await page.screenshot({ path: join(shots, `${name}.png`) });

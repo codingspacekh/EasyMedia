@@ -22,9 +22,9 @@ const cell = (text: string) => text.replace(/\|/g, '\\|');
 export function teacherNotes(points: readonly SyllabusPoint[]): string {
   const labels = labelsBySyllabus();
   const out: string[] = [
-    '# EasyMedia — teacher notes',
+    '# OneEditor — teacher notes',
     '',
-    'Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in EasyMedia, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks\' key words.',
+    'Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in OneEditor, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks\' key words.',
     '',
     "_Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's tools: do not edit by hand._",
   ];
@@ -42,7 +42,7 @@ export function teacherNotes(points: readonly SyllabusPoint[]): string {
           '',
           `### ${group}`,
           '',
-          '| Syllabus point | Where in EasyMedia | Tools |',
+          '| Syllabus point | Where in OneEditor | Tools |',
           '|---|---|---|',
         );
       }
@@ -80,5 +80,5 @@ export function guidePage(title: string, markdown: string): string {
     /[<>&]/g,
     (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!,
   );
-  return `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>EasyMedia — ${safeTitle}</title>\n<style>${STYLE}</style>\n</head>\n<body>\n${body}</body>\n</html>\n`;
+  return `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>OneEditor — ${safeTitle}</title>\n<style>${STYLE}</style>\n</head>\n<body>\n${body}</body>\n</html>\n`;
 }

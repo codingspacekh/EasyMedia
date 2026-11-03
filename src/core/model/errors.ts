@@ -41,10 +41,10 @@ export function microphoneMessage(problem: MicrophoneProblem, platform: Platform
   if (problem === 'busy')
     return 'The microphone is being used by another app. Close that app (for example a video call), then try again.';
   if (platform === 'mac')
-    return 'EasyMedia is not allowed to use the microphone. Open System Settings ▸ Privacy & Security ▸ Microphone, turn on EasyMedia, then try again.';
+    return 'OneEditor is not allowed to use the microphone. Open System Settings ▸ Privacy & Security ▸ Microphone, turn on OneEditor, then try again.';
   if (platform === 'windows')
-    return 'Windows is not letting EasyMedia use the microphone. Open Settings ▸ Privacy & security ▸ Microphone, turn on "Let desktop apps access your microphone", then try again.';
-  return 'EasyMedia is not allowed to use the microphone. Allow it in your system settings, then try again.';
+    return 'Windows is not letting OneEditor use the microphone. Open Settings ▸ Privacy & security ▸ Microphone, turn on "Let desktop apps access your microphone", then try again.';
+  return 'OneEditor is not allowed to use the microphone. Allow it in your system settings, then try again.';
 }
 
 /** X4: the microphone could not be opened. The message is shown to students as-is. */

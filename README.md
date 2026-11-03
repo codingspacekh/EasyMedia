@@ -1,4 +1,4 @@
-# EasyMedia — System Requirements
+# OneEditor — System Requirements
 
 A lightweight, offline desktop video and audio editor built for teaching **Cambridge International AS & A Level Information Technology (9626), Chapter 11: Video and audio editing** and, in phase 2, **Chapter 20: Animation** (syllabus 2025–2027).
 
@@ -214,7 +214,7 @@ Phase 2 (decided 2026-10-27): the same app gains an **Animation** mode for sylla
 | **AN16** | (Project) | Save / open `.mvea` animation files (JSON, picture paths relative to the file, X1); autosave and crash recovery (P3); unlimited undo / redo; *Package* with its pictures (P2); *Send to Video mode* puts an export on the video timeline. | `core/animation/serialize.ts` |
 | **AN17** | The basic principles of animation; different animation types and methods; components of an animation; advantages and disadvantages of animation types | **Learn ▸ Animation**: cel, stop motion, time lapse, flip book, CGI, 2D and 3D with advantages and disadvantages; frames, key frames, property key frames, timings, coordinates, tweening and morphing; primary and secondary components; animation variables and avars. "Why use this?" on every animation tool (T5); glossary entries; the **task checker** (T6) checks an exported animation (size, frame rate, length, format, whether it loops). | `core/teaching/`, Learn mode |
 | **AN18** | Controlling animations by stopping them | **Button** objects (Pause, Continue, Restart, Go to frame) that work in the preview and in the HTML export (workbook Task 4). Built last: the only interactive feature. | HTML player |
-| **AN19** | Importing and creating vector objects; components of an animation | A built-in **Library**: cartoon clip-art (people, animals, vehicles, nature, buildings…), icons and symbols (arrows, stars, ticks, speech bubbles, weather, flowchart shapes…) and stage **backgrounds** (sky and grass, underwater, night, classroom…). Every item is made of the app's own vector shapes, grouped, so its parts can be recoloured and animated separately (animation variables); drawn for EasyMedia, so free to use in any work. Searchable, by category. | `core/animation/library/` |
+| **AN19** | Importing and creating vector objects; components of an animation | A built-in **Library**: cartoon clip-art (people, animals, vehicles, nature, buildings…), icons and symbols (arrows, stars, ticks, speech bubbles, weather, flowchart shapes…) and stage **backgrounds** (sky and grass, underwater, night, classroom…). Every item is made of the app's own vector shapes, grouped, so its parts can be recoloured and animated separately (animation variables); drawn for OneEditor, so free to use in any work. Searchable, by category. | `core/animation/library/` |
 | **AN20** | Inbetweening (tweening) tools; controlling animations | **One-click effects** on the selected objects, starting at the playhead: fade in / out, fly in / out (from any side), zoom in / out, bounce in, spin, pulse, shake, wobble, typewriter (text appears letter by letter), blink. Each effect is only ordinary keyframes, so it can be changed afterwards on the timeline and is undone in one step. | `core/animation/effects.ts` |
 
 ### AN15 — Animation export formats
@@ -427,7 +427,7 @@ Version 2.0 (phase 2) is accepted when, in addition, every animation task below 
 | 12 | Animation files (2026-10-27) | Animations are saved in their own **`.mvea`** files (the tasks say "save in the native format"); *Send to Video mode* puts an exported animation on the video timeline. The `.mve` video project format is unchanged. |
 | 13 | Versions (2026-10-27) | Each animation milestone tags `v1.<n>.0` (M13 → v1.1.0 … M16 → v1.4.0); M17 releases **v2.0.0**. |
 | 14 | Learn mode (2026-11-03) | Learn moves from the mode switch to a **Learn menu** in the menu bar; a chosen page fills the window with a Back button (simplest on small laptop screens). |
-| 15 | Workspace, library and effects (2026-11-03) | Resizable, hideable panels (N16), a clearer "Why use this?" (N17), a built-in library (AN19) and one-click effects (AN20) are milestone **M16b**; it is released **together with M16 as v1.4.0** at the maintainer's request. The library is drawn for EasyMedia from its own shapes, so it carries no third-party licence. |
+| 15 | Workspace, library and effects (2026-11-03) | Resizable, hideable panels (N16), a clearer "Why use this?" (N17), a built-in library (AN19) and one-click effects (AN20) are milestone **M16b**; it is released **together with M16 as v1.4.0** at the maintainer's request. The library is drawn for OneEditor from its own shapes, so it carries no third-party licence. |
 
 Still open:
 

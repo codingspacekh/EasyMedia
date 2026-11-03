@@ -71,7 +71,7 @@ export function validateParams(def: Pick<Described, 'params'>, params: Params): 
 
 function requireEffect(id: string): EffectDef {
   const def = effectById(id);
-  if (!def) throw new EditError('This effect is not available in this version of EasyMedia.');
+  if (!def) throw new EditError('This effect is not available in this version of OneEditor.');
   return def;
 }
 

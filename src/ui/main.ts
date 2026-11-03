@@ -38,7 +38,7 @@ declare const MediaStreamTrackProcessor: new (init: { track: MediaStreamTrack })
 };
 
 if (!window.mve) {
-  target.textContent = 'EasyMedia runs as a desktop app: start it with "npm run app".';
+  target.textContent = 'OneEditor runs as a desktop app: start it with "npm run app".';
 } else {
   const api = window.mve;
   const app = createApp({

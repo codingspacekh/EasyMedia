@@ -31,7 +31,7 @@ describe('A14 input level advice (design screen 15)', () => {
 describe('X4 when the microphone cannot be used', () => {
   it('macOS: permission denied points to System Settings', () => {
     expect(microphoneMessage('denied', 'mac')).toBe(
-      'EasyMedia is not allowed to use the microphone. Open System Settings ▸ Privacy & Security ▸ Microphone, turn on EasyMedia, then try again.',
+      'OneEditor is not allowed to use the microphone. Open System Settings ▸ Privacy & Security ▸ Microphone, turn on OneEditor, then try again.',
     );
   });
 

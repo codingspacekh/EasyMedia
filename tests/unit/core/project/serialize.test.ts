@@ -79,7 +79,7 @@ describe('P1 / P11 project files (.mve)', () => {
     ],
   ])('rejects %s with a friendly message', (_name, text) => {
     expect(() => deserializeProject(text)).toThrow(ProjectFileError);
-    expect(() => deserializeProject(text)).toThrow(/not an EasyMedia project, or it is damaged/i);
+    expect(() => deserializeProject(text)).toThrow(/not a OneEditor project, or it is damaged/i);
   });
 
   it('still opens an M1 project saved before "fit" and "hasAudio" existed', () => {
@@ -97,7 +97,7 @@ describe('P1 / P11 project files (.mve)', () => {
   it('rejects a "hasAudio" that is not true or false', () => {
     const p = fullProject();
     const bad = JSON.stringify({ ...p, media: [{ ...p.media[0], hasAudio: 'yes' }] });
-    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+    expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
   });
 
   it('V13: keeps "lower under voiceover" on music and rejects one that is not true or false', () => {
@@ -111,7 +111,7 @@ describe('P1 / P11 project files (.mve)', () => {
       ...p,
       timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, duck: 'yes' }], []] },
     });
-    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+    expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
   });
 
   it('V13: keeps the speed of a sound and rejects one that is not a number', () => {
@@ -125,12 +125,12 @@ describe('P1 / P11 project files (.mve)', () => {
       ...p,
       timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, speed: 'fast' }], []] },
     });
-    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+    expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
   });
 
   it('explains when a project comes from a newer version of the app', () => {
     const future = JSON.stringify({ ...fullProject(), schemaVersion: CURRENT_SCHEMA + 1 });
-    expect(() => deserializeProject(future)).toThrow(/newer version of EasyMedia/i);
+    expect(() => deserializeProject(future)).toThrow(/newer version of OneEditor/i);
   });
 });
 

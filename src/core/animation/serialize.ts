@@ -7,7 +7,7 @@ import { isColour } from './rules.ts';
 import type { AnimationDoc, ObjectKind } from './types.ts';
 
 export const ANIMATION_SCHEMA = 4;
-export const ANIMATION_DAMAGED = 'This file is not an EasyMedia animation, or it is damaged.';
+export const ANIMATION_DAMAGED = 'This file is not a OneEditor animation, or it is damaged.';
 
 /** Add an entry whenever the animation format changes (see core/project/migrate.ts). */
 export const ANIMATION_MIGRATIONS: Record<number, Migration> = {

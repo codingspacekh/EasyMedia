@@ -92,7 +92,7 @@ test('check: the package opens on this OS with every file, and exports the same 
     exportTo: join(DIR, 'check.mp4'),
   });
   await menu(app, 'File', 'Open…');
-  await expect(page).toHaveTitle('Untitled.mve — EasyMedia');
+  await expect(page).toHaveTitle('Untitled.mve — OneEditor');
   // Every file is found: no "missing" in the media bin, and Audio mode has its track.
   for (const f of [CLIP, PHOTO, MUSIC])
     await expect(page.getByText(f, { exact: true }).first()).toBeVisible();

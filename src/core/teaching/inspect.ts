@@ -113,7 +113,7 @@ function codecRow(kind: 'video' | 'audio', codec: string): InspectRow {
     label: kind === 'video' ? 'Video codec' : 'Audio codec',
     value: name,
     ...(compression ? { compression } : {}),
-    explain: `${what} ${compression ? how[compression] : `EasyMedia does not know whether ${name} is lossy or lossless.`}`,
+    explain: `${what} ${compression ? how[compression] : `OneEditor does not know whether ${name} is lossy or lossless.`}`,
   };
 }
 

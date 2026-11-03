@@ -1,5 +1,5 @@
 // Optional performance report for checking a real laptop (M4 gate, README N4/N5).
-// Enabled by EASYMEDIA_PERF_REPORT=<file>: written when the app quits.
+// Enabled by ONEEDITOR_PERF_REPORT=<file>: written when the app quits.
 import { app, type BrowserWindow } from 'electron';
 import { writeFileSync } from 'node:fs';
 import { cpus, totalmem, type, release } from 'node:os';

@@ -1,4 +1,4 @@
-// Launches the built EasyMedia app for end-to-end tests, with its own empty user-data folder.
+// Launches the built OneEditor app for end-to-end tests, with its own empty user-data folder.
 import {
   _electron as electron,
   expect,
@@ -38,7 +38,7 @@ export async function launchApp(
   const app = await electron.launch({
     args: [root, ...switches],
     cwd: root,
-    env: { ...process.env, EASYMEDIA_USER_DATA: userData },
+    env: { ...process.env, ONEEDITOR_USER_DATA: userData },
   });
   const window = await app.firstWindow();
   await window.waitForLoadState('domcontentloaded');

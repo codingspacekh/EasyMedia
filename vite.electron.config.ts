@@ -21,7 +21,7 @@ export const playerBuild: UserConfig = {
     lib: {
       entry: 'src/player/main.ts',
       formats: ['iife'],
-      name: 'EasyMediaPlayer',
+      name: 'OneEditorPlayer',
       fileName: () => 'player.js',
     },
   },

@@ -90,7 +90,7 @@ export function menuTemplate(
       label: 'Help',
       role: 'help',
       submenu: [
-        item('Welcome to EasyMedia', '', 'welcome'),
+        item('Welcome to OneEditor', '', 'welcome'),
         { label: 'User guide', click: () => openGuide('user-guide') },
         { label: 'Teacher notes', click: () => openGuide('teacher-notes') },
         { type: 'separator' },

@@ -1,7 +1,7 @@
 // AN17: the theory of syllabus 20.1 for Learn ▸ Animation — the types of animation with their
 // advantages and disadvantages, the principles, the components and animation variables — written
 // so the coursebook's Chapter 19 questions can be answered from them, and with where each idea is
-// tried in EasyMedia. The frame-rate demonstration's numbers are worked out here too.
+// tried in OneEditor. The frame-rate demonstration's numbers are worked out here too.
 
 export interface AnimationType {
   id: 'cel' | 'stopmotion' | 'timelapse' | 'flipbook' | 'cgi2d' | 'cgi3d';
@@ -10,7 +10,7 @@ export interface AnimationType {
   how: string;
   advantages: string[];
   disadvantages: string[];
-  /** Where it is tried in EasyMedia, if it is. */
+  /** Where it is tried in OneEditor, if it is. */
   inApp?: string;
 }
 
@@ -100,7 +100,7 @@ export const ANIMATION_TYPES: readonly AnimationType[] = [
   },
 ];
 
-/** A page of theory: a title and its paragraphs, and where it is tried in EasyMedia. */
+/** A page of theory: a title and its paragraphs, and where it is tried in OneEditor. */
 export interface LearnTopic {
   id: string;
   title: string;

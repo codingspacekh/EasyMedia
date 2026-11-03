@@ -11,9 +11,9 @@ const ffmpeg = (platform: string) => ({
 });
 
 const config: Configuration = {
-  appId: 'io.github.codingspacekh.easymedia',
-  productName: 'EasyMedia',
-  copyright: 'EasyMedia contributors · GPL-3.0',
+  appId: 'io.github.codingspacekh.oneeditor',
+  productName: 'OneEditor',
+  copyright: 'OneEditor contributors · GPL-3.0',
   directories: { output: 'release', buildResources: 'build-resources' },
   // The pages, main process and preload are bundled by Vite; the app has no runtime packages.
   files: ['out/**/*', 'dist/**/*', 'package.json'],
@@ -37,7 +37,7 @@ const config: Configuration = {
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
-    artifactName: 'EasyMedia-Setup-${version}.${ext}',
+    artifactName: 'OneEditor-Setup-${version}.${ext}',
   },
   mac: {
     // Two downloads about half the size of one universal DMG (which carries both of each). Each
@@ -48,15 +48,15 @@ const config: Configuration = {
     extraResources: [ffmpeg('darwin')],
     extendInfo: {
       NSMicrophoneUsageDescription:
-        'EasyMedia uses the microphone only when you record a voiceover in Audio mode.',
+        'OneEditor uses the microphone only when you record a voiceover in Audio mode.',
     },
     // Not notarised (README §15, decision 8): an ad-hoc signature, so Apple Silicon Macs run it.
     // The hardened runtime is for notarised apps; with an ad-hoc signature it can stop launch.
     identity: '-',
     hardenedRuntime: false,
-    artifactName: 'EasyMedia-${version}-mac-${arch}.${ext}',
+    artifactName: 'OneEditor-${version}-mac-${arch}.${ext}',
   },
-  dmg: { title: 'EasyMedia ${version}' },
+  dmg: { title: 'OneEditor ${version}' },
   publish: null,
 };
 

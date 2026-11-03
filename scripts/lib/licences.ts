@@ -1,4 +1,4 @@
-// README §17: THIRD_PARTY_LICENSES — everything shipped in the installers that EasyMedia did not
+// README §17: THIRD_PARTY_LICENSES — everything shipped in the installers that OneEditor did not
 // write, with its licence. Pure: scripts/licences.ts reads the inputs from disk.
 
 export interface LicenceInputs {
@@ -17,7 +17,7 @@ export function thirdPartyLicences(i: LicenceInputs): string {
     if (!f.licence.trim()) throw new Error(`The font ${f.name} has no licence.`);
   for (const p of i.packages) if (!p.text.trim()) throw new Error(`${p.name} has no licence.`);
   return [
-    `EasyMedia ${i.appVersion} — third-party components\n\nEasyMedia itself is free software under the GNU General Public License v3 (LICENSE.txt). It ships with these components, each under its own licence.\n`,
+    `OneEditor ${i.appVersion} — third-party components\n\nOneEditor itself is free software under the GNU General Public License v3 (LICENSE.txt). It ships with these components, each under its own licence.\n`,
     section(
       `FFmpeg ${i.ffmpeg.version} (ffmpeg and ffprobe) — GNU General Public License v3`,
       `FFmpeg is used to read, convert and export video and sound. The bundled builds include GPL parts (x264), so they are under the GPL v3.\nSource code: https://ffmpeg.org/download.html (version ${i.ffmpeg.version}).\nThe builds shipped were downloaded from:\n${i.ffmpeg.builds.map((b) => `  ${b}`).join('\n')}\n\n${i.ffmpeg.licence}`,

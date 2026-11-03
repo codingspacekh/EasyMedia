@@ -1,4 +1,4 @@
-// M12: an installed app checks itself — CI starts every packaged build with EASYMEDIA_SELF_CHECK
+// M12: an installed app checks itself — CI starts every packaged build with ONEEDITOR_SELF_CHECK
 // set to a file, and the app writes this result there and quits. It proves the installer put
 // FFmpeg, the pages and every bundled font where the app looks for them.
 import { join } from 'node:path';

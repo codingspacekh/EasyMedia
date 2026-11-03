@@ -8,23 +8,23 @@ describe('Welcome', () => {
   it('introduces the four modes and where work is saved; Start closes it', async () => {
     const { app } = testApp();
     render(App, { props: { app } });
-    expect(screen.queryByRole('dialog', { name: 'Welcome to EasyMedia' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to OneEditor' })).toBeNull();
     app.showWelcome();
-    const welcome = await screen.findByRole('dialog', { name: 'Welcome to EasyMedia' });
+    const welcome = await screen.findByRole('dialog', { name: 'Welcome to OneEditor' });
     for (const mode of ['Video', 'Audio', 'Learn', 'Animation'])
       expect(within(welcome).getByRole('heading', { name: mode })).toBeTruthy();
     expect(welcome.textContent).toMatch(/Package Project/);
     expect(welcome.textContent).toMatch(/Help ▸ Welcome/);
     await fireEvent.click(within(welcome).getByRole('button', { name: 'Start' }));
     expect(app.store.get().welcome).toBe(false);
-    expect(screen.queryByRole('dialog', { name: 'Welcome to EasyMedia' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to OneEditor' })).toBeNull();
   });
 
   it('Escape closes it too', async () => {
     const { app } = testApp();
     render(App, { props: { app } });
     app.showWelcome();
-    await screen.findByRole('dialog', { name: 'Welcome to EasyMedia' });
+    await screen.findByRole('dialog', { name: 'Welcome to OneEditor' });
     await fireEvent.keyDown(window, { key: 'Escape' });
     expect(app.store.get().welcome).toBe(false);
   });

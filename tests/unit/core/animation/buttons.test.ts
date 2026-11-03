@@ -102,7 +102,7 @@ describe('a button (AN18)', () => {
     const v3 = serializeAnimation(stage()).replace('"schemaVersion": 4', '"schemaVersion": 3');
     expect(deserializeAnimation(v3).schemaVersion).toBe(4);
     const broken = serializeAnimation(doc).replace('"action": "pause"', '"action": "explode"');
-    expect(() => deserializeAnimation(broken)).toThrow(/not an EasyMedia animation/);
+    expect(() => deserializeAnimation(broken)).toThrow(/not a OneEditor animation/);
   });
 
   it('the web page carries the font of its label', () => {

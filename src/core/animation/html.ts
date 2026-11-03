@@ -83,7 +83,7 @@ export function webPage(doc: AnimationDoc, assets: WebPageAssets): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="EasyMedia">
+<meta name="generator" content="OneEditor">
 <title>${escapeHtml(doc.name)}</title>
 <style>
 ${assets.fonts.map(fontFace).join('\n')}
@@ -104,7 +104,7 @@ body { display: flex; align-items: center; justify-content: center; }
 
 /**
  * AN17: what the task checker reads from an exported web page: its stage size, frame rate and
- * length, and that it loops (the player always does). Null when it is not an EasyMedia page.
+ * length, and that it loops (the player always does). Null when it is not a OneEditor page.
  */
 export function webPageInfo(html: string, sizeBytes = html.length): ProbeInfo | null {
   const start = html.indexOf(`id="${PAGE_DATA_ID}">`);

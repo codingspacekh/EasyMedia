@@ -121,7 +121,7 @@ export interface AppDeps {
 export const isDirty = (s: AppState): boolean => s.history.present !== s.saved || s.audioDirty;
 
 export const projectTitle = (s: AppState): string =>
-  `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — EasyMedia`;
+  `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — OneEditor`;
 
 const PEAKS_PER_SECOND = 10;
 const DISCARD = 'You have unsaved changes. Discard them and';
@@ -451,7 +451,7 @@ export function createApp({
       }
       try {
         const lost = readProject(text, paths.recovery);
-        if (await dialogs.confirm('EasyMedia closed before your work was saved. Restore it?')) {
+        if (await dialogs.confirm('OneEditor closed before your work was saved. Restore it?')) {
           load(lost.project, null, createProject({ name: 'Untitled' }));
           await audio.openSession(lost.audioMode, { unsaved: true });
           syncAudioDirty();
@@ -480,7 +480,7 @@ export function createApp({
         patch({
           message: {
             kind: 'error',
-            text: 'The licences could not be found. They are in THIRD_PARTY_LICENSES.txt in the EasyMedia installer.',
+            text: 'The licences could not be found. They are in THIRD_PARTY_LICENSES.txt in the OneEditor installer.',
           },
         });
       }

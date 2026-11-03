@@ -52,7 +52,7 @@ export function parseProbe(json: FfprobeJson): ProbeInfo {
   // Album art in music files is a "video" stream marked as an attached picture: ignore it.
   const v = json.streams.find((s) => s.codec_type === 'video' && !s.disposition?.attached_pic);
   const a = json.streams.find((s) => s.codec_type === 'audio');
-  if (!v && !a) throw new MediaError('This file has no picture or sound that EasyMedia can use.');
+  if (!v && !a) throw new MediaError('This file has no picture or sound that OneEditor can use.');
 
   const kind = isImage ? 'image' : v ? 'video' : 'audio';
   const info: ProbeInfo = {

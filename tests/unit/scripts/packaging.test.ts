@@ -6,9 +6,9 @@ const resources = (list: unknown) =>
   (list as { from: string; to: string }[]).map((r) => `${r.from} → ${r.to}`);
 
 describe('installers', () => {
-  it('are called EasyMedia and hold only the built app (no node_modules)', () => {
-    expect(config.productName).toBe('EasyMedia');
-    expect(config.appId).toBe('io.github.codingspacekh.easymedia');
+  it('are called OneEditor and hold only the built app (no node_modules)', () => {
+    expect(config.productName).toBe('OneEditor');
+    expect(config.appId).toBe('io.github.codingspacekh.oneeditor');
     expect(config.files).toEqual(['out/**/*', 'dist/**/*', 'package.json']);
   });
 
@@ -42,7 +42,7 @@ describe('installers', () => {
     expect(resources(config.mac!.extraResources)).toEqual([
       'resources/ffmpeg/darwin-${arch} → ffmpeg/darwin-${arch}',
     ]);
-    expect(config.mac!.artifactName).toBe('EasyMedia-${version}-mac-${arch}.${ext}');
+    expect(config.mac!.artifactName).toBe('OneEditor-${version}-mac-${arch}.${ext}');
     expect(config.mac!.extendInfo).toMatchObject({
       NSMicrophoneUsageDescription: expect.stringMatching(/record.*voiceover/i),
     });
@@ -71,12 +71,12 @@ describe('packaging this computer’s build (scripts/package.ts)', () => {
     ]);
     expect(builderArgs('win32', 'x64', { dir: false }).slice(-2)).toEqual(['--win', '--x64']);
     expect(packagedProgram('darwin', 'arm64')).toBe(
-      'release/mac-arm64/EasyMedia.app/Contents/MacOS/EasyMedia',
+      'release/mac-arm64/OneEditor.app/Contents/MacOS/OneEditor',
     );
     expect(packagedProgram('darwin', 'x64')).toBe(
-      'release/mac/EasyMedia.app/Contents/MacOS/EasyMedia',
+      'release/mac/OneEditor.app/Contents/MacOS/OneEditor',
     );
-    expect(packagedProgram('win32', 'x64')).toBe('release/win-unpacked/EasyMedia.exe');
+    expect(packagedProgram('win32', 'x64')).toBe('release/win-unpacked/OneEditor.exe');
   });
 });
 
@@ -86,11 +86,11 @@ describe('N6 installer size', () => {
     expect(MAX_INSTALLER_MB).toBe(220);
     expect(
       oversized([
-        { name: 'EasyMedia-1.0.0-mac-x64.dmg', bytes: 207_000_000 },
-        { name: 'EasyMedia-Setup-1.0.0.exe', bytes: 221_000_001 },
+        { name: 'OneEditor-1.0.0-mac-x64.dmg', bytes: 207_000_000 },
+        { name: 'OneEditor-Setup-1.0.0.exe', bytes: 221_000_001 },
         // The portable zip (for a USB stick) is not an installer: zip packs less tightly.
-        { name: 'EasyMedia-1.0.0-win.zip', bytes: 235_000_000 },
+        { name: 'OneEditor-1.0.0-win.zip', bytes: 235_000_000 },
       ]),
-    ).toEqual(['EasyMedia-Setup-1.0.0.exe is 221 MB (at most 220 MB, README N6)']);
+    ).toEqual(['OneEditor-Setup-1.0.0.exe is 221 MB (at most 220 MB, README N6)']);
   });
 });

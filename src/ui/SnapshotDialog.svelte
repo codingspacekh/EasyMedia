@@ -122,7 +122,7 @@
       The picture goes straight into the media bin (Images). It is kept in a Snapshots folder next
       to the project{$store.projectPath
         ? ''
-        : ' once you save it — until then, in EasyMedia’s own folder'}.
+        : ' once you save it — until then, in OneEditor’s own folder'}.
     </p>
 
     <Why tool="snapshot" title="Why extract a still?" />

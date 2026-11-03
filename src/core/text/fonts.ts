@@ -136,7 +136,7 @@ const POSITIONS = [
 
 export function validateTextStyle(style: TextStyle): void {
   if (!FONTS.some((f) => f.name === style.font)) {
-    throw new EditError('Choose one of the fonts in the list: they come with EasyMedia.');
+    throw new EditError('Choose one of the fonts in the list: they come with OneEditor.');
   }
   if (!(style.size >= 8 && style.size <= 300))
     throw new EditError('Text size must be between 8 and 300.');

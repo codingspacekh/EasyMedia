@@ -6,7 +6,7 @@
 
 <Dialog label="Licences" width={760} {onclose}>
   <p class="lead">
-    EasyMedia is free software under the GNU GPL v3. It includes these parts made by others.
+    OneEditor is free software under the GNU GPL v3. It includes these parts made by others.
   </p>
   <pre>{text}</pre>
   {#snippet buttons()}

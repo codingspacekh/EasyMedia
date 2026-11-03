@@ -1,6 +1,6 @@
-# EasyMedia — user guide
+# OneEditor — user guide
 
-EasyMedia edits video, sound and animation for Cambridge International AS & A Level IT (9626),
+OneEditor edits video, sound and animation for Cambridge International AS & A Level IT (9626),
 syllabus sections 11 and 20.1. It has three editors, chosen at the top left: **Video**, **Audio**
 and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 
@@ -28,7 +28,7 @@ and **Animation**. The theory is in the **Learn** menu at the top of the screen.
   empty folder, and copy that whole folder. Open the `.mve` inside it on the other computer
   (Windows or Mac).
 - **Export** makes the finished video or sound file. Export does not save the project: save it too.
-- EasyMedia saves your work in the background. If it closes unexpectedly, it offers to restore your
+- OneEditor saves your work in the background. If it closes unexpectedly, it offers to restore your
   work the next time it opens.
 
 ### Arrange the panels
@@ -36,7 +36,7 @@ and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 Drag the edge between a panel and the work area to make the panel wider or narrower (or the
 timeline taller); double-click the edge for its usual size. The small arrow on the edge hides the
 panel, and the thin strip left behind shows it again. **View ▸ Show / Hide Left Panel**, **Right
-Panel** and **Timeline** do the same, and **View ▸ Reset Layout** puts everything back. EasyMedia
+Panel** and **Timeline** do the same, and **View ▸ Reset Layout** puts everything back. OneEditor
 remembers your layout.
 
 ## Video mode
@@ -210,7 +210,7 @@ layer to see it work).
 
 Move the playhead (click the timeline's ruler, or type a frame or a time such as `3 s` in **Go
 to…**), then change the object — drag it, or type a new value. That makes a **keyframe** there,
-and EasyMedia works out every frame in between (a **tween**). Click a keyframe dot to choose its
+and OneEditor works out every frame in between (a **tween**). Click a keyframe dot to choose its
 **easing**, **Hold** it, **Repeat** or **Reverse** it.
 
 - **Motion path**: draw a path, then select the object ▸ Properties ▸ **Follow path** (tick
@@ -328,4 +328,4 @@ pictures a second ▸ Choose folder…; Export ▸ MP4.
 - **The microphone does not work**: see "Microphone" in the install guide (`INSTALL.md`), then close
   the recording window and open it again.
 - **Help ▸ Welcome** shows the first page again. **Help ▸ Licences** lists the free software
-  EasyMedia includes.
+  OneEditor includes.

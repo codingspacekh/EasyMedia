@@ -16,14 +16,14 @@ import type { AnimationDeps, AnimationState } from './state.ts';
 export const UNEXPECTED = 'Something went wrong. Please try again.';
 
 const NO_RENDERER: StageRenderer = {
-  renderPng: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  pixels: () => Promise.reject(new EditError('Tracing needs the EasyMedia app.')),
+  renderPng: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  pixels: () => Promise.reject(new EditError('Tracing needs the OneEditor app.')),
 };
 const NO_PAGE_ASSETS: PageAssets = {
-  playerScript: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  pictureDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  fontDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  openTest: () => Promise.reject(new EditError('Testing needs the EasyMedia app.')),
+  playerScript: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  pictureDataUrl: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  fontDataUrl: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  openTest: () => Promise.reject(new EditError('Testing needs the OneEditor app.')),
 };
 
 /** The playback clock ticks this often; the frame follows the time, so slow laptops drop frames. */

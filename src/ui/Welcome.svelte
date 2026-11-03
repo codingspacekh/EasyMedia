@@ -1,5 +1,5 @@
 <script lang="ts">
-  // X7: what EasyMedia is for and where to start, on the first launch (Help ▸ Welcome again).
+  // X7: what OneEditor is for and where to start, on the first launch (Help ▸ Welcome again).
   import type { App } from '../app/app.ts';
   import Icon from './Icon.svelte';
   import Dialog from './Dialog.svelte';
@@ -36,7 +36,7 @@
   const close = () => void app.closeWelcome();
 </script>
 
-<Dialog label="Welcome to EasyMedia" width={720} onclose={close}>
+<Dialog label="Welcome to OneEditor" width={720} onclose={close}>
   <p class="lead">
     A video, sound and animation editor for Cambridge AS & A Level IT, Chapters 11 and 20. Choose an
     editor at the top left; the theory is in the <b>Learn</b> menu.
@@ -60,7 +60,7 @@
       To take a project to another computer or a USB stick, use <b>File ▸ Package Project</b>: it
       copies everything into one folder.
     </li>
-    <li>EasyMedia saves your work in the background, so it can be restored after a crash.</li>
+    <li>OneEditor saves your work in the background, so it can be restored after a crash.</li>
   </ul>
   <p class="hint">
     Rest the mouse on any button to see what it does. <b>Help ▸ Welcome</b> shows this page again.

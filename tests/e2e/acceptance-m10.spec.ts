@@ -302,7 +302,7 @@ test('P1 + P7 for Audio mode: saved with the project and opened again; closing w
       ),
     )
     .toBe(true);
-  await expect(first.window).toHaveTitle('Task_11p.mve — EasyMedia');
+  await expect(first.window).toHaveTitle('Task_11p.mve — OneEditor');
   await first.app.close();
 
   const second = await launchApp();
@@ -310,6 +310,6 @@ test('P1 + P7 for Audio mode: saved with the project and opened again; closing w
   await menu(second.app, 'File', 'Open…');
   await audioMode(second.window);
   await expect(second.window.getByRole('group', { name: 'Track beeps_30s' })).toBeVisible();
-  await expect(second.window).toHaveTitle('Task_11p.mve — EasyMedia');
+  await expect(second.window).toHaveTitle('Task_11p.mve — OneEditor');
   await second.app.close();
 });

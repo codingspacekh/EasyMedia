@@ -1,5 +1,5 @@
-// Builds EasyMedia's installers for this computer (or with --dir an unpacked app), then starts the
-// packaged app with EASYMEDIA_SELF_CHECK: its FFmpeg runs and its pages and fonts are there.
+// Builds OneEditor's installers for this computer (or with --dir an unpacked app), then starts the
+// packaged app with ONEEDITOR_SELF_CHECK: its FFmpeg runs and its pages and fonts are there.
 // Usage: npm run build:app && npm run licences && npm run package [-- --dir]
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -25,7 +25,7 @@ execFileSync(builder, builderArgs(process.platform, process.arch, { dir }), {
 const report = join(mkdtempSync(join(tmpdir(), 'mve-self-check-')), 'self-check.json');
 try {
   execFileSync(join(root, packagedProgram(process.platform, process.arch)), [], {
-    env: { ...process.env, EASYMEDIA_SELF_CHECK: report },
+    env: { ...process.env, ONEEDITOR_SELF_CHECK: report },
     stdio: 'inherit',
     timeout: 120_000,
   });

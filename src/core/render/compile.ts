@@ -200,7 +200,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
       if (overlap > 0) {
         const kind = transitionById(main[i]!.transitionIn!.effectId);
         if (!kind)
-          throw new EditError('This transition is not available in this version of EasyMedia.');
+          throw new EditError('This transition is not available in this version of OneEditor.');
         filters.push(
           `${video}[v${i}]xfade=transition=${kind.xfade}:duration=${num(overlap)}:offset=${num(length - overlap)}${vNext}`,
         );

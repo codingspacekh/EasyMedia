@@ -104,7 +104,7 @@ describe('X3 native menus', () => {
     const open = vi.fn<(guide: 'user-guide' | 'teacher-notes') => void>();
     const help = items(find(menuTemplate('win32', send, false, open), 'Help'));
     expect(help.map((i) => i.label)).toEqual([
-      'Welcome to EasyMedia',
+      'Welcome to OneEditor',
       'User guide',
       'Teacher notes',
       'Licences',

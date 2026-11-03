@@ -611,7 +611,7 @@ describe('M4 app use cases', () => {
       expect([state().projectPath, isDirty(state()), projectTitle(state())]).toEqual([
         '/m/Task_11b.mve',
         false,
-        'Task_11b.mve — EasyMedia',
+        'Task_11b.mve — OneEditor',
       ]);
     });
 
@@ -633,7 +633,7 @@ describe('M4 app use cases', () => {
       expect([isDirty(state()), disk.size, projectTitle(state())]).toEqual([
         true,
         0,
-        'Untitled • — EasyMedia',
+        'Untitled • — OneEditor',
       ]);
     });
 
@@ -692,7 +692,7 @@ describe('M4 app use cases', () => {
       disk.set('/p/bad.mve', 'not json');
       dialogs.openProject.mockResolvedValueOnce('/p/bad.mve');
       await app.open();
-      expect(state().message?.text).toMatch(/not an EasyMedia project/i);
+      expect(state().message?.text).toMatch(/not a OneEditor project/i);
     });
 
     it('New starts an empty project (after asking, if there is unsaved work)', async () => {
@@ -709,7 +709,7 @@ describe('M4 app use cases', () => {
       const { app, state, disk, dialogs, importAudio } = setup();
       await importAudio('/m/music.mp3');
       expect(isDirty(state())).toBe(true); // audio edits alone are unsaved work
-      expect(projectTitle(state())).toBe('Untitled • — EasyMedia');
+      expect(projectTitle(state())).toBe('Untitled • — OneEditor');
       dialogs.saveProject.mockResolvedValueOnce('/p/Task_11p.mve');
       await app.save();
       const saved = JSON.parse(disk.get('/p/Task_11p.mve')!);

@@ -12,9 +12,9 @@ export function builderArgs(platform: string, arch: string, { dir }: { dir: bool
 
 /** The packaged program, relative to the project folder. */
 export function packagedProgram(platform: string, arch: string): string {
-  if (platform === 'win32') return 'release/win-unpacked/EasyMedia.exe';
+  if (platform === 'win32') return 'release/win-unpacked/OneEditor.exe';
   const folder = arch === 'x64' ? 'mac' : `mac-${arch}`;
-  return `release/${folder}/EasyMedia.app/Contents/MacOS/EasyMedia`;
+  return `release/${folder}/OneEditor.app/Contents/MacOS/OneEditor`;
 }
 
 /** README N6 (decided 2026-10-19: Electron alone is about 134 MB compressed). */

@@ -48,13 +48,13 @@
 
   $effect.pre(() => {
     document.title =
-      ui.mode === 'Animation' ? `${animationTitle($animStore)} — EasyMedia` : projectTitle($store);
+      ui.mode === 'Animation' ? `${animationTitle($animStore)} — OneEditor` : projectTitle($store);
   });
 </script>
 
 <div class="app">
   <header class="toolbar">
-    <h1 class="visually-hidden">EasyMedia</h1>
+    <h1 class="visually-hidden">OneEditor</h1>
     {#if ui.mode === 'Learn'}
       <!-- N15: Learn fills the window; Back returns to the editor it was opened from. -->
       <button type="button" class="back" onclick={leaveLearn}

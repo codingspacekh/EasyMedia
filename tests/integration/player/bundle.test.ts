@@ -51,7 +51,7 @@ describe('the HTML player script (AN15)', () => {
       ctx) as unknown as HTMLCanvasElement['getContext'];
     // The page's script, as the browser runs it.
     new Function(code)();
-    const win = window as unknown as { easymedia?: { player: { state(): PlayerState } } };
-    await expect.poll(() => win.easymedia?.player.state().playing, { timeout: 5000 }).toBe(true);
+    const win = window as unknown as { oneeditor?: { player: { state(): PlayerState } } };
+    await expect.poll(() => win.oneeditor?.player.state().playing, { timeout: 5000 }).toBe(true);
   });
 });

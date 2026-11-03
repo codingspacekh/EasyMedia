@@ -239,7 +239,7 @@ describe('P2 main-process IPC handlers', () => {
       expect(await api.invoke('media:encodeFrames', 'k1', folder, '/out/a.mp4', options)).toEqual({
         ok: false,
         error: expect.objectContaining({
-          message: 'Only frames drawn by EasyMedia can be exported.',
+          message: 'Only frames drawn by OneEditor can be exported.',
         }),
       });
     const finished = new Promise((resolve) =>

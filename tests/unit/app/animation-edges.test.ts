@@ -204,7 +204,7 @@ describe('files at the edges', () => {
     expect(anim.store.get().path).toBeNull();
     t.dialogs.exportAnimation.mockResolvedValueOnce('/a/x.png');
     await anim.exportPng();
-    expect(anim.store.get().message?.text).toMatch(/needs the EasyMedia app/);
+    expect(anim.store.get().message?.text).toMatch(/needs the OneEditor app/);
     anim.dispose();
   });
 

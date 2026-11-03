@@ -19,7 +19,7 @@ export function effectActions(ctx: AudioContext) {
   /** Applies an effect to the selection; returns why it cannot, or null. */
   function applyEffect(id: string, params: Params): string | null {
     const def = audioEffectById(id);
-    if (!def) return 'This effect is not available in this version of EasyMedia.';
+    if (!def) return 'This effect is not available in this version of OneEditor.';
     const sel = selection();
     return tryEdit(`${def.label.replace('…', '')} ${range(sel)}`, (tx) => {
       validateParams(def, params);
@@ -94,7 +94,7 @@ export function effectActions(ctx: AudioContext) {
     /** A18 Preview: plays the effect on the start of the selection, without changing anything. */
     previewEffect(id: string, params: Params): string | null {
       const def = audioEffectById(id);
-      if (!def) return 'This effect is not available in this version of EasyMedia.';
+      if (!def) return 'This effect is not available in this version of OneEditor.';
       const sel = selection();
       const short = { ...sel, end: Math.min(sel.end, sel.start + PREVIEW_SECONDS) };
       const sound = doc()

@@ -94,7 +94,7 @@ test('Book A Activity 11.01: 1920 × 1080 project saved as BeeProject', async ()
   await expect(page.getByRole('radio', { name: '1920 × 1080' })).toBeChecked();
   await page.getByRole('button', { name: 'Apply' }).click();
   await menu(app, 'File', 'Save As…');
-  await expect(page).toHaveTitle('BeeProject.mve — EasyMedia');
+  await expect(page).toHaveTitle('BeeProject.mve — OneEditor');
   expect(JSON.parse(await readFile(project, 'utf8')).settings).toMatchObject({
     width: 1920,
     height: 1080,

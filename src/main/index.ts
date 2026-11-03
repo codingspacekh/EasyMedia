@@ -23,6 +23,7 @@ import { createCloseGuard } from './close-guard.ts';
 import { menuTemplate } from './menu.ts';
 import { microphoneAccess } from './microphone.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
+import { moveOldSettings } from './old-settings.ts';
 import { recordPerformance } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
@@ -35,7 +36,9 @@ const RESOURCES = app.isPackaged ? process.resourcesPath : join(APP_ROOT, 'resou
 const DEV_ICON = app.isPackaged ? undefined : join(APP_ROOT, 'build-resources', 'icon.png');
 
 // Tests run with their own empty user-data folder (no real proxies or recovery file).
-if (process.env.EASYMEDIA_USER_DATA) app.setPath('userData', process.env.EASYMEDIA_USER_DATA);
+if (process.env.ONEEDITOR_USER_DATA) app.setPath('userData', process.env.ONEEDITOR_USER_DATA);
+// The settings from when the app was called EasyMedia come along (before anything opens them).
+else moveOldSettings(app.getPath('appData'));
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -88,7 +91,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1100,
     minHeight: 700,
     show: false,
-    title: 'EasyMedia',
+    title: 'OneEditor',
     ...(DEV_ICON && { icon: DEV_ICON }),
     backgroundColor: '#101216',
     webPreferences: {
@@ -115,7 +118,7 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-/** M12: EASYMEDIA_SELF_CHECK=<file> — check the installed app, write the result there, quit. */
+/** M12: ONEEDITOR_SELF_CHECK=<file> — check the installed app, write the result there, quit. */
 async function runSelfCheck(file: string): Promise<void> {
   const run = promisify(execFile);
   const result = await selfCheck({
@@ -145,7 +148,7 @@ async function runSelfCheck(file: string): Promise<void> {
 }
 
 void app.whenReady().then(async () => {
-  if (process.env.EASYMEDIA_SELF_CHECK) return runSelfCheck(process.env.EASYMEDIA_SELF_CHECK);
+  if (process.env.ONEEDITOR_SELF_CHECK) return runSelfCheck(process.env.ONEEDITOR_SELF_CHECK);
   const binaries = binaryPaths(RESOURCES, platformKey(process.platform, process.arch));
   const proxies = join(app.getPath('userData'), 'proxies');
   await mkdir(proxies, { recursive: true });
@@ -166,7 +169,7 @@ void app.whenReady().then(async () => {
 
   const engine = createNodeMediaEngine(binaries, { videoEncoder: videoEncoder(hardware) });
   // Quit asks the page first (P7); once it really quits, every FFmpeg job stops, so no preview
-  // or export keeps running after EasyMedia closes.
+  // or export keeps running after OneEditor closes.
   app.on('before-quit', () => closeGuard?.quitting());
   app.on('will-quit', () => engine.cancelAll());
 
@@ -225,8 +228,8 @@ void app.whenReady().then(async () => {
 
   if (DEV_ICON) app.dock?.setIcon(DEV_ICON);
   mainWindow = createWindow();
-  if (process.env.EASYMEDIA_PERF_REPORT)
-    recordPerformance(process.env.EASYMEDIA_PERF_REPORT, mainWindow);
+  if (process.env.ONEEDITOR_PERF_REPORT)
+    recordPerformance(process.env.ONEEDITOR_PERF_REPORT, mainWindow);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });

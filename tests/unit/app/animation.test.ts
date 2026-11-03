@@ -227,7 +227,7 @@ describe('files (AN16)', () => {
     s.disk.set('/a/bad.mvea', '{"hello":1}');
     s.dialogs.openAnimation.mockResolvedValueOnce('/a/bad.mvea');
     await s.anim.open();
-    expect(s.state().message?.text).toMatch(/not an EasyMedia animation/);
+    expect(s.state().message?.text).toMatch(/not a OneEditor animation/);
   });
 
   it('new and open ask before discarding unsaved work; the window may not close with unsaved work', async () => {

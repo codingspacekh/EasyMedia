@@ -333,7 +333,7 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
 
     /**
      * T6: checks an exported file against the task, row by row: a video, sound or GIF (probed),
-     * an EasyMedia web page (AN17: read from the animation it carries), or every picture of a PNG
+     * a OneEditor web page (AN17: read from the animation it carries), or every picture of a PNG
      * sequence chosen together (checked as one sequence).
      */
     async checkExport(path?: string): Promise<void> {
@@ -345,7 +345,7 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
         let info: CheckedFile;
         if (/\.html?$/i.test(first)) {
           const page = webPageInfo(await files.read(first));
-          if (!page) throw new EditError('This page is not a web animation exported by EasyMedia.');
+          if (!page) throw new EditError('This page is not a web animation exported by OneEditor.');
           info = page;
         } else {
           const probed = await engine.probe(first);

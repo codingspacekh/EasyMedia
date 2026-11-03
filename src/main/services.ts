@@ -56,7 +56,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showOpenDialog(win(), {
         title: 'Open project',
         properties: ['openFile'],
-        filters: [{ name: 'EasyMedia project', extensions: ['mve'] }],
+        filters: [{ name: 'OneEditor project', extensions: ['mve'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -64,7 +64,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showSaveDialog(win(), {
         title: 'Save project',
         defaultPath: `${name}.mve`,
-        filters: [{ name: 'EasyMedia project', extensions: ['mve'] }],
+        filters: [{ name: 'OneEditor project', extensions: ['mve'] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
@@ -111,7 +111,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showOpenDialog(win(), {
         title: 'Open task check',
         properties: ['openFile'],
-        filters: [{ name: 'EasyMedia task check', extensions: ['mvetask'] }],
+        filters: [{ name: 'OneEditor task check', extensions: ['mvetask'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -119,7 +119,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showSaveDialog(win(), {
         title: 'Save task check',
         defaultPath: `${name}.mvetask`,
-        filters: [{ name: 'EasyMedia task check', extensions: ['mvetask'] }],
+        filters: [{ name: 'OneEditor task check', extensions: ['mvetask'] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
@@ -127,7 +127,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showOpenDialog(win(), {
         title: 'Open animation',
         properties: ['openFile'],
-        filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+        filters: [{ name: 'OneEditor animation', extensions: ['mvea'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -164,7 +164,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showSaveDialog(win(), {
         title: 'Save animation',
         defaultPath: `${name}.mvea`,
-        filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+        filters: [{ name: 'OneEditor animation', extensions: ['mvea'] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },

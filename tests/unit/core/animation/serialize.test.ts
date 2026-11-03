@@ -55,7 +55,7 @@ describe('.mvea files (AN16)', () => {
       ANIMATION_DAMAGED,
     );
     expect(() => deserializeAnimation('hello')).toThrow(ANIMATION_DAMAGED);
-    expect(ANIMATION_DAMAGED).toMatch(/not an EasyMedia animation/);
+    expect(ANIMATION_DAMAGED).toMatch(/not a OneEditor animation/);
   });
 
   it('refuses a file from a newer version of the app', () => {

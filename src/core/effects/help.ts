@@ -65,7 +65,7 @@ export const WHY = {
   recording:
     'Overdubbing records a new track — such as a voiceover — while the other tracks play, so the narration fits the music and the moments it talks about.',
   audioExport:
-    'Export makes a file that plays on other devices; the project itself only opens in EasyMedia. A lossy format (MP3, AAC) makes a small file for streaming, phones and email; a lossless one (WAV, FLAC) keeps the sound exactly. A lower sample rate, bit rate or mono makes the file smaller but loses quality.',
+    'Export makes a file that plays on other devices; the project itself only opens in OneEditor. A lossy format (MP3, AAC) makes a small file for streaming, phones and email; a lossless one (WAV, FLAC) keeps the sound exactly. A lower sample rate, bit rate or mono makes the file smaller but loses quality.',
   // ---- Animation mode (20.1) ----
   stage:
     'The stage is the area where the animation happens: only what is on it is seen. Its size in pixels and its aspect ratio (4:3, 16:9, 16:10, 2.35:1) are set for where the animation will be shown — a web page, a widescreen TV, a phone — and its colour is the background of every frame.',

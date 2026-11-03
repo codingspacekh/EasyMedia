@@ -126,8 +126,8 @@ test('N2 a 10 s 1024 × 768 animation of 100 objects exports as MP4 in 30 s or l
 test('N4 N5 a video project and the animation open together stay within 600 MB; start-up within 5 s', async () => {
   test.setTimeout(240_000);
   const report = join(dir, 'performance-report.json');
-  process.env.EASYMEDIA_PERF_REPORT = report;
-  const { app, window } = await launchApp().finally(() => delete process.env.EASYMEDIA_PERF_REPORT);
+  process.env.ONEEDITOR_PERF_REPORT = report;
+  const { app, window } = await launchApp().finally(() => delete process.env.ONEEDITOR_PERF_REPORT);
   // An exam-sized project: ten clips on the timeline (about 2½ minutes of 1080p).
   await answerDialogs(app, { open: CLIPS.map((c) => join(dir, c)) });
   await window.getByRole('button', { name: 'Import' }).click();

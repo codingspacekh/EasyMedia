@@ -194,7 +194,7 @@ test('AN15 HTML web animation: one file that plays by itself in a browser, with 
     await win.loadFile(file);
     const read = () =>
       win.webContents.executeJavaScript(`(() => {
-        const p = window.easymedia && window.easymedia.player;
+        const p = window.oneeditor && window.oneeditor.player;
         if (!p) return null;
         const c = document.getElementById('stage');
         const px = c.getContext('2d').getImageData(150, 140, 1, 1).data;
@@ -226,7 +226,7 @@ const clickScript = (x: number, y: number) => `(() => {
   const r = c.getBoundingClientRect();
   const at = { clientX: r.left + ${x} * r.width / c.width, clientY: r.top + ${y} * r.height / c.height, bubbles: true };
   c.dispatchEvent(new MouseEvent('click', at));
-  return window.easymedia.player.state();
+  return window.oneeditor.player.state();
 })()`;
 
 test('AN18 workbook Task 4: Pause and Continue buttons work in Test and in the exported web page', async () => {
@@ -264,7 +264,7 @@ test('AN18 workbook Task 4: Pause and Continue buttons work in Test and in the e
     app.evaluate(async ({ BrowserWindow }, s) => {
       const win = BrowserWindow.getAllWindows().find((w) => w.getTitle() === 'Test: Untitled')!;
       for (let i = 0; i < 100; i++) {
-        if (await win.webContents.executeJavaScript('!!window.easymedia')) break;
+        if (await win.webContents.executeJavaScript('!!window.oneeditor')) break;
         await new Promise((r) => setTimeout(r, 100));
       }
       return win.webContents.executeJavaScript(s);
@@ -272,7 +272,7 @@ test('AN18 workbook Task 4: Pause and Continue buttons work in Test and in the e
   const paused = await inTest(clickScript(55, 22));
   expect(paused.playing).toBe(false);
   await new Promise((r) => setTimeout(r, 400));
-  expect(await inTest('window.easymedia.player.state()')).toEqual(paused); // still on that frame
+  expect(await inTest('window.oneeditor.player.state()')).toEqual(paused); // still on that frame
   expect((await inTest(clickScript(55, 52))).playing).toBe(true);
 
   // The exported web page does the same in a plain browser window.
@@ -288,12 +288,12 @@ test('AN18 workbook Task 4: Pause and Continue buttons work in Test and in the e
       const win = new BrowserWindow({ show: false, width: 1300, height: 760 });
       await win.loadFile(file);
       for (let i = 0; i < 100; i++) {
-        if (await win.webContents.executeJavaScript('!!window.easymedia')) break;
+        if (await win.webContents.executeJavaScript('!!window.oneeditor')) break;
         await new Promise((r) => setTimeout(r, 100));
       }
       const afterPause = await win.webContents.executeJavaScript(pause);
       await new Promise((r) => setTimeout(r, 400));
-      const later = await win.webContents.executeJavaScript('window.easymedia.player.state()');
+      const later = await win.webContents.executeJavaScript('window.oneeditor.player.state()');
       const afterContinue = await win.webContents.executeJavaScript(resume);
       win.destroy();
       return { afterPause, later, afterContinue };

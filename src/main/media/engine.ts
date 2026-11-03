@@ -94,7 +94,7 @@ export function createNodeMediaEngine(
     if (!info.audio) throw new MediaError(NO_SOUND);
     const count = Math.min(2, info.audio.channels);
     const rate = sampleRate ?? info.audio.sampleRate;
-    const raw = join(tmpdir(), `easymedia-decode-${randomUUID()}.f32`);
+    const raw = join(tmpdir(), `oneeditor-decode-${randomUUID()}.f32`);
     await queue.run({
       label: 'Opening sound',
       args: decodeArgs(input, count, rate),
@@ -124,7 +124,7 @@ export function createNodeMediaEngine(
       }),
 
     async waveformPeaks(input: string, buckets: number): Promise<number[]> {
-      const raw = join(tmpdir(), `easymedia-wave-${randomUUID()}.f32`);
+      const raw = join(tmpdir(), `oneeditor-wave-${randomUUID()}.f32`);
       try {
         await queue.run({ label: 'Waveform', args: waveformArgs(input), output: raw }).done;
         const bytes = await readFile(raw);
@@ -223,7 +223,7 @@ export function createNodeMediaEngine(
       } catch (error) {
         return failedJob(error as Error);
       }
-      const raw = join(tmpdir(), `easymedia-export-${randomUUID()}.f32`);
+      const raw = join(tmpdir(), `oneeditor-export-${randomUUID()}.f32`);
       const data = interleave(audio.channels);
       return queue.run({
         label: 'Export audio',

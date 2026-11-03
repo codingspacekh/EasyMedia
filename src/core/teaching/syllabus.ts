@@ -1,12 +1,12 @@
 // Cambridge International AS & A Level IT 9626 (2025–2027), sections 11 and 20.1: every syllabus point in
-// its own words, where it is done in EasyMedia, and the app's tools under it (their `syllabus`
+// its own words, where it is done in OneEditor, and the app's tools under it (their `syllabus`
 // labels). The teacher notes are made from this (scripts/guides.ts).
 
 export interface SyllabusPoint {
   section: '11.1' | '11.2' | '20.1';
   group: string;
   point: string;
-  /** Where in EasyMedia (mode ▸ place). */
+  /** Where in OneEditor (mode ▸ place). */
   where: string;
   /** The `syllabus` labels of the effects and tools that teach it. */
   tools: readonly string[];

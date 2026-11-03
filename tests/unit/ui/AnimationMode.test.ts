@@ -65,7 +65,7 @@ describe('Animation mode layout', () => {
       screen.getByRole('button', { name: /^Stage settings: 16:9 · 1280 × 720 · 24 fps/ }),
     ).toBeTruthy();
     expect(screen.getByRole('application', { name: 'Stage' })).toBeTruthy();
-    expect(document.title).toBe('Untitled animation — EasyMedia');
+    expect(document.title).toBe('Untitled animation — OneEditor');
     expect((screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -92,7 +92,7 @@ describe('drawing (AN3, AN4)', () => {
     expect((screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement).disabled).toBe(
       false,
     );
-    expect(document.title).toBe('Untitled animation • — EasyMedia');
+    expect(document.title).toBe('Untitled animation • — OneEditor');
   });
 
   it('Task 1: a star dragged out, then typed to 135 × 135 at (128, 102) in the Properties panel', async () => {

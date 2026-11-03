@@ -54,7 +54,7 @@ describe('the web page’s files (AN15)', () => {
   it('refuses a file the app did not open, or one that is not a picture', async () => {
     const s = setup();
     await expect(s.assets.pictureDataUrl('/work/Paris1.jpg')).rejects.toThrow(
-      /opened in EasyMedia/,
+      /opened in OneEditor/,
     );
     s.allow.add('/work/secret.txt');
     await expect(s.assets.pictureDataUrl('/work/secret.txt')).rejects.toThrow(/picture/);

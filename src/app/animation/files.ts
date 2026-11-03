@@ -121,7 +121,7 @@ export function fileActions(ctx: AnimationContext) {
       try {
         const lost = animationFromDisk(deserializeAnimation(text), dirOf(recovery));
         if (
-          await dialogs.confirm('EasyMedia closed before your animation was saved. Restore it?')
+          await dialogs.confirm('OneEditor closed before your animation was saved. Restore it?')
         ) {
           await loadChecked(lost, null, createAnimation({ name: 'Untitled' }));
           return;

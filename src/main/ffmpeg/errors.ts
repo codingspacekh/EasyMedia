@@ -5,7 +5,7 @@ const RULES: [RegExp, string][] = [
   [/No such file or directory/i, FILE_NOT_FOUND],
   [
     /Permission denied/i,
-    'EasyMedia is not allowed to read or save this file. Check it is not open in another program and that you can save in this folder.',
+    'OneEditor is not allowed to read or save this file. Check it is not open in another program and that you can save in this folder.',
   ],
   [/No space left on device/i, 'The disk is full. Free some space and try again.'],
   [
@@ -14,15 +14,15 @@ const RULES: [RegExp, string][] = [
   ],
   [
     /Decoder .* not found|codec not currently supported/i,
-    'EasyMedia cannot read the format inside this file. Try converting it to MP4 first.',
+    'OneEditor cannot read the format inside this file. Try converting it to MP4 first.',
   ],
   [
     /does not contain any stream|matches no streams/i,
-    'This file has no picture or sound that EasyMedia can use.',
+    'This file has no picture or sound that OneEditor can use.',
   ],
   [
     /Invalid data found when processing input|moov atom not found/i,
-    'This file is damaged, or it is not a video, sound or picture file that EasyMedia can read.',
+    'This file is damaged, or it is not a video, sound or picture file that OneEditor can read.',
   ],
 ];
 

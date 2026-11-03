@@ -17,5 +17,5 @@ void boot({
   loadFont: async (font) => document.fonts?.load(font),
 }).then((started) => {
   // For a test (or a curious student's console): the player's state.
-  (window as unknown as { easymedia?: unknown }).easymedia = started;
+  (window as unknown as { oneeditor?: unknown }).oneeditor = started;
 });

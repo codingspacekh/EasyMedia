@@ -111,7 +111,7 @@ export function registerIpc(s: MainServices): void {
     },
     'media:resizeCrop': async (input, plan) => {
       resizeCropFilter(plan); // explains a bad crop before anything else
-      if (!s.allow.has(input)) throw new Error('Only pictures opened in EasyMedia can be cropped.');
+      if (!s.allow.has(input)) throw new Error('Only pictures opened in OneEditor can be cropped.');
       const path = await s.engine.resizeCropImage(input, plan);
       s.allow.add(path);
       return path;
@@ -145,7 +145,7 @@ export function registerIpc(s: MainServices): void {
       const base = s.paths.animationFrames;
       const inside = base ? relative(base, folder) : '';
       if (!base || inside === '' || inside.startsWith('..') || isAbsolute(inside))
-        throw new Error('Only frames drawn by EasyMedia can be exported.');
+        throw new Error('Only frames drawn by OneEditor can be exported.');
       return track(key, 'Export animation', s.engine.encodeFrames(folder, output, options), () =>
         s.allow.add(output),
       );
@@ -186,7 +186,7 @@ export function registerIpc(s: MainServices): void {
       return null;
     },
     'project:copy': async (from, to) => {
-      if (!s.allow.has(from)) throw new Error('Only files opened in EasyMedia can be copied.');
+      if (!s.allow.has(from)) throw new Error('Only files opened in OneEditor can be copied.');
       await s.files.copy(from, to);
       return null;
     },
@@ -196,7 +196,7 @@ export function registerIpc(s: MainServices): void {
     },
     'page:player': async () => new TextDecoder().decode(await s.pageFiles.read(s.pageFiles.player)),
     'page:picture': async (path) => {
-      if (!s.allow.has(path)) throw new EditError('Only pictures opened in EasyMedia can be used.');
+      if (!s.allow.has(path)) throw new EditError('Only pictures opened in OneEditor can be used.');
       const type = PICTURE_TYPES[/\.(\w+)$/.exec(path)?.[1]?.toLowerCase() ?? ''];
       if (!type)
         throw new EditError('Only a picture (PNG, JPG, GIF, BMP or SVG) can go in a web page.');

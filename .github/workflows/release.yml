@@ -21,7 +21,7 @@ jobs:
       TAG: ${{ github.ref_name }}
     steps:
       - run: |
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "EasyMedia ${TAG#v}" \
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "OneEditor ${TAG#v}" \
             --notes "Installers for Windows (x64) and macOS (Apple chip: arm64, Intel: x64). How to install: docs/INSTALL.md."
 
   installers:

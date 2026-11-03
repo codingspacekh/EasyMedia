@@ -561,7 +561,7 @@ export function addEffect(id: Id, effectId: string): Command {
     label: 'Add effect',
     apply: (p) => {
       const def = effectById(effectId);
-      if (!def) throw new EditError('This effect is not available in this version of EasyMedia.');
+      if (!def) throw new EditError('This effect is not available in this version of OneEditor.');
       return updateMain(p, id, (item) => ({
         ...item,
         effects: [...(item.effects ?? []), { effectId, params: defaultParams(def) }],
@@ -610,7 +610,7 @@ export function setTransition(id: Id, transition: Transition | null): Command {
           );
         }
         if (!transitionById(transition.effectId)) {
-          throw new EditError('This transition is not available in this version of EasyMedia.');
+          throw new EditError('This transition is not available in this version of OneEditor.');
         }
         const shortest = Math.min(
           itemDuration(p.timeline.main[index - 1]!),

@@ -1,6 +1,6 @@
-# EasyMedia — teacher notes
+# OneEditor — teacher notes
 
-Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in EasyMedia, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks' key words.
+Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in OneEditor, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks' key words.
 
 _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's tools: do not edit by hand._
 
@@ -8,7 +8,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### Editing a video clip for its application and audience
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | setting an aspect ratio | Video ▸ the project settings chip (16:9 · 1920 × 1080 · 30 fps) at the top | Aspect ratio |
 | trimming a video clip to remove unwanted footage | Video ▸ drag a clip’s edges on the timeline, or its Clip tab ▸ Trim (Start point, End point) | Trim, Delete |
@@ -33,13 +33,13 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### The effects of different methods of compression
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | how the different compression methods affect video quality | Learn ▸ Formats & compression: the video comparison (lossless, MP4 high, smaller sizes) and the format guide | — |
 
 ### Why typical video editing features are used
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | trimming and cropping a video clip | the "Why use this?" box of the tool, and the glossary (Learn ▸ Glossary) | — |
 | creating text-based slides | the "Why use this?" box of the tool, and the glossary (Learn ▸ Glossary) | — |
@@ -54,7 +54,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### Advantages and disadvantages of export file formats
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | advantages and disadvantages of export file formats (video) | Video ▸ Export and Learn ▸ Format guide | — |
 
@@ -62,7 +62,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### Editing an audio clip for its application and audience
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | importing new tracks | Audio ▸ Import audio, or Tracks ▸ Import audio as new track | New track |
 | adding a track to an existing audio clip | Audio ▸ Tracks ▸ Add new mono / stereo track; Align; Mix and render | Move track, Mix and render, Remove track |
@@ -83,7 +83,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### How and why typical audio editing features are used
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | trimming | the "Why use this?" box of the tool, and the glossary (Learn ▸ Glossary) | — |
 | splicing/joining together two audio clips | the "Why use this?" box of the tool, and the glossary (Learn ▸ Glossary) | — |
@@ -96,20 +96,20 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### Advantages and disadvantages of export file formats
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | advantages and disadvantages of export file formats (audio) | Audio ▸ Export and Learn ▸ Format guide | — |
 
 ### Why file sizes depend on sampling rate and resolution
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | describing sampling rate and sampling resolution | Learn ▸ Sampling visualiser; Audio ▸ the side panel (Selected track) | — |
 | why file sizes depend on sampling rate and sampling resolution | Learn ▸ Audio file-size calculator ("What if…"); Audio ▸ side panel "Why this size?" | — |
 
 ### The effects of different methods of compression
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | how the different compression methods affect the audio quality | Learn ▸ Formats & compression: WAV, FLAC and MP3 at three bit rates, played side by side; Audio ▸ Effect ▸ Compressor (dynamic range) | Compressor |
 | saving in files v containers | Learn ▸ Media inspector ▸ "File vs container" | — |
@@ -119,7 +119,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### Using software tools for the creation and editing of computer animations
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience | Animation ▸ the stage, timeline and export; Import frames… (stop motion) on the tool strip; Learn ▸ Animation (types of animation) | Import frames (stop motion) |
 | configuring the stage/frame/canvas: colour, size | Animation ▸ the stage chip (600 × 400 · 24 fps · colour) at the top | Stage settings |
@@ -137,20 +137,20 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 ### The basic principles of animation
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline (keyframes per property); the rulers show coordinates; Learn ▸ Animation (principles, and the frame-rate demonstration) | Timeline and keyframes, Frame-by-frame layer, Effects |
 | inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Frame-by-frame layer, Effects, Morph |
 
 ### Different animation types and methods
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (types of animation, with advantages and disadvantages); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation | Import frames (stop motion), Timeline and keyframes, Frame-by-frame layer, Effects |
 
 ### Components of an animation and animation variables
 
-| Syllabus point | Where in EasyMedia | Tools |
+| Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
 | the primary (main focus, such as main characters), the secondary (sound, background), other components | Learn ▸ Animation (components and animation variables) | — |
 | the use of animation variables to control the position of an animated object or parts of an animated object | Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (components and animation variables) | Group |

@@ -7,7 +7,7 @@ import { bundledPackages } from './licences.ts';
 
 export function recordPackages(name: string): Plugin {
   return {
-    name: 'easymedia-record-packages',
+    name: 'oneeditor-record-packages',
     apply: 'build',
     generateBundle() {
       const packages = bundledPackages([...this.getModuleIds()]);
