@@ -21,6 +21,7 @@
   import Icon from './Icon.svelte';
   import { ui, type InspectorTab } from './ui-state.svelte.ts';
   import TextInspector from './TextInspector.svelte';
+  import NumberField from './NumberField.svelte';
   import TimeField from './TimeField.svelte';
   import Why from './Why.svelte';
 
@@ -225,6 +226,13 @@
             >
           {/each}
         </div>
+        <NumberField
+          label="Speed"
+          value={item.speed}
+          unit="×"
+          example="1.25"
+          commit={(n) => app.edit(setClipSpeed(item.id, n))}
+        />
         <p class="hint">
           Source {(item.out - item.in).toFixed(2)} s ÷ {item.speed} = {itemDuration(item).toFixed(
             2,

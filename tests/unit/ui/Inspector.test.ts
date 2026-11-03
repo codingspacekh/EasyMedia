@@ -47,6 +47,23 @@ describe('M5 inspector', () => {
     expect(screen.getByRole('button', { name: '1.5×' }).getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('V14 any speed can be typed, e.g. 1.25× (M/J/26 Q1): 10 s → 8 s', async () => {
+    const { item } = await selected('/m/clip.mp4');
+    await type('Speed', '1.25');
+    expect(item()).toMatchObject({ speed: 1.25 });
+    expect(screen.getByText('8.00 s')).toBeTruthy();
+    expect(field('Speed').value).toBe('1.25');
+  });
+
+  it('V14 a typed speed outside 0.25×–4× is explained and changes nothing', async () => {
+    const { item } = await selected('/m/clip.mp4');
+    await type('Speed', '5');
+    expect(screen.getByRole('alert').textContent).toMatch(/between 0\.25× and 4×/);
+    await type('Speed', 'fast');
+    expect(screen.getByRole('alert').textContent).toMatch(/type a number such as 1\.25/i);
+    expect(item()).toMatchObject({ speed: 1 });
+  });
+
   it('explains a time it cannot read, next to the box, and changes nothing', async () => {
     const { item } = await selected('/m/clip.mp4');
     await type('End point', 'abc');

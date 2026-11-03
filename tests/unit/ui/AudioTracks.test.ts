@@ -81,6 +81,14 @@ describe('V13 split, join and speed of a sound (like a video clip)', () => {
     expect(sound().speed).toBe(2);
     expect(screen.getByText(/30\.00 s ÷ 2 = 15\.00 s on the timeline/)).toBeTruthy();
   });
+
+  it('V14 the sound speed can be typed too, e.g. 1.25×', async () => {
+    const { app, sound } = await withMusic();
+    render(Inspector, { props: { app } });
+    await type('Speed', '1.25');
+    expect(sound().speed).toBe(1.25);
+    expect(screen.getByText(/30\.00 s ÷ 1\.25 = 24\.00 s on the timeline/)).toBeTruthy();
+  });
 });
 
 describe('V13 audio inspector (screen 08)', () => {

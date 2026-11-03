@@ -17,6 +17,7 @@
   import { fileNameOf } from '../core/project/relocate.ts';
   import Icon from './Icon.svelte';
   import PercentField from './PercentField.svelte';
+  import NumberField from './NumberField.svelte';
   import TimeField from './TimeField.svelte';
 
   let { app, item, track }: { app: App; item: AudioItem; track: 0 | 1 } = $props();
@@ -90,6 +91,13 @@
       >
     {/each}
   </div>
+  <NumberField
+    label="Speed"
+    value={speed}
+    unit="×"
+    example="1.25"
+    commit={(n) => app.edit(setSoundSpeed(item.id, n))}
+  />
   <p class="hint">
     {(item.out - item.in).toFixed(2)} s ÷ {speed} = {length.toFixed(2)} s on the timeline. The pitch stays
     the same.
