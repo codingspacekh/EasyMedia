@@ -1,23 +1,24 @@
 // Export audio (screen 20; A15–A17, T7).
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import AudioExportDialog from '../../../src/ui/audio/AudioExportDialog.svelte';
 import App from '../../../src/ui/App.svelte';
 import { ui } from '../../../src/ui/ui-state.svelte.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
-async function withSound() {
+async function withSound(channels = 2, before?: (app: ReturnType<typeof testApp>['app']) => void) {
   const t = testApp({
     '/m/Task_11j.mp3': {
       kind: 'audio',
       container: 'mp3',
       duration: 45,
       sizeBytes: 1,
-      audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+      audio: { codec: 'mp3', sampleRate: 44100, channels },
     },
   });
   t.dialogs.openMedia.mockResolvedValueOnce(['/m/Task_11j.mp3']);
   await t.app.audio.importAudio();
+  before?.(t.app);
   const onclose = vi.fn();
   render(AudioExportDialog, { props: { app: t.app, onclose } });
   return { ...t, onclose, dialog: screen.getByRole('dialog', { name: 'Export audio' }) };
@@ -40,6 +41,17 @@ describe('audio export dialog', () => {
     expect(dialog.textContent).toMatch(/about 11× smaller/);
     expect(within(dialog).getByText('Lossy')).toBeTruthy();
     expect(within(dialog).getByText(/plays on almost every device/i)).toBeTruthy();
+  });
+
+  it('starts as Mono for mono tracks in the centre, Stereo once one is panned (M17 exam trial)', async () => {
+    await withSound(1);
+    expect(pressed('Channels', 'Mono')).toBe('true');
+    cleanup();
+    await withSound(1, (app) => {
+      const id = app.audio.store.get().history.present.tracks[0]!.id;
+      app.audio.setTrack(id, { pan: -1 });
+    });
+    expect(pressed('Channels', 'Stereo')).toBe('true');
   });
 
   it('A16 MP3 cannot be 96 kHz; WAV can, and has 16 / 24 / 32-bit instead of a bit rate', async () => {

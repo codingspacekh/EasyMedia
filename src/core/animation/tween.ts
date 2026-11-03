@@ -400,10 +400,14 @@ function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
  */
 export function objectAt<T extends AnimObject>(object: T, frame: number): T {
   let o: T = object;
+  // A text's font size goes first: it scales the box, and width or height keyframes (Properties
+  // keys the measured box with the size) then give the box exactly, not scaled a second time.
   // The shape goes last, so it is drawn in the box the size keyframes give (AN10).
   const tracks = object.tracks ?? [];
+  const middle = (p: TweenProperty) => p !== 'shape' && p !== 'size';
   for (const track of [
-    ...tracks.filter((t) => t.property !== 'shape'),
+    ...tracks.filter((t) => t.property === 'size'),
+    ...tracks.filter((t) => middle(t.property)),
     ...tracks.filter((t) => t.property === 'shape'),
   ]) {
     if (track.keyframes.length === 0) continue;

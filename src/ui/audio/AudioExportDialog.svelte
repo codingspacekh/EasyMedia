@@ -29,7 +29,8 @@
       const doc = app.audio.store.get().history.present;
       return defaultAudioExport({
         rate: doc.rate,
-        channels: doc.tracks.some((t) => t.channelCount === 2) ? 2 : 1,
+        // Stereo when a track is, or when one is panned: then left and right differ.
+        channels: doc.tracks.some((t) => t.channelCount === 2 || t.pan !== 0) ? 2 : 1,
       });
     }),
   );

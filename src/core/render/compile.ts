@@ -64,6 +64,17 @@ const SAMPLE_RATE = 48000;
 const SILENCE = 'anullsrc=r=48000:cl=stereo';
 const AUDIO_FORMAT = 'aformat=sample_rates=48000:channel_layouts=stereo';
 
+/**
+ * V10: where a snapshot seeks in the finished video. FFmpeg keeps the first frame at or after the
+ * time, so a playhead inside the last frame (9.99 s of a 10 s video at 30 fps: that frame starts at
+ * 9.9666…) left it no frame to write. There the seek goes half a frame before the last frame
+ * starts, clear of rounding; any other time is kept.
+ */
+function seekTo(time: Seconds, total: Seconds, fps: number): Seconds {
+  const last = Math.ceil(total * fps - 1e-6) - 1;
+  return time > last / fps - 1e-6 ? Math.max(0, (last - 0.5) / fps) : time;
+}
+
 export function compileProject(project: Project, options: RenderOptions): RenderPlan {
   assertExportable(project);
   const { settings } = project;
@@ -270,7 +281,8 @@ export function compileProject(project: Project, options: RenderOptions): Render
         ...inputs,
         '-filter_complex',
         filters.join(';'),
-        ...['-map', '[vout]', '-ss', num(frameAt), '-frames:v', '1', '-update', '1', '-an'],
+        ...['-map', '[vout]', '-ss', num(seekTo(frameAt, total, settings.fps)), '-frames:v', '1'],
+        ...['-update', '1', '-an'],
       ],
       duration: total,
       hasAudio: false,

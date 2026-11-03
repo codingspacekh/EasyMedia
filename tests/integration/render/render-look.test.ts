@@ -170,6 +170,15 @@ describe('looks in the exported video', () => {
       for (let x = 0; x < 16; x++)
         a.at(x, y).forEach((v, i) => expect(Math.abs(v - b.at(x, y)[i]!)).toBeLessThan(10));
   });
+
+  it('V10 a snapshot with the playhead inside the very last frame (M17 exam trial)', async () => {
+    const p = createProject({ name: 'last' });
+    const main = [still('s', 1), clip('v', 3, 5)];
+    const project: Project = { ...p, media: [hd, halves], timeline: { ...p.timeline, main } };
+    const snap = join(dir, 'last.png');
+    expect(await engine.renderFrame(project, 2.99, snap, { projectDir: dir })).toBe(snap);
+    expect((await engine.probe(snap)).video).toBeTruthy();
+  });
 });
 
 function title(colour: string, id: string): TitleSlide {

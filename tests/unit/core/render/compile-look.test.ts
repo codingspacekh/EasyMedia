@@ -140,6 +140,19 @@ describe('V10 one frame for a snapshot', () => {
     expect(plan.args.join(' ')).toContain('colorchannelmixer'); // the look is in the frame
   });
 
+  it('the playhead inside the last frame takes that frame (it seeks just before it starts)', () => {
+    // M17 exam trial: at 14.99 s of a 15 s video at 30 fps the last frame starts at 14.9666…; a
+    // seek to 14.99 left FFmpeg no frame to write ("Something went wrong").
+    const seek = (frameAt: number) => {
+      const args = compileProject(p(), { ...options, frameAt }).args;
+      return Number(args[args.indexOf('-ss', args.indexOf('[vout]')) + 1]);
+    };
+    expect(seek(449 / 30)).toBeCloseTo(448.5 / 30, 5);
+    expect(seek(14.99)).toBeCloseTo(448.5 / 30, 5);
+    expect(seek(14.9)).toBe(14.9); // any other time is kept: the first frame at or after it
+    expect(seek(0)).toBe(0);
+  });
+
   it('explains a time outside the video', () => {
     expect(() => compileProject(p(), { ...options, frameAt: 15 })).toThrow(
       /playhead onto the video/i,
