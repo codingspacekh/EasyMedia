@@ -3,7 +3,7 @@
 // in a new start of the app (the pictures still drawn), and packaged with its pictures.
 import { expect, test, type Page } from '@playwright/test';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -303,5 +303,177 @@ test('AN18 workbook Task 4: Pause and Continue buttons work in Test and in the e
   expect(states.afterPause.playing).toBe(false);
   expect(states.later).toEqual(states.afterPause);
   expect(states.afterContinue.playing).toBe(true);
+  await app.close();
+});
+
+// ---- M16 exit gate in the real app: real picture files, stop motion and frame-by-frame ----
+
+/** The colour of one pixel of a video at a time (s), as [r, g, b]. */
+async function rgbAt(file: string, seconds: number, x: number, y: number): Promise<number[]> {
+  const { stdout } = await execFileAsync(
+    bundledFfmpeg().ffmpeg,
+    [
+      ...['-v', 'error', '-ss', String(seconds), '-i', file, '-frames:v', '1'],
+      // To RGB first: a 1 × 1 crop of yuv420p video would leave no colour plane.
+      ...['-vf', `format=rgb24,crop=1:1:${x}:${y}`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
+    ],
+    { encoding: 'buffer' },
+  );
+  return [...(stdout as Buffer).subarray(0, 3)];
+}
+
+async function stageSize(page: Page, width: number, height: number, length: number) {
+  await page.getByRole('button', { name: /^Stage settings/ }).click();
+  const settings = page.getByRole('dialog', { name: 'Stage settings' });
+  await type(page, 'Width', String(width));
+  await type(page, 'Height', String(height));
+  await type(page, 'Length', String(length));
+  await settings.getByRole('button', { name: 'Apply' }).click();
+}
+
+async function goTo(page: Page, frame: number) {
+  const box = page.getByLabel('Go to frame');
+  await box.fill(String(frame));
+  await box.press('Enter');
+}
+
+async function exportAs(
+  page: Page,
+  app: Parameters<typeof answerDialogs>[0],
+  format: RegExp,
+  file: string,
+) {
+  await answerDialogs(app, { exportTo: file });
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export animation' });
+  await dialog.getByRole('radio', { name: format }).check();
+  await dialog.getByRole('button', { name: 'Export file' }).click();
+  await expect(dialog).toBeHidden({ timeout: 120_000 });
+  await expect.poll(() => exists(file), { timeout: 60_000 }).toBe(true);
+}
+
+/** A JPG photograph of one colour, made by FFmpeg. */
+async function photo(name: string, colour: string, size: string) {
+  const file = join(dir, name);
+  await execFileAsync(bundledFfmpeg().ffmpeg, [
+    ...['-v', 'error', '-f', 'lavfi', '-i', `color=${colour}:s=${size}`, '-frames:v', '1'],
+    ...['-q:v', '2', file],
+  ]);
+  return file;
+}
+
+test('Workbook Task 3 with real photographs: each slide moves in from the left and the MP4 shows it', async () => {
+  test.setTimeout(300_000);
+  const slides = [
+    await photo('Paris1.jpg', 'red', '800x600'),
+    await photo('Paris2.jpg', 'lime', '450x600'), // portrait
+  ];
+  const { app, window: page } = await launchApp();
+  await animationMode(page);
+  await stageSize(page, 1024, 768, 144);
+  // Paris1 comes in from the left over 3 s (frames 0–72) to (110, 80); Paris2 in the 4th–6th s.
+  for (const [i, file] of slides.entries()) {
+    await answerDialogs(app, { open: [file] });
+    await goTo(page, 0);
+    await placePicture(page, `Paris${i + 1}.jpg`, [-900, 80]);
+    await goTo(page, 72 * i);
+    await page.getByRole('button', { name: 'Insert keyframe' }).click();
+    await goTo(page, 72 * i + 72);
+    await type(page, 'X', '110');
+  }
+  const mp4 = join(dir, 'Chapter07_Task3.mp4');
+  await exportAs(page, app, /MP4 video/, mp4);
+  // At 1.5 s Paris1 is halfway in: its right edge has passed the middle of where it ends.
+  expect(near(await rgbAt(mp4, 1.5, 50, 300), [255, 0, 0])).toBe(true);
+  expect(near(await rgbAt(mp4, 3, 500, 300), [255, 0, 0])).toBe(true);
+  // At 6 s the portrait Paris2 is in place over Paris1, keeping its own shape (450 × 600).
+  expect(near(await rgbAt(mp4, 5.9, 300, 300), [0, 255, 0])).toBe(true);
+  expect(near(await rgbAt(mp4, 5.9, 700, 300), [255, 0, 0])).toBe(true);
+  await app.close();
+});
+
+test('AN14 Import frames: a folder of photographs becomes a stop motion, exported picture by picture', async () => {
+  test.setTimeout(300_000);
+  const folder = join(dir, 'clay');
+  await mkdir(folder);
+  const colours = ['red', 'lime', 'blue', 'yellow'];
+  for (const [i, colour] of colours.entries())
+    await execFileAsync(bundledFfmpeg().ffmpeg, [
+      ...['-v', 'error', '-f', 'lavfi', '-i', `color=${colour}:s=320x240`, '-frames:v', '1'],
+      join(folder, `shot${i + 1}.png`),
+    ]);
+  await writeFile(join(folder, 'notes.txt'), 'not a picture');
+  const { app, window: page } = await launchApp();
+  await animationMode(page);
+  await stageSize(page, 320, 240, 24);
+  await page.getByRole('button', { name: 'Import frames', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Import frames' });
+  await dialog.getByLabel('Pictures a second').fill('4');
+  await answerDialogs(app, { open: [folder] });
+  await dialog.getByRole('button', { name: 'Choose folder…' }).click();
+  await expect(page.getByText(/Imported 4 pictures: 1 s at 4 pictures a second/)).toBeVisible();
+  const mp4 = join(dir, 'clay.mp4');
+  await exportAs(page, app, /MP4 video/, mp4);
+  // Each picture is held for a quarter of a second, in the order of the names.
+  expect(near(await rgbAt(mp4, 0.1, 160, 120), [255, 0, 0])).toBe(true);
+  expect(near(await rgbAt(mp4, 0.35, 160, 120), [0, 255, 0])).toBe(true);
+  expect(near(await rgbAt(mp4, 0.6, 160, 120), [0, 0, 255])).toBe(true);
+  expect(near(await rgbAt(mp4, 0.85, 160, 120), [255, 255, 0])).toBe(true);
+  await app.close();
+});
+
+test('AN14 frame-by-frame: Duplicate frame and onion skin on the stage; exported drawing by drawing', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  await animationMode(page);
+  await stageSize(page, 400, 200, 24);
+  // A black square at (20, 80) in the first drawing.
+  await tools(page).getByRole('button', { name: 'Rectangle', exact: true }).click();
+  const stage = (await page.getByRole('application', { name: 'Stage' }).boundingBox())!;
+  await page.mouse.move(stage.x + stage.width * 0.4, stage.y + stage.height * 0.4);
+  await page.mouse.down();
+  await page.mouse.move(stage.x + stage.width * 0.5, stage.y + stage.height * 0.6, { steps: 4 });
+  await page.mouse.up();
+  for (const [label, value] of [
+    ['X', '20'],
+    ['Y', '80'],
+    ['W', '40'],
+    ['H', '40'],
+  ] as const)
+    await type(page, label, value);
+  await page.getByRole('button', { name: 'Make frame-by-frame' }).click();
+  // The next drawing at frame 12: a copy, moved to (300, 80).
+  await goTo(page, 12);
+  await page.getByRole('button', { name: 'Duplicate frame' }).click();
+  await type(page, 'X', '300');
+
+  /** The stage canvas's pixel at a stage point, as [r, g, b]. */
+  const pixel = (x: number, y: number) =>
+    page.evaluate(
+      ([px, py]) => {
+        const c = document.querySelector('.paper canvas') as HTMLCanvasElement;
+        const scale = c.width / 400;
+        const d = c
+          .getContext('2d')!
+          .getImageData(Math.round(px! * scale), Math.round(py! * scale), 1, 1).data;
+        return [d[0]!, d[1]!, d[2]!];
+      },
+      [x, y],
+    );
+  // Without onion skin only the drawing at frame 12 is seen; with it, the first one faintly.
+  expect(await pixel(40, 100)).toEqual([255, 255, 255]);
+  await page.getByRole('button', { name: 'Onion skin' }).click();
+  await expect.poll(async () => (await pixel(40, 100))[0]).toBeLessThan(250);
+  const faint = await pixel(40, 100);
+  expect(faint[0]).toBeGreaterThan(120); // faint, not solid
+  expect((await pixel(320, 100))[0]).toBeLessThan(160); // the drawing itself, solid
+
+  // The export never shows the onion skin.
+  const mp4 = join(dir, 'flipbook.mp4');
+  await exportAs(page, app, /MP4 video/, mp4);
+  expect(near(await rgbAt(mp4, 0.2, 40, 100), [154, 164, 178])).toBe(true); // the first drawing
+  expect(near(await rgbAt(mp4, 0.2, 320, 100), [255, 255, 255])).toBe(true);
+  expect(near(await rgbAt(mp4, 0.75, 40, 100), [255, 255, 255])).toBe(true); // the second drawing
+  expect(near(await rgbAt(mp4, 0.75, 320, 100), [154, 164, 178])).toBe(true);
   await app.close();
 });
