@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createAnimation,
+  createButton,
   createEllipse,
   createLayer,
   createPicture,
@@ -108,6 +109,42 @@ describe('AN22 SVG picture of a frame', () => {
     );
     expect(svg).toMatch(
       /<g clip-path="url\(#c1\)">\n<path d="M0 0L600 0L600 400L0 400Z"[^>]*\/>\n<\/g>/,
+    );
+  });
+
+  it('a radial gradient, outlined italic text and a button (its label in the middle)', () => {
+    const svg = stageSvg(
+      stageWith([
+        {
+          ...createEllipse({ x: 0, y: 0, width: 100, height: 60 }),
+          fill: { kind: 'radial', from: '#ffffff', to: '#B40000' },
+        },
+        {
+          ...createText('Bite', { x: 10, y: 200, size: 40 }),
+          italic: true,
+          stroke: { colour: '#000000', width: 2, dash: 'dotted' },
+        },
+        { ...createButton('pause', { x: 300, y: 300 }), rotation: 45 },
+      ]),
+    );
+    expect(svg).toMatch(
+      /<radialGradient id="g1" gradientUnits="userSpaceOnUse" cx="50" cy="30" r="50">/,
+    );
+    expect(svg).toMatch(
+      /<text [^>]*font-style="italic"[^>]*fill="none" stroke="#000000"[^>]*>Bite<\/text>/,
+    );
+    expect(svg).toMatch(
+      /<text [^>]*dominant-baseline="central"[^>]*transform="matrix\(0\.707 0\.707 -0\.707 0\.707 [\d.]+ [\d.]+\)">Pause<\/text>/,
+    );
+  });
+
+  it('a picture that could not be read is the dashed box the stage shows', () => {
+    const picture = { id: 'p1', path: '/m/leaf.png', width: 40, height: 30 };
+    const doc = { ...stageWith([createPicture(picture, { x: 5, y: 6 })]), pictures: [picture] };
+    const svg = stageSvg(doc);
+    expect(svg).not.toContain('<image');
+    expect(svg).toMatch(
+      /<path d="M5 6L45 6L45 36L5 36Z" fill="none" stroke="#9aa4b2" stroke-width="1"[^>]*stroke-dasharray="4 4"\/>/,
     );
   });
 });

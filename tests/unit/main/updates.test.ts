@@ -1,5 +1,6 @@
 // M17a U1–U5: the main process's updates, with a fake electron-updater (the real one needs an
 // installed app and a release to find).
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { NO_UPDATE_PREFS, type UpdatePrefs, type UpdateState } from '../../../src/core/updates.ts';
 import { createUpdates, type Updater, type UpdatesDeps } from '../../../src/main/updates.ts';
@@ -138,6 +139,66 @@ describe('U2 Download, then Restart and update', () => {
   });
 });
 
+describe('U2 the rarer turns', () => {
+  it('a Mac that refuses the signed update while downloading is offered the .dmg instead', async () => {
+    const { updates, emit } = setup();
+    updates.start();
+    emit('update-available', { version: '1.5.1', releaseNotes: '' });
+    await updates.download();
+    emit('error', new Error('Code signature at URL … did not pass validation'));
+    expect(updates.get()).toMatchObject({ mode: 'dmg', status: 'available', error: null });
+  });
+
+  it('looking again after the download keeps it ready; a failed download says so', async () => {
+    const { updates, emit, updater } = setup();
+    updates.start();
+    emit('update-available', { version: '1.5.1', releaseNotes: '' });
+    await updates.download();
+    emit('update-downloaded', { version: '1.5.1' });
+    emit('checking-for-update');
+    emit('update-available', { version: '1.5.1', releaseNotes: '' });
+    expect(updates.get().status).toBe('ready');
+    expect(updater.downloadUpdate).toHaveBeenCalledTimes(1);
+    const other = setup();
+    other.updates.start();
+    other.emit('update-available', { version: '1.5.1', releaseNotes: '' });
+    await other.updates.download();
+    other.emit('error', new Error('sha512 checksum mismatch'));
+    expect(other.updates.get()).toMatchObject({
+      status: 'error',
+      error: expect.stringMatching(/Could not get the update/),
+    });
+  });
+
+  it('nothing to download, a look while looking, and a .dmg to show: nothing happens wrongly', async () => {
+    const { updates, emit, updater, deps } = setup();
+    updates.start();
+    await updates.download();
+    expect(updater.downloadUpdate).not.toHaveBeenCalled();
+    emit('checking-for-update');
+    await updates.check();
+    expect(updater.checkForUpdates).not.toHaveBeenCalled();
+    updates.showDmg();
+    expect(deps.showItem).not.toHaveBeenCalled();
+  });
+
+  it('a failed .dmg download says so', async () => {
+    const { updates, emit } = setup({
+      mode: 'dmg',
+      fetchToFile: vi.fn(async () => {
+        throw new Error('The download answered 404.');
+      }),
+    });
+    updates.start();
+    emit('update-available', { version: '1.5.1', releaseNotes: '' });
+    await updates.download();
+    expect(updates.get()).toMatchObject({
+      status: 'error',
+      error: expect.stringMatching(/Could not get/),
+    });
+  });
+});
+
 describe('U4 after an update', () => {
   it('says once "Updated to 1.5.1" with its what is new; seen, it is gone', () => {
     const { updates, prefs } = setup(
@@ -172,16 +233,15 @@ describe('U1 off and dmg modes', () => {
     updates.start();
     emit('update-available', { version: '1.5.1', releaseNotes: '' });
     await updates.download();
+    // node:path join, as on the computer it runs on (Windows CI writes \\).
+    const file = join('/Users/x/Downloads', 'OneEditor-1.5.1-mac-arm64.dmg');
     expect(deps.fetchToFile).toHaveBeenCalledWith(
       'https://github.com/codingspacekh/OneEditor/releases/latest/download/OneEditor-1.5.1-mac-arm64.dmg',
-      '/Users/x/Downloads/OneEditor-1.5.1-mac-arm64.dmg',
+      file,
       expect.any(Function),
     );
-    expect(updates.get()).toMatchObject({
-      status: 'dmg',
-      dmg: '/Users/x/Downloads/OneEditor-1.5.1-mac-arm64.dmg',
-    });
+    expect(updates.get()).toMatchObject({ status: 'dmg', dmg: file });
     await updates.openDmg();
-    expect(deps.openPath).toHaveBeenCalledWith('/Users/x/Downloads/OneEditor-1.5.1-mac-arm64.dmg');
+    expect(deps.openPath).toHaveBeenCalledWith(file);
   });
 });

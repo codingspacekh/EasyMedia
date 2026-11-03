@@ -84,6 +84,37 @@ describe('U2 Help ▸ Check for Updates…', () => {
     expect(t.port.setAuto).toHaveBeenCalledWith(true);
   });
 
+  it('says each step: looking, a newer version with what is new, downloading, ready, a .dmg, a problem', async () => {
+    const t = await open();
+    await menuActions(t.app).updates();
+    const dialog = await screen.findByRole('dialog', { name: 'Updates' });
+    const say = async (patch: object, text: RegExp) => {
+      t.push(patch);
+      await vi.waitFor(() => expect(dialog.textContent).toMatch(text));
+    };
+    await say({ status: 'checking' }, /Looking for a newer version/);
+    await say({ status: 'available', version: '1.5.1', notes: ['SVG pictures'] }, /1\.5\.1 is out/);
+    expect(dialog.textContent).toMatch(/What's new in 1\.5\.1:\s*SVG pictures/);
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
+    expect(t.port.download).toHaveBeenCalled();
+    await say({ status: 'downloading', percent: 10 }, /Downloading 1\.5\.1… 10 %/);
+    await say({ status: 'ready' }, /goes in when you next close/);
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Restart and update' }));
+    expect(t.port.install).toHaveBeenCalled();
+    await say({ status: 'dmg' }, /is in Downloads/);
+    await say({ status: 'error', error: 'Could not reach the internet.' }, /Could not reach/);
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Updates' })).toBeNull();
+  });
+
+  it('a Mac .dmg can be shown in the Finder from the note', async () => {
+    const { push, port } = await open({ mode: 'dmg' });
+    push({ status: 'dmg', version: '1.5.1', dmg: '/d.dmg' });
+    await vi.waitFor(() => expect(note()).toBeTruthy());
+    await fireEvent.click(within(note()!).getByRole('button', { name: 'Show in Finder' }));
+    expect(port.showDmg).toHaveBeenCalled();
+  });
+
   it('run from the source: updates are off and the dialog says why', async () => {
     const t = await open({ mode: 'off' });
     await menuActions(t.app).updates();
