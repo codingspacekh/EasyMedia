@@ -46,7 +46,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 20;
+    /* Above the panels and their menus (20); tooltips (10000) stay on top. */
+    z-index: 30;
   }
   .dialog {
     max-width: calc(100vw - 32px);
@@ -75,6 +76,7 @@
   .buttons {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 8px;
     margin-top: 6px;
   }

@@ -645,7 +645,7 @@ Each kind of extension has one place, so later stages add rather than edit:
 | A Learn page | content in `core/teaching/`, a component in `ui/learn/` | a `LearnTab`, a Learn menu item (`main/menu.ts`) and its action (`ui/menu-actions.ts`) |
 | A menu item | `item(label, accelerator, action)` in `main/menu.ts` | the action in `MenuAction` (`preload/api.ts`) and in `ui/menu-actions.ts` |
 | A resizable panel | an entry in `PANELS` (`app/layout.ts`) | wrap the panel in `<PanelSlot id="…">`; its root fills the slot |
-| A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`) | — |
+| A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`), its buttons in `{#snippet buttons()}`; `busy` while it saves or exports (Escape then does nothing) | — (every modal dialog uses it; Snapshot is a floating panel, not a modal) |
 | A form control | the plain element (`input`, `select`, `textarea`…): `ui/forms.css` gives it the app's look; the component sets only its layout | — |
 | An Animation mode action | a method in the area's module in `app/animation/` (a command in `animation-commands.ts` if it edits) | — |
 | An Audio mode action | a method in the area's module in `app/audio/` (an edit runs through `ctx.run` or `ctx.tryEdit`, so it is one undo step) | — |

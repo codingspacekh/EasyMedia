@@ -2,6 +2,7 @@
   // Export video (screen 12; V16, V17, T7): where the video will be played, the file format and
   // compression, the settings, the estimated file size and the pros and cons of the format.
   import Why from './Why.svelte';
+  import Dialog from './Dialog.svelte';
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
   import {
@@ -122,186 +123,144 @@
   }
 </script>
 
-<!-- Escape closes it, as every dialog (not while it is working). -->
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
-
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Export video">
-    <h2>
-      <Icon name="export" /> Export video <span class="syl">11.1 exporting · compressing</span>
-    </h2>
-
-    <div class="cols">
-      <div class="col">
-        <h3>Where will it be played?</h3>
-        <div class="presets">
-          {#each PRESETS as p (p.id)}
-            {@const f = presetSettings(p.id, project.settings)}
-            <button
-              class="preset"
-              aria-pressed={preset === p.id}
-              onclick={() => choosePreset(p.id)}
-            >
-              <Icon name={ICONS[p.id]} />
-              <span class="pl">
-                <b>{p.label}</b>
-                <small
-                  >{p.id === 'custom'
-                    ? p.hint
-                    : `${f.width}×${f.height} · ${CONTAINERS[f.container].label}`}</small
-                >
-              </span>
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="col">
-        <h3>File format (container)</h3>
-        <div class="seg containers">
-          {#each Object.entries(CONTAINERS) as [id, c] (id)}
-            <button
-              aria-pressed={format.container === id}
-              onclick={() => change({ container: id as Container })}>{c.label}</button
-            >
-          {/each}
-        </div>
-
-        <h3>Compression</h3>
-        <div class="compression">
-          {#each [['lossy', 'Lossy', 'Removes detail you are unlikely to notice. Much smaller file.'], ['lossless', 'Lossless', 'Keeps every pixel. Available in MOV and AVI.']] as [value, name, note] (value)}
-            <label
-              class="radio"
-              class:off={value === 'lossless' && !CONTAINERS[format.container].lossless}
-            >
-              <input
-                type="radio"
-                name="compression"
-                aria-label={name}
-                checked={format.compression === value}
-                disabled={value === 'lossless' && !CONTAINERS[format.container].lossless}
-                onchange={() => change({ compression: value as Compression })}
-              />
-              <span><b>{name}</b> <small>{note}</small></span>
-            </label>
-          {/each}
-        </div>
-
-        <h3>Settings</h3>
-        <div class="grid">
-          <label for="export-size">Resolution</label>
-          <select
-            id="export-size"
-            value="{format.width}x{format.height}"
-            onchange={(e) => {
-              const [w, h] = e.currentTarget.value.split('x').map(Number);
-              change({ width: w!, height: h! });
-            }}
-          >
-            {#each sizes as s (`${s.w}x${s.h}`)}
-              <option value="{s.w}x{s.h}">{s.w} × {s.h}{s.note ? ` (${s.note})` : ''}</option>
-            {/each}
-          </select>
-          <label for="export-fps">Frame rate</label>
-          <select
-            id="export-fps"
-            value={String(format.fps)}
-            onchange={(e) => change({ fps: Number(e.currentTarget.value) as ExportFps })}
-          >
-            {#each EXPORT_FPS as fps (fps)}
-              <option value={String(fps)}
-                >{fps} fps{fps === project.settings.fps ? ' (same as project)' : ''}</option
+<Dialog label="Export video" syllabus="11.1 exporting · compressing" width={860} {onclose}>
+  <div class="cols">
+    <div class="col">
+      <h3>Where will it be played?</h3>
+      <div class="presets">
+        {#each PRESETS as p (p.id)}
+          {@const f = presetSettings(p.id, project.settings)}
+          <button class="preset" aria-pressed={preset === p.id} onclick={() => choosePreset(p.id)}>
+            <Icon name={ICONS[p.id]} />
+            <span class="pl">
+              <b>{p.label}</b>
+              <small
+                >{p.id === 'custom'
+                  ? p.hint
+                  : `${f.width}×${f.height} · ${CONTAINERS[f.container].label}`}</small
               >
-            {/each}
-          </select>
-          <span class="lbl">Codec</span>
-          <span class="codec">{codecLine}</span>
-          <span class="lbl">Quality</span>
-          <div class="quality">
-            <button
-              class="sm"
-              disabled={format.compression === 'lossless' || format.quality === 'low'}
-              onclick={() => stepQuality(-1)}>Smaller</button
-            >
-            <span class="q"
-              >{format.compression === 'lossless'
-                ? 'Every pixel'
-                : QUALITY_NAMES[format.quality]}</span
-            >
-            <button
-              class="sm"
-              disabled={format.compression === 'lossless' || format.quality === 'best'}
-              onclick={() => stepQuality(1)}>Better</button
-            >
-          </div>
-        </div>
-
-        <div class="estimate">
-          <div>
-            <small>Estimated file size · {summary.duration.toFixed(1)} s</small>
-            <b aria-label="Estimated file size">{sizeLabel(summary)}</b>
-          </div>
-          <ul aria-label="Compare sizes">
-            {#each compare as row (row.name)}
-              <li><span>{row.name}</span> <b>{sizeLabel(row.size)}</b></li>
-            {/each}
-          </ul>
-        </div>
-
-        <div class="notes">
-          <b>{notes.title}</b>
-          <ul>
-            {#each notes.pros as pro (pro)}<li class="pro">+ {pro}</li>{/each}
-            {#each notes.cons as con (con)}<li class="con">− {con}</li>{/each}
-          </ul>
-        </div>
-
-        <Why tool="export" title="Why choose a format and size?" />
+            </span>
+          </button>
+        {/each}
       </div>
     </div>
 
-    <div class="actions">
-      <label class="radio">
-        <input type="checkbox" bind:checked={alsoSave} />
-        Also save the project (.mve) so I can edit it later
-      </label>
-      <span class="spacer"></span>
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" onclick={exportNow}><Icon name="export" size={14} /> Export</button>
+    <div class="col">
+      <h3>File format (container)</h3>
+      <div class="seg containers">
+        {#each Object.entries(CONTAINERS) as [id, c] (id)}
+          <button
+            aria-pressed={format.container === id}
+            onclick={() => change({ container: id as Container })}>{c.label}</button
+          >
+        {/each}
+      </div>
+
+      <h3>Compression</h3>
+      <div class="compression">
+        {#each [['lossy', 'Lossy', 'Removes detail you are unlikely to notice. Much smaller file.'], ['lossless', 'Lossless', 'Keeps every pixel. Available in MOV and AVI.']] as [value, name, note] (value)}
+          <label
+            class="radio"
+            class:off={value === 'lossless' && !CONTAINERS[format.container].lossless}
+          >
+            <input
+              type="radio"
+              name="compression"
+              aria-label={name}
+              checked={format.compression === value}
+              disabled={value === 'lossless' && !CONTAINERS[format.container].lossless}
+              onchange={() => change({ compression: value as Compression })}
+            />
+            <span><b>{name}</b> <small>{note}</small></span>
+          </label>
+        {/each}
+      </div>
+
+      <h3>Settings</h3>
+      <div class="grid">
+        <label for="export-size">Resolution</label>
+        <select
+          id="export-size"
+          value="{format.width}x{format.height}"
+          onchange={(e) => {
+            const [w, h] = e.currentTarget.value.split('x').map(Number);
+            change({ width: w!, height: h! });
+          }}
+        >
+          {#each sizes as s (`${s.w}x${s.h}`)}
+            <option value="{s.w}x{s.h}">{s.w} × {s.h}{s.note ? ` (${s.note})` : ''}</option>
+          {/each}
+        </select>
+        <label for="export-fps">Frame rate</label>
+        <select
+          id="export-fps"
+          value={String(format.fps)}
+          onchange={(e) => change({ fps: Number(e.currentTarget.value) as ExportFps })}
+        >
+          {#each EXPORT_FPS as fps (fps)}
+            <option value={String(fps)}
+              >{fps} fps{fps === project.settings.fps ? ' (same as project)' : ''}</option
+            >
+          {/each}
+        </select>
+        <span class="lbl">Codec</span>
+        <span class="codec">{codecLine}</span>
+        <span class="lbl">Quality</span>
+        <div class="quality">
+          <button
+            class="sm"
+            disabled={format.compression === 'lossless' || format.quality === 'low'}
+            onclick={() => stepQuality(-1)}>Smaller</button
+          >
+          <span class="q"
+            >{format.compression === 'lossless'
+              ? 'Every pixel'
+              : QUALITY_NAMES[format.quality]}</span
+          >
+          <button
+            class="sm"
+            disabled={format.compression === 'lossless' || format.quality === 'best'}
+            onclick={() => stepQuality(1)}>Better</button
+          >
+        </div>
+      </div>
+
+      <div class="estimate">
+        <div>
+          <small>Estimated file size · {summary.duration.toFixed(1)} s</small>
+          <b aria-label="Estimated file size">{sizeLabel(summary)}</b>
+        </div>
+        <ul aria-label="Compare sizes">
+          {#each compare as row (row.name)}
+            <li><span>{row.name}</span> <b>{sizeLabel(row.size)}</b></li>
+          {/each}
+        </ul>
+      </div>
+
+      <div class="notes">
+        <b>{notes.title}</b>
+        <ul>
+          {#each notes.pros as pro (pro)}<li class="pro">+ {pro}</li>{/each}
+          {#each notes.cons as con (con)}<li class="con">− {con}</li>{/each}
+        </ul>
+      </div>
+
+      <Why tool="export" title="Why choose a format and size?" />
     </div>
   </div>
-</div>
+
+  {#snippet buttons()}
+    <label class="radio">
+      <input type="checkbox" bind:checked={alsoSave} />
+      Also save the project (.mve) so I can edit it later
+    </label>
+    <span class="spacer"></span>
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" onclick={exportNow}><Icon name="export" size={14} /> Export</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 10;
-  }
-  .dialog {
-    width: min(860px, calc(100vw - 40px));
-    max-height: calc(100vh - 40px);
-    overflow: auto;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  }
-  h2 {
-    font-size: 16px;
-    margin: 0;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
   h3 {
     font-size: 12px;
     color: var(--tx-2);
@@ -309,14 +268,6 @@
   }
   .col > h3:first-child {
     margin-top: 0;
-  }
-  .syl {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--tx-3);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 0 4px;
   }
   .cols {
     display: grid;
@@ -442,11 +393,6 @@
   }
   .con {
     color: var(--danger);
-  }
-  .actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
   }
   .spacer {
     flex: 1;

@@ -16,6 +16,7 @@
   import type { MediaAsset } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import Why from './Why.svelte';
+  import Dialog from './Dialog.svelte';
 
   let {
     app,
@@ -141,155 +142,122 @@
   }
 </script>
 
-<!-- Escape closes it, as every dialog (not while it is working). -->
-<svelte:window onkeydown={(e) => e.key === 'Escape' && !saving && onclose()} />
+<Dialog
+  label="Resize and crop image"
+  syllabus="11.1 resizing and cropping a still"
+  width={900}
+  busy={saving}
+  {onclose}
+>
+  <p class="hint">Make {fileNameOf(asset.path)} fit the project without stretching it.</p>
+  <Why tool="resizeCrop" />
 
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Resize and crop image">
-    <h2>Resize &amp; crop image <span class="syl">11.1 resizing and cropping a still</span></h2>
-    <p class="hint">Make {fileNameOf(asset.path)} fit the project without stretching it.</p>
-    <Why tool="resizeCrop" />
-
-    <div class="body">
-      <div class="left">
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="body">
+    <div class="left">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="picture"
+        bind:this={picture}
+        style:width="min(100%, {(440 * size.width) / size.height}px)"
+        style:aspect-ratio="{size.width} / {size.height}"
+        aria-label="Picture — drag to select the part to keep"
+        onmousedown={startDraw}
+      >
+        <img src={url} alt="" draggable="false" />
         <div
-          class="picture"
-          bind:this={picture}
-          style:width="min(100%, {(440 * size.width) / size.height}px)"
-          style:aspect-ratio="{size.width} / {size.height}"
-          aria-label="Picture — drag to select the part to keep"
-          onmousedown={startDraw}
+          class="keep"
+          role="button"
+          tabindex="0"
+          aria-label="Part to keep — drag to move"
+          style:left={pct(region.x, size.width)}
+          style:top={pct(region.y, size.height)}
+          style:width={pct(region.width, size.width)}
+          style:height={pct(region.height, size.height)}
+          onmousedown={startMove}
+          onkeydown={nudge}
         >
-          <img src={url} alt="" draggable="false" />
-          <div
-            class="keep"
-            role="button"
-            tabindex="0"
-            aria-label="Part to keep — drag to move"
-            style:left={pct(region.x, size.width)}
-            style:top={pct(region.y, size.height)}
-            style:width={pct(region.width, size.width)}
-            style:height={pct(region.height, size.height)}
-            onmousedown={startMove}
-            onkeydown={nudge}
-          >
-            {#each CORNERS as [corner, name] (corner)}
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <span
-                class="handle {corner}"
-                aria-label="Resize from the {name} corner"
-                onmousedown={(e) => startResize(e, corner)}
-              ></span>
-            {/each}
-          </div>
-        </div>
-        <p class="hint">
-          Drag on the picture to choose a part, drag inside it to move it, drag a corner to change
-          its size. The darker area is removed.
-        </p>
-      </div>
-
-      <div class="steps">
-        <div class="sizes">
-          <span>Original</span><b>{size.width} × {size.height}</b>
-          <span>Project</span><b>{target.width} × {target.height}</b>
-        </div>
-        <h3>Step 1 · Resize</h3>
-        <div class="sizes">
-          <span>Width</span><b>{plan.resize.width} px</b>
-          <span>Height</span><b>{plan.resize.height} px</b>
-        </div>
-        <p class="hint">Constrain proportions: no stretching.</p>
-        <h3>Step 2 · Crop to {target.width} × {target.height}</h3>
-        <div class="grid9" role="group" aria-label="Quick places (largest part)">
-          {#each ANCHORS as [value, name] (value)}
-            <button
-              aria-label="Keep {name}"
-              aria-pressed={keep === value}
-              onclick={() => (keep = value)}
-            ></button>
+          {#each CORNERS as [corner, name] (corner)}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <span
+              class="handle {corner}"
+              aria-label="Resize from the {name} corner"
+              onmousedown={(e) => startResize(e, corner)}
+            ></span>
           {/each}
         </div>
-        <p>{removedText}</p>
-        <p class="hint">
-          Keeps {Math.round(region.width)} × {Math.round(region.height)} of the original
-        </p>
-        {#if plan.enlarged}
-          <p class="warn" role="status">
-            This part is smaller than the video, so it is enlarged and may look blurry. Choose a
-            bigger part for a sharper picture.
-          </p>
-        {/if}
-        <div class="sizes">
-          <span>Result</span><b>{target.width} × {target.height}</b>
-        </div>
-        <div
-          class="result"
-          role="img"
-          aria-label="Result preview"
-          style:aspect-ratio="{target.width} / {target.height}"
-          style:background-image="url('{url}')"
-          style:background-size="{(size.width / region.width) * 100}% auto"
-          style:background-position="{region.width < size.width
-            ? (region.x / (size.width - region.width)) * 100
-            : 0}% {region.height < size.height
-            ? (region.y / (size.height - region.height)) * 100
-            : 0}%"
-        ></div>
       </div>
+      <p class="hint">
+        Drag on the picture to choose a part, drag inside it to move it, drag a corner to change its
+        size. The darker area is removed.
+      </p>
     </div>
 
-    <label class="check">
-      <input type="checkbox" bind:checked={addToTimeline} />
-      Add to the timeline
-    </label>
-    <p class="hint">Saved as a new file next to the original; the original is kept.</p>
-
-    <div class="actions">
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" disabled={saving} onclick={save}>Save image</button>
+    <div class="steps">
+      <div class="sizes">
+        <span>Original</span><b>{size.width} × {size.height}</b>
+        <span>Project</span><b>{target.width} × {target.height}</b>
+      </div>
+      <h3>Step 1 · Resize</h3>
+      <div class="sizes">
+        <span>Width</span><b>{plan.resize.width} px</b>
+        <span>Height</span><b>{plan.resize.height} px</b>
+      </div>
+      <p class="hint">Constrain proportions: no stretching.</p>
+      <h3>Step 2 · Crop to {target.width} × {target.height}</h3>
+      <div class="grid9" role="group" aria-label="Quick places (largest part)">
+        {#each ANCHORS as [value, name] (value)}
+          <button
+            aria-label="Keep {name}"
+            aria-pressed={keep === value}
+            onclick={() => (keep = value)}
+          ></button>
+        {/each}
+      </div>
+      <p>{removedText}</p>
+      <p class="hint">
+        Keeps {Math.round(region.width)} × {Math.round(region.height)} of the original
+      </p>
+      {#if plan.enlarged}
+        <p class="warn" role="status">
+          This part is smaller than the video, so it is enlarged and may look blurry. Choose a
+          bigger part for a sharper picture.
+        </p>
+      {/if}
+      <div class="sizes">
+        <span>Result</span><b>{target.width} × {target.height}</b>
+      </div>
+      <div
+        class="result"
+        role="img"
+        aria-label="Result preview"
+        style:aspect-ratio="{target.width} / {target.height}"
+        style:background-image="url('{url}')"
+        style:background-size="{(size.width / region.width) * 100}% auto"
+        style:background-position="{region.width < size.width
+          ? (region.x / (size.width - region.width)) * 100
+          : 0}% {region.height < size.height
+          ? (region.y / (size.height - region.height)) * 100
+          : 0}%"
+      ></div>
     </div>
   </div>
-</div>
+
+  <label class="check">
+    <input type="checkbox" bind:checked={addToTimeline} />
+    Add to the timeline
+  </label>
+  <p class="hint">Saved as a new file next to the original; the original is kept.</p>
+
+  {#snippet buttons()}
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" disabled={saving} onclick={save}>Save image</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(6, 7, 9, 0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-  }
-  .dialog {
-    width: min(900px, 94vw);
-    max-height: 94vh;
-    overflow: auto;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 18px;
-  }
-  h2 {
-    font-size: 15px;
-    margin: 0 0 8px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
   h3 {
     font-size: 12.5px;
     margin: 12px 0 6px;
-  }
-  .syl {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--tx-3);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 0 4px;
   }
   .body {
     display: grid;
@@ -394,12 +362,6 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    margin-top: 12px;
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
     margin-top: 12px;
   }
 </style>

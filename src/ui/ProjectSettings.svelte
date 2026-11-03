@@ -1,5 +1,6 @@
 <script lang="ts">
   import Why from './Why.svelte';
+  import Dialog from './Dialog.svelte';
   // Project settings (V1, screen 11): aspect ratio, resolution, frame rate, fit.
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
@@ -54,127 +55,87 @@
   }
 </script>
 
-<!-- Escape closes it, as every dialog (not while it is working). -->
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
+<Dialog label="Project settings" syllabus="11.1 aspect ratio" width={560} {onclose}>
+  <fieldset>
+    <legend>Aspect ratio</legend>
+    {#each ['16:9', '4:3', 'Custom'] as label (label)}
+      {@const value = label === 'Custom' ? 'custom' : label}
+      <label class="choice">
+        <input
+          type="radio"
+          name="aspect"
+          checked={aspect === value}
+          onchange={() => chooseAspect(value as ProjectSettings['aspect'])}
+        />
+        {label}
+      </label>
+    {/each}
+  </fieldset>
 
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Project settings">
-    <h2>Project settings <span class="syl">11.1 aspect ratio</span></h2>
-
-    <fieldset>
-      <legend>Aspect ratio</legend>
-      {#each ['16:9', '4:3', 'Custom'] as label (label)}
-        {@const value = label === 'Custom' ? 'custom' : label}
+  <fieldset>
+    <legend>Resolution</legend>
+    {#if aspect === 'custom'}
+      <label class="size"
+        >Width <input type="number" bind:value={width} min="16" max="7680" step="2" /></label
+      >
+      <label class="size"
+        >Height <input type="number" bind:value={height} min="16" max="7680" step="2" /></label
+      >
+    {:else}
+      {#each SIZES[aspect] as [w, h] (`${w}x${h}`)}
         <label class="choice">
           <input
             type="radio"
-            name="aspect"
-            checked={aspect === value}
-            onchange={() => chooseAspect(value as ProjectSettings['aspect'])}
+            name="size"
+            checked={width === w && height === h}
+            onchange={() => ([width, height] = [w, h])}
           />
-          {label}
+          {w} × {h}
         </label>
       {/each}
-    </fieldset>
+    {/if}
+  </fieldset>
 
-    <fieldset>
-      <legend>Resolution</legend>
-      {#if aspect === 'custom'}
-        <label class="size"
-          >Width <input type="number" bind:value={width} min="16" max="7680" step="2" /></label
-        >
-        <label class="size"
-          >Height <input type="number" bind:value={height} min="16" max="7680" step="2" /></label
-        >
-      {:else}
-        {#each SIZES[aspect] as [w, h] (`${w}x${h}`)}
-          <label class="choice">
-            <input
-              type="radio"
-              name="size"
-              checked={width === w && height === h}
-              onchange={() => ([width, height] = [w, h])}
-            />
-            {w} × {h}
-          </label>
-        {/each}
-      {/if}
-    </fieldset>
+  <fieldset>
+    <legend>Frame rate</legend>
+    {#each [24, 25, 30] as const as rate (rate)}
+      <label class="choice">
+        <input type="radio" name="fps" checked={fps === rate} onchange={() => (fps = rate)} />
+        {rate} fps
+      </label>
+    {/each}
+  </fieldset>
 
-    <fieldset>
-      <legend>Frame rate</legend>
-      {#each [24, 25, 30] as const as rate (rate)}
-        <label class="choice">
-          <input type="radio" name="fps" checked={fps === rate} onchange={() => (fps = rate)} />
-          {rate} fps
-        </label>
-      {/each}
-    </fieldset>
+  <fieldset>
+    <legend>If a clip has a different shape</legend>
+    {#each FITS as [value, label, hint] (value)}
+      <label class="choice">
+        <input
+          type="radio"
+          name="fit"
+          aria-label={label}
+          checked={fit === value}
+          onchange={() => (fit = value)}
+        />
+        {label} <span class="hint">{hint}</span>
+      </label>
+    {/each}
+  </fieldset>
 
-    <fieldset>
-      <legend>If a clip has a different shape</legend>
-      {#each FITS as [value, label, hint] (value)}
-        <label class="choice">
-          <input
-            type="radio"
-            name="fit"
-            aria-label={label}
-            checked={fit === value}
-            onchange={() => (fit = value)}
-          />
-          {label} <span class="hint">{hint}</span>
-        </label>
-      {/each}
-    </fieldset>
+  <Why tool="aspectRatio" title="Why does aspect ratio matter?" />
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
 
-    <Why tool="aspectRatio" title="Why does aspect ratio matter?" />
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
-
-    <div class="actions">
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" onclick={apply}>Apply</button>
-    </div>
-  </div>
-</div>
+  {#snippet buttons()}
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" onclick={apply}>Apply</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(6, 7, 9, 0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-  }
-  .dialog {
-    width: 560px;
-    max-height: 90vh;
-    overflow: auto;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 18px;
-  }
-  h2 {
-    font-size: 15px;
-    margin: 0 0 12px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .syl {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--tx-3);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 0 4px;
-  }
   fieldset {
     border: 0;
     padding: 0;
-    margin: 0 0 12px;
+    margin: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 6px 14px;
@@ -203,10 +164,5 @@
   }
   .error {
     color: var(--danger);
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
   }
 </style>
