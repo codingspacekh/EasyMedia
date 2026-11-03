@@ -5,11 +5,12 @@
 // Book inconsistencies, decided as in docs/MILESTONES.md (M12): "Bali1.mp3" / "EQ11-Bali2.mp3"
 // in the storyboard are the .mp4 clips; Bali2 is shown 6 s (not 7) so the storyboard times hold
 // with no transition; the sound's times are read after its first 2 s are removed.
+import { fakeDialogs } from '../helpers/fake-dialogs.ts';
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, rename, rm, writeFile, copyFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { promisify } from 'node:util';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../../src/app/app.ts';
 import { SILENT_OUTPUT } from '../../src/app/audio.ts';
 import {
@@ -26,7 +27,7 @@ import {
 import { audioEffectById } from '../../src/core/effects/registry.ts';
 import { createTextItem } from '../../src/core/model/factory.ts';
 import type { MainItem, TextStyle } from '../../src/core/model/types.ts';
-import type { Dialogs, TextRenderer } from '../../src/core/ports.ts';
+import type { TextRenderer } from '../../src/core/ports.ts';
 import { defaultAudioExport } from '../../src/core/render/audio-formats.ts';
 import { presetSettings } from '../../src/core/render/formats.ts';
 import type { Size, TextImageMode } from '../../src/core/text/draw.ts';
@@ -78,24 +79,8 @@ const blockText: TextRenderer = {
 
 /** The app as the student uses it, with dialogs that answer as the student would. */
 function session() {
-  const dialogs = {
-    openMedia: vi.fn<Dialogs['openMedia']>(async () => []),
-    openProject: vi.fn<Dialogs['openProject']>(async () => null),
-    saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
-    exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
-    exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
-    confirm: vi.fn<Dialogs['confirm']>(async () => true),
-    chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
-    unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'discard'),
-    openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
-    saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
-    openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
-    openPicture: vi.fn<Dialogs['openPicture']>(async () => null),
-    openFrames: vi.fn<Dialogs['openFrames']>(async () => []),
-    openExport: vi.fn<Dialogs['openExport']>(async () => []),
-    saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
-    exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
-  };
+  const dialogs = fakeDialogs();
+  dialogs.unsavedChanges.mockResolvedValue('discard');
   const app: App = createApp({
     engine,
     dialogs,

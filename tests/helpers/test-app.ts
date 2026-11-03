@@ -1,9 +1,10 @@
 // An App wired to the mock engine and in-memory dialogs / files, for UI tests.
+import { fakeDialogs } from './fake-dialogs.ts';
 import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
-import type { Dialogs, PageAssets, ProbeInfo, StageRenderer } from '../../src/core/ports.ts';
+import type { PageAssets, ProbeInfo, StageRenderer } from '../../src/core/ports.ts';
 
 export const VIDEO: ProbeInfo = {
   kind: 'video',
@@ -26,24 +27,7 @@ export function testApp(
   { preferences }: { preferences?: string } = {},
 ) {
   const engine = createMockMediaEngine(media);
-  const dialogs = {
-    openMedia: vi.fn<Dialogs['openMedia']>(async () => []),
-    openProject: vi.fn<Dialogs['openProject']>(async () => null),
-    saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
-    exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
-    exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
-    confirm: vi.fn<Dialogs['confirm']>(async () => true),
-    chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
-    unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
-    openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
-    saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
-    openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
-    openPicture: vi.fn<Dialogs['openPicture']>(async () => null),
-    openFrames: vi.fn<Dialogs['openFrames']>(async () => []),
-    openExport: vi.fn<Dialogs['openExport']>(async () => []),
-    saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
-    exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
-  };
+  const dialogs = fakeDialogs();
   const disk = new Map<string, string>();
   const bytes = new Map<string, Uint8Array>();
   /** Files copied (P2), [from, to]. */
