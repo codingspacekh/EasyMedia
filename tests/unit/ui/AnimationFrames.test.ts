@@ -54,6 +54,17 @@ describe('Import frames (AN14)', () => {
   });
 });
 
+describe('the shared dialog', () => {
+  it('Escape closes it, as every dialog', async () => {
+    await open();
+    await fireEvent.click(screen.getByRole('button', { name: 'Import frames' }));
+    expect(screen.getByRole('dialog', { name: 'Import frames' })).toBeTruthy();
+    expect(screen.getByText('20.1 stop motion')).toBeTruthy();
+    await fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Import frames' })).toBeNull();
+  });
+});
+
 describe('frame-by-frame on the timeline (AN14)', () => {
   it('Frame-by-frame, Duplicate frame, Blank keyframe, Remove and Onion skin', async () => {
     const s = await open();

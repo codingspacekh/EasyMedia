@@ -1,6 +1,7 @@
 <script lang="ts">
   // Import frames (AN14, stop motion): the rate is chosen first, then the folder of pictures. The
   // pictures are shown in the order of their names, each held for its frames, on a new layer.
+  import Dialog from '../Dialog.svelte';
   import { untrack } from 'svelte';
   import type { App } from '../../app/app.ts';
   import Why from '../Why.svelte';
@@ -23,69 +24,37 @@
   }
 </script>
 
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Import frames">
-    <h2>Import frames <span class="syl">20.1 stop motion</span></h2>
-    <label class="rate"
-      >Pictures a second
-      <input
-        type="number"
-        min="1"
-        max={fps}
-        step="1"
-        aria-label="Pictures a second"
-        bind:value={rate}
-      /></label
+<Dialog label="Import frames" syllabus="20.1 stop motion" width={440} {onclose}>
+  <label class="rate"
+    >Pictures a second
+    <input
+      type="number"
+      min="1"
+      max={fps}
+      step="1"
+      aria-label="Pictures a second"
+      bind:value={rate}
+    /></label
+  >
+  <p class="count">
+    Each picture is held for {held}
+    {held === 1 ? 'frame' : 'frames'} of the stage’s {fps} fps.
+  </p>
+  <p class="hint">
+    Choose a folder of photographs or drawings (PNG, JPG, GIF, BMP or SVG). They are shown in the
+    order of their names — name them frame01, frame02… — on a layer of their own; the stage is made
+    longer if they need more time.
+  </p>
+  <Why tool="animStopMotion" />
+  {#snippet buttons()}
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" disabled={importing || !(rate >= 1 && rate <= fps)} onclick={choose}
+      >Choose folder…</button
     >
-    <p class="count">
-      Each picture is held for {held}
-      {held === 1 ? 'frame' : 'frames'} of the stage’s {fps} fps.
-    </p>
-    <p class="hint">
-      Choose a folder of photographs or drawings (PNG, JPG, GIF, BMP or SVG). They are shown in the
-      order of their names — name them frame01, frame02… — on a layer of their own; the stage is
-      made longer if they need more time.
-    </p>
-    <Why tool="animStopMotion" />
-    <div class="buttons">
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" disabled={importing || !(rate >= 1 && rate <= fps)} onclick={choose}
-        >Choose folder…</button
-      >
-    </div>
-  </div>
-</div>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-  }
-  .dialog {
-    width: 440px;
-    max-width: calc(100vw - 32px);
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-l);
-    padding: 18px 20px;
-  }
-  h2 {
-    margin: 0 0 12px;
-    font-size: 15px;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .syl {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--tx-3);
-  }
   .rate {
     display: flex;
     align-items: center;
@@ -105,11 +74,5 @@
     margin: 12px 0 0;
     color: var(--tx-2);
     font-size: 11.5px;
-  }
-  .buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
   }
 </style>

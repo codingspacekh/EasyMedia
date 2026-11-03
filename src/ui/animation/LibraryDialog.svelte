@@ -2,6 +2,7 @@
   // The library (AN19): cartoons, icons and symbols, and backgrounds, drawn as the app's own
   // vector shapes. Search, choose a category, click one to place it (a background goes on a layer
   // of its own at the bottom). Each thumbnail is drawn by the same code as the stage.
+  import Dialog from '../Dialog.svelte';
   import type { App } from '../../app/app.ts';
   import { drawObject, type StageCanvas } from '../../core/animation/draw.ts';
   import {
@@ -47,97 +48,59 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
-
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Library">
-    <h2>Library <span class="syl">20.1 creating vector objects</span></h2>
-    <div class="top">
-      <input
-        type="search"
-        placeholder="Search: car, weather, flowchart…"
-        aria-label="Search the library"
-        bind:value={query}
-      />
-      <div class="seg small" role="tablist" aria-label="Categories">
-        {#each LIBRARY_CATEGORIES as c (c.id)}
-          <button
-            role="tab"
-            aria-selected={!query.trim() && category === c.id}
-            onclick={() => {
-              category = c.id;
-              query = '';
-            }}>{c.label}</button
-          >
-        {/each}
-      </div>
-    </div>
-    <div class="grid" role="group" aria-label="Library items">
-      {#each items as item (item.id)}
+<Dialog label="Library" syllabus="20.1 creating vector objects" width={640} {onclose}>
+  <div class="top">
+    <input
+      type="search"
+      placeholder="Search: car, weather, flowchart…"
+      aria-label="Search the library"
+      bind:value={query}
+    />
+    <div class="seg small" role="tablist" aria-label="Categories">
+      {#each LIBRARY_CATEGORIES as c (c.id)}
         <button
-          class="item"
-          aria-label="Add {item.name}"
-          title={item.category === 'backgrounds'
-            ? `Add ${item.name} behind everything, on a layer of its own`
-            : `Add ${item.name} to the middle of the stage`}
-          onclick={() => place(item)}
+          role="tab"
+          aria-selected={!query.trim() && category === c.id}
+          onclick={() => {
+            category = c.id;
+            query = '';
+          }}>{c.label}</button
         >
-          <canvas
-            width={THUMB}
-            height={THUMB}
-            aria-hidden="true"
-            {@attach (c) => thumbnail(c as HTMLCanvasElement, item)}
-          ></canvas>
-          <span>{item.name}</span>
-        </button>
-      {:else}
-        <p class="none">Nothing found for “{query}”.</p>
       {/each}
     </div>
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <p class="hint">
-      Every item is made of shapes grouped together: select it and Ungroup, or open the group, to
-      recolour or animate a part on its own.
-    </p>
-    <Why tool="animLibrary" />
-    <div class="buttons"><button onclick={onclose}>Close</button></div>
   </div>
-</div>
+  <div class="grid" role="group" aria-label="Library items">
+    {#each items as item (item.id)}
+      <button
+        class="item"
+        aria-label="Add {item.name}"
+        title={item.category === 'backgrounds'
+          ? `Add ${item.name} behind everything, on a layer of its own`
+          : `Add ${item.name} to the middle of the stage`}
+        onclick={() => place(item)}
+      >
+        <canvas
+          width={THUMB}
+          height={THUMB}
+          aria-hidden="true"
+          {@attach (c) => thumbnail(c as HTMLCanvasElement, item)}
+        ></canvas>
+        <span>{item.name}</span>
+      </button>
+    {:else}
+      <p class="none">Nothing found for “{query}”.</p>
+    {/each}
+  </div>
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  <p class="hint">
+    Every item is made of shapes grouped together: select it and Ungroup, or open the group, to
+    recolour or animate a part on its own.
+  </p>
+  <Why tool="animLibrary" />
+  {#snippet buttons()}<button onclick={onclose}>Close</button>{/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-  }
-  .dialog {
-    width: 640px;
-    max-width: calc(100vw - 32px);
-    max-height: calc(100vh - 48px);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-l);
-    padding: 18px 20px;
-  }
-  h2 {
-    margin: 0;
-    font-size: 15px;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .syl {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--tx-3);
-  }
   .top {
     display: flex;
     gap: 10px;
@@ -190,9 +153,5 @@
     margin: 0;
     font-size: 12px;
     color: var(--danger);
-  }
-  .buttons {
-    display: flex;
-    justify-content: flex-end;
   }
 </style>

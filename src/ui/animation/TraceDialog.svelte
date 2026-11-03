@@ -1,6 +1,7 @@
 <script lang="ts">
   // Trace bitmap (AN5): the selected picture becomes vector shapes. The colours, detail and
   // smoothing are tried on a small copy first, drawn as a preview with the number of shapes.
+  import Dialog from '../Dialog.svelte';
   import type { App } from '../../app/app.ts';
   import type { TraceOptions, TracedRegion } from '../../core/animation/trace.ts';
   import Why from '../Why.svelte';
@@ -72,84 +73,52 @@
   }
 </script>
 
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Trace bitmap">
-    <h2>Trace bitmap <span class="syl">20.1 importing and tracing bitmaps</span></h2>
-    <div class="body">
-      <div class="preview" role="img" aria-label="Preview of the traced shapes">
-        <canvas bind:this={canvas} width="240" height="180" aria-hidden="true"></canvas>
-      </div>
-      <div class="settings">
-        <label for="trace-colours">Colours</label>
-        <div class="row">
-          <input id="trace-colours" type="range" min="2" max="16" step="1" bind:value={colours} />
-          <span class="value">{colours}</span>
-        </div>
-        <label for="trace-detail">Detail</label>
-        <div class="row">
-          <input id="trace-detail" type="range" min="0" max="100" step="5" bind:value={detail} />
-          <span class="value">{detail}</span>
-        </div>
-        <label for="trace-smoothing">Smoothing</label>
-        <div class="row">
-          <input
-            id="trace-smoothing"
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            bind:value={smoothing}
-          />
-          <span class="value">{smoothing}</span>
-        </div>
-        <p class="count" aria-live="polite">
-          {summary}
-        </p>
-      </div>
+<Dialog label="Trace bitmap" syllabus="20.1 importing and tracing bitmaps" width={520} {onclose}>
+  <div class="body">
+    <div class="preview" role="img" aria-label="Preview of the traced shapes">
+      <canvas bind:this={canvas} width="240" height="180" aria-hidden="true"></canvas>
     </div>
-    <p class="hint">
-      The picture becomes vector shapes, one for each area of colour, grouped in its place, so the
-      parts can be recoloured, moved and animated separately. Some detail is lost: fewer colours and
-      less detail lose more, but make fewer shapes.
-    </p>
-    <Why tool="animTrace" />
-    <div class="buttons">
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" disabled={tracing} onclick={trace}>Trace</button>
+    <div class="settings">
+      <label for="trace-colours">Colours</label>
+      <div class="row">
+        <input id="trace-colours" type="range" min="2" max="16" step="1" bind:value={colours} />
+        <span class="value">{colours}</span>
+      </div>
+      <label for="trace-detail">Detail</label>
+      <div class="row">
+        <input id="trace-detail" type="range" min="0" max="100" step="5" bind:value={detail} />
+        <span class="value">{detail}</span>
+      </div>
+      <label for="trace-smoothing">Smoothing</label>
+      <div class="row">
+        <input
+          id="trace-smoothing"
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          bind:value={smoothing}
+        />
+        <span class="value">{smoothing}</span>
+      </div>
+      <p class="count" aria-live="polite">
+        {summary}
+      </p>
     </div>
   </div>
-</div>
+  <p class="hint">
+    The picture becomes vector shapes, one for each area of colour, grouped in its place, so the
+    parts can be recoloured, moved and animated separately. Some detail is lost: fewer colours and
+    less detail lose more, but make fewer shapes.
+  </p>
+  <Why tool="animTrace" />
+  {#snippet buttons()}
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" disabled={tracing} onclick={trace}>Trace</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-  }
-  .dialog {
-    width: 520px;
-    max-width: calc(100vw - 32px);
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-l);
-    padding: 18px 20px;
-  }
-  h2 {
-    margin: 0 0 12px;
-    font-size: 15px;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .syl {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--tx-3);
-  }
   .body {
     display: flex;
     gap: 16px;
@@ -199,11 +168,5 @@
     margin: 12px 0 0;
     color: var(--tx-2);
     font-size: 11.5px;
-  }
-  .buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
   }
 </style>
