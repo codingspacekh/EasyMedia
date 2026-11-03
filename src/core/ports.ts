@@ -9,6 +9,7 @@ import type { Container, ExportSettings } from './render/formats.ts';
 import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
 import type { CombinePlan } from './image/combine.ts';
+import type { UpdateState } from './updates.ts';
 import type { ResizeCrop } from './image/crop.ts';
 
 /** What a media file contains (T1 shows this to students). */
@@ -297,4 +298,20 @@ export interface AppPaths {
   animationRecovery?: string;
   /** AN15: the frames of an animation export wait here for FFmpeg; default: in `proxies`. */
   animationFrames?: string;
+}
+
+/**
+ * M17a U1–U5: the main process's updates (electron-updater). Every request answers with the
+ * state as it is then; `onState` hears each change (progress, a version found…).
+ */
+export interface UpdatesPort {
+  get(): Promise<UpdateState>;
+  check(): Promise<UpdateState>;
+  download(): Promise<UpdateState>;
+  install(): Promise<UpdateState>;
+  setAuto(on: boolean): Promise<UpdateState>;
+  seen(): Promise<UpdateState>;
+  showDmg(): Promise<UpdateState>;
+  openDmg(): Promise<UpdateState>;
+  onState(listener: (state: UpdateState) => void): () => void;
 }

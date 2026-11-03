@@ -15,6 +15,7 @@ import type { WireError } from '../core/wire.ts';
 import type { CombinePlan } from '../core/image/combine.ts';
 import type { ResizeCrop } from '../core/image/crop.ts';
 import type { Container } from '../core/render/formats.ts';
+import type { UpdateState } from '../core/updates.ts';
 
 export interface Channels {
   'media:probe': { args: [path: string]; result: ProbeInfo };
@@ -106,6 +107,15 @@ export interface Channels {
     args: [html: string, title: string, width: number, height: number];
     result: null;
   };
+  /** M17a U1–U5: updates; each answers with the state as it is then. */
+  'updates:get': { args: []; result: UpdateState };
+  'updates:check': { args: []; result: UpdateState };
+  'updates:download': { args: []; result: UpdateState };
+  'updates:install': { args: []; result: UpdateState };
+  'updates:auto': { args: [on: boolean]; result: UpdateState };
+  'updates:seen': { args: []; result: UpdateState };
+  'updates:showDmg': { args: []; result: UpdateState };
+  'updates:openDmg': { args: []; result: UpdateState };
 }
 
 export type Channel = keyof Channels;
@@ -154,6 +164,14 @@ export const CHANNELS: readonly Channel[] = [
   'page:picture',
   'page:font',
   'page:test',
+  'updates:get',
+  'updates:check',
+  'updates:download',
+  'updates:install',
+  'updates:auto',
+  'updates:seen',
+  'updates:showDmg',
+  'updates:openDmg',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */
@@ -184,7 +202,8 @@ export type MenuAction =
   | 'toggleLeft'
   | 'toggleRight'
   | 'toggleBottom'
-  | 'resetLayout';
+  | 'resetLayout'
+  | 'updates';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =
@@ -195,6 +214,8 @@ export interface Events {
   'menu:action': MenuAction;
   /** P7: the window is closing (or the app quitting): may it, with the work as it is? */
   'app:closeRequested': null;
+  /** M17a: the updates' state changed (a version found, download progress…). */
+  'updates:state': UpdateState;
 }
 
 export interface MveApi {

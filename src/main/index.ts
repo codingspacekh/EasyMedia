@@ -4,6 +4,7 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  net,
   protocol,
   screen,
   shell,
@@ -28,6 +29,7 @@ import { recordPerformance } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
 import { selfCheck } from './self-check.ts';
+import { setUpUpdates } from './update-setup.ts';
 import { electronDialogs, projectFiles } from './services.ts';
 
 const APP_ROOT = join(__dirname, '..');
@@ -173,6 +175,23 @@ void app.whenReady().then(async () => {
   app.on('before-quit', () => closeGuard?.quitting());
   app.on('will-quit', () => engine.cancelAll());
 
+  // M17a U1–U5: updates, only in the installed app built with an update address.
+  const updates = await setUpUpdates({
+    packaged: app.isPackaged,
+    platform: process.platform,
+    arch: process.arch,
+    version: app.getVersion(),
+    configFile: join(RESOURCES, 'updates.json'),
+    userData: app.getPath('userData'),
+    downloads: app.getPath('downloads'),
+    send: (state) => sendToWindow(mainWindow, 'updates:state', state),
+    fetch: (url) => net.fetch(url),
+    showItem: (path) => shell.showItemInFolder(path),
+    openPath: (path) => shell.openPath(path),
+    quit: () => app.quit(),
+    loadUpdater: async () => (await import('electron-updater')).autoUpdater,
+  });
+
   registerIpc({
     ipc: ipcMain,
     send: <E extends keyof Events>(event: E, payload: Events[E]) =>
@@ -201,6 +220,7 @@ void app.whenReady().then(async () => {
       read: async (path) => new Uint8Array(await readFile(path)),
       show: showTestPage,
     },
+    updates,
     microphoneAccess: microphoneAccess(
       process.platform,
       systemPreferences,
@@ -228,6 +248,7 @@ void app.whenReady().then(async () => {
 
   if (DEV_ICON) app.dock?.setIcon(DEV_ICON);
   mainWindow = createWindow();
+  updates.start();
   if (process.env.ONEEDITOR_PERF_REPORT)
     recordPerformance(process.env.ONEEDITOR_PERF_REPORT, mainWindow);
   app.on('activate', () => {

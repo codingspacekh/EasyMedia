@@ -5,6 +5,7 @@ import { EditError, JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
 import { combineFilter } from '../core/image/combine.ts';
+import type { Updates } from './updates.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
@@ -24,6 +25,8 @@ export interface MainServices {
   closeAnswer: (close: boolean) => void;
   /** AN15: the files an HTML web animation carries: the player's script and the built fonts. */
   pageFiles: PageFiles;
+  /** M17a U1–U5: updates (electron-updater in the installed app). */
+  updates: Updates;
 }
 
 export interface PageFiles {
@@ -217,6 +220,14 @@ export function registerIpc(s: MainServices): void {
         throw new EditError('That is not a bundled font.');
       return dataUrl('font/ttf', await s.pageFiles.read(join(s.pageFiles.assets, name)));
     },
+    'updates:get': async () => s.updates.get(),
+    'updates:check': () => s.updates.check(),
+    'updates:download': () => s.updates.download(),
+    'updates:install': async () => s.updates.install(),
+    'updates:auto': async (on) => s.updates.setAuto(on === true),
+    'updates:seen': async () => s.updates.seen(),
+    'updates:showDmg': async () => s.updates.showDmg(),
+    'updates:openDmg': () => s.updates.openDmg(),
     'page:test': async (html, title, width, height) => {
       if (typeof html !== 'string' || !(width > 0) || !(height > 0))
         throw new EditError('There is nothing to test.');

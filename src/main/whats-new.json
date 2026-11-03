@@ -1,0 +1,8 @@
+{
+  "1.5.0": [
+    "The app is now called OneEditor, and it updates itself: new versions arrive without reinstalling",
+    "Type any speed (such as 1.25×), a clip's start time in Audio mode, and any export size (such as 852 × 480)",
+    "Export audio as OGG; stretch a picture without cropping; place a picture on another picture",
+    "Animation: a transparent stage, and the frame as an SVG picture"
+  ]
+}

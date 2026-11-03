@@ -120,7 +120,12 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         margin: 0,
       });
       const made = await engine.combineImages(image, image, plan);
-      expect(made).toBe(image.replace(/\.jpg$/, '1.jpg'));
+      // A new numbered copy beside it (the number depends on the copies made before).
+      expect(made).toMatch(
+        new RegExp(
+          `^${image.replace(/\.jpg$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d+\\.jpg$`,
+        ),
+      );
       expect(await engine.probe(made)).toMatchObject({
         kind: 'image',
         video: { width: info.video!.width, height: info.video!.height },

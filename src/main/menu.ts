@@ -94,6 +94,7 @@ export function menuTemplate(
         { label: 'User guide', click: () => openGuide('user-guide') },
         { label: 'Teacher notes', click: () => openGuide('teacher-notes') },
         { type: 'separator' },
+        item('Check for Updates…', '', 'updates'),
         item('Licences', '', 'licences'),
       ],
     },

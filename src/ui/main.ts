@@ -13,6 +13,7 @@ import { createWebAudioOutput } from '../adapters/webaudio/output.ts';
 import { createMediaStreamRecorder, type AudioFrame } from '../adapters/webaudio/recorder.ts';
 import { unwrap } from '../adapters/electron/media-engine.ts';
 import { createIndexedDbUndoStore } from '../adapters/indexeddb/undo-store.ts';
+import { createElectronUpdates } from '../adapters/electron/updates.ts';
 import { menuActions } from './menu-actions.ts';
 import App from './App.svelte';
 import './fonts.css';
@@ -48,6 +49,7 @@ if (!window.mve) {
     text: createCanvasTextRenderer(),
     stageRenderer: createCanvasStageRenderer(),
     pageAssets: createElectronPageAssets(api, FONT_URLS),
+    updates: createElectronUpdates(api),
     paths: await getAppPaths(api),
     audioOutput: createWebAudioOutput(),
     audioUndoStore: createIndexedDbUndoStore(),

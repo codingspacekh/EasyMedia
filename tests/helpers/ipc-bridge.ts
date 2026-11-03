@@ -3,6 +3,8 @@
 import type { MediaEngine } from '../../src/core/ports.ts';
 import { registerIpc, type MainServices } from '../../src/main/ipc.ts';
 import { createAllowList } from '../../src/main/protocol/allowlist.ts';
+import { createUpdates } from '../../src/main/updates.ts';
+import { NO_UPDATE_PREFS } from '../../src/core/updates.ts';
 import type { Events, MveApi } from '../../src/preload/api.ts';
 
 let lastAllow = createAllowList();
@@ -68,6 +70,28 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       read: async (path) => Promise.reject(new Error(`ENOENT ${path}`)),
       show: async () => {},
     },
+    // M17a: as when run from the source: updates are off.
+    updates: createUpdates({
+      mode: 'off',
+      current: '1.5.0',
+      url: null,
+      updater: () => {
+        throw new Error('Updates are off.');
+      },
+      readPrefs: () => ({ ...NO_UPDATE_PREFS }),
+      writePrefs: () => {},
+      notesFor: () => [],
+      send: (state) => listeners.get('updates:state')?.forEach((l) => l(state)),
+      log: () => {},
+      later: () => {},
+      every: () => {},
+      downloads: '/Downloads',
+      arch: 'x64',
+      fetchToFile: async () => {},
+      showItem: () => {},
+      openPath: async () => {},
+      quit: () => {},
+    }),
     ...overrides,
   });
   const api: MveApi = {

@@ -45,7 +45,9 @@ import type {
   TextRenderer,
   Recorder,
   UndoStore,
+  UpdatesPort,
 } from '../core/ports.ts';
+import { createAppUpdates } from './updates.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
 import {
@@ -116,6 +118,8 @@ export interface AppDeps {
   stageRenderer?: StageRenderer;
   /** AN15: what an HTML web animation carries inside it. */
   pageAssets?: PageAssets;
+  /** M17a U1–U5: updates from the main process (none in tests or the browser). */
+  updates?: UpdatesPort;
   autosaveMs?: number;
 }
 
@@ -144,6 +148,7 @@ export function createApp({
   audioRecorder,
   stageRenderer,
   pageAssets,
+  updates,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -439,6 +444,8 @@ export function createApp({
     animation,
     /** N16: the panels' sizes and which are shown. */
     layout,
+    /** M17a U1–U5: updates (the note at the bottom, Help ▸ Check for Updates…). */
+    updates: createAppUpdates(updates),
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {

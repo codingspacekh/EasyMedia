@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
-import type { PageAssets, ProbeInfo, StageRenderer } from '../../src/core/ports.ts';
+import type { PageAssets, ProbeInfo, StageRenderer, UpdatesPort } from '../../src/core/ports.ts';
 
 export const VIDEO: ProbeInfo = {
   kind: 'video',
@@ -23,8 +23,8 @@ export const IMAGE: ProbeInfo = {
 
 export function testApp(
   media: Record<string, ProbeInfo> = { '/m/clip.mp4': VIDEO, '/m/photo.jpg': IMAGE },
-  /** Where preferences.json is (N16, X7); none by default. */
-  { preferences }: { preferences?: string } = {},
+  /** Where preferences.json is (N16, X7); none by default. M17a: the updates port, if any. */
+  { preferences, updates }: { preferences?: string; updates?: UpdatesPort } = {},
 ) {
   const engine = createMockMediaEngine(media);
   const dialogs = fakeDialogs();
@@ -79,6 +79,7 @@ export function testApp(
       ...(preferences ? { preferences } : {}),
     },
     audioRecorder: recorder,
+    ...(updates ? { updates } : {}),
   });
   const importFiles = async (...paths: string[]) => {
     dialogs.openMedia.mockResolvedValueOnce(paths);

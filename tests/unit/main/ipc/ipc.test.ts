@@ -206,6 +206,22 @@ describe('P2 main-process IPC handlers', () => {
     expect(allow.has('/m/p1.jpg')).toBe(true);
   });
 
+  it('M17a updates: the page asks through updates:* and is told the state (off from the source)', async () => {
+    const { api } = inProcessBridge(createMockMediaEngine({}));
+    expect(await api.invoke('updates:get')).toMatchObject({
+      ok: true,
+      value: { mode: 'off', current: '1.5.0', status: 'idle' },
+    });
+    expect(await api.invoke('updates:check')).toMatchObject({
+      ok: true,
+      value: { status: 'idle' },
+    });
+    expect(await api.invoke('updates:auto', true)).toMatchObject({
+      ok: true,
+      value: { autoDownload: true },
+    });
+  });
+
   it('V18 combines only pictures the app opened, and allows the picture it makes', async () => {
     const photo = {
       kind: 'image' as const,

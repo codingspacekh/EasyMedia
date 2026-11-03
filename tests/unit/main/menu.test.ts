@@ -99,7 +99,7 @@ describe('X3 native menus', () => {
     expect(view(false)).not.toContain('toggleDevTools');
   });
 
-  it('Help: Welcome and Licences go to the page; the guides open as web pages (M12)', () => {
+  it('Help: Welcome, Check for Updates (M17a) and Licences go to the page; the guides open as web pages (M12)', () => {
     const send = vi.fn<(a: MenuAction) => void>();
     const open = vi.fn<(guide: 'user-guide' | 'teacher-notes') => void>();
     const help = items(find(menuTemplate('win32', send, false, open), 'Help'));
@@ -107,10 +107,11 @@ describe('X3 native menus', () => {
       'Welcome to OneEditor',
       'User guide',
       'Teacher notes',
+      'Check for Updates…',
       'Licences',
     ]);
     for (const i of help) (i.click as () => void)();
-    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'licences']);
+    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'updates', 'licences']);
     expect(open.mock.calls.map(([g]) => g)).toEqual(['user-guide', 'teacher-notes']);
   });
 
