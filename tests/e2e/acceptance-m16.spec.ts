@@ -477,3 +477,32 @@ test('AN14 frame-by-frame: Duplicate frame and onion skin on the stage; exported
   expect(near(await rgbAt(mp4, 0.75, 320, 100), [154, 164, 178])).toBe(true);
   await app.close();
 });
+
+test('N10 at 1100 × 700 the timeline keeps its rows when its bar wraps; a row can still be clicked', async () => {
+  const { app, window: page } = await launchApp();
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1100, 700));
+  await animationMode(page);
+  const stage = (await page.getByRole('application', { name: 'Stage' }).boundingBox())!;
+  for (const tool of ['Rectangle', 'Ellipse', 'Star', 'Polygon']) {
+    await tools(page).getByRole('button', { name: tool, exact: true }).click();
+    await page.mouse.move(stage.x + stage.width * 0.2, stage.y + stage.height * 0.2);
+    await page.mouse.down();
+    await page.mouse.move(stage.x + stage.width * 0.3, stage.y + stage.height * 0.3, { steps: 3 });
+    await page.mouse.up();
+  }
+  const timeline = page.getByRole('region', { name: 'Timeline' });
+  await timeline.getByRole('button', { name: 'Make frame-by-frame' }).click();
+  const sizes = await page.evaluate(() => {
+    const t = document.querySelector('[aria-label="Timeline"]')!;
+    const h = (sel: string) => t.querySelector(sel)!.getBoundingClientRect().height;
+    return { bar: h('.bar'), grid: h('.grid') };
+  });
+  expect(sizes.bar).toBeGreaterThan(40); // the bar wraps onto two lines at this size…
+  expect(sizes.grid).toBe(152); // …and the rows keep all their room
+  // The first object's row, scrolled to, is not hidden under the ruler or the scroll bar.
+  await timeline.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await expect(timeline.getByRole('button', { name: 'Rectangle', exact: true })).toHaveClass(
+    /selected/,
+  );
+  await app.close();
+});

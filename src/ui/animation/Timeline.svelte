@@ -585,8 +585,9 @@
     --label-w: 150px;
     display: flex;
     flex-direction: column;
-    height: 190px;
-    min-height: 120px;
+    /* The rows keep their height; a bar that wraps on a small window (or the keyframe bar)
+       makes the timeline taller rather than hiding rows: the stage fits what is left. */
+    flex: none;
     border-top: 1px solid var(--line);
     background: var(--bg-1);
     font-size: 12px;
@@ -667,7 +668,8 @@
   }
   .grid {
     position: relative;
-    flex: 1;
+    flex: none;
+    height: 152px;
     overflow: auto;
     display: grid;
     grid-template-columns: var(--label-w) max-content;
@@ -675,6 +677,10 @@
     grid-template-rows: 30px;
     grid-auto-rows: 22px;
     align-content: start;
+    /* A row scrolled into view (a click, the keyboard) stops below the sticky ruler and beside
+       the sticky names, not under them: on a small window the rows scroll. */
+    scroll-padding-top: 30px;
+    scroll-padding-left: var(--label-w);
   }
   .corner,
   .label {
