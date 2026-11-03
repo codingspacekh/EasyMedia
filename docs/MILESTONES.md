@@ -721,6 +721,7 @@ Added 2026-11-03 at the maintainer's request after M16's check passed (README N1
 **Goal:** release quality for the whole app on both platforms, with animation.
 
 **Build order**
+0. **Refactor carried over from M16b** (no behaviour change; the whole suite is the safety net, branch coverage stays ≥ 85 %), done on the `m17` branch and merged into `dev` once v1.4.0 is tagged: `app/audio.ts` split into `app/audio/` modules around one context, as `app/animation/`; the large Stage and Timeline components split into smaller ones; the older dialogs (Export, Crop, Snapshot, Project settings, Stage settings, Animation export, Audio export, Effect) moved onto `ui/Dialog.svelte`.
 1. **Full acceptance run** of README §14 phase 2 by the teacher on a Windows 11 laptop and a Mac with the installed app: the worked example, Tasks 1–9, Practical Activities 19.01–19.07 and exam-style questions 1–3; results in `docs/acceptance/M17.md`.
 2. **Performance (N1–N5)** with an animation open: the stage redraws at ≥ 30 fps with 100 objects on the minimum-spec laptop; a 10 s 1024 × 768 MP4 exports in ≤ 30 s; RAM within N4 with a video project and an animation open together; start-up unchanged.
 3. **Cross-platform (X1, X6)**: a `.mvea` with pictures made on Windows opens on macOS and exports the same MP4 (same size, fps, length; pictures alike at PSNR ≥ 40 dB), and the other way, in the existing CI job.
@@ -782,4 +783,4 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M15 Paths, morphing & masks | ✅ Done ([gate record](acceptance/M15.md)) — motion paths (several per object), morphing, masks, pen path editing; CI green on all three platforms; the teacher's check on Windows and a Mac not done, carried to M16 | 2026-11-01 | `v1.3.0` |
 | M16 Pictures, web export & teaching | ✅ Done ([gate record](acceptance/M16.md)) — pictures, Trace bitmap, the HTML web animation and buttons, stop motion and frame-by-frame with onion skin, Learn ▸ Animation, the task checker for animations, the guides; the teacher's check passed (with M15's) | 2026-11-03 | `v1.4.0` (with M16b) |
 | M16b Workspace, library & effects | 🔶 Built and tested on `dev` ([gate record](acceptance/M16b.md)): the Learn menu, resizable and hideable panels, a readable "Why use this?", the library (cartoons, icons, backgrounds), one-click effects, and the animation app split by area; waiting for the teacher's check | | |
-| M17 Hardening & v2.0 | ⬜ | | |
+| M17 Hardening & v2.0 | 🔶 Started on the `m17` branch: the refactor carried over from M16b (step 0) — `app/audio.ts` split into `app/audio/` | | |

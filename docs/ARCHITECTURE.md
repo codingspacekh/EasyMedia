@@ -122,9 +122,13 @@ EasyMedia/
 │  │  │                       cartoons, icons and backgrounds as part lists, AN19)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts (generic History<T>), commands.ts, store.ts,
-│  │                          preview.ts, proxy-path.ts, audio.ts (Audio mode), learn.ts (Learn mode),
-│  │                          layout.ts (panel sizes, N16), preferences.ts (preferences.json, merged),
-│  │                          animation.ts (composes animation/) + animation-commands.ts
+│  │                          preview.ts, proxy-path.ts, audio.ts (composes audio/), learn.ts (Learn
+│  │                          mode), layout.ts (panel sizes, N16), preferences.ts (preferences.json,
+│  │                          merged), animation.ts (composes animation/) + animation-commands.ts
+│  │  ├─ audio/               Audio mode by area, sharing context.ts (store, tryEdit / run, the
+│  │                          speakers) and undo-steps.ts (undo steps on disk): state.ts, tracks.ts,
+│  │                          clips.ts, selection.ts, session.ts, recording.ts, effects.ts,
+│  │                          playback.ts, exporting.ts
 │  │  └─ animation/           Animation mode by area, sharing context.ts (store, run / edit, player):
 │  │                          state.ts, files.ts, exporting.ts, pictures.ts, drawing.ts, timeline.ts,
 │  │                          document.ts
@@ -555,7 +559,7 @@ decodeAudio(path, sampleRate?): Promise<DecodedAudio>;                    // A1:
 decodeAudioToFile(path, sampleRate?): Promise<DecodedAudioFile>;        // the same, left in a temp f32 file (used over IPC)
 releaseDecoded(raw): Promise<void>;
 encodeAudio({ sampleRate, channels }, output, AudioExportSettings): JobHandle; // A16, A17
-interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): number }  // app/audio.ts; Web Audio adapter
+interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): number }  // app/audio/state.ts; Web Audio adapter
 interface UndoStore { save(channels): Promise<key>; load(key): Promise<Float32Array[]>; keepOnly(keys): Promise<void> } // IndexedDB
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
@@ -644,4 +648,5 @@ Each kind of extension has one place, so later stages add rather than edit:
 | A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`) | — |
 | A form control | the plain element (`input`, `select`, `textarea`…): `ui/forms.css` gives it the app's look; the component sets only its layout | — |
 | An Animation mode action | a method in the area's module in `app/animation/` (a command in `animation-commands.ts` if it edits) | — |
+| An Audio mode action | a method in the area's module in `app/audio/` (an edit runs through `ctx.run` or `ctx.tryEdit`, so it is one undo step) | — |
 | A file dialog or main-process service | the port in `core/ports.ts` | `preload/api.ts` (channel), `main/ipc.ts`, `main/services.ts`, `adapters/electron/services.ts`, the test fakes |
