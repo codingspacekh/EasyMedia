@@ -206,3 +206,22 @@ export const handlePoints = (o: AnimObject): [Handle, Point][] => [
   ['sw', toStage(o, { x: 0, y: o.height })],
   ['w', toStage(o, { x: 0, y: o.height / 2 })],
 ];
+
+/**
+ * N1: gives the stage's canvas the size of the stage at this zoom on this screen (at least
+ * 1 × 1). Setting a canvas's size throws its pixels away and makes it again, so it is set only
+ * when it changes: a redraw per frame of playback must not do that. True when it was resized.
+ */
+export function sizeCanvas(
+  canvas: { width: number; height: number },
+  stage: { width: number; height: number },
+  zoom: number,
+  dpr: number,
+): boolean {
+  const width = Math.max(1, Math.round(stage.width * zoom * dpr));
+  const height = Math.max(1, Math.round(stage.height * zoom * dpr));
+  if (canvas.width === width && canvas.height === height) return false;
+  canvas.width = width;
+  canvas.height = height;
+  return true;
+}

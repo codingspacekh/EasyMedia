@@ -99,6 +99,92 @@ describe('opening an animation with pictures (AN5, AN16)', () => {
   });
 });
 
+describe('copy and paste with pictures (AN5, AN6)', () => {
+  /** A group of the two pictures, copied, then a new animation. */
+  async function copied() {
+    const s = setup();
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
+    await s.anim.addPicture({ x: 0, y: 0 });
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/star.svg');
+    await s.anim.addPicture({ x: 50, y: 0 });
+    s.anim.selectAll();
+    s.anim.group();
+    s.anim.copy();
+    await s.anim.newAnimation();
+    return s;
+  }
+  const pictureIdsIn = (o: GroupObject) =>
+    o.children.map((c) => (c.kind === 'picture' ? c.pictureId : ''));
+
+  it('AN5 pasted into another animation, the pictures come too and are drawn (the 9626 exam trial)', async () => {
+    const s = await copied();
+    expect(s.doc().pictures).toEqual([]);
+    s.anim.paste();
+    const group = s.objects()[0] as GroupObject;
+    expect(s.doc().pictures.map((p) => p.path)).toEqual(['/m/photo.jpg', '/m/star.svg']);
+    const known = new Set(s.doc().pictures.map((p) => p.id));
+    expect(pictureIdsIn(group).every((id) => known.has(id))).toBe(true);
+    s.anim.paste(); // a second paste adds no second copy of each picture
+    expect(s.doc().pictures).toHaveLength(2);
+  });
+
+  it('AN5 a picture the animation already has is used again, not added twice', async () => {
+    const s = await copied();
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
+    await s.anim.addPicture({ x: 0, y: 0 });
+    const own = s.doc().pictures[0]!.id;
+    s.anim.paste();
+    expect(s.doc().pictures.map((p) => p.path)).toEqual(['/m/photo.jpg', '/m/star.svg']);
+    const group = s.objects().find((o) => o.kind === 'group') as GroupObject;
+    expect(pictureIdsIn(group)[0]).toBe(own);
+  });
+
+  it('AN14 a stop motion keeps every picture it changes to', async () => {
+    const s = setup();
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
+    await s.anim.addPicture({ x: 0, y: 0 });
+    s.dialogs.openPicture.mockResolvedValueOnce('/n/photo.jpg');
+    await s.anim.addPicture({ x: 0, y: 0 });
+    const [first, second] = s.doc().pictures;
+    // The first picture object changes to the second picture at frame 10.
+    const id = s.objects()[0]!.id;
+    s.anim.store.update((st) => ({
+      ...st,
+      history: {
+        ...st.history,
+        present: {
+          ...st.history.present,
+          layers: st.history.present.layers.map((l) => ({
+            ...l,
+            objects: l.objects
+              .filter((o) => o.id === id)
+              .map((o) => ({
+                ...o,
+                tracks: [
+                  {
+                    property: 'picture' as const,
+                    keyframes: [
+                      { frame: 0, value: first!.id, easing: 'linear' as const, hold: true },
+                      { frame: 10, value: second!.id, easing: 'linear' as const, hold: true },
+                    ],
+                  },
+                ],
+              })),
+          })),
+        },
+      },
+    }));
+    s.anim.select([id]);
+    s.anim.copy();
+    await s.anim.newAnimation();
+    s.anim.paste();
+    const pasted = s.objects()[0]!;
+    const ids = new Set(s.doc().pictures.map((p) => p.id));
+    expect(s.doc().pictures.map((p) => p.path)).toEqual(['/m/photo.jpg', '/n/photo.jpg']);
+    expect(pasted.tracks![0]!.keyframes.every((k) => ids.has(String(k.value)))).toBe(true);
+  });
+});
+
 describe('Package Animation (P2, AN5)', () => {
   it('P2 copies every picture into a pictures folder and saves the animation beside it', async () => {
     const s = setup();

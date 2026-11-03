@@ -4,6 +4,7 @@
 // internet — and with the Pause / Continue buttons of AN18.
 import { faceFor, type FontFile } from '../text/fonts.ts';
 import { BUTTON_FONT } from './draw.ts';
+import { pictureIdsOf } from './layers.ts';
 import { fileNameOf } from '../project/relocate.ts';
 import type { ProbeInfo } from '../ports.ts';
 import type { AnimObject, AnimationDoc, Id, Picture, TextObject } from './types.ts';
@@ -51,24 +52,9 @@ export function fontsNeeded(doc: AnimationDoc): FontFile[] {
   return [...files.values()];
 }
 
-/** A picture object's pictures: its own and, in a stop motion (AN14), every one it changes to. */
-const pictureIds = (objects: readonly AnimObject[]): Id[] =>
-  objects.flatMap((o) =>
-    o.kind === 'picture'
-      ? [
-          o.pictureId,
-          ...(o.tracks ?? [])
-            .filter((t) => t.property === 'picture')
-            .flatMap((t) => t.keyframes.map((k) => String(k.value))),
-        ]
-      : o.kind === 'group'
-        ? pictureIds(o.children)
-        : [],
-  );
-
 /** The pictures on the stage (a picture deleted from it stays in the list, for undo). */
 export function picturesUsed(doc: AnimationDoc): Picture[] {
-  const used = new Set(pictureIds(doc.layers.flatMap((l) => l.objects)));
+  const used = new Set(pictureIdsOf(doc.layers.flatMap((l) => l.objects)));
   return doc.pictures.filter((p) => used.has(p.id));
 }
 

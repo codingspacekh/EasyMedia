@@ -95,6 +95,18 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     expect(s.objects()).toEqual([]);
   });
 
+  it('AN6 a pasted copy is named once: Star 2, then Star 3 (not "Star 2 2"); in another animation it keeps its name', async () => {
+    const s = setup();
+    s.star();
+    s.anim.copy();
+    s.anim.paste();
+    s.anim.paste();
+    expect(s.objects().map((o) => o.name)).toEqual(['Star', 'Star 2', 'Star 3']);
+    await s.anim.newAnimation();
+    s.anim.paste();
+    expect(s.objects().map((o) => o.name)).toEqual(['Star']);
+  });
+
   it('reorder brings the selection forward or back', () => {
     const s = setup();
     s.star();

@@ -18,6 +18,38 @@ import { fileNameOf } from '../../core/project/relocate.ts';
 import type { AnimationContext } from './context.ts';
 import type { AnimationExporting } from './state.ts';
 
+/** N2: how many frames are drawn at once (the PNGs are made on other threads meanwhile). */
+export const FRAMES_AT_ONCE = 4;
+
+/**
+ * N2: runs `draw` for frames 0 … count − 1, FRAMES_AT_ONCE at a time, telling `progress` how many
+ * are done. After a failure (or Cancel) no new frame starts; it waits for the frames already
+ * started, so nothing is still being written when it rejects with the first error.
+ */
+export async function drawFrames(
+  count: number,
+  draw: (frame: number) => Promise<void>,
+  progress: (done: number) => void,
+): Promise<void> {
+  let next = 0;
+  let done = 0;
+  let failure: { error: unknown } | null = null;
+  const worker = async () => {
+    while (!failure && next < count) {
+      const frame = next++;
+      try {
+        await draw(frame);
+        done++;
+        if (!failure) progress(done);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(FRAMES_AT_ONCE, count) }, worker));
+  if (failure) throw (failure as { error: unknown }).error;
+}
+
 export function exportActions(ctx: AnimationContext) {
   const { store, patch, present, showError, pause, services } = ctx;
   const { dialogs, files, paths, engine, renderer, pageAssets } = services;
@@ -128,15 +160,18 @@ export function exportActions(ctx: AnimationContext) {
     let made: string | null = null;
     try {
       show('drawing', 0);
-      for (let i = 0; i < count; i++) {
-        stopIfCancelled();
-        const png = await renderer.renderPng(doc, i);
-        stopIfCancelled();
-        const file = folder ? `${folder}${frameFile(i)}` : sequenceName(output, i);
-        await files.writeBytes(file, png);
-        written.push(file);
-        show('drawing', (i + 1) / count);
-      }
+      await drawFrames(
+        count,
+        async (i) => {
+          stopIfCancelled();
+          const png = await renderer.renderPng(doc, i);
+          stopIfCancelled();
+          const file = folder ? `${folder}${frameFile(i)}` : sequenceName(output, i);
+          await files.writeBytes(file, png);
+          written.push(file);
+        },
+        (done) => show('drawing', done / count),
+      );
       if (folder && format !== 'png-sequence') {
         show('encoding', 0);
         stopIfCancelled();

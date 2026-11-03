@@ -32,10 +32,12 @@ function fakeCanvas(calls: string[]) {
   }) as unknown as StageCanvas;
   return {
     sizes: [] as number[][],
+    options: [] as unknown[],
     make(width: number, height: number) {
       this.sizes.push([width, height]);
+      const options = this.options;
       return {
-        getContext: () => ctx,
+        getContext: (_kind: '2d', o?: unknown) => (options.push(o), ctx),
         convertToBlob: async () =>
           new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }),
       };
@@ -109,6 +111,30 @@ describe('createCanvasStageRenderer', () => {
     await renderer.renderPng(d, 36);
     expect(calls).toContain('translate(248,50)');
     expect(loadImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('N2 frames drawn at once load the pictures once', async () => {
+    const canvas = fakeCanvas([]);
+    const loadImage = vi.fn(async (path: string) => ({ path }));
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage,
+      loadFonts: async () => {},
+    });
+    const d = doc();
+    await Promise.all([0, 1, 2, 3].map((frame) => renderer.renderPng(d, frame)));
+    expect(loadImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('N4 draws in ordinary memory, not on the graphics card, whose caches fill up over an export', async () => {
+    const canvas = fakeCanvas([]);
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage: async () => null,
+      loadFonts: async () => {},
+    });
+    await renderer.renderPng(doc(), 0);
+    expect(canvas.options).toEqual([{ willReadFrequently: true }]);
   });
 
   it('the default loaders cope without fetch, bitmaps or document fonts', async () => {

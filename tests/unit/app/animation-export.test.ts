@@ -2,6 +2,7 @@
 // made into an MP4 or an animated GIF by FFmpeg, saved as a PNG sequence, or the frame at the
 // playhead as one PNG; with progress and Cancel (N12), and the size shown first (T7).
 import { describe, expect, it } from 'vitest';
+import { drawFrames, FRAMES_AT_ONCE } from '../../../src/app/animation/exporting.ts';
 import { MediaError } from '../../../src/core/model/errors.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -162,7 +163,8 @@ describe('exporting the animation (AN15)', () => {
       return new Uint8Array([1]);
     });
     await s.anim.exportAnimation('mp4');
-    expect(s.stageRenderer.renderPng).toHaveBeenCalledTimes(5);
+    // No frame starts after Cancel; the few already being drawn (N2) are thrown away too.
+    expect(s.stageRenderer.renderPng.mock.calls.length).toBeLessThanOrEqual(5 + FRAMES_AT_ONCE - 1);
     expect(framesIn(s.bytes)).toEqual([]);
     await expect(s.engine.probe('/work/Task1.mp4')).rejects.toThrow(MediaError);
     expect(s.state()).toMatchObject({ exporting: null, message: { text: 'Export cancelled.' } });
@@ -197,6 +199,62 @@ describe('exporting the animation (AN15)', () => {
     await s.anim.exportPng();
     expect(s.dialogs.exportAnimation).toHaveBeenCalledWith('Untitled', 'png');
     expect(s.bytes.has('/work/Stage.png')).toBe(true);
+  });
+});
+
+describe('drawFrames (N2)', () => {
+  /** Frames that finish when the test says, to see how many are being drawn at once. */
+  function frames() {
+    const waiting = new Map<number, (fail?: Error) => void>();
+    let most = 0;
+    const draw = (frame: number) =>
+      new Promise<void>((resolve, reject) => {
+        waiting.set(frame, (fail) => (waiting.delete(frame), fail ? reject(fail) : resolve()));
+        most = Math.max(most, waiting.size);
+      });
+    const finish = async (frame: number, fail?: Error) => {
+      waiting.get(frame)!(fail);
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    };
+    return { draw, finish, waiting, most: () => most };
+  }
+
+  it('N2 draws FRAMES_AT_ONCE frames at once, starting the next as each finishes, and counts them', async () => {
+    const f = frames();
+    const done: number[] = [];
+    const all = drawFrames(10, f.draw, (n) => done.push(n));
+    await Promise.resolve();
+    expect([...f.waiting.keys()]).toEqual([0, 1, 2, 3]);
+    await f.finish(2);
+    expect([...f.waiting.keys()]).toEqual([0, 1, 3, 4]);
+    for (const frame of [0, 1, 3, 4, 5, 6, 7, 8, 9]) await f.finish(frame);
+    await all;
+    expect(done).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(f.most()).toBe(FRAMES_AT_ONCE);
+  });
+
+  it('N2 a short animation draws all its frames at once', async () => {
+    const drawn: number[] = [];
+    await drawFrames(
+      2,
+      async (i) => void drawn.push(i),
+      () => {},
+    );
+    expect(drawn).toEqual([0, 1]);
+  });
+
+  it('N2 after a failure no frame starts, and it rejects only when the frames started have finished', async () => {
+    const f = frames();
+    let settled = false;
+    const all = drawFrames(10, f.draw, () => {}).catch((e: Error) => ((settled = true), e));
+    await Promise.resolve();
+    await f.finish(1, new Error('disk full'));
+    expect([...f.waiting.keys()]).toEqual([0, 2, 3]);
+    await f.finish(0);
+    await f.finish(2);
+    expect(settled).toBe(false); // frame 3 is still being written
+    await f.finish(3, new Error('second'));
+    expect(((await all) as Error).message).toBe('disk full');
   });
 });
 

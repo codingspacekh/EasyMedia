@@ -5,7 +5,15 @@ import { newId } from '../model/factory.ts';
 import { createGroup, createLayer } from './factory.ts';
 import { moved, shiftTracks, toStage } from './geometry.ts';
 import { splitIntoLetters, type MeasureText } from './letters.ts';
-import type { AnimObject, AnimationDoc, GroupObject, Id, Layer, LayerFolder } from './types.ts';
+import type {
+  AnimObject,
+  AnimationDoc,
+  GroupObject,
+  Id,
+  Layer,
+  LayerFolder,
+  Picture,
+} from './types.ts';
 
 export interface Found {
   layer: Layer;
@@ -312,6 +320,71 @@ export function splitText(
 function withNewIds(object: AnimObject): AnimObject {
   const copy = { ...object, id: newId() };
   return copy.kind === 'group' ? { ...copy, children: copy.children.map(withNewIds) } : copy;
+}
+
+/** A picture object's pictures: its own and, in a stop motion (AN14), every one it changes to. */
+export const pictureIdsOf = (objects: readonly AnimObject[]): Id[] =>
+  objects.flatMap((o) =>
+    o.kind === 'picture'
+      ? [
+          o.pictureId,
+          ...(o.tracks ?? [])
+            .filter((t) => t.property === 'picture')
+            .flatMap((t) => t.keyframes.map((k) => String(k.value))),
+        ]
+      : o.kind === 'group'
+        ? pictureIdsOf(o.children)
+        : [],
+  );
+
+/** The object with its pictures (and its stop motion's) changed as `map` says. */
+function withPictureIds(object: AnimObject, map: ReadonlyMap<Id, Id>): AnimObject {
+  if (object.kind === 'group')
+    return { ...object, children: object.children.map((c) => withPictureIds(c, map)) };
+  if (object.kind !== 'picture') return object;
+  const to = (id: Id) => map.get(id) ?? id;
+  return {
+    ...object,
+    pictureId: to(object.pictureId),
+    ...(object.tracks && {
+      tracks: object.tracks.map((t) =>
+        t.property === 'picture'
+          ? { ...t, keyframes: t.keyframes.map((k) => ({ ...k, value: to(String(k.value)) })) }
+          : t,
+      ),
+    }),
+  };
+}
+
+/**
+ * AN6: pastes copies of `objects` (from this animation or another) at the front of the layer,
+ * 10 px to the right and down, each named once against this animation ("Star 2" beside "Star").
+ * AN5: the pictures they show come with them, from `pictures` (the clipboard's): one this
+ * animation already has, by its id or its file, is used again; any other is added.
+ */
+export function pasteObjects(
+  doc: AnimationDoc,
+  layerId: Id,
+  objects: readonly AnimObject[],
+  pictures: readonly Picture[],
+): { doc: AnimationDoc; ids: Id[] } {
+  let next = doc;
+  const map = new Map<Id, Id>();
+  for (const id of new Set(pictureIdsOf(objects))) {
+    if (next.pictures.some((p) => p.id === id)) continue;
+    const picture = pictures.find((p) => p.id === id);
+    if (!picture) continue;
+    const same = next.pictures.find((p) => p.path === picture.path);
+    if (same) map.set(id, same.id);
+    else next = { ...next, pictures: [...next.pictures, picture] };
+  }
+  const ids: Id[] = [];
+  for (const object of objects) {
+    const copy = withPictureIds(moved(withNewIds(object), 10, 10), map);
+    ids.push(copy.id);
+    next = addObject(next, layerId, copy);
+  }
+  return { doc: next, ids };
 }
 
 /** Copies 10 px to the right and down, each just above its original. */

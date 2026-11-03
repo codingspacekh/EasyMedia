@@ -14,7 +14,7 @@ export interface StageRendererDeps {
     width: number,
     height: number,
   ) => {
-    getContext(kind: '2d'): StageCanvas | null;
+    getContext(kind: '2d', options?: { willReadFrequently?: boolean }): StageCanvas | null;
     convertToBlob(options: { type: string }): Promise<Blob>;
   };
   /** A picture file as something drawImage accepts; null when it cannot be loaded. */
@@ -78,17 +78,22 @@ export function createCanvasStageRenderer({
   loadImage = defaultLoadImage,
   loadFonts = defaultLoadFonts,
 }: StageRendererDeps = {}): StageRenderer {
-  // An export draws every frame of one animation: its pictures are loaded once, not per frame.
-  let loaded: { pictures: AnimationDoc['pictures']; images: Map<string, unknown> } | null = null;
-  async function imagesOf(doc: AnimationDoc): Promise<Map<string, unknown>> {
+  // An export draws every frame of one animation: its pictures are loaded once, not per frame,
+  // even for the frames drawn at once (N2), which share the one loading.
+  let loaded: { pictures: AnimationDoc['pictures']; images: Promise<Map<string, unknown>> } | null =
+    null;
+  function imagesOf(doc: AnimationDoc): Promise<Map<string, unknown>> {
     if (loaded?.pictures === doc.pictures) return loaded.images;
-    const images = new Map<string, unknown>();
-    await Promise.all(
-      doc.pictures.map(async (p) => {
-        const image = await loadImage(p.path);
-        if (image) images.set(p.id, image);
-      }),
-    );
+    const images = (async () => {
+      const found = new Map<string, unknown>();
+      await Promise.all(
+        doc.pictures.map(async (p) => {
+          const image = await loadImage(p.path);
+          if (image) found.set(p.id, image);
+        }),
+      );
+      return found;
+    })();
     loaded = { pictures: doc.pictures, images };
     return images;
   }
@@ -96,7 +101,9 @@ export function createCanvasStageRenderer({
   return {
     async renderPng(doc: AnimationDoc, frame = 0): Promise<Uint8Array> {
       const canvas = makeCanvas(doc.stage.width, doc.stage.height);
-      const ctx = canvas.getContext('2d');
+      // N4: drawn in ordinary memory: on the graphics card, Chromium keeps every frame's shapes in
+      // its caches (over 250 MB for a 10 s export of 100 moving objects). The PNG is read back anyway.
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error('No canvas is available to draw the stage.');
       const images = await imagesOf(doc);
       await loadFonts(fontsUsed(doc.layers.flatMap((l) => l.objects)));

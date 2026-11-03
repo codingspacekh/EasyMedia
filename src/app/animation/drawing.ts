@@ -14,7 +14,7 @@ import {
 } from '../../core/animation/factory.ts';
 import { placeIn, objectsShown } from '../../core/animation/frames.ts';
 import type { Handle, Point } from '../../core/animation/geometry.ts';
-import { findObject } from '../../core/animation/layers.ts';
+import { findObject, pictureIdsOf } from '../../core/animation/layers.ts';
 import type { MeasureText } from '../../core/animation/letters.ts';
 import { itemById, placeItem } from '../../core/animation/library/index.ts';
 import { objectAt } from '../../core/animation/tween.ts';
@@ -23,6 +23,7 @@ import type {
   ButtonAction,
   Id,
   PathObject,
+  Picture,
   TextObject,
 } from '../../core/animation/types.ts';
 import { EditError } from '../../core/model/errors.ts';
@@ -31,7 +32,17 @@ import type { ShapeKind, Tool } from './state.ts';
 
 export function drawingActions(ctx: AnimationContext) {
   const { store, patch, present, showError, run, edit, pause, liveSelection, currentLayer } = ctx;
-  let clipboard: AnimObject[] = [];
+  /** AN5, AN6: what was copied, with the pictures it shows, to paste here or in another animation. */
+  let clipboard: { objects: AnimObject[]; pictures: Picture[] } = { objects: [], pictures: [] };
+  function clip(ids: readonly Id[]): typeof clipboard {
+    const doc = present();
+    const objects = ids.flatMap((id) => {
+      const found = findObject(doc, id);
+      return found ? [found.object] : [];
+    });
+    const used = new Set(pictureIdsOf(objects));
+    return { objects, pictures: doc.pictures.filter((p) => used.has(p.id)) };
+  }
 
   /** The selected object's layer, so the next shape goes beside it. */
   function followSelection(ids: Id[]): void {
@@ -255,25 +266,18 @@ export function drawingActions(ctx: AnimationContext) {
     },
 
     copy(): void {
-      const ids = liveSelection();
-      clipboard = ids.flatMap((id) => {
-        const found = findObject(present(), id);
-        return found ? [found.object] : [];
-      });
+      clipboard = clip(liveSelection());
     },
 
     cut(): void {
       const ids = liveSelection();
       if (!ids.length) return;
-      clipboard = ids.flatMap((id) => {
-        const found = findObject(present(), id);
-        return found ? [found.object] : [];
-      });
+      clipboard = clip(ids);
       if (run(cmd.removeObjects(ids))) patch({ selection: [] });
     },
 
     paste(): void {
-      if (clipboard.length === 0) return;
+      if (clipboard.objects.length === 0) return;
       let made: Id[] = [];
       const { layerId, frame } = store.get();
       if (run(cmd.pasteObjects(layerId, clipboard, (ids) => (made = ids), frame)))

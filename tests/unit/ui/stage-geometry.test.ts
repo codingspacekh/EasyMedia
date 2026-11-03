@@ -16,6 +16,7 @@ import {
   rulerStep,
   rulerTicks,
   simplifyStroke,
+  sizeCanvas,
   unionBounds,
 } from '../../../src/ui/animation/stage-geometry.ts';
 
@@ -221,5 +222,47 @@ describe('selection handles', () => {
     expect(Object.keys(handles)).toEqual(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']);
     expect(handles['n']).toEqual({ x: 60, y: 20 });
     expect(handles['se']).toEqual({ x: 110, y: 70 });
+  });
+});
+
+describe('sizeCanvas (N1)', () => {
+  /** A canvas that counts how often its size is set: each set throws its pixels away. */
+  function canvas() {
+    return new (class {
+      sets = 0;
+      #w = 300;
+      #h = 150;
+      get width() {
+        return this.#w;
+      }
+      set width(v: number) {
+        this.sets++;
+        this.#w = v;
+      }
+      get height() {
+        return this.#h;
+      }
+      set height(v: number) {
+        this.sets++;
+        this.#h = v;
+      }
+    })();
+  }
+
+  it('N1 sizes the canvas for the stage, the zoom and the screen, at least 1 × 1', () => {
+    const c = canvas();
+    expect(sizeCanvas(c, { width: 1024, height: 768 }, 0.5, 2)).toBe(true);
+    expect([c.width, c.height]).toEqual([1024, 768]);
+    expect(sizeCanvas(c, { width: 10, height: 10 }, 0.01, 1)).toBe(true);
+    expect([c.width, c.height]).toEqual([1, 1]);
+  });
+
+  it('N1 leaves the canvas alone when its size has not changed (a redraw per frame must not reallocate it)', () => {
+    const c = canvas();
+    sizeCanvas(c, { width: 1024, height: 768 }, 1, 2);
+    const sets = c.sets;
+    for (let frame = 0; frame < 30; frame++)
+      expect(sizeCanvas(c, { width: 1024, height: 768 }, 1, 2)).toBe(false);
+    expect(c.sets).toBe(sets);
   });
 });

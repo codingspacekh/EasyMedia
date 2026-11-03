@@ -388,24 +388,15 @@ export function duplicateObjects(ids: readonly Id[], made: (ids: Id[]) => void):
 /** Pasted objects go to the front of the layer, offset so they are seen, with new ids. */
 export function pasteObjects(
   layerId: Id,
-  objects: readonly AnimObject[],
+  clipboard: { objects: readonly AnimObject[]; pictures: readonly Picture[] },
   made: (ids: Id[]) => void,
   frame = 0,
 ): AnimCommand {
   return command('Paste', (doc) => {
-    let next = doc;
-    const ids: Id[] = [];
     const layer = doc.layers.find((l) => l.id === layerId);
-    for (const object of objects) {
-      // AN14: on a frame-by-frame layer the copies join the drawing shown.
-      const placed = layer ? frames.placeIn(layer, object, frame) : object;
-      const { doc: d, ids: copies } = layers.duplicateObjects(
-        layers.addObject(next, layerId, { ...placed, id: `${object.id}.paste` }),
-        [`${object.id}.paste`],
-      );
-      next = layers.removeObjects(d, [`${object.id}.paste`]);
-      ids.push(...copies);
-    }
+    // AN14: on a frame-by-frame layer the copies join the drawing shown.
+    const placed = clipboard.objects.map((o) => (layer ? frames.placeIn(layer, o, frame) : o));
+    const { doc: next, ids } = layers.pasteObjects(doc, layerId, placed, clipboard.pictures);
     made(ids);
     return next;
   });

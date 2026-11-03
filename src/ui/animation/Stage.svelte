@@ -40,6 +40,7 @@
     previewDoc,
     roundStage as round,
     simplifyStroke,
+    sizeCanvas,
     unionBounds,
     type StageDrag,
   } from './stage-geometry.ts';
@@ -137,11 +138,13 @@
 
   $effect(() => {
     void loaded;
-    const ctx = canvas?.getContext('2d');
+    // N4: drawn in ordinary memory: on the graphics card, Chromium keeps the shapes of every
+    // frame played in its caches (over 300 MB for 100 moving objects), for no faster a stage.
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (!canvas || !ctx) return;
     const dpr = globalThis.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(stage.width * zoom * dpr));
-    canvas.height = Math.max(1, Math.round(stage.height * zoom * dpr));
+    // N1: the same canvas from frame to frame, cleared and its settings reset as a resize would.
+    if (!sizeCanvas(canvas, stage, zoom, dpr)) ctx.reset();
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, 0, 0);
     drawStage(ctx as unknown as StageCanvas, shown, {
       image,
