@@ -716,6 +716,50 @@ Added 2026-11-03 at the maintainer's request after M16's check passed (README N1
 
 ---
 
+### M17a — Exam-paper features, OneEditor and the self-updating pilot (v1.5.0)
+
+Asked by the maintainer on 2026-11-04 after doing fifteen real 9626 papers in the app (the gate
+record of M17 lists them). Built on the `m17` branch; released as **v1.5.0, the pilot**, after
+v1.4.0 is tagged. Gate record: [`acceptance/M17a.md`](acceptance/M17a.md).
+
+**Build order** (each test-first, the requirement ID in the test name)
+1. **The name OneEditor** (done 2026-11-04): the app, its installers and its guides; the settings
+   folder from EasyMedia is moved across on the first start; files made before still open.
+2. **V14 typed speed**: a number box beside the speed presets (0.25×–4×, e.g. 1.25×), as README
+   V14 already asks (M/J/26 Q1 Video2: 43 s at 1.25× → 34.4 s).
+3. **A20 typed clip start**: Audio mode's side panel shows the selected clip's *Starts at* as a
+   time box (M/J/23 Q4: move the part after 6.8 s to start at 8.25 s; M/J/24 Q6: start at 10 s).
+4. **A16 OGG**: Export audio offers OGG (Vorbis) with the other formats (M/J/24 Q5, `right_`).
+5. **V17 any export size**: *Same as the source* (each video's own size, e.g. 852 × 480) and a
+   custom width × height in Export video (F/M/26 Q4, M/J/26 Q1, M/J/25 Q14 854 × 480).
+6. **V11 resize without cropping**: Resize & crop can stretch the picture to the project's size
+   instead of cropping (M/J/26 Q1 bg.png).
+7. **V18 picture on a picture**: the picture dialog places another picture on top (size and one
+   of nine places, or dragged) and saves the result as a new picture (F/M/25 Q2: the cropped
+   still bottom-left on credits.png).
+8. **AN21 transparent stage**: the stage background can be *None*: shown as a checkerboard; PNG,
+   PNG sequence and the web page keep the transparency, a GIF keeps it on or off per pixel, an MP4
+   has white (M/J/23 Conveyor GIF; M/J/26 Gas PNG with a 50 % cloud).
+9. **AN22 SVG picture**: Export animation ▸ *SVG picture* saves the frame at the playhead as
+   vector shapes (paths, fills, gradients, outlines, text), one shape per object (O/N/25 Apple:
+   Apple_, Bite1, Bite2, AppleCore, OldCore).
+10. **U1–U5 updates in the app**, as in the ZISPP Gradebook: the installed app looks for a newer
+    version when it opens and every 6 hours; *1.5.1 is out* with what's new and **Download**
+    (only what changed, in the background); it goes in on **Restart and update** or when the app
+    is next quit, never while working; *Download updates by itself* in Settings, off by default;
+    *Updated to 1.5.1* once after an update; no internet: nothing is said. The feed is the
+    public GitHub repo's latest release; each release is made as a draft and published only
+    when every file is up. Macs are signed with the maintainer's own certificate (as the
+    gradebook's), so they update by themselves; a Mac that refuses is offered the .dmg.
+11. **The pilot installers**: the GitHub repo renamed OneEditor (by the maintainer); the three
+    builds with the update feed; `INSTALL.md` for the pilot; one test update (1.5.0 → 1.5.1)
+    seen arriving on a Windows laptop and a Mac before the pilot starts.
+
+**Exit gate**
+- Each step's tests green; CI green on all three platforms; the papers' steps above done again
+  in the app by the teacher.
+- A test update arrives by itself on Windows and on a Mac. Tag `v1.5.0`; the release published.
+
 ### M17 — Hardening & v2.0
 
 **Goal:** release quality for the whole app on both platforms, with animation.
@@ -783,4 +827,5 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M15 Paths, morphing & masks | ✅ Done ([gate record](acceptance/M15.md)) — motion paths (several per object), morphing, masks, pen path editing; CI green on all three platforms; the teacher's check on Windows and a Mac not done, carried to M16 | 2026-11-01 | `v1.3.0` |
 | M16 Pictures, web export & teaching | ✅ Done ([gate record](acceptance/M16.md)) — pictures, Trace bitmap, the HTML web animation and buttons, stop motion and frame-by-frame with onion skin, Learn ▸ Animation, the task checker for animations, the guides; the teacher's check passed (with M15's) | 2026-11-03 | `v1.4.0` (with M16b) |
 | M16b Workspace, library & effects | 🔶 Built and tested on `dev` ([gate record](acceptance/M16b.md)): the Learn menu, resizable and hideable panels, a readable "Why use this?", the library (cartoons, icons, backgrounds), one-click effects, and the animation app split by area; waiting for the teacher's check | | |
+| M17a Exam papers, OneEditor & the pilot | 🔶 Started on `m17` ([gate record](acceptance/M17a.md)): the name OneEditor done; eight exam-paper features, updates in the app and the pilot installers to do | | `v1.5.0` |
 | M17 Hardening & v2.0 | 🔶 Started on the `m17` branch ([gate record](acceptance/M17.md)): step 0, the refactor carried over from M16b, done — `app/audio/`, the animation Stage and Timeline split, the modal dialogs on `Dialog`; step 2, performance, checked automatically (the stage no longer remakes its canvas each frame, the stage and the export draw in ordinary memory, the export draws four frames at once), the teacher's laptop run to do | | |
