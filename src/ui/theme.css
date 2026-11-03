@@ -161,3 +161,10 @@ button.primary {
   text-transform: uppercase;
   color: var(--tx-2);
 }
+
+/* N10: every modal dialog stays inside the window and scrolls, so its buttons can always be
+   reached on a small laptop screen (a dialog may set its own, smaller, limit). */
+[role='dialog'][aria-modal='true'] {
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}

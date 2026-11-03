@@ -42,6 +42,14 @@ export async function launchApp(
   });
   const window = await app.firstWindow();
   await window.waitForLoadState('domcontentloaded');
+  // E2E_SIZE=1100x700 runs the tests in a small window, as on CI's smaller screens (N10).
+  if (process.env.E2E_SIZE) {
+    const [w, h] = process.env.E2E_SIZE.split('x').map(Number);
+    await app.evaluate(
+      ({ BrowserWindow }, [ww, hh]) => BrowserWindow.getAllWindows()[0]!.setSize(ww!, hh!),
+      [w, h],
+    );
+  }
   await answerUnsaved(app, 'discard');
   return { app, window, userData };
 }
