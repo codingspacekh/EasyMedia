@@ -781,5 +781,5 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M14 Timeline & tweens | ✅ Done ([gate record](acceptance/M14.md)) — keyframes, tweens, the timeline, MP4 / GIF / PNG export, Split into letters, Send to Video mode; the teacher's check passed | 2026-10-27 | `v1.2.0` |
 | M15 Paths, morphing & masks | ✅ Done ([gate record](acceptance/M15.md)) — motion paths (several per object), morphing, masks, pen path editing; CI green on all three platforms; the teacher's check on Windows and a Mac not done, carried to M16 | 2026-11-01 | `v1.3.0` |
 | M16 Pictures, web export & teaching | ✅ Done ([gate record](acceptance/M16.md)) — pictures, Trace bitmap, the HTML web animation and buttons, stop motion and frame-by-frame with onion skin, Learn ▸ Animation, the task checker for animations, the guides; the teacher's check passed (with M15's) | 2026-11-03 | `v1.4.0` (with M16b) |
-| M16b Workspace, library & effects | 🔶 In progress on `dev` | | |
+| M16b Workspace, library & effects | 🔶 Built and tested on `dev` ([gate record](acceptance/M16b.md)): the Learn menu, resizable and hideable panels, a readable "Why use this?", the library (cartoons, icons, backgrounds), one-click effects, and the animation app split by area; waiting for the teacher's check | | |
 | M17 Hardening & v2.0 | ⬜ | | |
