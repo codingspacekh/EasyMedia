@@ -68,6 +68,27 @@ describe('V11 crop to the project size with a 9-point anchor', () => {
   });
 });
 
+describe('V11 resizing without cropping (stretching)', () => {
+  it('M/J/26 Q1: a 4000 × 3000 picture becomes exactly 1280 × 720, nothing cut off', () => {
+    const plan = planResizeCrop(
+      { width: 4000, height: 3000 },
+      { width: 1280, height: 720 },
+      'stretch',
+    );
+    expect(plan.resize).toEqual({ width: 1280, height: 720 });
+    expect(plan.crop).toEqual({ x: 0, y: 0, width: 1280, height: 720 });
+    expect(plan.removed).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+    expect(plan.enlarged).toBe(false);
+    expect(plan.filter).toBe('scale=1280:720:flags=lanczos,crop=1280:720:0:0');
+  });
+
+  it('a smaller picture is enlarged', () => {
+    expect(
+      planResizeCrop({ width: 640, height: 480 }, { width: 1280, height: 720 }, 'stretch').enlarged,
+    ).toBe(true);
+  });
+});
+
 describe('V11 choosing the part to keep with the mouse (in original pixels)', () => {
   const photo = { width: 3764, height: 3092 };
   const project = { width: 1920, height: 1080 };

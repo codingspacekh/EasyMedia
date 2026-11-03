@@ -11,6 +11,8 @@ export interface Size {
 
 /** Which part of the picture to keep: the same 9 places as text positions. */
 export type Anchor = TextPosition;
+/** What the dialog makes: a part kept (crop), or the whole picture stretched (no cropping). */
+export type Keep = Anchor | CropRegion | 'stretch';
 /** A part of the original picture with the project's shape, in original pixels (mouse selection). */
 export interface CropRegion {
   x: number;
@@ -50,13 +52,13 @@ export function resizeKeepingRatio(
       };
 }
 
-/** Smallest resize that covers the target without stretching, then the crop at `keep`. */
-export function planResizeCrop(
-  original: Size,
-  target: Size,
-  keep: Anchor | CropRegion,
-): ResizeCropPlan {
+/**
+ * Smallest resize that covers the target without stretching, then the crop at `keep`; or, with
+ * 'stretch', the whole picture resized to exactly the target ("resize without cropping").
+ */
+export function planResizeCrop(original: Size, target: Size, keep: Keep): ResizeCropPlan {
   assertHasSize(original);
+  if (keep === 'stretch') return finish(original, target, { ...target }, 0, 0);
   if (typeof keep === 'object') return planFromRegion(original, target, keep);
   const resize =
     original.width / original.height <= target.width / target.height
@@ -94,7 +96,7 @@ function finish(original: Size, target: Size, resize: Size, x: number, y: number
       left: x,
       right: resize.width - target.width - x,
     },
-    enlarged: resize.width > original.width,
+    enlarged: resize.width > original.width || resize.height > original.height,
     filter: resizeCropFilter({ resize, crop }),
   };
 }

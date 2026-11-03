@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import MediaBin from '../../../src/ui/MediaBin.svelte';
 import { testApp, VIDEO } from '../../helpers/test-app.ts';
@@ -96,6 +96,20 @@ describe('resize & crop dialog (V11, screen 10)', () => {
     const made = project().media.find((m) => m.path === '/m/Fish_Eagle1.jpg')!;
     expect(project().timeline.main).toEqual([expect.objectContaining({ assetId: made.id })]);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('M/J/26 Q1: Stretch resizes to the project size without cropping, and says the shape changes', async () => {
+    const { app } = await open();
+    const save = vi.spyOn(app, 'resizeCropImage');
+    const dialog = screen.getByRole('dialog', { name: 'Resize and crop image' });
+    await fireEvent.click(screen.getByLabelText(/Stretch to fit/));
+    expect(dialog.textContent).toMatch(/Width\s*1920 px/);
+    expect(dialog.textContent).toMatch(/Height\s*1080 px/);
+    expect(dialog.textContent).toMatch(/Nothing is cut off/);
+    expect(dialog.textContent).toMatch(/shape changes/i);
+    expect(screen.queryByRole('group', { name: /Quick places/ })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Save image' }));
+    expect(save).toHaveBeenCalledWith(expect.any(String), 'stretch');
   });
 
   it('Cancel closes without saving anything', async () => {

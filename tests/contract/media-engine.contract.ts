@@ -100,6 +100,16 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
       expect((await engine.probe(image)).video).toMatchObject(info.video!);
     });
 
+    it('resizeCropImage can stretch a picture to an exact size without cropping (V11, M/J/26 Q1)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const plan = planResizeCrop(info.video!, { width: 300, height: 100 }, 'stretch');
+      expect(await engine.probe(await engine.resizeCropImage(image, plan))).toMatchObject({
+        kind: 'image',
+        video: { width: 300, height: 100 },
+      });
+    });
+
     it('resizeCropImage refuses a crop outside the resized picture', async () => {
       const { engine, image } = setup();
       const bad = {

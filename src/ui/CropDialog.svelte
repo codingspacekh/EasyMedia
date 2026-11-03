@@ -54,10 +54,12 @@
   });
   /** One of the 9 places (the largest part), or a part chosen with the mouse. */
   let keep: Anchor | CropRegion = $state('centre');
+  /** V11: crop to the project's shape (no stretching), or stretch it (no cropping). */
+  let fit = $state<'crop' | 'stretch'>('crop');
   let addToTimeline = $state(false);
   let saving = $state(false);
   let picture: HTMLDivElement | undefined = $state();
-  const plan = $derived(planResizeCrop(size, target, keep));
+  const plan = $derived(planResizeCrop(size, target, fit === 'stretch' ? 'stretch' : keep));
   const region = $derived(typeof keep === 'object' ? keep : coverRegion(size, target, keep));
   const url = $derived(toMediaUrl(asset.path));
   const pct = (part: number, whole: number) => `${(part / whole) * 100}%`;
@@ -134,7 +136,7 @@
 
   async function save(): Promise<void> {
     saving = true;
-    const id = await app.resizeCropImage(asset.id, keep);
+    const id = await app.resizeCropImage(asset.id, fit === 'stretch' ? 'stretch' : keep);
     saving = false;
     if (id === null) return;
     if (addToTimeline) app.addToTimeline(id);
@@ -149,7 +151,17 @@
   busy={saving}
   {onclose}
 >
-  <p class="hint">Make {fileNameOf(asset.path)} fit the project without stretching it.</p>
+  <p class="hint">
+    Make {fileNameOf(asset.path)} fit the project: crop it (no stretching) or stretch it (no cropping).
+  </p>
+  <div class="fit" role="radiogroup" aria-label="How to fit">
+    <label
+      ><input type="radio" name="fit" value="crop" bind:group={fit} /> Crop to fit (keeps its shape)</label
+    >
+    <label
+      ><input type="radio" name="fit" value="stretch" bind:group={fit} /> Stretch to fit (no cropping)</label
+    >
+  </div>
   <Why tool="resizeCrop" />
 
   <div class="body">
@@ -164,27 +176,29 @@
         onmousedown={startDraw}
       >
         <img src={url} alt="" draggable="false" />
-        <div
-          class="keep"
-          role="button"
-          tabindex="0"
-          aria-label="Part to keep — drag to move"
-          style:left={pct(region.x, size.width)}
-          style:top={pct(region.y, size.height)}
-          style:width={pct(region.width, size.width)}
-          style:height={pct(region.height, size.height)}
-          onmousedown={startMove}
-          onkeydown={nudge}
-        >
-          {#each CORNERS as [corner, name] (corner)}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <span
-              class="handle {corner}"
-              aria-label="Resize from the {name} corner"
-              onmousedown={(e) => startResize(e, corner)}
-            ></span>
-          {/each}
-        </div>
+        {#if fit === 'crop'}
+          <div
+            class="keep"
+            role="button"
+            tabindex="0"
+            aria-label="Part to keep — drag to move"
+            style:left={pct(region.x, size.width)}
+            style:top={pct(region.y, size.height)}
+            style:width={pct(region.width, size.width)}
+            style:height={pct(region.height, size.height)}
+            onmousedown={startMove}
+            onkeydown={nudge}
+          >
+            {#each CORNERS as [corner, name] (corner)}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <span
+                class="handle {corner}"
+                aria-label="Resize from the {name} corner"
+                onmousedown={(e) => startResize(e, corner)}
+              ></span>
+            {/each}
+          </div>
+        {/if}
       </div>
       <p class="hint">
         Drag on the picture to choose a part, drag inside it to move it, drag a corner to change its
@@ -202,21 +216,28 @@
         <span>Width</span><b>{plan.resize.width} px</b>
         <span>Height</span><b>{plan.resize.height} px</b>
       </div>
-      <p class="hint">Constrain proportions: no stretching.</p>
-      <h3>Step 2 · Crop to {target.width} × {target.height}</h3>
-      <div class="grid9" role="group" aria-label="Quick places (largest part)">
-        {#each ANCHORS as [value, name] (value)}
-          <button
-            aria-label="Keep {name}"
-            aria-pressed={keep === value}
-            onclick={() => (keep = value)}
-          ></button>
-        {/each}
-      </div>
-      <p>{removedText}</p>
-      <p class="hint">
-        Keeps {Math.round(region.width)} × {Math.round(region.height)} of the original
-      </p>
+      {#if fit === 'stretch'}
+        <p class="hint">
+          Proportions not kept: the picture's shape changes to {target.width} × {target.height}.
+        </p>
+        <p>{removedText}</p>
+      {:else}
+        <p class="hint">Constrain proportions: no stretching.</p>
+        <h3>Step 2 · Crop to {target.width} × {target.height}</h3>
+        <div class="grid9" role="group" aria-label="Quick places (largest part)">
+          {#each ANCHORS as [value, name] (value)}
+            <button
+              aria-label="Keep {name}"
+              aria-pressed={keep === value}
+              onclick={() => (keep = value)}
+            ></button>
+          {/each}
+        </div>
+        <p>{removedText}</p>
+        <p class="hint">
+          Keeps {Math.round(region.width)} × {Math.round(region.height)} of the original
+        </p>
+      {/if}
       {#if plan.enlarged}
         <p class="warn" role="status">
           This part is smaller than the video, so it is enlarged and may look blurry. Choose a
@@ -232,12 +253,14 @@
         aria-label="Result preview"
         style:aspect-ratio="{target.width} / {target.height}"
         style:background-image="url('{url}')"
-        style:background-size="{(size.width / region.width) * 100}% auto"
-        style:background-position="{region.width < size.width
-          ? (region.x / (size.width - region.width)) * 100
-          : 0}% {region.height < size.height
-          ? (region.y / (size.height - region.height)) * 100
-          : 0}%"
+        style:background-size={fit === 'stretch'
+          ? '100% 100%'
+          : `${(size.width / region.width) * 100}% auto`}
+        style:background-position={fit === 'stretch'
+          ? '0 0'
+          : `${region.width < size.width ? (region.x / (size.width - region.width)) * 100 : 0}% ${
+              region.height < size.height ? (region.y / (size.height - region.height)) * 100 : 0
+            }%`}
       ></div>
     </div>
   </div>
@@ -255,6 +278,11 @@
 </Dialog>
 
 <style>
+  .fit {
+    display: flex;
+    gap: 16px;
+    margin: 4px 0 8px;
+  }
   h3 {
     font-size: 12.5px;
     margin: 12px 0 6px;
