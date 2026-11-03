@@ -7,6 +7,7 @@ import {
   createStar,
   createText,
 } from '../../../../src/core/animation/factory.ts';
+import { addDrawing, stopMotion, toFrameByFrame } from '../../../../src/core/animation/frames.ts';
 import { addObject } from '../../../../src/core/animation/layers.ts';
 import {
   animationFromDisk,
@@ -70,5 +71,20 @@ describe('.mvea files (AN16)', () => {
     const noX = JSON.parse(serializeAnimation(doc));
     delete noX.layers[0].objects[1].x;
     expect(() => deserializeAnimation(JSON.stringify(noX))).toThrow(ANIMATION_DAMAGED);
+  });
+
+  it('AN14: keeps stop motion and frame-by-frame layers, and refuses damaged ones', () => {
+    let doc = sample();
+    const shots = [picture, { ...picture, id: 'q', path: 'C:/Users/x/Task6.jpg' }];
+    doc = { ...doc, pictures: shots };
+    doc = addObject(doc, doc.layers[0]!.id, stopMotion(shots, 12, doc.stage));
+    doc = { ...doc, layers: [addDrawing(toFrameByFrame(doc.layers[0]!), 6, 'copy')] };
+    expect(deserializeAnimation(serializeAnimation(doc))).toEqual(doc);
+    const badLayer = JSON.parse(serializeAnimation(doc));
+    badLayer.layers[0].drawings = ['six'];
+    expect(() => deserializeAnimation(JSON.stringify(badLayer))).toThrow(ANIMATION_DAMAGED);
+    const badObject = JSON.parse(serializeAnimation(doc));
+    badObject.layers[0].objects[0].drawing = 'first';
+    expect(() => deserializeAnimation(JSON.stringify(badObject))).toThrow(ANIMATION_DAMAGED);
   });
 });

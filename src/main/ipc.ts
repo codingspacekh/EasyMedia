@@ -166,6 +166,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:saveTaskCheck': (name) => s.dialogs.saveTaskCheck(name),
     'dialog:openAnimation': () => s.dialogs.openAnimation(),
     'dialog:openPicture': () => s.dialogs.openPicture(),
+    'dialog:openFrames': () => s.dialogs.openFrames(),
     'dialog:saveAnimation': (name) => s.dialogs.saveAnimation(name),
     'dialog:exportAnimation': (name, format) => s.dialogs.exportAnimation(name, format),
     'app:closeAnswer': async (close) => {

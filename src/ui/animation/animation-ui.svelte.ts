@@ -1,7 +1,7 @@
 // UI-only state of Animation mode shared by its panels (not part of the animation, not undoable).
 import type { AnimationFormat } from '../../core/animation/export.ts';
 
-export type AnimDialog = 'stage' | 'export' | 'trace' | null;
+export type AnimDialog = 'stage' | 'export' | 'trace' | 'frames' | null;
 
 export const animUi = $state({
   /** The pointer's stage coordinates, for the status bar (null when off the stage). */

@@ -2,7 +2,8 @@
   // Animation mode (M13, M14): the Layers panel, the tool strip, the stage with the timeline under it
   // and the Properties panel, the stage settings dialog, and the keyboard: Space plays and pauses,
   // comma and full stop step a frame, Delete, arrow keys nudge (Shift: 10 px), V R E S G L P
-  // B T I choose tools, Ctrl/Cmd + D duplicates, G groups, Shift + G ungroups, 0 fits, + / −
+  // B T I choose tools, F6 duplicates the frame-by-frame drawing and F7 adds a blank one (Shift:
+  // removes it), Ctrl/Cmd + D duplicates, G groups, Shift + G ungroups, 0 fits, + / −
   // zoom; the Edit menu's cut, copy and paste work on the selected objects (N10).
   import type { App } from '../../app/app.ts';
   import type { Tool } from '../../app/animation.ts';
@@ -13,6 +14,7 @@
   import Stage from './Stage.svelte';
   import AnimationExportDialog from './AnimationExportDialog.svelte';
   import TraceDialog from './TraceDialog.svelte';
+  import ImportFramesDialog from './ImportFramesDialog.svelte';
   import StageSettings from './StageSettings.svelte';
   import Timeline from './Timeline.svelte';
   import ToolStrip from './ToolStrip.svelte';
@@ -74,6 +76,13 @@
       return;
     }
     if (!shortcutAllowed(e) || animUi.dialog !== null) return;
+    if (e.key === 'F6' || e.key === 'F7') {
+      // AN14: as Animate — F6 a keyframe copying the drawing, F7 a blank one (Shift: remove).
+      e.preventDefault();
+      if (e.shiftKey) anim.removeDrawing();
+      else anim.insertDrawing(e.key === 'F6' ? 'copy' : 'blank');
+      return;
+    }
     if (e.key === ' ') {
       e.preventDefault();
       anim.togglePlay();
@@ -125,6 +134,8 @@
   <AnimationExportDialog {app} onclose={() => (animUi.dialog = null)} />
 {:else if animUi.dialog === 'trace'}
   <TraceDialog {app} onclose={() => (animUi.dialog = null)} />
+{:else if animUi.dialog === 'frames'}
+  <ImportFramesDialog {app} onclose={() => (animUi.dialog = null)} />
 {/if}
 
 <style>

@@ -43,6 +43,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       saveTaskCheck: async () => null,
       openAnimation: async () => null,
       openPicture: async () => null,
+      openFrames: async () => [],
       saveAnimation: async () => null,
       exportAnimation: async () => null,
     },

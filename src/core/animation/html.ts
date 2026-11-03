@@ -50,9 +50,19 @@ export function fontsNeeded(doc: AnimationDoc): FontFile[] {
   return [...files.values()];
 }
 
+/** A picture object's pictures: its own and, in a stop motion (AN14), every one it changes to. */
 const pictureIds = (objects: readonly AnimObject[]): Id[] =>
   objects.flatMap((o) =>
-    o.kind === 'picture' ? [o.pictureId] : o.kind === 'group' ? pictureIds(o.children) : [],
+    o.kind === 'picture'
+      ? [
+          o.pictureId,
+          ...(o.tracks ?? [])
+            .filter((t) => t.property === 'picture')
+            .flatMap((t) => t.keyframes.map((k) => String(k.value))),
+        ]
+      : o.kind === 'group'
+        ? pictureIds(o.children)
+        : [],
   );
 
 /** The pictures on the stage (a picture deleted from it stays in the list, for undo). */

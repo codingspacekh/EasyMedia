@@ -6,6 +6,7 @@
   import type { Tool } from '../../app/animation.ts';
   import { withWhy } from '../../core/effects/help.ts';
   import Icon, { type IconName } from '../Icon.svelte';
+  import { animUi } from './animation-ui.svelte.ts';
 
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
@@ -65,6 +66,16 @@
       >
     {/each}
   </div>
+  <div class="hsep"></div>
+  <button
+    class="tbtn"
+    aria-label="Import frames"
+    title={withWhy(
+      'Import frames: a folder of pictures shown one after another (stop motion)',
+      'animStopMotion',
+    )}
+    onclick={() => (animUi.dialog = 'frames')}><Icon name="import" /></button
+  >
   <div class="hsep"></div>
   <div class="tools" role="group" aria-label="Stage helpers">
     <button

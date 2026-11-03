@@ -37,6 +37,7 @@ export function testApp(
     saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
     openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
     openPicture: vi.fn<Dialogs['openPicture']>(async () => null),
+    openFrames: vi.fn<Dialogs['openFrames']>(async () => []),
     saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
     exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
   };

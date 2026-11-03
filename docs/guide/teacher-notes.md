@@ -121,7 +121,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience | Animation ▸ the stage, timeline and export; Learn ▸ Animation (M16) | — |
+| creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience | Animation ▸ the stage, timeline and export; Import frames… (stop motion) on the tool strip; Learn ▸ Animation (M16) | Import frames (stop motion) |
 | configuring the stage/frame/canvas: colour, size | Animation ▸ the stage chip (600 × 400 · 24 fps · colour) at the top | Stage settings |
 | configuring the stage: the aspect ratio using rulers, guides and grid settings | Animation ▸ the stage chip (4:3, 16:9, 16:10, 2.35:1 presets); Rulers, Grid and Guides on the toolbar | Rulers, grid & guides |
 | configuring the stage: snapping options | Animation ▸ Snap on the toolbar (grid, guides, objects, pixels); the status bar says what it snapped to | Snapping |
@@ -139,14 +139,14 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline; the rulers show coordinates; Learn ▸ Animation (M16) | Timeline and keyframes |
-| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Morph |
+| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline; the rulers show coordinates; Learn ▸ Animation (M16) | Timeline and keyframes, Frame-by-frame layer |
+| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Frame-by-frame layer, Morph |
 
 ### Different animation types and methods
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse (M16) | — |
+| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation | Import frames (stop motion), Timeline and keyframes, Frame-by-frame layer |
 
 ### Components of an animation and animation variables
 

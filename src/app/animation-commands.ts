@@ -13,6 +13,7 @@ import type { MeasureText } from '../core/animation/letters.ts';
 import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
 import { motionFrom, withPaths } from '../core/animation/motion.ts';
+import * as frames from '../core/animation/frames.ts';
 import * as tween from '../core/animation/tween.ts';
 import { BUTTON_LABELS } from '../core/animation/factory.ts';
 import type {
@@ -74,7 +75,9 @@ function changeAt(
     ids.reduce(
       (d, id) =>
         layers.updateObject(d, id, (o) => {
-          const next = tween.editAt(o, frame, change);
+          // AN14: a still drawing on a frame-by-frame layer is changed itself, not keyframed.
+          const at = o.drawing !== undefined && !tween.isAnimated(o) ? 0 : frame;
+          const next = tween.editAt(o, at, change);
           validateObject(next);
           validateObject(tween.objectAt(next, frame));
           return next;
@@ -344,8 +347,15 @@ export function reorderObjects(ids: readonly Id[], how: layers.Reorder): AnimCom
   });
 }
 
-export function moveObjectsToLayer(ids: readonly Id[], layerId: Id): AnimCommand {
-  return command('Move to layer', (doc) => layers.moveObjectsToLayer(doc, ids, layerId));
+export function moveObjectsToLayer(ids: readonly Id[], layerId: Id, frame = 0): AnimCommand {
+  return command('Move to layer', (doc) => {
+    const moved = layers.moveObjectsToLayer(doc, ids, layerId);
+    // AN14: on a frame-by-frame layer they join the drawing shown; elsewhere they leave theirs.
+    return layers.changeLayer(moved, layerId, (layer) => ({
+      ...layer,
+      objects: layer.objects.map((o) => (ids.includes(o.id) ? frames.placeIn(layer, o, frame) : o)),
+    }));
+  });
 }
 
 /** The group's id is known once the command has run. */
@@ -379,13 +389,17 @@ export function pasteObjects(
   layerId: Id,
   objects: readonly AnimObject[],
   made: (ids: Id[]) => void,
+  frame = 0,
 ): AnimCommand {
   return command('Paste', (doc) => {
     let next = doc;
     const ids: Id[] = [];
+    const layer = doc.layers.find((l) => l.id === layerId);
     for (const object of objects) {
+      // AN14: on a frame-by-frame layer the copies join the drawing shown.
+      const placed = layer ? frames.placeIn(layer, object, frame) : object;
       const { doc: d, ids: copies } = layers.duplicateObjects(
-        layers.addObject(next, layerId, { ...object, id: `${object.id}.paste` }),
+        layers.addObject(next, layerId, { ...placed, id: `${object.id}.paste` }),
         [`${object.id}.paste`],
       );
       next = layers.removeObjects(d, [`${object.id}.paste`]);
@@ -501,3 +515,53 @@ export function addPicture(layerId: Id, picture: Picture, object: AnimObject): A
     return layers.addObject(withPicture, layerId, object);
   });
 }
+
+// ---- stop motion and frame-by-frame (AN14) ----
+
+/**
+ * *Import frames…*: a layer of its own (above `aboveId`) with the stop motion on it, the pictures
+ * it shows, and a stage long enough for it — one undo step.
+ */
+export function importFrames(
+  aboveId: Id,
+  pictures: readonly Picture[],
+  object: AnimObject,
+  length: number,
+  made: (layerId: Id) => void,
+): AnimCommand {
+  return command('Import frames', (doc) => {
+    const { doc: withLayer, layer } = layers.addLayer(doc, 'Stop motion', aboveId);
+    const known = new Set(doc.pictures.map((p) => p.id));
+    let next: AnimationDoc = {
+      ...withLayer,
+      pictures: [...withLayer.pictures, ...pictures.filter((p) => !known.has(p.id))],
+    };
+    next = layers.addObject(next, layer.id, object);
+    if (next.stage.length < length) next = { ...next, stage: { ...next.stage, length } };
+    made(layer.id);
+    return next;
+  });
+}
+
+export const makeFrameByFrame = (layerId: Id): AnimCommand =>
+  command('Make frame-by-frame', (doc) => layers.changeLayer(doc, layerId, frames.toFrameByFrame));
+
+export function addDrawing(
+  layerId: Id,
+  frame: number,
+  how: 'blank' | 'copy',
+  made: (ids: Id[]) => void,
+): AnimCommand {
+  return command(how === 'copy' ? 'Duplicate frame' : 'Insert blank keyframe', (doc) =>
+    layers.changeLayer(doc, layerId, (layer) => {
+      const next = frames.addDrawing(layer, frame, how);
+      made(next.objects.slice(layer.objects.length).map((o) => o.id));
+      return next;
+    }),
+  );
+}
+
+export const removeDrawing = (layerId: Id, frame: number): AnimCommand =>
+  command('Remove keyframe', (doc) =>
+    layers.changeLayer(doc, layerId, (layer) => frames.removeDrawing(layer, frame)),
+  );

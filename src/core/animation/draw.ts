@@ -80,7 +80,15 @@ export interface DrawOptions {
    * out, so masks always work there.
    */
   editing?: boolean;
+  /**
+   * AN14: onion skin while editing — the objects to draw faintly behind a layer's own (the
+   * drawings just before and after the one shown, see frames.ts), to draw the next one in step.
+   */
+  onionSkin?: (layerId: string) => readonly AnimObject[];
 }
+
+/** AN14: how strongly the onion skin's neighbouring drawings are drawn. */
+export const ONION_OPACITY = 0.3;
 
 export const LINE_HEIGHT = 1.2;
 const TAU = 2 * Math.PI;
@@ -295,10 +303,15 @@ export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOpti
   const layers = shown.layers;
   const masking = (l: Layer): boolean =>
     l.mask === true && l.visible && (!options.editing || l.locked);
+  const skin = (layer: Layer): void => {
+    for (const object of options.onionSkin?.(layer.id) ?? [])
+      drawObject(ctx, object, options, ONION_OPACITY);
+  };
   layers.forEach((layer, i) => {
     if (!layer.visible || masking(layer)) return;
     const mask = layers[i + 1];
     if (!mask || !masking(mask)) {
+      skin(layer);
       for (const object of layer.objects) drawObject(ctx, object, options);
       return;
     }

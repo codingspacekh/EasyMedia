@@ -97,6 +97,10 @@ export const WHY = {
     'A mask is a layer whose shapes decide what can be seen of the layer beneath it: only the parts under the shapes show. A moving mask, such as a spotlight, reveals the picture or the words as it passes.',
   animButton:
     'Buttons let the viewer control the animation: Pause stops it so a picture can be studied, Continue plays on, Restart plays it again and Go to frame jumps to a part. They work in an HTML web animation (and in Test); a video or GIF cannot be clicked, so there they are only pictures of buttons.',
+  animStopMotion:
+    'Stop motion makes still photographs move: an object (a clay model, a toy) is moved a little between photographs, and the photographs are shown one after another, a few each second. Import frames puts a folder of them on a layer, each held for its frames; 12 pictures a second is smooth enough and halves the photographs needed for 24.',
+  animFrameByFrame:
+    'Frame-by-frame animation draws every keyframe separately, as the pages of a flip book or the cels of cel animation: it gives complete control over every change (a face changing expression, a flowchart step lighting up) but takes far longer than a tween. Duplicate frame copies the drawing to change it a little; onion skin shows the drawings before and after faintly to keep the steps even.',
   animExport:
     'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
 } as const;
@@ -169,6 +173,8 @@ export const TOOLS: Tool[] = [
   tool('animMorph', 'Morph', '20.1 morphing'),
   tool('animMask', 'Mask', '20.1 applying masks'),
   tool('animButton', 'Button', '20.1 controlling animations by stopping them'),
+  tool('animStopMotion', 'Import frames (stop motion)', '20.1 stop motion'),
+  tool('animFrameByFrame', 'Frame-by-frame layer', '20.1 frames, key frames and tweening'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
 ];
 

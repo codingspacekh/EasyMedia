@@ -15,7 +15,7 @@ export const ANIMATION_MIGRATIONS: Record<number, Migration> = {
   1: (v1) => ({ ...v1, schemaVersion: 2 }),
   /** Version 3 (M15): motion paths, shape keyframes and mask layers; a v2 file has none. */
   2: (v2) => ({ ...v2, schemaVersion: 3 }),
-  /** Version 4 (M16): button objects (AN18); a v3 file has none. */
+  /** Version 4 (M16): buttons (AN18), stop motion and frame-by-frame layers (AN14); a v3 file has none. */
   3: (v3) => ({ ...v3, schemaVersion: 4 }),
 };
 
@@ -124,6 +124,7 @@ function isAnimObject(o: Obj): boolean {
   }
   if (o.tracks !== undefined && !listOf(o.tracks, isTrack)) return false;
   if (o.paths !== undefined && !(Array.isArray(o.paths) && o.paths.every(isMotion))) return false;
+  if (o.drawing !== undefined && !isNumber(o.drawing)) return false;
   switch (o.kind) {
     case 'rect':
       return isNumber(o.radius);
@@ -170,6 +171,8 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
         has(l, ['id', 'name'], isString) &&
         has(l, ['visible', 'locked'], isBoolean) &&
         (l.mask === undefined || isBoolean(l.mask)) &&
+        (l.drawings === undefined ||
+          (Array.isArray(l.drawings) && l.drawings.length > 0 && l.drawings.every(isNumber))) &&
         listOf(l.objects, isAnimObject),
     ) &&
     listOf(doc.folders, (f) => has(f, ['id', 'name'], isString)) &&

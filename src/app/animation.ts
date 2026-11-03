@@ -18,6 +18,15 @@ import {
 import type { Handle, Point } from '../core/animation/geometry.ts';
 import { findObject, setFolderOpen as setFolderOpenIn } from '../core/animation/layers.ts';
 import {
+  drawingAt,
+  isShown,
+  objectsShown,
+  placeIn,
+  sortByName,
+  stopMotion,
+  stopMotionTiming,
+} from '../core/animation/frames.ts';
+import {
   animationFromDisk,
   animationToDisk,
   deserializeAnimation,
@@ -106,6 +115,8 @@ export interface AnimationState {
   playing: boolean;
   /** AN8: loop the whole animation, or the frames from `from` to `to` (both shown). */
   loop: Loop;
+  /** AN14: the drawings before and after drawn faintly on frame-by-frame layers (not saved). */
+  onionSkin: boolean;
   /** AN15: an export of the frames under way (N12: progress and Cancel). */
   exporting: AnimationExporting | null;
   /** What Animation mode is doing, e.g. "Exporting…". */
@@ -206,6 +217,7 @@ export function createAnimationApp({
     frame: 0,
     playing: false,
     loop: { on: false },
+    onionSkin: false,
     exporting: null,
     busy: null,
     message: null,
@@ -315,8 +327,12 @@ export function createAnimationApp({
   }
 
   /** The selection without objects that no longer exist. */
+  /** The selected objects still there and on the stage at the playhead (AN14: in its drawing). */
   const liveSelection = (): Id[] =>
-    store.get().selection.filter((id) => findObject(present(), id) !== null);
+    store.get().selection.filter((id) => isShown(present(), id, store.get().frame));
+
+  /** The layer new objects go on. */
+  const currentLayer = () => present().layers.find((l) => l.id === store.get().layerId);
 
   function load(doc: AnimationDoc, path: string | null, saved: AnimationDoc = doc): void {
     pause();
@@ -580,7 +596,9 @@ export function createAnimationApp({
   }
 
   function addToStage(object: AnimObject): void {
-    if (run(cmd.addObject(store.get().layerId, object))) {
+    const layer = currentLayer();
+    const placed = layer ? placeIn(layer, object, store.get().frame) : object;
+    if (run(cmd.addObject(store.get().layerId, placed))) {
       const added = present()
         .layers.find((l) => l.id === store.get().layerId)
         ?.objects.at(-1);
@@ -703,8 +721,11 @@ export function createAnimationApp({
 
     select: (ids: Id[]) => followSelection(ids),
     selectAll(): void {
-      const layer = present().layers.find((l) => l.id === store.get().layerId);
-      const ids = layer && !layer.locked && layer.visible ? layer.objects.map((o) => o.id) : [];
+      const layer = currentLayer();
+      const ids =
+        layer && !layer.locked && layer.visible
+          ? objectsShown(layer, store.get().frame).map((o) => o.id)
+          : [];
       patch({ selection: ids });
     },
     setTool: (tool: Tool) => patch({ tool }),
@@ -809,6 +830,92 @@ export function createAnimationApp({
       } catch (error) {
         showError(error);
       }
+    },
+
+    /**
+     * AN14: *Import frames…* — the pictures in a folder, sorted by name, shown one after another
+     * at `rate` pictures a second on a layer of their own (stop motion).
+     */
+    async importFrames(rate: number): Promise<void> {
+      const { stage } = present();
+      try {
+        stopMotionTiming(1, rate, stage.fps);
+      } catch (error) {
+        showError(error);
+        return;
+      }
+      const chosen = await dialogs.openFrames();
+      if (chosen.length === 0) return;
+      patch({ busy: 'Importing frames…' });
+      try {
+        const pictures: Picture[] = [];
+        for (const path of sortByName(chosen)) {
+          const info = await engine.probe(path).catch(() => null);
+          if (!info?.video || (info.kind !== 'image' && info.container !== 'gif')) continue;
+          const known = present().pictures.find((p) => p.path === path);
+          pictures.push(
+            known ?? { id: newId(), path, width: info.video.width, height: info.video.height },
+          );
+        }
+        if (pictures.length === 0)
+          throw new EditError('There are no pictures in that folder (PNG, JPG, GIF, BMP or SVG).');
+        const object = stopMotion(pictures, rate, stage);
+        const { length } = stopMotionTiming(pictures.length, rate, stage.fps);
+        let layerId: Id | null = null;
+        if (
+          run(
+            cmd.importFrames(store.get().layerId, pictures, object, length, (id) => (layerId = id)),
+          ) &&
+          layerId
+        ) {
+          const seconds = Math.round((length / stage.fps) * 10) / 10;
+          patch({
+            layerId,
+            selection: [object.id],
+            tool: 'select',
+            message: {
+              kind: 'info',
+              text: `Imported ${pictures.length} pictures: ${seconds} s at ${rate} pictures a second.`,
+            },
+          });
+        }
+      } catch (error) {
+        showError(error);
+      } finally {
+        patch({ busy: null });
+      }
+    },
+
+    /** AN14: the current layer becomes frame-by-frame; what is on it is the first drawing. */
+    makeFrameByFrame(): string | null {
+      return edit(cmd.makeFrameByFrame(store.get().layerId));
+    },
+
+    /**
+     * AN14: a keyframe at the playhead on the frame-by-frame layer: blank (*Insert blank
+     * keyframe*) or a copy of the drawing shown (*Duplicate frame*), which is then selected.
+     */
+    insertDrawing(how: 'blank' | 'copy'): string | null {
+      let made: Id[] = [];
+      const { layerId, frame } = store.get();
+      const error = edit(cmd.addDrawing(layerId, frame, how, (ids) => (made = ids)));
+      if (error === null) patch({ selection: made });
+      return error;
+    },
+
+    /** AN14: removes the keyframe at the playhead and its drawing. */
+    removeDrawing(): string | null {
+      const { layerId, frame } = store.get();
+      return edit(cmd.removeDrawing(layerId, frame));
+    },
+
+    /** AN14: shows the drawings before and after faintly, to draw the next one in step. */
+    setOnionSkin: (on: boolean) => patch({ onionSkin: on }),
+
+    /** AN14: the keyframe of the drawing shown on the current layer; undefined if not frame-by-frame. */
+    drawingShown(): number | undefined {
+      const layer = currentLayer();
+      return layer ? drawingAt(layer, store.get().frame) : undefined;
     },
 
     // ---- editing the selection ----
@@ -1005,7 +1112,8 @@ export function createAnimationApp({
 
     moveSelectionToLayer(layerId: Id): void {
       const ids = liveSelection();
-      if (ids.length && run(cmd.moveObjectsToLayer(ids, layerId))) patch({ layerId });
+      if (ids.length && run(cmd.moveObjectsToLayer(ids, layerId, store.get().frame)))
+        patch({ layerId });
     },
 
     group(): void {
@@ -1050,7 +1158,8 @@ export function createAnimationApp({
     paste(): void {
       if (clipboard.length === 0) return;
       let made: Id[] = [];
-      if (run(cmd.pasteObjects(store.get().layerId, clipboard, (ids) => (made = ids))))
+      const { layerId, frame } = store.get();
+      if (run(cmd.pasteObjects(layerId, clipboard, (ids) => (made = ids), frame)))
         patch({ selection: made });
     },
 

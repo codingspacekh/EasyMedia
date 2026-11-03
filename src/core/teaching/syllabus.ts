@@ -276,7 +276,8 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   // ---- 20.1 Animation (phase 2; the theory pages arrive in M16) ----
   an(
     'creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience',
-    'Animation ▸ the stage, timeline and export; Learn ▸ Animation (M16)',
+    'Animation ▸ the stage, timeline and export; Import frames… (stop motion) on the tool strip; Learn ▸ Animation (M16)',
+    ['20.1 stop motion'],
   ),
   an(
     'configuring the stage/frame/canvas: colour, size',
@@ -348,7 +349,8 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     '20.1',
     ANIM_TYPES,
     'cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types',
-    'Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse (M16)',
+    'Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation',
+    ['20.1 stop motion', '20.1 frames, key frames and tweening'],
   ),
   p(
     '20.1',

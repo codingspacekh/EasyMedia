@@ -4,6 +4,7 @@
   // applied as one undo step when the pointer is let go.
   import type { App } from '../../app/app.ts';
   import { drawStage, type StageCanvas } from '../../core/animation/draw.ts';
+  import { onionSkin } from '../../core/animation/frames.ts';
   import {
     createEllipse,
     createLine,
@@ -218,6 +219,13 @@
     ctx.stroke();
   }
 
+  function skinOf(layerId: string) {
+    const layer = $store.history.present.layers.find((l) => l.id === layerId);
+    if (!layer) return [];
+    const { before, after } = onionSkin(layer, $store.frame);
+    return [...before, ...after];
+  }
+
   $effect(() => {
     void loaded;
     const ctx = canvas?.getContext('2d');
@@ -231,6 +239,8 @@
       // AN12: a mask works on the stage while its layer is locked, as in the coursebook.
       editing: true,
       ...(view.grid.show && !view.grid.over ? { afterBackground: drawGrid } : {}),
+      // AN14: the drawings before and after, faintly, on frame-by-frame layers.
+      ...($store.onionSkin ? { onionSkin: skinOf } : {}),
     });
   });
 

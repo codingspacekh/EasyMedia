@@ -205,6 +205,8 @@ export interface Dialogs {
   openAnimation(): Promise<string | null>;
   /** AN5: a picture for the stage (PNG, JPG, GIF, BMP or SVG). */
   openPicture(): Promise<string | null>;
+  /** AN14: *Import frames…* — a folder of pictures for a stop motion; the pictures in it ([] if none). */
+  openFrames(): Promise<string[]>;
   /** AN16: where to save an animation. */
   saveAnimation(suggestedName: string): Promise<string | null>;
   /** AN15: where to save an exported animation; the file type follows the format. */

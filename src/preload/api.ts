@@ -78,6 +78,7 @@ export interface Channels {
   'dialog:saveTaskCheck': { args: [suggestedName: string]; result: string | null };
   'dialog:openAnimation': { args: []; result: string | null };
   'dialog:openPicture': { args: []; result: string | null };
+  'dialog:openFrames': { args: []; result: string[] };
   'dialog:saveAnimation': { args: [suggestedName: string]; result: string | null };
   'dialog:exportAnimation': {
     args: [suggestedName: string, format: AnimationExportFormat];
@@ -134,6 +135,7 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:saveTaskCheck',
   'dialog:openAnimation',
   'dialog:openPicture',
+  'dialog:openFrames',
   'dialog:saveAnimation',
   'dialog:exportAnimation',
   'app:closeAnswer',

@@ -81,9 +81,14 @@ describe('P2 main-process IPC handlers', () => {
         saveTaskCheck: async (name) => `/t/${name}.mvetask`,
         openAnimation: async () => null,
         openPicture: async () => null,
+        openFrames: async () => ['/shots/1.jpg', '/shots/2.jpg'],
         saveAnimation: async () => null,
         exportAnimation: async () => null,
       },
+    });
+    expect(await api.invoke('dialog:openFrames')).toEqual({
+      ok: true,
+      value: ['/shots/1.jpg', '/shots/2.jpg'],
     });
     expect(await api.invoke('dialog:saveTaskCheck', 'Task 11b')).toEqual({
       ok: true,

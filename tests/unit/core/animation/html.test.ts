@@ -13,6 +13,7 @@ import {
   picturesUsed,
   webPage,
 } from '../../../../src/core/animation/html.ts';
+import { stopMotion } from '../../../../src/core/animation/frames.ts';
 import { addObject } from '../../../../src/core/animation/layers.ts';
 import type { AnimationDoc, Picture } from '../../../../src/core/animation/types.ts';
 
@@ -154,5 +155,21 @@ describe('the pictures a web page carries (AN15)', () => {
       layers: [{ ...doc.layers[0]!, objects: [createGroup(doc.layers[0]!.objects)] }],
     };
     expect(picturesUsed(grouped).map((p) => p.id)).toEqual(['p1']);
+  });
+
+  it('AN14: a stop motion carries every picture it shows, not only the first', () => {
+    const doc = task1();
+    const shots: Picture[] = ['a', 'b', 'c'].map((id) => ({
+      id,
+      path: `/s/${id}.jpg`,
+      width: 60,
+      height: 40,
+    }));
+    const withShots = addObject(
+      { ...doc, pictures: shots },
+      layerOf(doc),
+      stopMotion(shots, 12, doc.stage),
+    );
+    expect(picturesUsed(withShots).map((p) => p.id)).toEqual(['a', 'b', 'c']);
   });
 });

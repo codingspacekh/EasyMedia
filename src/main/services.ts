@@ -5,6 +5,7 @@ import { CONTAINERS } from '../core/render/formats.ts';
 import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { PICTURE_EXTENSIONS, picturesIn } from './media/pictures.ts';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -29,9 +30,6 @@ const MEDIA_EXTENSIONS = [
   'ogg',
   'wma',
 ];
-
-/** AN5: pictures for Animation mode; SVG only here, as FFmpeg cannot draw it for a video. */
-const PICTURE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg'];
 
 /** AN15: the file types of the animation exports. */
 const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
@@ -140,6 +138,14 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         filters: [{ name: 'Pictures', extensions: PICTURE_EXTENSIONS }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async openFrames() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Import frames: choose the folder of pictures',
+        properties: ['openDirectory'],
+      });
+      const folder = r.canceled ? undefined : r.filePaths[0];
+      return folder ? picturesIn(folder) : [];
     },
     async saveAnimation(name) {
       const r = await dialog.showSaveDialog(win(), {
