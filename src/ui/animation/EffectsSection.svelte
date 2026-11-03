@@ -62,8 +62,7 @@
   >
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <p class="hint">
-    Starts at the playhead ({timeLabel($store.frame, stage.fps)}). It adds keyframes you can change
-    on the timeline; Undo takes it away.
+    Starts at the playhead. It adds keyframes you can change on the timeline; Undo takes it away.
   </p>
   <Why tool="animEffects" />
 </div>
