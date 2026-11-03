@@ -67,6 +67,18 @@ export function menuTemplate(
         ...(developer ? [{ role: 'toggleDevTools' } as const] : []),
       ],
     },
+    {
+      // N15: Learn's pages fill the window in place of the editor, with Back.
+      label: 'Learn',
+      submenu: [
+        item('Inspector & Sampling', '', 'learnInspect'),
+        item('Formats & Compression', '', 'learnFormats'),
+        item('Animation Theory', '', 'learnAnimation'),
+        item('Task Checker', '', 'learnTask'),
+        { type: 'separator' },
+        item('Glossary', '', 'glossary'),
+      ],
+    },
     { role: 'windowMenu' },
     {
       label: 'Help',

@@ -1,8 +1,8 @@
 # EasyMedia — user guide
 
 EasyMedia edits video, sound and animation for Cambridge International AS & A Level IT (9626),
-syllabus sections 11 and 20.1. It has four modes, chosen at the top left: **Video**, **Audio**,
-**Learn** and **Animation**.
+syllabus sections 11 and 20.1. It has three editors, chosen at the top left: **Video**, **Audio**
+and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 
 > Rest the mouse on any button to see what it does. Most tools also have a **Why use this?** box:
 > it gives the reason the tool is used, in the words the exam expects.
@@ -221,6 +221,10 @@ and EasyMedia works out every frame in between (a **tween**). Click a keyframe d
 advantages of each. **Send to Video mode** puts the exported MP4 on the video timeline.
 
 ## Learn mode
+
+Open it from the **Learn** menu in the menu bar. It fills the window; the tabs at the top switch
+between its pages, and **Back to …** returns to the editor you were using. **Learn ▸ Glossary**
+opens over any editor.
 
 - **Inspector & sampling**: drop or choose any media file to see what is inside it (container,
   codecs, lossy or lossless, resolution, aspect ratio, bit rates, sample rate, channels…). Click a

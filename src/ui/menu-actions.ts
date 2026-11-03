@@ -1,10 +1,10 @@
 // What each native menu item does (X3). New, Open, Save, Export, Undo, Redo, Import and Select
 // All act on the mode that is showing: the video project in Video mode, the sound in Audio
-// mode, the animation in Animation mode.
+// mode, the animation in Animation mode. The Learn menu shows a Learn page (N15).
 import type { App } from '../app/app.ts';
 import type { MenuAction } from '../preload/api.ts';
 import { animUi } from './animation/animation-ui.svelte.ts';
-import { ui } from './ui-state.svelte.ts';
+import { openLearn, ui } from './ui-state.svelte.ts';
 
 const inTextBox = () => {
   const el = document.activeElement;
@@ -46,6 +46,13 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
     package: () => (anim() ? a.packageAnimation() : app.packageProject()),
     undo: () => (anim() ? a.undo() : audio() ? app.audio.undo() : app.undo()),
     redo: () => (anim() ? a.redo() : audio() ? app.audio.redo() : app.redo()),
+    learnInspect: () => openLearn('inspect'),
+    learnFormats: () => openLearn('formats'),
+    learnAnimation: () => openLearn('animation'),
+    learnTask: () => openLearn('task'),
+    glossary: () => {
+      ui.glossary = true;
+    },
     welcome: app.showWelcome,
     licences: app.showLicences,
     selectAll: () => {

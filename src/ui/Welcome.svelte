@@ -19,16 +19,16 @@
       syllabus: '11.2',
     },
     {
-      name: 'Learn',
-      icon: 'learn',
-      text: 'See what is inside a media file, work out file sizes, watch how sampling works, compare compressions, and check an export against a task.',
-      syllabus: '11.1 · 11.2',
-    },
-    {
       name: 'Animation',
       icon: 'animation',
-      text: 'Set up a stage, draw vector shapes and text on layers with exact sizes and positions, and export the picture (keyframes and tweens come next).',
+      text: 'Set up a stage, draw shapes, text and pictures on layers, bring them to life with keyframes, paths, morphs and masks, and export a video, GIF or web page.',
       syllabus: '20.1',
+    },
+    {
+      name: 'Learn',
+      icon: 'learn',
+      text: 'From the Learn menu at the top: see inside a media file, work out file sizes, how sampling works, compare compressions, the theory of animation, the glossary, and check an export against a task.',
+      syllabus: '11.1 · 11.2 · 20.1',
     },
   ] as const;
 
@@ -42,7 +42,7 @@
     <h2>Welcome to EasyMedia</h2>
     <p class="lead">
       A video, sound and animation editor for Cambridge AS & A Level IT, Chapters 11 and 20. Choose
-      a mode at the top left.
+      an editor at the top left; the theory is in the <b>Learn</b> menu.
     </p>
     <div class="modes">
       {#each MODES as mode (mode.name)}

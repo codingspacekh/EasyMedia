@@ -113,4 +113,33 @@ describe('X3 native menus', () => {
     expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'licences']);
     expect(open.mock.calls.map(([g]) => g)).toEqual(['user-guide', 'teacher-notes']);
   });
+
+  it('N15 the Learn menu, after View, opens each Learn page and the glossary', () => {
+    const send = vi.fn<(a: MenuAction) => void>();
+    const menus = menuTemplate('win32', send, false);
+    expect(menus.map((m) => m.label ?? m.role)).toEqual([
+      'File',
+      'Edit',
+      'View',
+      'Learn',
+      'windowMenu',
+      'Help',
+    ]);
+    const learn = items(find(menus, 'Learn'));
+    expect(learn.map((i) => i.label)).toEqual([
+      'Inspector & Sampling',
+      'Formats & Compression',
+      'Animation Theory',
+      'Task Checker',
+      'Glossary',
+    ]);
+    for (const i of learn) (i.click as () => void)();
+    expect(send.mock.calls.map((c) => c[0])).toEqual([
+      'learnInspect',
+      'learnFormats',
+      'learnAnimation',
+      'learnTask',
+      'glossary',
+    ]);
+  });
 });

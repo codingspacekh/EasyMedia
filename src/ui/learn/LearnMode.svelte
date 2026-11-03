@@ -6,7 +6,6 @@
   import CompressionComparison from './CompressionComparison.svelte';
   import FileSizeCalculator from './FileSizeCalculator.svelte';
   import FormatGuide from './FormatGuide.svelte';
-  import Glossary from './Glossary.svelte';
   import MediaInspector from './MediaInspector.svelte';
   import SamplingVisualiser from './SamplingVisualiser.svelte';
   import TaskChecker from './TaskChecker.svelte';
@@ -33,7 +32,6 @@
     <TaskChecker {learn} />
   {/if}
 </div>
-{#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
 
 <style>
   .learn {

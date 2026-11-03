@@ -172,7 +172,12 @@ export type MenuAction =
   | 'licences'
   | 'newAnimation'
   | 'openAnimation'
-  | 'exportAnimation';
+  | 'exportAnimation'
+  | 'learnInspect'
+  | 'learnFormats'
+  | 'learnAnimation'
+  | 'learnTask'
+  | 'glossary';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

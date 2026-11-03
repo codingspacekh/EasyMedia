@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import type { ProbeInfo } from '../../../src/core/ports.ts';
 import App from '../../../src/ui/App.svelte';
+import { tick } from 'svelte';
+import { menuActions } from '../../../src/ui/menu-actions.ts';
 import { ui } from '../../../src/ui/ui-state.svelte.ts';
 import { testApp, VIDEO } from '../../helpers/test-app.ts';
 
@@ -16,14 +18,12 @@ const SONG: ProbeInfo = {
   audio: { codec: 'mp3', sampleRate: 44100, channels: 2, bitRate: 128_000 },
 };
 
+/** Learn is opened from the menu bar's Learn menu (N15); its tabs switch between the pages. */
 async function learnMode(tab?: string) {
   const t = testApp({ '/m/clip.mp4': VIDEO, '/m/song.mp3': SONG });
   render(App, { props: { app: t.app } });
-  await fireEvent.click(
-    within(screen.getByRole('navigation', { name: 'Mode' })).getByRole('button', {
-      name: 'Learn',
-    }),
-  );
+  menuActions(t.app).learnInspect();
+  await tick();
   if (tab) await fireEvent.click(screen.getByRole('tab', { name: tab }));
   return { ...t, learn: t.app.learn };
 }
@@ -60,6 +60,32 @@ describe('Learn mode layout (screens 21–22)', () => {
       expect(card(name)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Glossary' })).toBeTruthy();
     expect(screen.getByText('Learn mode does not change your project')).toBeTruthy();
+  });
+});
+
+describe('N15 Learn from the menu bar', () => {
+  it('fills the window with a Back button to the editor it was opened from', async () => {
+    const t = testApp();
+    render(App, { props: { app: t.app } });
+    ui.mode = 'Animation';
+    menuActions(t.app).learnAnimation();
+    await tick();
+    expect(screen.getByRole('tab', { name: 'Animation' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+    expect(screen.queryByRole('navigation', { name: 'Mode' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Back to Animation' }));
+    expect(ui.mode).toBe('Animation');
+    expect(screen.getByRole('navigation', { name: 'Mode' })).toBeTruthy();
+  });
+
+  it('the Glossary opens over an editor too (Learn ▸ Glossary)', async () => {
+    const t = testApp();
+    render(App, { props: { app: t.app } });
+    menuActions(t.app).glossary();
+    await tick();
+    expect(screen.getByRole('dialog', { name: /Glossary/ })).toBeTruthy();
+    expect(ui.mode).toBe('Video');
   });
 });
 
