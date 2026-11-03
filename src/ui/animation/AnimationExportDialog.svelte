@@ -4,6 +4,7 @@
   // before exporting; then the progress, with Cancel.
   import type { App } from '../../app/app.ts';
   import { ANIMATION_FORMATS, type AnimationFormat } from '../../core/animation/export.ts';
+  import Dialog from '../Dialog.svelte';
   import { ui } from '../ui-state.svelte.ts';
   import { animUi } from './animation-ui.svelte.ts';
 
@@ -63,105 +64,73 @@
   });
 </script>
 
-<!-- Escape closes it, as every dialog (not while it is working). -->
-<svelte:window onkeydown={(e) => e.key === 'Escape' && !running && !exporting && onclose()} />
+<Dialog
+  label="Export animation"
+  syllabus="20.1 exporting for an application and audience"
+  width={520}
+  busy={running || !!exporting}
+  {onclose}
+>
+  <fieldset disabled={running}>
+    <legend class="sr-only">Format</legend>
+    {#each ANIMATION_FORMATS as f (f.id)}
+      <label class="format" class:on={f.id === animUi.exportFormat}>
+        <input
+          type="radio"
+          name="anim-format"
+          value={f.id}
+          checked={f.id === animUi.exportFormat}
+          onchange={() => choose(f.id)}
+        />
+        <span class="name">{f.label}</span>
+        <span class="use">{f.use}</span>
+      </label>
+    {/each}
+  </fieldset>
 
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Export animation">
-    <h2>
-      Export animation <span class="syl">20.1 exporting for an application and audience</span>
-    </h2>
-
-    <fieldset disabled={running}>
-      <legend class="sr-only">Format</legend>
-      {#each ANIMATION_FORMATS as f (f.id)}
-        <label class="format" class:on={f.id === animUi.exportFormat}>
-          <input
-            type="radio"
-            name="anim-format"
-            value={f.id}
-            checked={f.id === animUi.exportFormat}
-            onchange={() => choose(f.id)}
-          />
-          <span class="name">{f.label}</span>
-          <span class="use">{f.use}</span>
-        </label>
-      {/each}
-    </fieldset>
-
-    <div class="detail">
-      <ul class="pros" aria-label="Pros">
-        {#each chosen.pros as p (p)}<li>{p}</li>{/each}
-      </ul>
-      <ul class="cons" aria-label="Cons">
-        {#each chosen.cons as c (c)}<li>{c}</li>{/each}
-      </ul>
-    </div>
-
-    <p class="summary mono">
-      {summary.frames === 1
-        ? `1 frame (the playhead) · about ${sizeText(summary.bytes)}`
-        : `${summary.frames} frames · ${summary.seconds.toFixed(2)} s · about ${sizeText(summary.bytes)}`}
-    </p>
-    {#if summary.size.padded}
-      <p class="note">
-        MP4 needs even sizes: it will be {summary.size.width} × {summary.size.height} (one pixel added).
-      </p>
-    {/if}
-
-    {#if running}
-      <div class="progress">
-        <span>{phaseText}</span>
-        <progress max="1" value={exporting?.progress ?? 0} aria-label="Export progress"></progress>
-      </div>
-    {/if}
-
-    <div class="buttons">
-      {#if running}
-        <button onclick={() => anim.cancelExport()}>Cancel export</button>
-      {:else}
-        <button
-          class="send"
-          title="Save an MP4 beside the animation file and put it on the video timeline"
-          onclick={() => void sendToVideo()}>Send to Video mode</button
-        >
-        <button onclick={onclose}>Close</button>
-        <button class="primary" onclick={() => void run()}>Export file</button>
-      {/if}
-    </div>
+  <div class="detail">
+    <ul class="pros" aria-label="Pros">
+      {#each chosen.pros as p (p)}<li>{p}</li>{/each}
+    </ul>
+    <ul class="cons" aria-label="Cons">
+      {#each chosen.cons as c (c)}<li>{c}</li>{/each}
+    </ul>
   </div>
-</div>
+
+  <p class="summary mono">
+    {summary.frames === 1
+      ? `1 frame (the playhead) · about ${sizeText(summary.bytes)}`
+      : `${summary.frames} frames · ${summary.seconds.toFixed(2)} s · about ${sizeText(summary.bytes)}`}
+  </p>
+  {#if summary.size.padded}
+    <p class="note">
+      MP4 needs even sizes: it will be {summary.size.width} × {summary.size.height} (one pixel added).
+    </p>
+  {/if}
+
+  {#if running}
+    <div class="progress">
+      <span>{phaseText}</span>
+      <progress max="1" value={exporting?.progress ?? 0} aria-label="Export progress"></progress>
+    </div>
+  {/if}
+
+  {#snippet buttons()}
+    {#if running}
+      <button onclick={() => anim.cancelExport()}>Cancel export</button>
+    {:else}
+      <button
+        class="send"
+        title="Save an MP4 beside the animation file and put it on the video timeline"
+        onclick={() => void sendToVideo()}>Send to Video mode</button
+      >
+      <button onclick={onclose}>Close</button>
+      <button class="primary" onclick={() => void run()}>Export file</button>
+    {/if}
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-  }
-  .dialog {
-    width: 520px;
-    max-width: calc(100vw - 32px);
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-l);
-    padding: 18px 20px;
-  }
-  h2 {
-    margin: 0 0 12px;
-    font-size: 15px;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .syl {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--tx-3);
-  }
   fieldset {
     border: none;
     margin: 0;
@@ -202,7 +171,6 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    margin: 12px 0 6px;
     font-size: 12px;
   }
   .detail ul {
@@ -218,7 +186,7 @@
     color: var(--warn);
   }
   .summary {
-    margin: 8px 0 4px;
+    margin: 0;
     color: var(--tx-2);
     font-size: 12px;
   }
@@ -230,17 +198,10 @@
   .progress {
     display: grid;
     gap: 4px;
-    margin-top: 10px;
     font-size: 12px;
   }
   .progress progress {
     width: 100%;
-  }
-  .buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 14px;
   }
   .send {
     margin-right: auto;

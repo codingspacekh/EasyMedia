@@ -1,5 +1,6 @@
 <script lang="ts">
   // Stage settings (AN1, AN2): size, aspect-ratio presets, colour, frame rate and length.
+  import Dialog from '../Dialog.svelte';
   import Why from '../Why.svelte';
   import { untrack } from 'svelte';
   import type { App } from '../../app/app.ts';
@@ -35,131 +36,95 @@
   }
 </script>
 
-<!-- Escape closes it, as every dialog (not while it is working). -->
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
-
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Stage settings">
-    <h2>Stage settings <span class="syl">20.1 configuring the stage</span></h2>
-    <div class="presets" role="group" aria-label="Aspect ratio">
-      {#each STAGE_PRESETS as preset (preset.ratio)}
-        <button
-          class="sm"
-          aria-pressed={ratio === preset.ratio}
-          title={preset.use}
-          onclick={() => choose(preset)}>{preset.ratio}</button
-        >
-      {/each}
-      <span class="now">Now {ratio}</span>
-    </div>
-    <div class="grid">
-      <NumField
-        label="Width"
-        value={width}
-        unit="px"
-        commit={(v) => {
-          width = v;
-          return null;
-        }}
-      />
-      <NumField
-        label="Height"
-        value={height}
-        unit="px"
-        commit={(v) => {
-          height = v;
-          return null;
-        }}
-      />
-      <ColourField
-        label="Colour"
-        value={background}
-        commit={(c) => {
-          background = c;
-          return null;
-        }}
-      />
-      <div class="field">
-        <label for="stage-fps">Frame rate</label>
-        <div class="row">
-          <select
-            id="stage-fps"
-            value={String(fps)}
-            onchange={(e) => (fps = Number((e.currentTarget as HTMLSelectElement).value))}
-          >
-            {#each FPS_CHOICES as f (f)}<option value={String(f)}>{f} fps</option>{/each}
-            {#if !FPS_CHOICES.includes(fps)}<option value={String(fps)}>{fps} fps</option>{/if}
-          </select>
-        </div>
-      </div>
-      <NumField
-        label="Length"
-        value={length}
-        unit="frames"
-        commit={(v) => {
-          length = Math.round(v);
-          return null;
-        }}
-      />
-      <NumField
-        label="= seconds"
-        value={seconds}
-        unit="s"
-        decimals={2}
-        commit={(v) => {
-          length = Math.max(1, framesFor(v, fps));
-          return null;
-        }}
-      />
-    </div>
-    <p class="hint">
-      The stage is the area where the animation takes place: only what is on it is seen. Changing
-      the frame rate keeps the length in frames: 72 frames last 3 s at 24 fps, 2.4 s at 30 fps.
-    </p>
-    <Why tool="stage" />
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <div class="buttons">
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" onclick={apply}>Apply</button>
-    </div>
+<Dialog label="Stage settings" syllabus="20.1 configuring the stage" width={440} {onclose}>
+  <div class="presets" role="group" aria-label="Aspect ratio">
+    {#each STAGE_PRESETS as preset (preset.ratio)}
+      <button
+        class="sm"
+        aria-pressed={ratio === preset.ratio}
+        title={preset.use}
+        onclick={() => choose(preset)}>{preset.ratio}</button
+      >
+    {/each}
+    <span class="now">Now {ratio}</span>
   </div>
-</div>
+  <div class="grid">
+    <NumField
+      label="Width"
+      value={width}
+      unit="px"
+      commit={(v) => {
+        width = v;
+        return null;
+      }}
+    />
+    <NumField
+      label="Height"
+      value={height}
+      unit="px"
+      commit={(v) => {
+        height = v;
+        return null;
+      }}
+    />
+    <ColourField
+      label="Colour"
+      value={background}
+      commit={(c) => {
+        background = c;
+        return null;
+      }}
+    />
+    <div class="field">
+      <label for="stage-fps">Frame rate</label>
+      <div class="row">
+        <select
+          id="stage-fps"
+          value={String(fps)}
+          onchange={(e) => (fps = Number((e.currentTarget as HTMLSelectElement).value))}
+        >
+          {#each FPS_CHOICES as f (f)}<option value={String(f)}>{f} fps</option>{/each}
+          {#if !FPS_CHOICES.includes(fps)}<option value={String(fps)}>{fps} fps</option>{/if}
+        </select>
+      </div>
+    </div>
+    <NumField
+      label="Length"
+      value={length}
+      unit="frames"
+      commit={(v) => {
+        length = Math.round(v);
+        return null;
+      }}
+    />
+    <NumField
+      label="= seconds"
+      value={seconds}
+      unit="s"
+      decimals={2}
+      commit={(v) => {
+        length = Math.max(1, framesFor(v, fps));
+        return null;
+      }}
+    />
+  </div>
+  <p class="hint">
+    The stage is the area where the animation takes place: only what is on it is seen. Changing the
+    frame rate keeps the length in frames: 72 frames last 3 s at 24 fps, 2.4 s at 30 fps.
+  </p>
+  <Why tool="stage" />
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  {#snippet buttons()}
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" onclick={apply}>Apply</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-  }
-  .dialog {
-    width: 440px;
-    max-width: calc(100vw - 32px);
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-l);
-    padding: 18px 20px;
-  }
-  h2 {
-    margin: 0 0 12px;
-    font-size: 15px;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .syl {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--tx-3);
-  }
   .presets {
     display: flex;
     gap: 6px;
     align-items: center;
-    margin-bottom: 12px;
   }
   .presets .now {
     margin-left: auto;
@@ -186,19 +151,13 @@
     width: 100%;
   }
   .hint {
-    margin: 8px 0 0;
+    margin: 0;
     color: var(--tx-2);
     font-size: 11.5px;
   }
   .error {
-    margin: 8px 0 0;
+    margin: 0;
     color: var(--danger);
     font-size: 12px;
-  }
-  .buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
   }
 </style>
