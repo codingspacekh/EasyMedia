@@ -284,7 +284,7 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
 /** The audio codec ffprobe reports for each audio export (A17). */
 function audioCodecOf(e: AudioExportSettings): string {
   if (e.format === 'wav') return { 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
-  return { mp3: 'mp3', m4a: 'aac', aac: 'aac', flac: 'flac' }[e.format];
+  return { mp3: 'mp3', m4a: 'aac', aac: 'aac', ogg: 'vorbis', flac: 'flac' }[e.format];
 }
 
 /** The codec names ffprobe reports for each format (V16). */

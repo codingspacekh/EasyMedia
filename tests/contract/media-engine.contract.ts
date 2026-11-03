@@ -226,6 +226,7 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         ['mp3', 'mp3', 'mp3'],
         ['m4a', 'm4a', 'aac'],
         ['aac', 'aac', 'aac'],
+        ['ogg', 'ogg', 'vorbis'],
         ['wav', 'wav', 'pcm_s16le'],
         ['flac', 'flac', 'flac'],
       ] as const)('A17 exports %s (container %s, codec %s)', async (format, container, codec) => {

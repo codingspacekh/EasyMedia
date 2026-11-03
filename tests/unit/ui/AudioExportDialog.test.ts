@@ -54,6 +54,15 @@ describe('audio export dialog', () => {
     expect(pressed('Channels', 'Stereo')).toBe('true');
   });
 
+  it('A16 OGG is offered: Vorbis, lossy, with its pros and cons (M/J/24 Q5 right_)', async () => {
+    const { dialog } = await withSound();
+    await fireEvent.click(within(dialog).getByRole('button', { name: /OGG/ }));
+    expect(pressed('Format', /OGG/)).toBe('true');
+    expect(within(dialog).getByText('Lossy')).toBeTruthy();
+    expect(within(dialog).getByText(/free to use/i)).toBeTruthy();
+    expect(size()).toMatch(/^≈ /);
+  });
+
   it('A16 MP3 cannot be 96 kHz; WAV can, and has 16 / 24 / 32-bit instead of a bit rate', async () => {
     await withSound();
     const card = (name: RegExp) =>

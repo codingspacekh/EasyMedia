@@ -26,8 +26,9 @@ const mp3: AudioExportSettings = {
 const pair = (args: string[], flag: string) => args[args.indexOf(flag) + 1];
 
 describe('A16 / A17 audio export formats', () => {
-  it('offers MP3, M4A, AAC, WAV and FLAC', () => {
-    expect(Object.keys(AUDIO_FORMATS)).toEqual(['mp3', 'm4a', 'aac', 'wav', 'flac']);
+  it('offers MP3, M4A, AAC, OGG, WAV and FLAC', () => {
+    expect(Object.keys(AUDIO_FORMATS)).toEqual(['mp3', 'm4a', 'aac', 'ogg', 'wav', 'flac']);
+    expect(AUDIO_FORMATS.ogg).toMatchObject({ extension: 'ogg', lossless: false, tags: true });
     expect(AUDIO_FORMATS.flac.lossless && AUDIO_FORMATS.wav.lossless).toBe(true);
     expect(AUDIO_FORMATS.mp3.lossless).toBe(false);
   });
@@ -117,6 +118,23 @@ describe('A16 / A17 audio export formats', () => {
       expect(args).toContain('artist=A & B "quoted"');
       expect(args).toContain('date=2026');
       expect(args.some((a) => a.startsWith('album='))).toBe(false);
+    });
+
+    it('A16 OGG is Vorbis at a quality level for the bit rate chosen (M/J/24 Q5), with tags', () => {
+      const ogg = audioCodecArgs({ ...mp3, format: 'ogg', channels: 1, tags: { title: 'right' } });
+      expect([pair(ogg, '-c:a'), pair(ogg, '-f'), pair(ogg, '-ac')]).toEqual([
+        'libvorbis',
+        'ogg',
+        '1',
+      ]);
+      expect(pair(ogg, '-q:a')).toBe('4'); // about 128 kbps
+      expect(ogg).not.toContain('-b:a');
+      expect(ogg).toContain('title=right');
+      expect(pair(audioCodecArgs({ ...mp3, format: 'ogg', bitRate: 320 }), '-q:a')).toBe('9');
+      expect(sampleRatesFor('ogg')).not.toContain(96000);
+      expect(estimateAudioSize({ ...mp3, format: 'ogg' }, 45)).toMatchObject({ about: true });
+      expect(audioFormatNotes('ogg').title).toMatch(/OGG/);
+      expect(() => validateAudioExport({ ...mp3, format: 'ogg' })).not.toThrow();
     });
 
     it('an AAC stream cannot hold tags, so none are written', () => {
