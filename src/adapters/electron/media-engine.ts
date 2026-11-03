@@ -68,6 +68,7 @@ export function createElectronMediaEngine(
       await unwrap(api.invoke('media:frame', input, time, output));
     },
     resizeCropImage: (input, plan) => unwrap(api.invoke('media:resizeCrop', input, plan)),
+    combineImages: (base, top, plan) => unwrap(api.invoke('media:combine', base, top, plan)),
     renderFrame: (project, time, output, options) =>
       unwrap(api.invoke('media:snapshot', project, time, output, options)),
     renderVideo: (project, output, options) =>

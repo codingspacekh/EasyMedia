@@ -4,6 +4,7 @@ import { isAbsolute, join, relative } from 'node:path';
 import { EditError, JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
+import { combineFilter } from '../core/image/combine.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
@@ -113,6 +114,14 @@ export function registerIpc(s: MainServices): void {
       resizeCropFilter(plan); // explains a bad crop before anything else
       if (!s.allow.has(input)) throw new Error('Only pictures opened in OneEditor can be cropped.');
       const path = await s.engine.resizeCropImage(input, plan);
+      s.allow.add(path);
+      return path;
+    },
+    'media:combine': async (base, top, plan) => {
+      combineFilter(plan); // explains a bad place before anything else
+      if (!s.allow.has(base) || !s.allow.has(top))
+        throw new Error('Only pictures opened in OneEditor can be combined.');
+      const path = await s.engine.combineImages(base, top, plan);
       s.allow.add(path);
       return path;
     },

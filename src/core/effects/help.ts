@@ -26,6 +26,8 @@ export const WHY = {
     'Credits name the people who made the video and the sources of the clips, music and pictures that were used. Scrolling credits need blank lines so each part can be read.',
   resizeCrop:
     'Resizing and cropping a still image makes it match the video’s aspect ratio, so it fills the frame without black bars or looking stretched. Cropping also removes unwanted parts of the picture.',
+  placePicture:
+    'Placing a picture on another makes one still from both: a still from the video or a logo on a background, for a title slide or the credits. It is saved as a new picture, so both originals are kept.',
   fade: 'Fading from black gently opens a scene; fading to black closes it and shows that time has passed or that the video is ending. Fading to white feels bright, like a memory.',
   panZoom:
     'Pan and zoom moves across or into a picture so a still image does not look frozen. It also removes unwanted parts at the edges and draws attention to an important detail.',
@@ -141,6 +143,7 @@ export const TOOLS: Tool[] = [
   tool('subtitle', 'Subtitles', '11.1 adding subtitles'),
   tool('credits', 'Credits', '11.1 creating credits'),
   tool('resizeCrop', 'Resize & crop', '11.1 resizing and cropping a still image'),
+  tool('placePicture', 'Place a picture', '11.1 inserting a still image'),
   tool('fade', 'Fade', '11.1 adding fading effects'),
   tool('panZoom', 'Pan & zoom', '11.1 adding pan and zoom effects'),
   tool('filters', 'Filters & colour', '11.1 using filters and colour correction'),

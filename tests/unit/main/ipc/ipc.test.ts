@@ -206,6 +206,30 @@ describe('P2 main-process IPC handlers', () => {
     expect(allow.has('/m/p1.jpg')).toBe(true);
   });
 
+  it('V18 combines only pictures the app opened, and allows the picture it makes', async () => {
+    const photo = {
+      kind: 'image' as const,
+      container: 'png',
+      sizeBytes: 1,
+      video: { codec: 'png', width: 400, height: 300 },
+    };
+    const { api } = inProcessBridge(
+      createMockMediaEngine({ '/m/credits.png': photo, '/m/grid.png': photo, '/etc/x.png': photo }),
+    );
+    const plan = { top: { width: 100, height: 75 }, x: 0, y: 225 };
+    await api.invoke('media:probe', '/m/credits.png');
+    expect(await api.invoke('media:combine', '/m/credits.png', '/etc/x.png', plan)).toMatchObject({
+      ok: false,
+    });
+    await api.invoke('media:probe', '/m/grid.png');
+    expect(await api.invoke('media:combine', '/m/credits.png', '/m/grid.png', plan)).toEqual({
+      ok: true,
+      value: '/m/credits1.png',
+    });
+    const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
+    expect(allow.has('/m/credits1.png')).toBe(true);
+  });
+
   it('A1 decoded sound reaches the page through a temporary file, never through the main process memory', async () => {
     const backend = createMockMediaEngine({
       '/m/song.mp3': {

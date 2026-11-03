@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EditError, JobCancelledError, MediaError } from '../../src/core/model/errors.ts';
 import { assetFromProbe, createProject, createVideoClip } from '../../src/core/model/factory.ts';
 import { trimVideo } from '../../src/core/model/timeline.ts';
+import { planCombine } from '../../src/core/image/combine.ts';
 import { planResizeCrop } from '../../src/core/image/crop.ts';
 import type { MediaAsset, Project, VideoClip } from '../../src/core/model/types.ts';
 import type { JobEvent, MediaEngine } from '../../src/core/ports.ts';
@@ -108,6 +109,25 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         kind: 'image',
         video: { width: 300, height: 100 },
       });
+    });
+
+    it('combineImages places a picture on a picture and saves a new one beside it (V18)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const plan = planCombine(info.video!, info.video!, {
+        anchor: 'bottom-left',
+        widthPercent: 25,
+        margin: 0,
+      });
+      const made = await engine.combineImages(image, image, plan);
+      expect(made).toBe(image.replace(/\.jpg$/, '1.jpg'));
+      expect(await engine.probe(made)).toMatchObject({
+        kind: 'image',
+        video: { width: info.video!.width, height: info.video!.height },
+      });
+      await expect(
+        engine.combineImages(image, image, { top: { width: 0, height: 1 }, x: 0, y: 0 }),
+      ).rejects.toThrow(EditError);
     });
 
     it('resizeCropImage refuses a crop outside the resized picture', async () => {

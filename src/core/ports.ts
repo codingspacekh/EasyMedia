@@ -8,6 +8,7 @@ import type { TextImage } from './render/compile.ts';
 import type { Container, ExportSettings } from './render/formats.ts';
 import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
+import type { CombinePlan } from './image/combine.ts';
 import type { ResizeCrop } from './image/crop.ts';
 
 /** What a media file contains (T1 shows this to students). */
@@ -100,6 +101,11 @@ export interface MediaEngine {
    * (Fish_Eagle.jpg → Fish_Eagle1.jpg, then Fish_Eagle2.jpg…). Never overwrites. Resolves with its path.
    */
   resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
+  /**
+   * V18: saves `base` with `top` placed on it, beside `base` as the first free numbered name
+   * (credits.png → credits1.png). Never overwrites. Resolves with its path.
+   */
+  combineImages(base: string, top: string, plan: CombinePlan): Promise<string>;
   /** Exports the project in the chosen format (V16, V17). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   /**

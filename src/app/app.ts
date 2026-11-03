@@ -55,6 +55,7 @@ import {
   projectToDisk,
   uniqueFileName,
 } from '../core/project/relocate.ts';
+import { planCombine, type Placement } from '../core/image/combine.ts';
 import { planResizeCrop, type Keep } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
@@ -563,6 +564,42 @@ export function createApp({
         void prepare(made, info);
         patch({
           message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
+        });
+        return made.id;
+      } catch (error) {
+        showError(error);
+        return null;
+      }
+    },
+
+    /**
+     * V18: saves the picture `baseId` with `topId` placed on it as a new picture beside it
+     * (credits.png → credits1.png) and imports it. F/M/25 Q2: a cropped still on credits.png.
+     */
+    async combineImages(baseId: Id, topId: Id, placement: Placement): Promise<Id | null> {
+      const assets = store.get().assets;
+      const base = present().media.find((m) => m.id === baseId);
+      const top = present().media.find((m) => m.id === topId);
+      const baseSize = assets[baseId]?.size;
+      const topSize = assets[topId]?.size;
+      if (base?.kind !== 'image' || top?.kind !== 'image' || !baseSize || !topSize) {
+        patch({
+          message: { kind: 'error', text: 'Wait until both pictures are ready, then try again.' },
+        });
+        return null;
+      }
+      try {
+        const plan = planCombine(baseSize, topSize, placement);
+        const path = await engine.combineImages(base.path, top.path, plan);
+        const info = await engine.probe(path);
+        const made = assetFromProbe(path, info);
+        run(importMediaCommand(made));
+        void prepare(made, info);
+        patch({
+          message: {
+            kind: 'info',
+            text: `Saved ${fileNameOf(path)} (${baseSize.width} × ${baseSize.height}).`,
+          },
         });
         return made.id;
       } catch (error) {

@@ -11,6 +11,7 @@ import { MediaError } from '../../core/model/errors.ts';
 import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
 import { audioCodecArgs, validateAudioExport } from '../../core/render/audio-formats.ts';
 import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
+import { combineFilter } from '../../core/image/combine.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
 import type { BinaryPaths } from '../ffmpeg/paths.ts';
@@ -150,6 +151,19 @@ export function createNodeMediaEngine(
       await queue.run({
         label: 'Resize & crop',
         args: ['-i', input, '-vf', filter, '-frames:v', '1', '-update', '1', '-q:v', '2'],
+        output: path,
+      }).done;
+      return path;
+    },
+
+    async combineImages(base, top, plan) {
+      const filter = combineFilter(plan);
+      let n = 1;
+      while (await exists(numberedPath(base, n))) n++;
+      const path = numberedPath(base, n);
+      await queue.run({
+        label: 'Place a picture',
+        args: ['-i', base, '-i', top, '-filter_complex', filter, '-frames:v', '1', '-update', '1'],
         output: path,
       }).done;
       return path;

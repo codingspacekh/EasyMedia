@@ -5,6 +5,7 @@
   import { toMediaUrl } from '../core/media-url.ts';
   import type { MediaAsset } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import CombineDialog from './CombineDialog.svelte';
   import CropDialog from './CropDialog.svelte';
   import Icon from './Icon.svelte';
 
@@ -19,6 +20,8 @@
   let filter: (typeof FILTERS)[number][0] = $state('all');
   let cropping: { asset: MediaAsset; size: { width: number; height: number } } | null =
     $state(null);
+  /** V18: the picture another one is placed on. */
+  let placing: { asset: MediaAsset; size: { width: number; height: number } } | null = $state(null);
 
   const project = $derived($store.history.present);
   const shown = $derived(project.media.filter((m) => filter === 'all' || m.kind === filter));
@@ -122,6 +125,13 @@
                   onclick={() => (cropping = { asset, size })}
                   ><Icon name="crop" size={14} /></button
                 >
+                <button
+                  class="sm icon-only"
+                  aria-label={`Place a picture on ${name}`}
+                  title="Place a picture on it…"
+                  onclick={() => (placing = { asset, size })}
+                  ><Icon name="layers" size={14} /></button
+                >
               {/if}
             {/if}
           </div>
@@ -136,6 +146,9 @@
     {/each}
   </ul>
 </aside>
+{#if placing}
+  <CombineDialog {app} asset={placing.asset} size={placing.size} onclose={() => (placing = null)} />
+{/if}
 {#if cropping}
   <CropDialog {app} asset={cropping.asset} size={cropping.size} onclose={() => (cropping = null)} />
 {/if}

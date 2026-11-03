@@ -12,6 +12,7 @@ import type {
 } from '../core/ports.ts';
 import type { AudioExportSettings, AudioFormat } from '../core/render/audio-formats.ts';
 import type { WireError } from '../core/wire.ts';
+import type { CombinePlan } from '../core/image/combine.ts';
 import type { ResizeCrop } from '../core/image/crop.ts';
 import type { Container } from '../core/render/formats.ts';
 
@@ -33,6 +34,7 @@ export interface Channels {
   'media:waveform': { args: [input: string, buckets: number]; result: number[] };
   'media:frame': { args: [input: string, time: number, output: string]; result: null };
   'media:resizeCrop': { args: [input: string, plan: ResizeCrop]; result: string };
+  'media:combine': { args: [base: string, top: string, plan: CombinePlan]; result: string };
   'media:snapshot': {
     args: [project: Project, time: number, output: string, options: RenderVideoOptions];
     result: string;
@@ -115,6 +117,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:waveform',
   'media:frame',
   'media:resizeCrop',
+  'media:combine',
   'media:snapshot',
   'media:render',
   'media:decodeAudio',

@@ -22,7 +22,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | adding transitions | Video ▸ the next clip’s Effects tab ▸ Transition into this clip (33 kinds in five groups) | Transition, Dissolve, Fade through black, Fade through white, Fade through grey, Pixel dissolve, Blur, Wipe left, Wipe right, Wipe up, Wipe down, Soft wipe left, Soft wipe right, Clock wipe, Corner wipe, Push left, Push right, Push up, Push down, Slide in from the right, Slide in from the left, Slide away to the left, Slide away to the right, Circle open, Circle close, Iris, Box, Doors open, Letterbox open, Zoom, Pixelate, Squeeze, Slices, Wind |
 | extracting a still image from a video clip | Video ▸ Snapshot on the toolbar (frame by frame, named, PNG / JPG / BMP / TIFF) | Snapshot |
 | resizing and cropping a still image to match a video’s aspect ratio | Video ▸ media bin ▸ Resize & crop… on a picture | Resize & crop |
-| inserting a still image | Video ▸ Import a picture and add it to the timeline; its Duration | Duration |
+| inserting a still image | Video ▸ Import a picture and add it to the timeline; its Duration | Duration, Place a picture |
 | adding audio to a video clip | Video ▸ Add music (music and voiceover tracks) | Music & voiceover |
 | editing audio within a video clip | Video ▸ a clip’s Audio tab ▸ Clip sound (volume) and Separate sound; a music or voiceover clip: volume, fades, speed | Separate sound |
 | removing audio from a video clip | Video ▸ a clip’s Audio tab ▸ Clip sound ▸ Remove sound | Clip sound |
