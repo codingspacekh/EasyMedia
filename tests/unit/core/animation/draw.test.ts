@@ -61,6 +61,14 @@ function stageWith(...objects: AnimObject[]): AnimationDoc {
 }
 
 describe('drawStage', () => {
+  it('AN21 a transparent stage is cleared, not painted: only the objects are drawn', () => {
+    const { ctx, calls } = recorder();
+    const doc = stageWith(createRect({ x: 10, y: 10 }));
+    drawStage(ctx, { ...doc, stage: { ...doc.stage, background: 'none' } });
+    expect(calls[0]).toBe('clearRect(0,0,600,400)');
+    expect(calls.some((c) => c === 'fillRect(0,0,600,400)')).toBe(false);
+  });
+
   it('paints the stage colour first, then each object in drawing order', () => {
     const { ctx, calls } = recorder();
     drawStage(ctx, stageWith(createRect({ x: 10, y: 10 }), createEllipse({ x: 0, y: 0 })));

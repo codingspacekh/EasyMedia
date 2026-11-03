@@ -3,7 +3,7 @@
 import { ProjectFileError } from '../model/errors.ts';
 import { migrate, type Migration, type ProjectDocument } from '../project/migrate.ts';
 import { fromProjectPath, toProjectPath } from '../project/paths.ts';
-import { isColour } from './rules.ts';
+import { isColour, isStageBackground } from './rules.ts';
 import type { AnimationDoc, ObjectKind } from './types.ts';
 
 export const ANIMATION_SCHEMA = 4;
@@ -164,7 +164,7 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
     isString(doc.name) &&
     isObject(stage) &&
     has(stage, ['width', 'height', 'fps', 'length'], isNumber) &&
-    isColour(stage.background) &&
+    isStageBackground(stage.background) &&
     listOf(
       doc.layers,
       (l) =>

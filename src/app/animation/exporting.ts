@@ -12,6 +12,7 @@ import {
 } from '../../core/animation/export.ts';
 import { fontsNeeded, picturesUsed, webPage } from '../../core/animation/html.ts';
 import type { AnimationDoc, Id } from '../../core/animation/types.ts';
+import { TRANSPARENT } from '../../core/animation/rules.ts';
 import { newId } from '../../core/model/factory.ts';
 import type { JobHandle } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
@@ -124,7 +125,10 @@ export function exportActions(ctx: AnimationContext) {
   async function exportAnimation(format: AnimationFormat, chosen?: string): Promise<string | null> {
     if (store.get().exporting || store.get().busy) return null;
     pause();
-    const doc = present();
+    const drawn = present();
+    // AN21: an MP4 cannot be transparent: a stage with no background is drawn on white.
+    const onWhite = format === 'mp4' && drawn.stage.background === TRANSPARENT;
+    const doc = onWhite ? { ...drawn, stage: { ...drawn.stage, background: '#ffffff' } } : drawn;
     const { frame } = store.get();
     const output = chosen ?? (await dialogs.exportAnimation(ctx.fileBase(), format));
     if (!output) return null;
@@ -198,7 +202,8 @@ export function exportActions(ctx: AnimationContext) {
           format === 'mp4' && even.padded
             ? ` MP4 needs even sizes, so it is ${even.width} × ${even.height} (one pixel added).`
             : '';
-        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.${note}` } });
+        const white = onWhite ? ' An MP4 cannot be transparent, so its background is white.' : '';
+        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(output)}.${note}${white}` } });
         made = output;
       } else {
         written.length = 0;

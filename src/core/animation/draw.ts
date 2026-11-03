@@ -2,6 +2,7 @@
 // and GIF exports (M14) and the HTML player (M16) all use this one function, so what the
 // student sees is what is exported (ARCHITECTURE §7.3, as the text drawing).
 import { centreOf, flattenPath, localOutline, outlineOf } from './geometry.ts';
+import { TRANSPARENT } from './rules.ts';
 import { stateAt } from './state.ts';
 import type {
   AnimObject,
@@ -48,6 +49,7 @@ export interface StageCanvas {
   stroke(): void;
   clip(): void;
   fillRect(x: number, y: number, w: number, h: number): void;
+  clearRect(x: number, y: number, w: number, h: number): void;
   strokeRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
   strokeText(text: string, x: number, y: number): void;
@@ -295,8 +297,12 @@ export function drawObject(
 
 /** Draws the whole stage at its own size: background, then every visible layer in order. */
 export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOptions = {}): void {
-  ctx.fillStyle = doc.stage.background;
-  ctx.fillRect(0, 0, doc.stage.width, doc.stage.height);
+  // AN21: a transparent stage is cleared (a canvas used again keeps no earlier frame).
+  if (doc.stage.background === TRANSPARENT) ctx.clearRect(0, 0, doc.stage.width, doc.stage.height);
+  else {
+    ctx.fillStyle = doc.stage.background;
+    ctx.fillRect(0, 0, doc.stage.width, doc.stage.height);
+  }
   options.afterBackground?.(ctx);
   // Frame 0 is a frame like any other (an object on a path is at its start, not where drawn).
   const shown = options.frame === undefined ? doc : stateAt(doc, options.frame);

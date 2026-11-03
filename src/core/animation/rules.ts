@@ -60,6 +60,9 @@ export function presetSize(
 
 const HEX = /^#[0-9a-f]{6}$/i;
 export const isColour = (c: unknown): c is string => typeof c === 'string' && HEX.test(c);
+/** AN21: a stage with no background (transparent PNG, GIF and web page; white in an MP4). */
+export const TRANSPARENT = 'none';
+export const isStageBackground = (c: unknown): c is string => c === TRANSPARENT || isColour(c);
 const colourMessage = (what: string) => `${what} must be a colour such as #F4C8EE.`;
 
 const whole = (n: number, what: string) => {
@@ -82,7 +85,7 @@ export function validateStage(stage: Stage): void {
   if (stage.length < 1) throw new EditError('The animation must be at least 1 frame long.');
   if (stage.length > MAX_FRAMES)
     throw new EditError('The animation must be at most 36 000 frames long.');
-  if (!isColour(stage.background)) throw new EditError(colourMessage('The stage colour'));
+  if (!isStageBackground(stage.background)) throw new EditError(colourMessage('The stage colour'));
 }
 
 function validatePaint(paint: Paint, what: string): void {

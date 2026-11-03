@@ -219,6 +219,24 @@ describe('stage settings (AN1) and the status bar (AN2)', () => {
     expect(screen.getByRole('button', { name: /^Stage settings: 4:3 · 1024 × 768/ })).toBeTruthy();
   });
 
+  it('AN21 Conveyor (M/J/23): 400 × 100 with a transparent background; the stage shows a checkerboard', async () => {
+    const s = await animationMode();
+    await fireEvent.click(screen.getByRole('button', { name: /^Stage settings/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Stage settings' });
+    await fireEvent.click(within(dialog).getByLabelText(/Transparent/));
+    expect(
+      (within(dialog).getByLabelText('Colour', { exact: true }) as HTMLInputElement).disabled,
+    ).toBe(true);
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(s.doc().stage.background).toBe('none');
+    expect(document.querySelector('.stage-canvas.transparent, canvas.transparent')).toBeTruthy();
+    // Turned off again: the colour it had comes back.
+    await fireEvent.click(screen.getByRole('button', { name: /^Stage settings/ }));
+    await fireEvent.click(screen.getByLabelText(/Transparent/));
+    await fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(s.doc().stage.background).toBe('#ffffff');
+  });
+
   it('a bad size is refused inside the dialog', async () => {
     await animationMode();
     await fireEvent.click(screen.getByRole('button', { name: /^Stage settings/ }));

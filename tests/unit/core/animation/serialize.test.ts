@@ -38,6 +38,11 @@ describe('.mvea files (AN16)', () => {
     expect(deserializeAnimation(text)).toEqual(doc);
   });
 
+  it('AN21 keeps a transparent stage', () => {
+    const doc = { ...sample(), stage: { ...sample().stage, background: 'none' } };
+    expect(deserializeAnimation(serializeAnimation(doc)).stage.background).toBe('none');
+  });
+
   it('X1 stores picture paths relative to the file and restores them', () => {
     const onDisk = animationToDisk(sample(), 'C:\\Users\\x');
     expect(onDisk.pictures[0]!.path).toBe('Task5.jpg');

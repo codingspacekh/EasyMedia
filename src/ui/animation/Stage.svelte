@@ -5,6 +5,7 @@
   import type { App } from '../../app/app.ts';
   import { drawStage, type StageCanvas } from '../../core/animation/draw.ts';
   import { onionSkin } from '../../core/animation/frames.ts';
+  import { TRANSPARENT } from '../../core/animation/rules.ts';
   import {
     angleOf,
     centreOf,
@@ -514,7 +515,12 @@
       style:width="{stage.width * zoom}px"
       style:height="{stage.height * zoom}px"
     >
-      <canvas bind:this={canvas} style:width="100%" style:height="100%"></canvas>
+      <canvas
+        bind:this={canvas}
+        class:transparent={stage.background === TRANSPARENT}
+        style:width="100%"
+        style:height="100%"
+      ></canvas>
       <svg
         class="overlay"
         role="application"
@@ -635,6 +641,10 @@
   }
   canvas {
     display: block;
+  }
+  /* AN21: a stage with no background shows a checkerboard, as image editors do. */
+  canvas.transparent {
+    background: repeating-conic-gradient(#d9d9d9 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
   }
   .overlay {
     position: absolute;

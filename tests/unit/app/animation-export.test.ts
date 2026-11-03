@@ -22,6 +22,22 @@ const framesIn = (bytes: Map<string, Uint8Array>) =>
   [...bytes.keys()].filter((p) => /animation-frames\/export-[^/]+\/frame-\d{5}\.png$/.test(p));
 
 describe('exporting the animation (AN15)', () => {
+  it('AN21 a transparent stage: PNG frames keep it; an MP4 (no transparency) is drawn on white', async () => {
+    const s = setup();
+    s.anim.setStage({ ...s.anim.store.get().history.present.stage, background: 'none' });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Gas.png');
+    await s.anim.exportAnimation('png');
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)![0].stage.background).toBe('none');
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Gas.gif');
+    await s.anim.exportAnimation('gif');
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)![0].stage.background).toBe('none');
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Gas.mp4');
+    await s.anim.exportAnimation('mp4');
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)![0].stage.background).toBe('#ffffff');
+    expect(s.state().message?.text).toMatch(/white/i);
+    expect(s.anim.store.get().history.present.stage.background).toBe('none');
+  });
+
   it('MP4: frames 0–71 drawn, made into a 600 × 400, 24 fps, 3.00 s H.264 video', async () => {
     const s = setup();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.mp4');

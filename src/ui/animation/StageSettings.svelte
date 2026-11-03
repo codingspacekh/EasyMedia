@@ -1,10 +1,17 @@
 <script lang="ts">
-  // Stage settings (AN1, AN2): size, aspect-ratio presets, colour, frame rate and length.
+  // Stage settings (AN1, AN2): size, aspect-ratio presets, colour (or none: AN21), frame rate
+  // and length.
   import Dialog from '../Dialog.svelte';
   import Why from '../Why.svelte';
   import { untrack } from 'svelte';
   import type { App } from '../../app/app.ts';
-  import { aspectOf, FPS_CHOICES, presetSize, STAGE_PRESETS } from '../../core/animation/rules.ts';
+  import {
+    aspectOf,
+    FPS_CHOICES,
+    presetSize,
+    STAGE_PRESETS,
+    TRANSPARENT,
+  } from '../../core/animation/rules.ts';
   import { framesFor, secondsFor } from '../../core/animation/time.ts';
   import ColourField from './ColourField.svelte';
   import NumField from './NumField.svelte';
@@ -13,7 +20,9 @@
   const current = untrack(() => app.animation.store.get().history.present.stage);
   let width = $state(current.width);
   let height = $state(current.height);
-  let background = $state(current.background);
+  // AN21: no background (transparent); the colour is kept to come back when it is turned off.
+  let transparent = $state(current.background === TRANSPARENT);
+  let colour = $state(current.background === TRANSPARENT ? '#ffffff' : current.background);
   let fps = $state(current.fps);
   let length = $state(current.length);
   let error: string | null = $state(null);
@@ -31,6 +40,7 @@
   }
 
   function apply(): void {
+    const background = transparent ? TRANSPARENT : colour;
     error = app.animation.setStage({ width, height, background, fps, length });
     if (!error) onclose();
   }
@@ -69,12 +79,22 @@
     />
     <ColourField
       label="Colour"
-      value={background}
+      value={colour}
+      disabled={transparent}
       commit={(c) => {
-        background = c;
+        colour = c;
         return null;
       }}
     />
+    <label class="check">
+      <input type="checkbox" bind:checked={transparent} />
+      Transparent (no background)
+    </label>
+    {#if transparent}
+      <p class="hint">
+        PNG pictures, GIFs and the web page keep it see-through; an MP4 cannot, so it is white.
+      </p>
+    {/if}
     <div class="field">
       <label for="stage-fps">Frame rate</label>
       <div class="row">
@@ -121,6 +141,13 @@
 </Dialog>
 
 <style>
+  .check {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 6px;
+    font-size: 12px;
+  }
   .presets {
     display: flex;
     gap: 6px;

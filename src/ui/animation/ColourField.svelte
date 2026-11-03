@@ -5,7 +5,13 @@
     label,
     value,
     commit,
-  }: { label: string; value: string; commit: (colour: string) => string | null } = $props();
+    disabled = false,
+  }: {
+    label: string;
+    value: string;
+    commit: (colour: string) => string | null;
+    disabled?: boolean;
+  } = $props();
 
   let error: string | null = $state(null);
   const id = `colour-${Math.random().toString(36).slice(2, 9)}`;
@@ -29,6 +35,7 @@
       aria-label="{label} swatch"
       value={value.toLowerCase()}
       onchange={fromPicker}
+      {disabled}
     />
     <input
       {id}
@@ -36,6 +43,7 @@
       value={value.toUpperCase()}
       onchange={fromText}
       aria-invalid={error !== null}
+      {disabled}
     />
   </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
