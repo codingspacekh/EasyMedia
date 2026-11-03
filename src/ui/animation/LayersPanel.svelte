@@ -180,7 +180,9 @@
     {/each}
   </ul>
   {#if renameError}<p class="error" role="alert">{renameError}</p>{/if}
-  <div class="why"><Why tool="animLayers" /><Why tool="animMask" /></div>
+  <div class="why">
+    <Why tool="animLayers" title="Why use layers?" /><Why tool="animMask" title="Why use a mask?" />
+  </div>
 </aside>
 
 <style>

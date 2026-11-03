@@ -54,6 +54,9 @@
   }
 </script>
 
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
+
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Project settings">
     <h2>Project settings <span class="syl">11.1 aspect ratio</span></h2>
@@ -124,7 +127,7 @@
       {/each}
     </fieldset>
 
-    <Why tool="aspectRatio" title="Why does aspect ratio matter?" open />
+    <Why tool="aspectRatio" title="Why does aspect ratio matter?" />
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 
     <div class="actions">
@@ -193,11 +196,6 @@
   }
   .size input {
     width: 90px;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 4px 6px;
   }
   .hint {
     color: var(--tx-3);

@@ -643,13 +643,9 @@
   }
   select,
   input:not([type]) {
-    font: inherit;
+    height: 26px;
     font-size: 12px;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 2px 6px;
+    padding: 0 6px;
   }
   .zoom input {
     width: 80px;

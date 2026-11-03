@@ -87,12 +87,6 @@
   }
   input {
     flex: 1;
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 4px 6px;
   }
   .body {
     overflow: auto;

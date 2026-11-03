@@ -55,6 +55,9 @@
   }
 </script>
 
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && !saving && onclose()} />
+
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Snapshot">
     <h2>Snapshot <span class="syl">11.1 extracting a still image</span></h2>
@@ -122,7 +125,7 @@
         : ' once you save it — until then, in EasyMedia’s own folder'}.
     </p>
 
-    <Why tool="snapshot" title="Why extract a still?" open />
+    <Why tool="snapshot" title="Why extract a still?" />
 
     <div class="actions">
       <button onclick={onclose}>Cancel</button>
@@ -199,12 +202,6 @@
   }
   .file-name input {
     flex: 1;
-    min-width: 0;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 6px;
-    padding: 5px 8px;
   }
   .file-name span {
     color: var(--tx-3);

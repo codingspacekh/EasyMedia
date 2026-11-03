@@ -133,7 +133,9 @@ EasyMedia/
 │  │                          (Animation mode: Stage, Timeline, LayersPanel, PropertiesPanel,
 │  │                          StageSettings, AnimationExportDialog, TraceDialog, ImportFramesDialog,
 │  │                          LibraryDialog, EffectsSection);
-│  │                          Why.svelte (T5, N17: answer + reasons), Dialog.svelte (the modal frame),
+│  │                          Why.svelte (T5, N17: a link whose tooltip — answer + reasons — sits on
+│  │                          the page body above everything), Dialog.svelte (the modal frame),
+│  │                          theme.css (colours, buttons) and forms.css (every form control, one look),
 │  │                          PanelSlot.svelte (N16: a resizable, hideable panel), Tooltip.svelte;
 │  │                          menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
@@ -640,5 +642,6 @@ Each kind of extension has one place, so later stages add rather than edit:
 | A menu item | `item(label, accelerator, action)` in `main/menu.ts` | the action in `MenuAction` (`preload/api.ts`) and in `ui/menu-actions.ts` |
 | A resizable panel | an entry in `PANELS` (`app/layout.ts`) | wrap the panel in `<PanelSlot id="…">`; its root fills the slot |
 | A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`) | — |
+| A form control | the plain element (`input`, `select`, `textarea`…): `ui/forms.css` gives it the app's look; the component sets only its layout | — |
 | An Animation mode action | a method in the area's module in `app/animation/` (a command in `animation-commands.ts` if it edits) | — |
 | A file dialog or main-process service | the port in `core/ports.ts` | `preload/api.ts` (channel), `main/ipc.ts`, `main/services.ts`, `adapters/electron/services.ts`, the test fakes |

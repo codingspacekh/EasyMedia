@@ -249,14 +249,6 @@
     font-size: 12px;
   }
   select,
-  input[type='number'] {
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 4px 6px;
-  }
   .effect {
     border: 1px solid var(--line);
     border-radius: 6px;

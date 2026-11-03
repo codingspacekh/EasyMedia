@@ -299,14 +299,6 @@
     color: var(--tx-3);
     font-size: 11.5px;
   }
-  input[type='text'] {
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 4px 6px;
-  }
   .estimate {
     display: flex;
     gap: 16px;

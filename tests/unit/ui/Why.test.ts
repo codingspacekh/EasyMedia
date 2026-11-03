@@ -10,7 +10,7 @@ import MediaBin from '../../../src/ui/MediaBin.svelte';
 import ProjectSettings from '../../../src/ui/ProjectSettings.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
 import { testApp } from '../../helpers/test-app.ts';
-import { expectWhy } from '../../helpers/why.ts';
+import { expectWhy, whyTexts } from '../../helpers/why.ts';
 
 /** The section under a heading that starts with `name`. */
 const section = (name: string) =>
@@ -30,32 +30,32 @@ describe('T5 every editing tool links to why it is used', () => {
     const t = await videoClip();
     t.app.select(t.app.store.get().history.present.timeline.main[0]!.id);
     render(Inspector, { props: { app: t.app } });
-    expectWhy(section('Trim').textContent, WHY.trim);
-    expectWhy(section('Speed').textContent, WHY.speed);
+    expectWhy(whyTexts(section('Trim')), WHY.trim);
+    expectWhy(whyTexts(section('Speed')), WHY.speed);
     await fireEvent.click(screen.getByRole('tab', { name: 'Audio' }));
-    expectWhy(section('Clip sound').textContent, WHY.clipSound);
-    expectWhy(section('Separate sound').textContent, WHY.separateSound);
+    expectWhy(whyTexts(section('Clip sound')), WHY.clipSound);
+    expectWhy(whyTexts(section('Separate sound')), WHY.separateSound);
   });
 
   it('a still image: its duration', async () => {
     const t = await videoClip();
     t.app.select(t.app.store.get().history.present.timeline.main[1]!.id);
     render(Inspector, { props: { app: t.app } });
-    expectWhy(section('Duration').textContent, WHY.duration);
+    expectWhy(whyTexts(section('Duration')), WHY.duration);
   });
 
   it.each(['caption', 'subtitle', 'credits'] as const)('text: %s', (kind) => {
     const t = testApp();
     t.app.addText(kind);
     render(Inspector, { props: { app: t.app } });
-    expectWhy(section('Text').textContent, WHY[kind]);
+    expectWhy(whyTexts(section('Text')), WHY[kind]);
   });
 
   it('text: a title slide', async () => {
     const t = testApp();
     t.app.addTitle();
     render(Inspector, { props: { app: t.app } });
-    expectWhy(section('Text').textContent, WHY.title);
+    expectWhy(whyTexts(section('Text')), WHY.title);
   });
 
   it('resize & crop', async () => {
@@ -69,7 +69,8 @@ describe('T5 every editing tool links to why it is used', () => {
     await t.importFiles('/m/Fish_Eagle.jpg');
     render(MediaBin, { props: { app: t.app } });
     await fireEvent.click(screen.getByRole('button', { name: 'Resize and crop Fish_Eagle.jpg' }));
-    expect(screen.getByRole('dialog', { name: 'Resize and crop image' }).textContent).toContain(
+    expectWhy(
+      whyTexts(screen.getByRole('dialog', { name: 'Resize and crop image' })),
       WHY.resizeCrop,
     );
   });
@@ -77,7 +78,7 @@ describe('T5 every editing tool links to why it is used', () => {
   it('project settings: the aspect ratio', () => {
     const t = testApp();
     render(ProjectSettings, { props: { app: t.app, onclose: () => {} } });
-    expectWhy(screen.getByRole('dialog').textContent, WHY.aspectRatio);
+    expectWhy(whyTexts(screen.getByRole('dialog')), WHY.aspectRatio);
   });
 
   it('timeline: split and join, delete (tooltips)', async () => {
@@ -122,5 +123,36 @@ describe('T5 every editing tool links to why it is used', () => {
     for (const [name, why] of Object.entries(expected))
       expect(item(name).title, name).toContain(why);
     vi.restoreAllMocks();
+  });
+
+  it('N17 "Why use this?" is a tooltip above everything: shown on hover or focus, pinned by a click', async () => {
+    const t = await videoClip();
+    t.app.select(t.app.store.get().history.present.timeline.main[0]!.id);
+    render(Inspector, { props: { app: t.app } });
+    const link = within(section('Trim')).getByRole('button', { name: 'Why use this?' });
+    const tip = document.getElementById(link.getAttribute('aria-controls')!)!;
+    // It lives at the end of the page, so no panel or dialog can cover or clip it.
+    expect(tip.parentElement).toBe(document.body);
+    expect(tip.hidden).toBe(true);
+    await fireEvent.pointerEnter(link);
+    expect(tip.hidden).toBe(false);
+    expect(link.getAttribute('aria-expanded')).toBe('true');
+    await fireEvent.pointerLeave(link);
+    await vi.waitFor(() => expect(tip.hidden).toBe(true));
+    await fireEvent.focus(link);
+    expect(tip.hidden).toBe(false);
+    await fireEvent.blur(link);
+    await vi.waitFor(() => expect(tip.hidden).toBe(true));
+    // A click pins it: leaving does not hide it; Escape does.
+    await fireEvent.click(link);
+    await fireEvent.pointerLeave(link);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(tip.hidden).toBe(false);
+    await fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(tip.hidden).toBe(true);
+    // A click elsewhere closes a pinned one too.
+    await fireEvent.click(link);
+    await fireEvent.pointerDown(document.body);
+    expect(tip.hidden).toBe(true);
   });
 });

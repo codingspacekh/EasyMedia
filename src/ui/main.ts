@@ -17,6 +17,7 @@ import { menuActions } from './menu-actions.ts';
 import App from './App.svelte';
 import './fonts.css';
 import './theme.css';
+import './forms.css';
 
 const target = document.getElementById('app')!;
 

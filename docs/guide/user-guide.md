@@ -4,8 +4,9 @@ EasyMedia edits video, sound and animation for Cambridge International AS & A Le
 syllabus sections 11 and 20.1. It has three editors, chosen at the top left: **Video**, **Audio**
 and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 
-> Rest the mouse on any button to see what it does. Most tools also have a **Why use this?** box:
-> it gives the reason the tool is used, in the words the exam expects.
+> Rest the mouse on any button to see what it does. Most tools also have a **Why use this?** link:
+> rest the mouse on it (or click it to keep it open) to see the reason the tool is used, in the
+> words the exam expects. Escape or a click elsewhere closes it.
 
 ## Contents
 

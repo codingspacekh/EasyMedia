@@ -1,10 +1,10 @@
 <script lang="ts">
   // Stage settings (AN1, AN2): size, aspect-ratio presets, colour, frame rate and length.
+  import Why from '../Why.svelte';
   import { untrack } from 'svelte';
   import type { App } from '../../app/app.ts';
   import { aspectOf, FPS_CHOICES, presetSize, STAGE_PRESETS } from '../../core/animation/rules.ts';
   import { framesFor, secondsFor } from '../../core/animation/time.ts';
-  import { WHY } from '../../core/effects/help.ts';
   import ColourField from './ColourField.svelte';
   import NumField from './NumField.svelte';
 
@@ -34,6 +34,9 @@
     if (!error) onclose();
   }
 </script>
+
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
 
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Stage settings">
@@ -113,10 +116,7 @@
       The stage is the area where the animation takes place: only what is on it is seen. Changing
       the frame rate keeps the length in frames: 72 frames last 3 s at 24 fps, 2.4 s at 30 fps.
     </p>
-    <details class="why">
-      <summary>Why use this?</summary>
-      <p>{WHY.stage}</p>
-    </details>
+    <Why tool="stage" />
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <div class="buttons">
       <button onclick={onclose}>Cancel</button>
@@ -184,28 +184,11 @@
   }
   select {
     width: 100%;
-    font: inherit;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 4px 6px;
   }
   .hint {
     margin: 8px 0 0;
     color: var(--tx-2);
     font-size: 11.5px;
-  }
-  .why summary {
-    cursor: pointer;
-    color: var(--accent);
-    font-size: 11.5px;
-    margin-top: 8px;
-  }
-  .why p {
-    margin: 4px 0 0;
-    font-size: 11.5px;
-    color: var(--tx-2);
   }
   .error {
     margin: 8px 0 0;

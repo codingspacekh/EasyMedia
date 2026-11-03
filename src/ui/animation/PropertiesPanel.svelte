@@ -700,14 +700,6 @@
   select,
   .words {
     width: 100%;
-    min-width: 0;
-    font: inherit;
-    font-size: 12.5px;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 4px 6px;
   }
   .words {
     display: block;

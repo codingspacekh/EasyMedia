@@ -46,7 +46,7 @@ describe('resizable, hideable panels (N16)', () => {
     // A right-hand panel grows to the left.
     const props = splitter('Properties');
     await fireEvent.keyDown(props, { key: 'ArrowLeft' });
-    expect(props.getAttribute('aria-valuenow')).toBe('306');
+    expect(props.getAttribute('aria-valuenow')).toBe('320');
     // The timeline grows upwards.
     const rows = splitter('Timeline');
     await fireEvent.keyDown(rows, { key: 'ArrowUp' });

@@ -7,3 +7,13 @@ export function expectWhy(shown: string | null | undefined, text: string): void 
   const { answer, reasons } = explain(text);
   for (const part of [answer, ...reasons]) expect(shown ?? '').toContain(part);
 }
+
+/**
+ * N17: the explanations of the "Why use this?" links inside an element. Each tooltip lives at the
+ * end of the page (above everything), so it is found through its link's aria-controls.
+ */
+export function whyTexts(container: Element): string {
+  return [...container.querySelectorAll('button[aria-controls^="why-"]')]
+    .map((b) => document.getElementById(b.getAttribute('aria-controls')!)?.textContent ?? '')
+    .join(' ');
+}

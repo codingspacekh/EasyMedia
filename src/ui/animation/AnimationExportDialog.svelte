@@ -63,6 +63,9 @@
   });
 </script>
 
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && !running && !exporting && onclose()} />
+
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Export animation">
     <h2>

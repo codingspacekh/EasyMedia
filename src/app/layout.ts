@@ -72,8 +72,8 @@ export const PANELS = {
     editor: 'Animation',
     label: 'Properties',
     edge: 'right',
-    size: 290,
-    min: 250,
+    size: 304,
+    min: 260,
     max: 460,
   }),
   // The timeline's rows area (its bar sits above it and may wrap on a small window).
