@@ -5,6 +5,7 @@
 import { faceFor, type FontFile } from '../text/fonts.ts';
 import { BUTTON_FONT } from './draw.ts';
 import { fileNameOf } from '../project/relocate.ts';
+import type { ProbeInfo } from '../ports.ts';
 import type { AnimObject, AnimationDoc, Id, Picture, TextObject } from './types.ts';
 
 /** The id of the <script> that holds the animation's data; the player reads it. */
@@ -113,4 +114,31 @@ body { display: flex; align-items: center; justify-content: center; }
 </body>
 </html>
 `;
+}
+
+/**
+ * AN17: what the task checker reads from an exported web page: its stage size, frame rate and
+ * length, and that it loops (the player always does). Null when it is not an EasyMedia page.
+ */
+export function webPageInfo(html: string, sizeBytes = html.length): ProbeInfo | null {
+  const start = html.indexOf(`id="${PAGE_DATA_ID}">`);
+  if (start < 0) return null;
+  const from = start + PAGE_DATA_ID.length + 6;
+  const end = html.indexOf('</script>', from);
+  let data: PageData;
+  try {
+    data = JSON.parse(html.slice(from, end)) as PageData;
+  } catch {
+    return null;
+  }
+  const stage = data?.doc?.stage;
+  if (!stage || !(stage.fps > 0) || !(stage.length > 0)) return null;
+  return {
+    kind: 'video',
+    container: 'html',
+    duration: stage.length / stage.fps,
+    sizeBytes,
+    video: { codec: 'canvas', width: stage.width, height: stage.height, fps: stage.fps },
+    loop: true,
+  };
 }

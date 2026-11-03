@@ -12,11 +12,14 @@ import { CONTAINERS, type ExportSettings } from '../core/render/formats.ts';
 import {
   checkFile,
   parseTaskSpec,
+  sequenceInfo,
   serializeTaskSpec,
+  type CheckedFile,
   type CheckRow,
   type TaskSpec,
 } from '../core/teaching/task-check.ts';
 import { createStore, type Store } from './store.ts';
+import { webPageInfo } from '../core/animation/html.ts';
 
 export interface ComparisonItem {
   label: string;
@@ -328,17 +331,34 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
       }
     },
 
-    /** T6: checks an exported file against the task, row by row. */
+    /**
+     * T6: checks an exported file against the task, row by row: a video, sound or GIF (probed),
+     * an EasyMedia web page (AN17: read from the animation it carries), or every picture of a PNG
+     * sequence chosen together (checked as one sequence).
+     */
     async checkExport(path?: string): Promise<void> {
-      const chosen = path ?? (await dialogs.openMedia())[0];
-      if (!chosen) return;
+      const chosen = path ? [path] : await dialogs.openExport();
+      if (chosen.length === 0) return;
+      const first = chosen[0]!;
       try {
-        const info = await engine.probe(chosen);
+        let name = fileNameOf(first);
+        let info: CheckedFile;
+        if (/\.html?$/i.test(first)) {
+          const page = webPageInfo(await files.read(first));
+          if (!page) throw new EditError('This page is not a web animation exported by EasyMedia.');
+          info = page;
+        } else {
+          const probed = await engine.probe(first);
+          if (probed.kind === 'image') {
+            // A picture is one frame of a PNG sequence: the frames are counted.
+            info = sequenceInfo(probed, chosen.length);
+            if (chosen.length > 1) name = `${name} … (${chosen.length} pictures)`;
+          } else if (chosen.length > 1)
+            throw new EditError('Choose one exported file, or every picture of a PNG sequence.');
+          else info = probed;
+        }
         const { spec } = store.get().task;
-        patch({
-          task: { spec, checked: { name: fileNameOf(chosen), ...checkFile(spec, info) } },
-          message: null,
-        });
+        patch({ task: { spec, checked: { name, ...checkFile(spec, info) } }, message: null });
       } catch (error) {
         showError(error);
       }

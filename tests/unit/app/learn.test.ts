@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ProbeInfo } from '../../../src/core/ports.ts';
 import { serializeTaskSpec, type TaskSpec } from '../../../src/core/teaching/task-check.ts';
 import { testApp, VIDEO } from '../../helpers/test-app.ts';
+import { createAnimation } from '../../../src/core/animation/factory.ts';
+import { webPage } from '../../../src/core/animation/html.ts';
 
 const SONG: ProbeInfo = {
   kind: 'audio',
@@ -13,6 +15,12 @@ const SONG: ProbeInfo = {
   audio: { codec: 'mp3', sampleRate: 44100, channels: 2, bitRate: 128_000 },
 };
 const SHORT: ProbeInfo = { ...SONG, duration: 4 };
+const PNG_FRAME: ProbeInfo = {
+  kind: 'image',
+  container: 'png',
+  sizeBytes: 9000,
+  video: { codec: 'png', width: 600, height: 400 },
+};
 const PHOTO: ProbeInfo = {
   kind: 'image',
   container: 'png',
@@ -168,11 +176,68 @@ describe('T6 task checker', () => {
     s.dialogs.openTaskCheck.mockResolvedValueOnce('/t/a.mvetask');
     await s.learn.openTask();
     expect(s.state().task.spec).toEqual(spec);
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/clip.mp4']);
+    s.dialogs.openExport.mockResolvedValueOnce(['/m/clip.mp4']);
     await s.learn.checkExport();
     expect(s.state().task.checked).toMatchObject({ name: 'clip.mp4', pass: true });
     s.learn.setTask({ ...spec, width: 1280, height: 720 });
     expect(s.state().task.checked).toBeNull(); // a changed task needs a new check
+  });
+
+  it('AN17 an exported web page is checked from the animation it carries: size, fps, length, looping', async () => {
+    const s = setup();
+    const doc = createAnimation({ name: 'Task 4' });
+    const html = webPage(
+      { ...doc, stage: { ...doc.stage, width: 600, height: 400, fps: 24, length: 72 } },
+      { player: '', pictures: {}, fonts: [] },
+    );
+    s.disk.set('/e/Task4.html', html);
+    s.learn.setTask({
+      name: 'Task 4',
+      container: 'html',
+      width: 600,
+      height: 400,
+      fps: 24,
+      duration: 3,
+      loop: true,
+    });
+    s.dialogs.openExport.mockResolvedValueOnce(['/e/Task4.html']);
+    await s.learn.checkExport();
+    expect(s.state().task.checked).toMatchObject({ name: 'Task4.html', pass: true });
+    s.disk.set('/e/other.html', '<html>not ours</html>');
+    s.dialogs.openExport.mockResolvedValueOnce(['/e/other.html']);
+    await s.learn.checkExport();
+    expect(s.state().message?.text).toMatch(/not a web animation exported by EasyMedia/);
+  });
+
+  it('AN17 every picture of a PNG sequence chosen together is checked as one sequence', async () => {
+    const frames = Array.from(
+      { length: 72 },
+      (_, i) => `/e/Task_${String(i + 1).padStart(4, '0')}.png`,
+    );
+    const t = testApp(Object.fromEntries(frames.map((f) => [f, PNG_FRAME])));
+    const s = { ...t, learn: t.app.learn, state: () => t.app.learn.store.get() };
+    s.learn.setTask({
+      name: 'Frames',
+      container: 'png',
+      width: 600,
+      height: 400,
+      fps: 24,
+      duration: 3,
+    });
+    s.dialogs.openExport.mockResolvedValueOnce(frames);
+    await s.learn.checkExport();
+    expect(s.state().task.checked).toMatchObject({
+      name: 'Task_0001.png … (72 pictures)',
+      pass: true,
+    });
+    s.dialogs.openExport.mockResolvedValueOnce(frames.slice(0, 48));
+    await s.learn.checkExport();
+    expect(s.state().task.checked?.pass).toBe(false);
+    // Two videos are not a sequence.
+    const v = setup();
+    v.dialogs.openExport.mockResolvedValueOnce(['/m/clip.mp4', '/m/clip.mp4']);
+    await v.learn.checkExport();
+    expect(v.state().message?.text).toMatch(/every picture of a PNG sequence/);
   });
 
   it('a file that is not a task check is refused, and the task stays', async () => {

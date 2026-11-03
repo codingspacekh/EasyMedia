@@ -268,6 +268,8 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
         duration: frames / fps,
         sizeBytes: Math.round(width * height * frames * (format === 'gif' ? 0.12 : 0.006)),
         video: { codec: format === 'mp4' ? 'h264' : 'gif', ...size, fps },
+        // AN15: the GIF is made with -loop 0 (for ever).
+        ...(format === 'gif' ? { loop: true } : {}),
       }));
     },
 

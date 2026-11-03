@@ -1,7 +1,7 @@
 // Small UI-only state shared by panels (not part of the project, not undoable).
 export type InspectorTab = 'clip' | 'audio' | 'effects' | 'text';
 export type Mode = 'Video' | 'Audio' | 'Learn' | 'Animation';
-export type LearnTab = 'inspect' | 'formats' | 'task';
+export type LearnTab = 'inspect' | 'formats' | 'animation' | 'task';
 
 export const ui = $state({
   /** Video, Audio, Learn or Animation mode (the native menus act on the mode that is showing). */

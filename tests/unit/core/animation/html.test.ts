@@ -12,6 +12,7 @@ import {
   PAGE_DATA_ID,
   picturesUsed,
   webPage,
+  webPageInfo,
 } from '../../../../src/core/animation/html.ts';
 import { stopMotion } from '../../../../src/core/animation/frames.ts';
 import { addObject } from '../../../../src/core/animation/layers.ts';
@@ -171,5 +172,20 @@ describe('the pictures a web page carries (AN15)', () => {
       stopMotion(shots, 12, doc.stage),
     );
     expect(picturesUsed(withShots).map((p) => p.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('AN17 the task checker reads the size, frame rate, length and looping from an exported page', () => {
+    const html = page(task1());
+    expect(webPageInfo(html, 5000)).toEqual({
+      kind: 'video',
+      container: 'html',
+      duration: 3,
+      sizeBytes: 5000,
+      video: { codec: 'canvas', width: 600, height: 400, fps: 24 },
+      loop: true,
+    });
+    expect(webPageInfo('<html><body>Hello</body></html>')).toBeNull();
+    expect(webPageInfo(html.replace('"fps":24', '"fps":"x"'))).toBeNull();
+    expect(webPageInfo(html.replace(/"stage":\{/, '"stage":{]'))).toBeNull();
   });
 });

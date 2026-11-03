@@ -4,6 +4,7 @@ import type { ProbeInfo } from '../../../../src/core/ports.ts';
 import {
   checkFile,
   parseTaskSpec,
+  sequenceInfo,
   serializeTaskSpec,
   type TaskSpec,
 } from '../../../../src/core/teaching/task-check.ts';
@@ -113,5 +114,116 @@ describe('T6 task checker', () => {
       /nothing to check/,
     );
     expect(() => parseTaskSpec(serializeTaskSpec({ ...spec, width: -5 }))).toThrow(EditError);
+  });
+
+  // AN17: animation exports — the frame rate and, for a GIF or a web page, looping.
+  const anim: TaskSpec = {
+    name: 'Star Designs',
+    container: 'mp4',
+    width: 600,
+    height: 400,
+    fps: 24,
+    duration: 3,
+  };
+  const mp4: ProbeInfo = {
+    kind: 'video',
+    container: 'mp4',
+    duration: 3,
+    sizeBytes: 200_000,
+    video: { codec: 'h264', width: 600, height: 400, fps: 24 },
+  };
+
+  it('AN17 an MP4 of a 600 × 400, 24 fps, 3 s animation passes; the same task at 30 fps fails', () => {
+    const result = checkFile(anim, mp4);
+    expect(result.rows.map((r) => r.label)).toEqual([
+      'File format',
+      'Resolution',
+      'Frame rate',
+      'Duration',
+    ]);
+    expect(result.rows[2]).toMatchObject({ expected: '24 fps', actual: '24 fps', pass: true });
+    expect(result.pass).toBe(true);
+    const at30 = checkFile({ ...anim, fps: 30 }, mp4);
+    expect(at30.pass).toBe(false);
+    expect(at30.rows.filter((r) => !r.pass).map((r) => r.label)).toEqual(['Frame rate']);
+    expect(
+      checkFile(anim, { ...mp4, video: { ...mp4.video!, fps: undefined } }).rows[2],
+    ).toMatchObject({ actual: 'unknown', pass: false });
+  });
+
+  it('AN17 a GIF stores its frame times in hundredths of a second: 24 fps is kept as 25', () => {
+    const gif: ProbeInfo = {
+      ...mp4,
+      container: 'gif',
+      video: { ...mp4.video!, codec: 'gif', fps: 25 },
+    };
+    expect(checkFile({ ...anim, container: 'gif' }, gif).pass).toBe(true);
+    expect(checkFile({ ...anim, container: 'gif', fps: 12 }, gif).pass).toBe(false);
+  });
+
+  it('AN17 looping: a GIF or web page that plays again and again, or one that plays once', () => {
+    const task: TaskSpec = { name: 'Banner', container: 'gif', loop: true };
+    const looping: ProbeInfo = { ...mp4, container: 'gif', loop: true };
+    expect(checkFile(task, looping).rows.at(-1)).toMatchObject({
+      label: 'Looping',
+      expected: 'plays again and again',
+      actual: 'plays again and again',
+      pass: true,
+    });
+    expect(checkFile(task, { ...looping, loop: false }).rows.at(-1)).toMatchObject({
+      actual: 'plays once',
+      pass: false,
+    });
+    expect(checkFile({ ...task, loop: false }, { ...looping, loop: false }).pass).toBe(true);
+    // An MP4 cannot say: the player decides.
+    expect(checkFile(task, mp4).rows.at(-1)).toMatchObject({
+      actual: 'not set in the file',
+      pass: false,
+    });
+  });
+
+  it('AN17 a PNG sequence is checked by its number of frames (the length × the frame rate)', () => {
+    const png: ProbeInfo = {
+      kind: 'image',
+      container: 'png',
+      sizeBytes: 9_000,
+      video: { codec: 'png', width: 600, height: 400 },
+    };
+    const seq = sequenceInfo(png, 72);
+    const task: TaskSpec = { ...anim, container: 'png' };
+    const result = checkFile(task, seq);
+    expect(result.rows.map((r) => r.label)).toEqual(['File format', 'Resolution', 'Frames']);
+    expect(result.rows[2]).toMatchObject({
+      expected: '72 (3 s × 24 fps)',
+      actual: '72',
+      pass: true,
+    });
+    expect(checkFile(task, sequenceInfo(png, 60)).pass).toBe(false);
+    expect(seq.sizeBytes).toBe(9_000 * 72);
+  });
+
+  it('AN17 frame rate, looping, HTML and PNG are saved with the task and checked when opened', () => {
+    const page: TaskSpec = {
+      name: 'Task 4',
+      container: 'html',
+      width: 600,
+      height: 400,
+      fps: 24,
+      loop: true,
+    };
+    expect(parseTaskSpec(serializeTaskSpec(page))).toEqual(page);
+    expect(parseTaskSpec(serializeTaskSpec({ name: 'Seq', container: 'png', fps: 12 }))).toEqual({
+      name: 'Seq',
+      container: 'png',
+      fps: 12,
+    });
+    expect(parseTaskSpec(serializeTaskSpec({ name: 'L', loop: false }))).toEqual({
+      name: 'L',
+      loop: false,
+    });
+    expect(() => parseTaskSpec(serializeTaskSpec({ ...page, fps: 0 }))).toThrow(/fps/);
+    expect(() => parseTaskSpec(serializeTaskSpec({ ...page, loop: 'yes' as never }))).toThrow(
+      /loop/i,
+    );
   });
 });

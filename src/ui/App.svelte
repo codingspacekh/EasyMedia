@@ -38,6 +38,7 @@
   const LEARN_TABS: [LearnTab, string][] = [
     ['inspect', 'Inspector & sampling'],
     ['formats', 'Formats & compression'],
+    ['animation', 'Animation'],
     ['task', 'Task checker'],
   ];
   let settingsOpen = $state(false);

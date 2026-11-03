@@ -1,6 +1,7 @@
 // T6: the task checker. A teacher sets what an exported file must be (format, resolution,
-// duration ± a tolerance, mono / stereo, sample rate) and saves it as a small file for the
-// students; a student opens it with their export and sees pass or fail for each row.
+// duration ± a tolerance, mono / stereo, sample rate; for an animation, AN17, the frame rate and
+// whether it loops) and saves it as a small file for the students; a student opens it with their
+// export (a video, sound, GIF, web page or PNG sequence) and sees pass or fail for each row.
 import { EditError } from '../model/errors.ts';
 import type { ProbeInfo } from '../ports.ts';
 import { group } from './file-size.ts';
@@ -16,7 +17,14 @@ export interface TaskSpec {
   tolerance?: number;
   channels?: 1 | 2;
   sampleRate?: number;
+  /** AN17: frames per second. */
+  fps?: number;
+  /** AN17: plays again and again (an animated GIF or a web page). */
+  loop?: boolean;
 }
+
+/** What is checked: a probed file, or a PNG sequence with its number of pictures (AN17). */
+export type CheckedFile = ProbeInfo & { frames?: number };
 
 export interface CheckRow {
   label: string;
@@ -25,7 +33,7 @@ export interface CheckRow {
   pass: boolean;
 }
 
-/** M14: gif for animation tasks (AN15). */
+/** M14: gif for animation tasks (AN15); M16: html (a web animation) and png (a PNG sequence). */
 export const TASK_FORMATS = [
   'mp4',
   'mov',
@@ -33,6 +41,8 @@ export const TASK_FORMATS = [
   'wmv',
   'mpg',
   'gif',
+  'html',
+  'png',
   'mp3',
   'm4a',
   'aac',
@@ -44,7 +54,24 @@ const KIND = 'easymedia-task-check';
 
 const channels = (n: number) => (n === 1 ? '1 (mono)' : n === 2 ? '2 (stereo)' : String(n));
 
-export function checkFile(spec: TaskSpec, info: ProbeInfo): { rows: CheckRow[]; pass: boolean } {
+/** AN17: a PNG sequence as one file to check: the first picture, and how many there are. */
+export function sequenceInfo(first: ProbeInfo, frames: number): CheckedFile {
+  return { ...first, frames, sizeBytes: first.sizeBytes * frames };
+}
+
+/**
+ * The same frame rate. A GIF keeps each frame's time in hundredths of a second, so 24 fps is
+ * stored as 4/100 s (25 fps): for a GIF the rates match when they round to the same time.
+ */
+function sameRate(container: string, expected: number, actual: number): boolean {
+  if (container === 'gif') return Math.round(100 / expected) === Math.round(100 / actual);
+  return Math.abs(expected - actual) < 0.01;
+}
+
+const showFps = (fps: number) => `${Math.round(fps * 100) / 100} fps`;
+const looping = (loop: boolean) => (loop ? 'plays again and again' : 'plays once');
+
+export function checkFile(spec: TaskSpec, info: CheckedFile): { rows: CheckRow[]; pass: boolean } {
   const rows: CheckRow[] = [];
   const row = (label: string, expected: string, actual: string, pass: boolean) =>
     rows.push({ label, expected, actual, pass });
@@ -64,7 +91,25 @@ export function checkFile(spec: TaskSpec, info: ProbeInfo): { rows: CheckRow[]; 
       !!v && v.width === spec.width && v.height === spec.height,
     );
   }
-  if (spec.duration !== undefined) {
+  const sequence = info.frames !== undefined;
+  if (spec.fps && !sequence) {
+    const fps = info.video?.fps;
+    row(
+      'Frame rate',
+      showFps(spec.fps),
+      fps ? showFps(fps) : 'unknown',
+      !!fps && sameRate(info.container, spec.fps, fps),
+    );
+  }
+  if (sequence && spec.duration !== undefined && spec.fps) {
+    const wanted = Math.round(spec.duration * spec.fps);
+    row(
+      'Frames',
+      `${wanted} (${spec.duration} s × ${spec.fps} fps)`,
+      String(info.frames),
+      info.frames === wanted,
+    );
+  } else if (spec.duration !== undefined && !sequence) {
     const tolerance = spec.tolerance ?? DEFAULT_TOLERANCE;
     const d = info.duration;
     row(
@@ -88,6 +133,13 @@ export function checkFile(spec: TaskSpec, info: ProbeInfo): { rows: CheckRow[]; 
       `${group(spec.sampleRate)} Hz`,
       a ? `${group(a.sampleRate)} Hz` : 'no sound',
       a?.sampleRate === spec.sampleRate,
+    );
+  if (spec.loop !== undefined)
+    row(
+      'Looping',
+      looping(spec.loop),
+      info.loop === undefined ? 'not set in the file' : looping(info.loop),
+      info.loop === spec.loop,
     );
   return { rows, pass: rows.every((r) => r.pass) };
 }
@@ -137,7 +189,21 @@ export function parseTaskSpec(text: string): TaskSpec {
   }
   const sampleRate = positive('sampleRate');
   if (sampleRate !== undefined) spec.sampleRate = sampleRate;
-  if (!spec.container && !width && duration === undefined && !spec.channels && !sampleRate)
+  const fps = positive('fps');
+  if (fps !== undefined) spec.fps = fps;
+  if (data.loop !== undefined) {
+    if (typeof data.loop !== 'boolean') throw new EditError("The task's looping is not valid.");
+    spec.loop = data.loop;
+  }
+  if (
+    !spec.container &&
+    !width &&
+    duration === undefined &&
+    !spec.channels &&
+    !sampleRate &&
+    !fps &&
+    spec.loop === undefined
+  )
     throw new EditError('This task has nothing to check.');
   return spec;
 }

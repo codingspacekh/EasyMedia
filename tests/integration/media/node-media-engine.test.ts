@@ -76,6 +76,13 @@ describe('Node + FFmpeg engine, real-file details', () => {
       container: 'gif',
       video: { width: 40, height: 30 },
     });
+    // A GIF FFmpeg was not told to loop plays once: no NETSCAPE2.0 block.
+    const once = join(out, 'once.gif');
+    await execFileAsync(bundledFfmpeg().ffmpeg, [
+      ...['-v', 'error', '-f', 'lavfi', '-i', 'color=red:s=40x30:r=5', '-frames:v', '3'],
+      ...['-loop', '-1', once],
+    ]);
+    expect((await engine.probe(once)).loop).toBe(false);
   });
 
   it('AN15 a GIF has one picture per frame (72), loops, and the frames folder is removed after', async () => {
@@ -96,6 +103,11 @@ describe('Node + FFmpeg engine, real-file details', () => {
       ...['-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', join(out, 'count.gif')],
     ]);
     expect(Number(stdout.trim())).toBe(72);
+    // AN17: the task checker sees that it loops (the NETSCAPE2.0 block of -loop 0).
+    expect(await engine.probe(join(out, 'count.gif'))).toMatchObject({
+      container: 'gif',
+      loop: true,
+    });
     await expect(readdir(folder)).rejects.toThrow();
   });
 

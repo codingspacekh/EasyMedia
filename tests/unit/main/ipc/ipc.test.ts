@@ -82,10 +82,12 @@ describe('P2 main-process IPC handlers', () => {
         openAnimation: async () => null,
         openPicture: async () => null,
         openFrames: async () => ['/shots/1.jpg', '/shots/2.jpg'],
+        openExport: async () => ['/e/Task4.html'],
         saveAnimation: async () => null,
         exportAnimation: async () => null,
       },
     });
+    expect(await api.invoke('dialog:openExport')).toEqual({ ok: true, value: ['/e/Task4.html'] });
     expect(await api.invoke('dialog:openFrames')).toEqual({
       ok: true,
       value: ['/shots/1.jpg', '/shots/2.jpg'],

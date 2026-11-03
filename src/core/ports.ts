@@ -37,6 +37,8 @@ export interface ProbeInfo {
     bitDepth?: number;
     bitRate?: number;
   };
+  /** AN17: an animated GIF or web page that plays again and again (true) or once (false). */
+  loop?: boolean;
 }
 
 export interface JobHandle {
@@ -199,6 +201,11 @@ export interface Dialogs {
   unsavedChanges(): Promise<'save' | 'discard' | 'cancel'>;
   /** T6: a task check file (.mvetask) to open. */
   openTaskCheck(): Promise<string | null>;
+  /**
+   * T6: the exported file to check — a video, sound, GIF or web page — or every picture of a PNG
+   * sequence (AN17); [] when cancelled.
+   */
+  openExport(): Promise<string[]>;
   /** T6: where to save a task check for the students. */
   saveTaskCheck(suggestedName: string): Promise<string | null>;
   /** AN16: an animation (.mvea) to open. */

@@ -79,6 +79,7 @@ export interface Channels {
   'dialog:openAnimation': { args: []; result: string | null };
   'dialog:openPicture': { args: []; result: string | null };
   'dialog:openFrames': { args: []; result: string[] };
+  'dialog:openExport': { args: []; result: string[] };
   'dialog:saveAnimation': { args: [suggestedName: string]; result: string | null };
   'dialog:exportAnimation': {
     args: [suggestedName: string, format: AnimationExportFormat];
@@ -136,6 +137,7 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:openAnimation',
   'dialog:openPicture',
   'dialog:openFrames',
+  'dialog:openExport',
   'dialog:saveAnimation',
   'dialog:exportAnimation',
   'app:closeAnswer',

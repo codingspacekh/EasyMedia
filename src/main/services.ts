@@ -139,6 +139,19 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
+    async openExport() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Check a file: choose your export (all the pictures of a PNG sequence)',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          {
+            name: 'Exported video, sound, GIF, web page or PNG sequence',
+            extensions: [...MEDIA_EXTENSIONS, 'html', 'htm'],
+          },
+        ],
+      });
+      return r.canceled ? [] : r.filePaths;
+    },
     async openFrames() {
       const r = await dialog.showOpenDialog(win(), {
         title: 'Import frames: choose the folder of pictures',
