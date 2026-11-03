@@ -1,16 +1,19 @@
 <script lang="ts">
   // Properties (AN6): the selected object's exact numbers — position, size, rotation, opacity,
-  // fill, stroke, and what its kind adds (corners, points, sides, words and font). With several
-  // objects selected, a value typed here goes to all of them.
+  // fill, stroke, and what its kind adds (corners, points, sides, words and font, what a button
+  // does). With several objects selected, a value typed here goes to all of them.
   import { tick } from 'svelte';
   import type { App } from '../../app/app.ts';
+  import { BUTTON_ACTIONS } from '../../core/animation/buttons.ts';
   import { DEFAULT_STROKE } from '../../core/animation/factory.ts';
+  import { isShape } from '../../core/animation/geometry.ts';
   import { findObject } from '../../core/animation/layers.ts';
   import { stateAt } from '../../core/animation/state.ts';
   import { aspectOf } from '../../core/animation/rules.ts';
   import { EASINGS } from '../../core/animation/tween.ts';
   import type {
     AnimObject,
+    ButtonAction,
     Dash,
     Easing,
     Paint,
@@ -22,6 +25,7 @@
   import Why from '../Why.svelte';
   import { animUi } from './animation-ui.svelte.ts';
   import ColourField from './ColourField.svelte';
+  import EffectsSection from './EffectsSection.svelte';
   import { textBox } from './measure.ts';
   import NumField from './NumField.svelte';
 
@@ -40,13 +44,7 @@
   let pathError: string | null = $state(null);
   /** The other objects a path or a morph can be taken from (shapes only for a morph). */
   const others = (id: string, shapesOnly: boolean): AnimObject[] =>
-    doc.layers
-      .flatMap((l) => l.objects)
-      .filter(
-        (o) =>
-          o.id !== id &&
-          (!shapesOnly || (o.kind !== 'text' && o.kind !== 'picture' && o.kind !== 'group')),
-      );
+    doc.layers.flatMap((l) => l.objects).filter((o) => o.id !== id && (!shapesOnly || isShape(o)));
   function frames(id: string, index: number, which: 'from' | 'to', e: Event): void {
     const n = Number((e.currentTarget as HTMLInputElement).value);
     pathError = anim.setMotion(id, index, { [which]: n });
@@ -60,8 +58,10 @@
     path: 'Path',
     text: 'Text',
     picture: 'Picture',
+    button: 'Button',
     group: 'Group',
   };
+  let buttonError: string | null = $state(null);
   const DASHES: [Dash, string][] = [
     ['solid', 'Solid'],
     ['dashed', 'Dashed'],
@@ -202,6 +202,14 @@
         </div>
       </div>
 
+      {#if first.kind === 'picture' && !many}
+        <div class="sec">
+          <h4>Picture <span class="syl">20.1 tracing bitmaps</span></h4>
+          <button class="sm" onclick={() => (animUi.dialog = 'trace')}>Trace bitmap…</button>
+          <Why tool="animTrace" />
+        </div>
+      {/if}
+
       {#if first.kind !== 'picture' && first.kind !== 'group'}
         <div class="sec">
           <h4>Fill</h4>
@@ -322,6 +330,61 @@
             value={first.sides}
             commit={(v) => set({ sides: Math.round(v) } as Partial<AnimObject>)}
           />
+        </div>
+      {:else if first.kind === 'button'}
+        <div class="sec">
+          <h4>Button <span class="syl">20.1 stopping animations</span></h4>
+          <div class="field">
+            <label for="prop-label">Label</label>
+            <input
+              id="prop-label"
+              type="text"
+              value={first.label}
+              onchange={(e) =>
+                (buttonError = set({
+                  label: (e.currentTarget as HTMLInputElement).value,
+                } as Partial<AnimObject>))}
+            />
+          </div>
+          <div class="field">
+            <label for="prop-action">Action</label>
+            <select
+              id="prop-action"
+              value={first.action}
+              onchange={(e) =>
+                (buttonError = anim.setButtonAction(
+                  (e.currentTarget as HTMLSelectElement).value as ButtonAction,
+                ))}
+            >
+              {#each BUTTON_ACTIONS as a (a.id)}<option value={a.id} title={a.hint}
+                  >{a.label}</option
+                >{/each}
+            </select>
+          </div>
+          {#if first.action === 'goto'}
+            <NumField
+              label="Go to"
+              value={first.frame ?? 0}
+              unit="frame"
+              commit={(v) => set({ frame: v } as Partial<AnimObject>)}
+            />
+          {/if}
+          <div class="two">
+            <NumField
+              label="Label size"
+              value={first.size}
+              unit="px"
+              commit={(v) => set({ size: v } as Partial<AnimObject>)}
+            />
+          </div>
+          <ColourField
+            label="Label colour"
+            value={first.colour}
+            commit={(c) => set({ colour: c } as Partial<AnimObject>)}
+          />
+          {#if buttonError}<p class="error" role="alert">{buttonError}</p>{/if}
+          <p class="hint">Clicking it works in Test and in an HTML web animation.</p>
+          <Why tool="animButton" />
         </div>
       {:else if first.kind === 'text'}
         <div class="sec">
@@ -475,7 +538,7 @@
           {#if pathError}<p class="error" role="alert">{pathError}</p>{/if}
           <Why tool="animPath" />
         </div>
-        {#if first.kind !== 'text' && first.kind !== 'picture' && first.kind !== 'group'}
+        {#if isShape(first)}
           <div class="sec">
             <h4>Morph <span class="syl">20.1 morphing</span></h4>
             <div class="field">
@@ -503,6 +566,7 @@
         {/if}
       {/if}
 
+      <EffectsSection {app} />
       <div class="sec">
         <h4>Arrange</h4>
         <div class="row">
@@ -578,8 +642,9 @@
 
 <style>
   .props {
-    width: 290px;
-    flex: none;
+    /* N16: the size is the panel slot's (App, PanelSlot.svelte). */
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -635,14 +700,6 @@
   select,
   .words {
     width: 100%;
-    min-width: 0;
-    font: inherit;
-    font-size: 12.5px;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 4px 6px;
   }
   .words {
     display: block;

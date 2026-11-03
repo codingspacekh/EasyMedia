@@ -42,6 +42,9 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       openTaskCheck: async () => null,
       saveTaskCheck: async () => null,
       openAnimation: async () => null,
+      openPicture: async () => null,
+      openFrames: async () => [],
+      openExport: async () => [],
       saveAnimation: async () => null,
       exportAnimation: async () => null,
     },
@@ -59,6 +62,12 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
     },
     microphoneAccess: async () => true,
     closeAnswer: () => {},
+    pageFiles: {
+      player: '/app/out/player.js',
+      assets: '/app/dist/assets',
+      read: async (path) => Promise.reject(new Error(`ENOENT ${path}`)),
+      show: async () => {},
+    },
     ...overrides,
   });
   const api: MveApi = {

@@ -1,9 +1,9 @@
 <script lang="ts">
+  import Why from './Why.svelte';
   // Project settings (V1, screen 11): aspect ratio, resolution, frame rate, fit.
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
   import { setProjectSettings } from '../app/commands.ts';
-  import { WHY } from '../core/effects/help.ts';
   import type { ProjectSettings } from '../core/model/types.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
@@ -53,6 +53,9 @@
     if (!error) onclose();
   }
 </script>
+
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
 
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Project settings">
@@ -124,10 +127,7 @@
       {/each}
     </fieldset>
 
-    <p class="why">
-      <b>Why does aspect ratio matter?</b>
-      {WHY.aspectRatio}
-    </p>
+    <Why tool="aspectRatio" title="Why does aspect ratio matter?" />
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 
     <div class="actions">
@@ -196,23 +196,10 @@
   }
   .size input {
     width: 90px;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 4px 6px;
   }
   .hint {
     color: var(--tx-3);
     font-size: 11.5px;
-  }
-  .why {
-    font-size: 12px;
-    color: var(--tx-2);
-    background: rgba(79, 140, 255, 0.08);
-    border: 1px solid rgba(79, 140, 255, 0.25);
-    border-radius: 6px;
-    padding: 10px;
   }
   .error {
     color: var(--danger);

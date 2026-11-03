@@ -1,7 +1,7 @@
 // MediaEngine implemented with the bundled ffprobe/ffmpeg (ARCHITECTURE §8).
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, mkdir, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, open, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -27,6 +27,20 @@ import {
   waveformArgs,
 } from './jobs.ts';
 import { parseProbe, type FfprobeJson } from './probe.ts';
+import { svgSize } from '../../core/animation/svg.ts';
+import { gifLoops } from '../../core/image/gif.ts';
+
+/** The first `count` bytes of a file (fewer if it is shorter). */
+async function firstBytes(path: string, count: number): Promise<Uint8Array> {
+  const file = await open(path, 'r');
+  try {
+    const buffer = new Uint8Array(count);
+    const { bytesRead } = await file.read(buffer, 0, count, 0);
+    return buffer.subarray(0, bytesRead);
+  } finally {
+    await file.close();
+  }
+}
 
 const execFileAsync = promisify(execFile);
 const exists = (path: string) =>
@@ -63,7 +77,16 @@ export function createNodeMediaEngine(
     } finally {
       checks.delete(running.child);
     }
-    return parseProbe(JSON.parse(stdout) as FfprobeJson);
+    const info = parseProbe(JSON.parse(stdout) as FfprobeJson);
+    // AN5: FFmpeg recognises an SVG but cannot draw it, so it knows no size: the file gives it.
+    if (info.container === 'svg' && info.video)
+      info.video = { ...info.video, ...svgSize(await readFile(path, 'utf8')) };
+    // AN17: whether a GIF loops is in its first bytes (ffprobe does not say).
+    if (info.container === 'gif') {
+      const loops = gifLoops(await firstBytes(path, 64 * 1024));
+      if (loops !== null) info.loop = loops;
+    }
+    return info;
   }
 
   async function decodeAudioToFile(input: string, sampleRate?: number) {

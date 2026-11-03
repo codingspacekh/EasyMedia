@@ -99,7 +99,8 @@ EasyMedia/
 │  │  │                       audio-formats.ts (A16, A17: formats, rates, size, pros and cons)
 │  │  ├─ text/                layout.ts (wrap, place, contrast), draw.ts (one drawing for preview + export),
 │  │  │                       motion.ts (fades, fly-ins, credits scroll), fonts.ts
-│  │  ├─ image/               crop.ts (V11 resize with constrained proportions + 9-point crop)
+│  │  ├─ image/               crop.ts (V11 resize with constrained proportions + 9-point crop), gif.ts
+│  │  │                       (does a GIF loop: its NETSCAPE2.0 block, for the task checker)
 │  │  ├─ audio/               pcm.ts (tracks), edit.ts (cut/paste/align/mix), history.ts (memento),
 │  │  │                       peaks.ts (waveform columns), recording.ts (level advice, A14),
 │  │  │                       dsp/ (volume, speed, channels, pitch, echo, reverb, filters, fft,
@@ -114,16 +115,29 @@ EasyMedia/
 │  │  │                       easing, editAt), state.ts (the document at a frame, groups), letters.ts
 │  │  │                       (split into letters), export.ts (formats, sizes, frame names), path.ts
 │  │  │                       (lengths, points along a path), motion.ts (motion paths), morph.ts (shape
-│  │  │                       tweens), pen.ts (editing a pen path's points)
+│  │  │                       tweens), pen.ts (editing a pen path's points), svg.ts and trace.ts
+│  │  │                       (pictures, Trace bitmap), html.ts + player.ts + buttons.ts (the web page,
+│  │  │                       its player and buttons), frames.ts (stop motion, frame-by-frame, onion
+│  │  │                       skin), effects.ts (one-click effects, AN20), library/ (the built-in
+│  │  │                       cartoons, icons and backgrounds as part lists, AN19)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts (generic History<T>), commands.ts, store.ts,
 │  │                          preview.ts, proxy-path.ts, audio.ts (Audio mode), learn.ts (Learn mode),
-│  │                          animation.ts + animation-commands.ts (Animation mode)
+│  │                          layout.ts (panel sizes, N16), preferences.ts (preferences.json, merged),
+│  │                          animation.ts (composes animation/) + animation-commands.ts
+│  │  └─ animation/           Animation mode by area, sharing context.ts (store, run / edit, player):
+│  │                          state.ts, files.ts, exporting.ts, pictures.ts, drawing.ts, timeline.ts,
+│  │                          document.ts
 │  ├─ ui/                     Svelte: App.svelte, panels and dialogs; audio/ (Audio mode, screens 13–20);
 │  │                          learn/ (Learn mode, screens 21–22, task checker, glossary); animation/
 │  │                          (Animation mode: Stage, Timeline, LayersPanel, PropertiesPanel,
-│  │                          StageSettings, AnimationExportDialog);
-│  │                          Why.svelte (T5); menu-actions.ts (native menus act on the mode showing)
+│  │                          StageSettings, AnimationExportDialog, TraceDialog, ImportFramesDialog,
+│  │                          LibraryDialog, EffectsSection);
+│  │                          Why.svelte (T5, N17: a link whose tooltip — answer + reasons — sits on
+│  │                          the page body above everything), Dialog.svelte (the modal frame),
+│  │                          theme.css (colours, buttons) and forms.css (every form control, one look),
+│  │                          PanelSlot.svelte (N16: a resizable, hideable panel), Tooltip.svelte;
+│  │                          menu-actions.ts (native menus act on the mode showing)
 │  ├─ adapters/
 │  │  ├─ electron/            implements ports via window.mve
 │  │  ├─ canvas/              text-renderer.ts (TextRenderer on OffscreenCanvas, bundled fonts),
@@ -392,7 +406,7 @@ come from `ui/Tooltip.svelte`, one for the whole app: after 0.4 s on a button (o
 focus) it shows the button's title, or an icon-only button's label, with the "Why?" part under
 it; the built-in tooltip is kept away meanwhile.
 
-### 7.8 Animation mode (M13–M15, phase 2)
+### 7.8 Animation mode (M13–M16, phase 2)
 
 Animation mode is a second document type, never mixed into the video project: an
 `AnimationDoc` (`core/animation/types.ts`) — a stage, layers of vector objects, pictures,
@@ -453,6 +467,33 @@ playhead. Progress has two phases (drawing, then FFmpeg) and Cancel stops either
 leaves nothing behind. *Send to Video mode* exports the MP4 beside the `.mvea` file and puts it
 on the video timeline as a clip.
 
+**HTML web animation (M16, AN15).** No frames are drawn: the drawing itself goes into one
+self-contained `.html` file (`core/animation/html.ts` `webPage`). It holds the document as JSON
+(every `<` written as `<`, so a student's `</script>` cannot end it; picture paths cut to
+the file name), each picture on the stage as a `data:` URL, an `@font-face` for each font file
+the text needs (`fontsNeeded` → `core/text/fonts.ts` `faceFor`: one file per font and style,
+not the whole family) and the player script. The player is `src/player/boot.ts` around
+`core/animation/player.ts` (a pure clock: the frame for a time at the stage's fps, looping;
+pause, continue, restart, go to frame) and the same `drawStage`, bundled by Vite into one IIFE,
+`out/player.js` (`vite.electron.config.ts --mode player`, about 15 KB). The page cannot read
+files (§2), so a `PageAssets` port goes through the main process: `page:player` reads
+`out/player.js`; `page:picture` reads a picture on the allow-list; `page:font` reads a font of
+the built pages by its asset name (the page knows the hashed names through `import.meta.glob`
+in `ui/main.ts`, so the main process never guesses Vite's hash). A picture that cannot be read
+is left out and named.
+
+**Buttons and Test (M16, AN18).** A `button` object (schema 4) has a label, an action (`pause`,
+`continue`, `restart`, `goto` with a frame), a label size and colour; it is a box like a picture
+(`isShape` false: it hit-tests by its box and cannot morph) and `drawStage` draws it as a rounded
+box with its label, so video and GIF exports show it as a picture. `core/animation/buttons.ts`
+`buttonAt(doc, frame, point)` finds the object on top at a click, as a browser does (a covered,
+faded-out or hidden button cannot be clicked; groups are entered with `toLocal`); the player's
+`press` does the action. Clicks on the app's stage select objects for editing, so the buttons are
+tried with **Test** (Ctrl+Enter, as Animate's Test Movie): the same web page the HTML export
+makes, written into the app's folder and shown by the main process in a window of its own
+(`page:test`: sandboxed, no preload, no navigation or new windows). The app's own page could not
+host it: its Content-Security-Policy refuses inline scripts.
+
 **Paths, morphs and masks (M15).** `objectAt` applies, in order: the property tracks (the
 `shape` track last, so it is drawn in the box the size tracks give), then the motion paths.
 
@@ -475,6 +516,22 @@ New, Open, Save, Save As, Export, Import (a picture), Undo, Redo and Select All 
 animation; File ▸ New Animation / Open Animation… / Export Animation… switch to it first. Closing
 the window asks about unsaved animation work as it does for the project (P7); autosave writes
 the animation beside the project's recovery file (P3).
+
+### 7.9 Pictures, web page, stop motion, workspace, library and effects (M16, M16b)
+
+```
+Import frames (AN14) ─► dialog:openFrames (main lists the folder's pictures) ─► probe each
+  ─► frames.ts stopMotion: ONE picture object whose `picture` track has a held keyframe per picture
+frame-by-frame layer ─► Layer.drawings (keyframe frames) + object.drawing; stateAt shows only the
+  drawing at the frame; an edit on a still drawing changes it; onion skin is a draw option
+library (AN19) ─► library/*.ts: items as part lists ─► build.ts makes named groups ─► placeItem
+  (middle of the stage, or a background over it on a bottom layer)
+effects (AN20) ─► effects.ts: each effect gives keyframes from the object at the start ─►
+  applyEffect splices them into its tracks (before kept and held; the span replaced)
+Learn (N15) ─► the Learn menu ─► openLearn(tab) remembers the editor; Back = leaveLearn()
+panels (N16) ─► layout.ts (pure) + PanelSlot (splitter, hide / show) ─► saved in preferences.json
+Why (N17) ─► help.ts explain(text) ─► answer + reasons, the same in the box and in tooltips
+```
 
 ## 8. Ports and IPC contract
 
@@ -569,3 +626,22 @@ The full TDD workflow, coverage targets and per-milestone test gates are in [`MI
 | Integration | Vitest + real FFmpeg | Export short clips; check result with ffprobe (duration, resolution, codec) |
 | End-to-end | Playwright (Electron) | Import → edit → export flows on Windows and macOS in CI |
 | Acceptance | Manual checklist | All coursebook activities (README §14) |
+
+## 12. Where to add things
+
+Each kind of extension has one place, so later stages add rather than edit:
+
+| To add… | Write… | And… |
+|---|---|---|
+| A video or audio effect | a file in `core/effects/video/` or `audio/` exporting its definition (with `why` and `syllabus`) | list it in `core/effects/registry.ts`; the inspector and dialogs are generated from it |
+| A transition | an entry in `core/effects/transitions/transitions.ts` | — |
+| A one-click animation effect | an entry in `ANIM_EFFECTS` (`core/animation/effects.ts`): its keys from the object at the start | — (the Effects menu lists it) |
+| A library item | an item (named parts) in `core/animation/library/cartoons.ts`, `icons.ts` or `backgrounds.ts` | — (the library test checks it draws, is named and stays in its box) |
+| A tool's "Why use this?" | a text in `WHY` and a `tool(…)` line with its syllabus point (`core/effects/help.ts`) | `<Why tool="…" />` or `withWhy()` in the UI |
+| A Learn page | content in `core/teaching/`, a component in `ui/learn/` | a `LearnTab`, a Learn menu item (`main/menu.ts`) and its action (`ui/menu-actions.ts`) |
+| A menu item | `item(label, accelerator, action)` in `main/menu.ts` | the action in `MenuAction` (`preload/api.ts`) and in `ui/menu-actions.ts` |
+| A resizable panel | an entry in `PANELS` (`app/layout.ts`) | wrap the panel in `<PanelSlot id="…">`; its root fills the slot |
+| A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`) | — |
+| A form control | the plain element (`input`, `select`, `textarea`…): `ui/forms.css` gives it the app's look; the component sets only its layout | — |
+| An Animation mode action | a method in the area's module in `app/animation/` (a command in `animation-commands.ts` if it edits) | — |
+| A file dialog or main-process service | the port in `core/ports.ts` | `preload/api.ts` (channel), `main/ipc.ts`, `main/services.ts`, `adapters/electron/services.ts`, the test fakes |

@@ -209,7 +209,11 @@ M13 Animation core ─► M14 Timeline & tweens ─► M15 Paths, morphing & mas
                                                                     │
             ┌───────────────────────────────────────────────────────┘
             ▼
-M16 Pictures, web export & teaching ─► M17 Hardening & v2.0 release
+M16 Pictures, web export & teaching ─► M16b Workspace, library & effects
+                                                                    │
+            ┌───────────────────────────────────────────────────────┘
+            ▼
+M17 Hardening & v2.0 release
 ```
 
 | # | Milestone | Main requirements | Size | Rough part-time weeks* |
@@ -231,6 +235,7 @@ M16 Pictures, web export & teaching ─► M17 Hardening & v2.0 release
 | M14 | Timeline & tweens | AN8, AN9, AN13, AN15 (MP4, GIF, PNG) | L | 4 |
 | M15 | Paths, morphing & masks | AN10, AN11, AN12 | M | 3 |
 | M16 | Pictures, web export, stop motion & teaching | AN5, AN14, AN15 (HTML), AN17, AN18 | L | 4 |
+| M16b | Workspace, library & effects | N15–N17, AN19, AN20, refactoring | L | 3–4 |
 | M17 | Hardening & v2.0 | phase 2 acceptance, N1–N5, X1, X6, packaging | M | 2–3 |
 
 \* *Very rough, for one maintainer working ~8–10 h/week. Re-estimate after M2 using your real pace.*
@@ -683,6 +688,34 @@ The workbook's numbers are the test data, so every slice is checked against a re
 
 ---
 
+### M16b — Workspace, library & effects
+
+Added 2026-11-03 at the maintainer's request after M16's check passed (README N15–N17, AN19, AN20; decisions 14, 15). Released **together with M16 as v1.4.0**.
+
+**Goal:** an easier workspace on small laptops, readable help, a library of ready-made pictures and motions so students reach a good result sooner, and code ready for the later stages.
+
+**Build order**
+1. **Learn menu** (N15): Learn leaves the mode switch; the menu bar's Learn menu opens each Learn page in place of the editor, with Back; the guides follow.
+2. **Panels** (N16): a resizable edge between each side panel or timeline and its neighbour (drag, or arrow keys when focused; double-click resets); View ▸ show / hide each panel and a hide button on each; sizes and visibility saved in the preferences; View ▸ Reset layout.
+3. **"Why use this?"** (N17): the text split into a short answer and its reasons; larger, spaced, high-contrast; the syllabus point shown; the same in tooltips and the glossary's tool list.
+4. **Library** (AN19): `core/animation/library/` — items described as data (the app's own shapes, grouped and named by part), in categories: cartoon clip-art, icons and symbols, backgrounds; a Library panel in Animation mode (search, categories, click to place; a background fills the stage on a layer of its own, at the bottom).
+5. **Effects** (AN20): `core/animation/effects.ts` — each effect a pure function from an object, a start frame and a length to the keyframes it adds; an Effects menu in the Properties panel; one undo step; the timeline shows ordinary keyframes.
+6. **Review and refactor**: split the largest modules along their responsibilities; shared dialog and panel components; registries instead of switch statements where new kinds will be added; no behaviour change (the whole test suite is the safety net).
+
+**Tests first**
+- Learn menu: the menu lists the Learn pages; choosing one shows it and Back returns to the mode used before; the mode switch has three editors.
+- Panels: dragging an edge changes the size within its limits; the keyboard moves it; hidden panels give their room to the stage; sizes survive a restart; Reset layout restores them; the window at 1100 × 700 still fits (N10).
+- Why: every entry has a short answer and at least one reason; the box's text is at least 13 px.
+- Library: every item draws, has a name, a category and named parts, and stays inside its box; placing one is one undo step and its parts can be animated; a background goes to a bottom layer the size of the stage; search finds by name and keyword.
+- Effects: each effect's keyframes give the expected values at its start, middle and end (fade in: opacity 0 → 100; fly in from the left: x from off the stage; typewriter: letters appearing in turn…); applying keeps what was there before the start; it is one undo step.
+- Refactor: the full suite stays green; branch coverage stays ≥ 85 %.
+
+**Exit gate**
+- All the above green on the three CI platforms; the teacher's check of the new workspace, library and effects on Windows and a Mac.
+- Version 1.4.0 (with M16); PR `dev → main`; tag `v1.4.0`.
+
+---
+
 ### M17 — Hardening & v2.0
 
 **Goal:** release quality for the whole app on both platforms, with animation.
@@ -747,5 +780,6 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M13 Animation core | ✅ Done ([gate record](acceptance/M13.md)) — the Animation mode: stage, vector shapes and text with exact numbers, layers and folders, snapping, `.mvea` files, PNG export; the teacher's check on Windows and a Mac passed | 2026-10-27 | `v1.1.0` |
 | M14 Timeline & tweens | ✅ Done ([gate record](acceptance/M14.md)) — keyframes, tweens, the timeline, MP4 / GIF / PNG export, Split into letters, Send to Video mode; the teacher's check passed | 2026-10-27 | `v1.2.0` |
 | M15 Paths, morphing & masks | ✅ Done ([gate record](acceptance/M15.md)) — motion paths (several per object), morphing, masks, pen path editing; CI green on all three platforms; the teacher's check on Windows and a Mac not done, carried to M16 | 2026-11-01 | `v1.3.0` |
-| M16 Pictures, web export & teaching | ⬜ | | |
+| M16 Pictures, web export & teaching | ✅ Done ([gate record](acceptance/M16.md)) — pictures, Trace bitmap, the HTML web animation and buttons, stop motion and frame-by-frame with onion skin, Learn ▸ Animation, the task checker for animations, the guides; the teacher's check passed (with M15's) | 2026-11-03 | `v1.4.0` (with M16b) |
+| M16b Workspace, library & effects | ✅ Done ([gate record](acceptance/M16b.md)): the Learn menu, resizable and hideable panels, a readable "Why use this?", the library (cartoons, icons, backgrounds), one-click effects, and the animation app split by area; the teacher's check passed | 2026-11-04 | `v1.4.0` (with M16) |
 | M17 Hardening & v2.0 | ⬜ | | |

@@ -222,8 +222,11 @@ test('A19 Compressor: presets, the input → output curve, before and after (scr
     await dialog.getByLabel('Preset').selectOption({ label: 'Strong' });
     await expect(dialog.getByLabel('Ratio')).toHaveValue('6');
     await dialog.getByLabel('Preset').selectOption({ label: 'Voice' });
-    await dialog.getByRole('button', { name: 'Why use this?' }).click();
-    await expect(dialog.getByText(/not file compression/)).toBeVisible();
+    await dialog.getByText('Why use this?').click();
+    // N17: the explanation is a tooltip above the dialog.
+    await expect(
+      page.getByRole('tooltip').filter({ hasText: /not file compression/ }),
+    ).toBeVisible();
     await shot(page, 'compressor');
   });
   await app.close();

@@ -1,3 +1,4 @@
+import { fakeDialogs } from '../../helpers/fake-dialogs.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp, isDirty, projectTitle, type AppState } from '../../../src/app/app.ts';
 import {
@@ -15,7 +16,7 @@ import {
   createTextItem,
   createTitleSlide,
 } from '../../../src/core/model/factory.ts';
-import type { Dialogs, JobEvent, ProbeInfo, TextRenderer } from '../../../src/core/ports.ts';
+import type { JobEvent, ProbeInfo, TextRenderer } from '../../../src/core/ports.ts';
 import { defaultExport, estimateSize } from '../../../src/core/render/formats.ts';
 import { sameSamples } from '../../helpers/samples.ts';
 
@@ -52,21 +53,7 @@ function setup(
   const events: JobEvent[] = [];
   engine.onJobEvent((e) => events.push(e));
   const disk = new Map<string, string>();
-  const dialogs = {
-    openMedia: vi.fn<Dialogs['openMedia']>(async () => []),
-    openProject: vi.fn<Dialogs['openProject']>(async () => null),
-    saveProject: vi.fn<Dialogs['saveProject']>(async () => null),
-    exportVideo: vi.fn<Dialogs['exportVideo']>(async () => null),
-    exportAudio: vi.fn<Dialogs['exportAudio']>(async () => null),
-    confirm: vi.fn<Dialogs['confirm']>(async () => true),
-    chooseFolder: vi.fn<Dialogs['chooseFolder']>(async () => null),
-    unsavedChanges: vi.fn<Dialogs['unsavedChanges']>(async () => 'cancel'),
-    openTaskCheck: vi.fn<Dialogs['openTaskCheck']>(async () => null),
-    saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
-    openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
-    saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),
-    exportAnimation: vi.fn<Dialogs['exportAnimation']>(async () => null),
-  };
+  const dialogs = fakeDialogs();
   const copies: string[] = [];
   const files = {
     read: async (path: string) => {

@@ -23,7 +23,7 @@
 </script>
 
 <div class="cols">
-  <LearnCard title="Task" icon="file" tag="11.1 · 11.2 requirements of the audience">
+  <LearnCard title="Task" icon="file" tag="11.1 · 11.2 · 20.1 requirements of the audience">
     <p class="hint first">
       <b>Teachers:</b> set what the exported file must be, then save the task and give the file to your
       students. Leave a box empty to accept anything.
@@ -95,6 +95,33 @@
         </label>
       </div>
       <label
+        >Frame rate (fps)
+        <input
+          aria-label="Frame rate (fps)"
+          type="number"
+          min="1"
+          step="1"
+          value={spec.fps ?? ''}
+          onchange={(e) => change('fps', number(e.currentTarget.value))}
+        />
+      </label>
+      <label
+        >Looping
+        <select
+          aria-label="Looping"
+          value={spec.loop === undefined ? '' : String(spec.loop)}
+          onchange={(e) =>
+            change(
+              'loop',
+              e.currentTarget.value === '' ? undefined : e.currentTarget.value === 'true',
+            )}
+        >
+          <option value="">Any</option>
+          <option value="true">Plays again and again</option>
+          <option value="false">Plays once</option>
+        </select>
+      </label>
+      <label
         >Channels
         <select
           aria-label="Channels"
@@ -127,7 +154,8 @@
 
   <LearnCard title="Check an export" icon="check" tag="meeting the requirements">
     <p class="hint first">
-      <b>Students:</b> open the task your teacher gave you, then choose the file you exported.
+      <b>Students:</b> open the task your teacher gave you, then choose the file you exported (for a PNG
+      sequence, select all its pictures).
     </p>
     <button class="primary" onclick={() => learn.checkExport()}>Check a file…</button>
     {#if checked}
@@ -186,12 +214,6 @@
   input,
   select {
     width: 100%;
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 4px 6px;
   }
   .actions {
     display: flex;

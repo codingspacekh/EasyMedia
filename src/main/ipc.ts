@@ -1,7 +1,7 @@
 // Main-process side of the IPC contract (P2, ARCHITECTURE §8). Every request is answered with
 // data: a value, or a WireError the page turns back into the right error type.
-import { isAbsolute, relative } from 'node:path';
-import { JobCancelledError } from '../core/model/errors.ts';
+import { isAbsolute, join, relative } from 'node:path';
+import { EditError, JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
@@ -21,7 +21,32 @@ export interface MainServices {
   microphoneAccess: () => Promise<boolean>;
   /** P7: the page's answer when the window is closing. */
   closeAnswer: (close: boolean) => void;
+  /** AN15: the files an HTML web animation carries: the player's script and the built fonts. */
+  pageFiles: PageFiles;
 }
+
+export interface PageFiles {
+  /** out/player.js */
+  player: string;
+  /** The built pages' assets folder (dist/assets), where the bundled fonts are. */
+  assets: string;
+  read(path: string): Promise<Uint8Array>;
+  /** AN18: Test — shows the page in a window of its own, the stage's size. */
+  show(html: string, title: string, width: number, height: number): Promise<void>;
+}
+
+/** AN5: the picture types Animation mode opens, by extension. */
+const PICTURE_TYPES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+};
+
+const dataUrl = (type: string, bytes: Uint8Array) =>
+  `data:${type};base64,${Buffer.from(bytes).toString('base64')}`;
 
 type Handlers = {
   [C in Channel]: (...args: Channels[C]['args']) => Promise<Channels[C]['result']>;
@@ -140,6 +165,9 @@ export function registerIpc(s: MainServices): void {
     'dialog:openTaskCheck': () => s.dialogs.openTaskCheck(),
     'dialog:saveTaskCheck': (name) => s.dialogs.saveTaskCheck(name),
     'dialog:openAnimation': () => s.dialogs.openAnimation(),
+    'dialog:openPicture': () => s.dialogs.openPicture(),
+    'dialog:openFrames': () => s.dialogs.openFrames(),
+    'dialog:openExport': () => s.dialogs.openExport(),
     'dialog:saveAnimation': (name) => s.dialogs.saveAnimation(name),
     'dialog:exportAnimation': (name, format) => s.dialogs.exportAnimation(name, format),
     'app:closeAnswer': async (close) => {
@@ -164,6 +192,26 @@ export function registerIpc(s: MainServices): void {
     },
     'project:writeBytes': async (path, bytes) => {
       await s.files.writeBytes(path, bytes);
+      return null;
+    },
+    'page:player': async () => new TextDecoder().decode(await s.pageFiles.read(s.pageFiles.player)),
+    'page:picture': async (path) => {
+      if (!s.allow.has(path)) throw new EditError('Only pictures opened in EasyMedia can be used.');
+      const type = PICTURE_TYPES[/\.(\w+)$/.exec(path)?.[1]?.toLowerCase() ?? ''];
+      if (!type)
+        throw new EditError('Only a picture (PNG, JPG, GIF, BMP or SVG) can go in a web page.');
+      return dataUrl(type, await s.pageFiles.read(path));
+    },
+    'page:font': async (name) => {
+      // Only a font file of the app's own pages: a plain name, nothing outside the folder.
+      if (!/^[\w-]+(\.[\w-]+)*\.ttf$/.test(name))
+        throw new EditError('That is not a bundled font.');
+      return dataUrl('font/ttf', await s.pageFiles.read(join(s.pageFiles.assets, name)));
+    },
+    'page:test': async (html, title, width, height) => {
+      if (typeof html !== 'string' || !(width > 0) || !(height > 0))
+        throw new EditError('There is nothing to test.');
+      await s.pageFiles.show(html, String(title), width, height);
       return null;
     },
     'project:saveImage': async (name, png) => {

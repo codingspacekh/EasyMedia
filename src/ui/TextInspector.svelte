@@ -369,14 +369,6 @@
   }
   textarea,
   select,
-  input[type='number'] {
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 5px 7px;
-  }
   textarea {
     resize: vertical;
   }
@@ -395,13 +387,6 @@
     gap: 6px;
     align-items: center;
     font-size: 12px;
-  }
-  input[type='color'] {
-    width: 28px;
-    height: 22px;
-    padding: 0;
-    border: 1px solid var(--line-strong);
-    background: none;
   }
   .place {
     display: flex;

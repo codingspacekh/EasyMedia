@@ -44,6 +44,84 @@ export const FONTS: readonly Font[] = [
   f('Press Start 2P', 'Typewriter & retro', 'Pixel video game'),
 ];
 
+/** One font file, as fonts.css declares it (a test keeps the two the same). */
+export interface FontFile {
+  family: string;
+  style: 'normal' | 'italic';
+  /** A CSS weight or range: "400", "100 900" (a variable font). */
+  weight: string;
+  /** Its name in resources/fonts. */
+  file: string;
+}
+
+const face = (
+  family: string,
+  style: FontFile['style'],
+  weight: string,
+  file: string,
+): FontFile => ({
+  family,
+  style,
+  weight,
+  file,
+});
+
+/** AN15: every bundled font file, so an HTML web animation can carry the ones its text uses. */
+export const FONT_FACES: readonly FontFile[] = [
+  face('Inter', 'normal', '100 900', 'Inter.ttf'),
+  face('Inter', 'italic', '100 900', 'Inter-Italic.ttf'),
+  face('Noto Serif', 'normal', '100 900', 'NotoSerif.ttf'),
+  face('Noto Serif', 'italic', '100 900', 'NotoSerif-Italic.ttf'),
+  face('Courier Prime', 'normal', '400', 'CourierPrime-Regular.ttf'),
+  face('Courier Prime', 'normal', '700', 'CourierPrime-Bold.ttf'),
+  face('Courier Prime', 'italic', '400', 'CourierPrime-Italic.ttf'),
+  face('Courier Prime', 'italic', '700', 'CourierPrime-BoldItalic.ttf'),
+  face('Montserrat', 'normal', '100 900', 'Montserrat.ttf'),
+  face('Montserrat', 'italic', '100 900', 'Montserrat-Italic.ttf'),
+  face('Poppins', 'normal', '400', 'Poppins-Regular.ttf'),
+  face('Poppins', 'normal', '700', 'Poppins-Bold.ttf'),
+  face('Poppins', 'italic', '400', 'Poppins-Italic.ttf'),
+  face('Poppins', 'italic', '700', 'Poppins-BoldItalic.ttf'),
+  face('Oswald', 'normal', '200 700', 'Oswald.ttf'),
+  face('Playfair Display', 'normal', '400 900', 'PlayfairDisplay.ttf'),
+  face('Playfair Display', 'italic', '400 900', 'PlayfairDisplay-Italic.ttf'),
+  face('Arvo', 'normal', '400', 'Arvo-Regular.ttf'),
+  face('Arvo', 'normal', '700', 'Arvo-Bold.ttf'),
+  face('Arvo', 'italic', '400', 'Arvo-Italic.ttf'),
+  face('Arvo', 'italic', '700', 'Arvo-BoldItalic.ttf'),
+  face('Cinzel', 'normal', '400 900', 'Cinzel.ttf'),
+  face('Bebas Neue', 'normal', '400', 'BebasNeue-Regular.ttf'),
+  face('Anton', 'normal', '400', 'Anton-Regular.ttf'),
+  face('Abril Fatface', 'normal', '400', 'AbrilFatface-Regular.ttf'),
+  face('Righteous', 'normal', '400', 'Righteous-Regular.ttf'),
+  face('Bangers', 'normal', '400', 'Bangers-Regular.ttf'),
+  face('Lobster', 'normal', '400', 'Lobster-Regular.ttf'),
+  face('Pacifico', 'normal', '400', 'Pacifico-Regular.ttf'),
+  face('Indie Flower', 'normal', '400', 'IndieFlower-Regular.ttf'),
+  face('Press Start 2P', 'normal', '400', 'PressStart2P-Regular.ttf'),
+  face('Dancing Script', 'normal', '400 700', 'DancingScript.ttf'),
+  face('Caveat', 'normal', '400 700', 'Caveat.ttf'),
+];
+
+const covers = (weight: string, wanted: number): boolean => {
+  const [low, high = low] = weight.split(' ').map(Number);
+  return wanted >= low! && wanted <= high!;
+};
+
+/**
+ * AN15: the one file a text in this font needs: the italic file for italic words, the bold one for
+ * bold; a font with fewer files gets the nearest (the browser then makes it bold or italic, as in
+ * the app). Null for a font that is not bundled.
+ */
+export function faceFor(family: string, bold: boolean, italic: boolean): FontFile | null {
+  const own = FONT_FACES.filter((f) => f.family === family);
+  const style = italic ? 'italic' : 'normal';
+  const weight = bold ? 700 : 400;
+  const sameStyle = own.filter((f) => f.style === style);
+  const pool = sameStyle.length ? sameStyle : own.filter((f) => f.style === 'normal');
+  return pool.find((f) => covers(f.weight, weight)) ?? pool[0] ?? null;
+}
+
 const POSITIONS = [
   'top-left',
   'top',

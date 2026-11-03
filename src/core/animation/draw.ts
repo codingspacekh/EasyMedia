@@ -3,7 +3,15 @@
 // student sees is what is exported (ARCHITECTURE §7.3, as the text drawing).
 import { centreOf, flattenPath, localOutline, outlineOf } from './geometry.ts';
 import { stateAt } from './state.ts';
-import type { AnimObject, AnimationDoc, Layer, Paint, Stroke, TextObject } from './types.ts';
+import type {
+  AnimObject,
+  AnimationDoc,
+  ButtonObject,
+  Layer,
+  Paint,
+  Stroke,
+  TextObject,
+} from './types.ts';
 
 /** The parts of CanvasRenderingContext2D the drawing needs (a recording fake is used in tests). */
 export interface StageCanvas {
@@ -72,7 +80,15 @@ export interface DrawOptions {
    * out, so masks always work there.
    */
   editing?: boolean;
+  /**
+   * AN14: onion skin while editing — the objects to draw faintly behind a layer's own (the
+   * drawings just before and after the one shown, see frames.ts), to draw the next one in step.
+   */
+  onionSkin?: (layerId: string) => readonly AnimObject[];
 }
+
+/** AN14: how strongly the onion skin's neighbouring drawings are drawn. */
+export const ONION_OPACITY = 0.3;
 
 export const LINE_HEIGHT = 1.2;
 const TAU = 2 * Math.PI;
@@ -81,6 +97,27 @@ const PLACEHOLDER = '#9aa4b2';
 /** The CSS font of a text object: `italic 700 64px "Inter"`. */
 export function fontOf(t: TextObject): string {
   return `${t.italic ? 'italic ' : ''}${t.bold ? 700 : 400} ${t.size}px "${t.font}"`;
+}
+
+/** AN18: a button's label is drawn in the bundled Inter, semi-bold. */
+export const BUTTON_FONT = 'Inter';
+export const buttonFontOf = (b: ButtonObject): string => `600 ${b.size}px "${BUTTON_FONT}"`;
+/** A button's corners: rounded a little, as a browser's own buttons. */
+const BUTTON_RADIUS = 3;
+
+/** The CSS fonts the objects' text and button labels need loaded before drawing, each once. */
+export function fontsUsed(objects: readonly AnimObject[]): string[] {
+  const walk = (list: readonly AnimObject[]): string[] =>
+    list.flatMap((o) =>
+      o.kind === 'text'
+        ? [fontOf(o)]
+        : o.kind === 'button'
+          ? [buttonFontOf(o)]
+          : o.kind === 'group'
+            ? walk(o.children)
+            : [],
+    );
+  return [...new Set(walk(objects))];
 }
 
 /** The paint as a canvas style, inside a box centred on (0, 0). */
@@ -126,6 +163,23 @@ function applyStroke(ctx: StageCanvas, stroke: Stroke): void {
   }
 }
 
+/** A rectangle with rounded corners, centred on (0, 0). */
+function roundedRect(ctx: StageCanvas, w: number, h: number, radius: number): void {
+  const ox = -w / 2;
+  const oy = -h / 2;
+  const r = Math.min(radius, w / 2, h / 2);
+  ctx.moveTo(ox + r, oy);
+  ctx.lineTo(ox + w - r, oy);
+  ctx.arc(ox + w - r, oy + r, r, -Math.PI / 2, 0);
+  ctx.lineTo(ox + w, oy + h - r);
+  ctx.arc(ox + w - r, oy + h - r, r, 0, Math.PI / 2);
+  ctx.lineTo(ox + r, oy + h);
+  ctx.arc(ox + r, oy + h - r, r, Math.PI / 2, Math.PI);
+  ctx.lineTo(ox, oy + r);
+  ctx.arc(ox + r, oy + r, r, Math.PI, 1.5 * Math.PI);
+  ctx.closePath();
+}
+
 /** Traces the object's outline as a path, in its own box moved so its centre is (0, 0). */
 function tracePath(ctx: StageCanvas, o: AnimObject): void {
   const ox = -o.width / 2;
@@ -135,19 +189,8 @@ function tracePath(ctx: StageCanvas, o: AnimObject): void {
     ctx.ellipse(0, 0, o.width / 2, o.height / 2, 0, 0, TAU);
     return;
   }
-  if (o.kind === 'rect' && o.radius > 0) {
-    const r = Math.min(o.radius, o.width / 2, o.height / 2);
-    const { width: w, height: h } = o;
-    ctx.moveTo(ox + r, oy);
-    ctx.lineTo(ox + w - r, oy);
-    ctx.arc(ox + w - r, oy + r, r, -Math.PI / 2, 0);
-    ctx.lineTo(ox + w, oy + h - r);
-    ctx.arc(ox + w - r, oy + h - r, r, 0, Math.PI / 2);
-    ctx.lineTo(ox + r, oy + h);
-    ctx.arc(ox + r, oy + h - r, r, Math.PI / 2, Math.PI);
-    ctx.lineTo(ox, oy + r);
-    ctx.arc(ox + r, oy + r, r, Math.PI, 1.5 * Math.PI);
-    ctx.closePath();
+  if ((o.kind === 'rect' && o.radius > 0) || o.kind === 'button') {
+    roundedRect(ctx, o.width, o.height, o.kind === 'rect' ? o.radius : BUTTON_RADIUS);
     return;
   }
   if (o.kind === 'path' && o.points.some((p) => p.in || p.out)) {
@@ -237,6 +280,14 @@ export function drawObject(
         applyStroke(ctx, o.stroke);
         ctx.stroke();
       }
+      if (o.kind === 'button') {
+        // AN18: the label in the middle of the box.
+        ctx.font = buttonFontOf(o);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = o.colour;
+        ctx.fillText(o.label, 0, 0);
+      }
     }
   }
   ctx.restore();
@@ -252,10 +303,15 @@ export function drawStage(ctx: StageCanvas, doc: AnimationDoc, options: DrawOpti
   const layers = shown.layers;
   const masking = (l: Layer): boolean =>
     l.mask === true && l.visible && (!options.editing || l.locked);
+  const skin = (layer: Layer): void => {
+    for (const object of options.onionSkin?.(layer.id) ?? [])
+      drawObject(ctx, object, options, ONION_OPACITY);
+  };
   layers.forEach((layer, i) => {
     if (!layer.visible || masking(layer)) return;
     const mask = layers[i + 1];
     if (!mask || !masking(mask)) {
+      skin(layer);
       for (const object of layer.objects) drawObject(ctx, object, options);
       return;
     }

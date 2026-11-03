@@ -1,7 +1,16 @@
 // Electron main process (ARCHITECTURE §2).
-import { app, BrowserWindow, ipcMain, Menu, protocol, shell, systemPreferences } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  protocol,
+  screen,
+  shell,
+  systemPreferences,
+} from 'electron';
 import { execFile } from 'node:child_process';
-import { access, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
@@ -42,6 +51,34 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | undefined;
+
+/**
+ * AN18: Test — the animation's web page in a window of its own, the stage's size (smaller on a
+ * small screen), with nothing of the app: no preload, sandboxed, no navigation or new windows. The
+ * page is written into the app's own folder (a page this size is too long for a data: URL).
+ */
+async function showTestPage(html: string, title: string, width: number, height: number) {
+  const dir = join(app.getPath('userData'), 'test');
+  await mkdir(dir, { recursive: true });
+  const file = join(dir, 'test-animation.html');
+  await writeFile(file, html, 'utf8');
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  const scale = Math.min(1, (area.width * 0.9) / width, (area.height * 0.9) / height);
+  const win = new BrowserWindow({
+    parent: mainWindow,
+    title: `Test: ${title}`,
+    width: Math.max(200, Math.round(width * scale)),
+    height: Math.max(150, Math.round(height * scale)),
+    useContentSize: true,
+    autoHideMenuBar: true,
+    backgroundColor: '#1d2026',
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+  });
+  win.on('page-title-updated', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  await win.loadFile(file);
+}
 let closeGuard: ReturnType<typeof createCloseGuard> | undefined;
 
 function createWindow(): BrowserWindow {
@@ -154,6 +191,13 @@ void app.whenReady().then(async () => {
     dialogs: electronDialogs(() => mainWindow),
     files: projectFiles(join(app.getPath('userData'), 'text')),
     closeAnswer: (close) => closeGuard?.answer(close),
+    // AN15: the web page player is built beside main.cjs; the fonts are the built pages' own.
+    pageFiles: {
+      player: join(__dirname, 'player.js'),
+      assets: join(APP_ROOT, 'dist', 'assets'),
+      read: async (path) => new Uint8Array(await readFile(path)),
+      show: showTestPage,
+    },
     microphoneAccess: microphoneAccess(
       process.platform,
       systemPreferences,

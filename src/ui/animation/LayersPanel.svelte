@@ -180,7 +180,9 @@
     {/each}
   </ul>
   {#if renameError}<p class="error" role="alert">{renameError}</p>{/if}
-  <div class="why"><Why tool="animLayers" /><Why tool="animMask" /></div>
+  <div class="why">
+    <Why tool="animLayers" title="Why use layers?" /><Why tool="animMask" title="Why use a mask?" />
+  </div>
 </aside>
 
 <style>
@@ -188,8 +190,9 @@
     color: var(--accent);
   }
   .layers {
-    width: 230px;
-    flex: none;
+    /* N16: the size is the panel slot's (App, PanelSlot.svelte). */
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;

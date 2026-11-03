@@ -67,7 +67,7 @@
     background: var(--bg-2);
     border: 1px solid var(--line);
     border-radius: 4px;
-    padding: 0 6px;
+    padding: 0 5px;
     min-width: 0;
   }
   .box.disabled {
@@ -86,13 +86,17 @@
     font: 500 12.5px var(--mono);
     padding: 4px 0;
     outline: none;
+    height: auto;
+    box-shadow: none;
+    border-radius: 0;
   }
   input[aria-invalid='true'] {
     color: var(--danger);
   }
   .unit {
+    margin-left: 2px;
     color: var(--tx-3);
-    font-size: 11px;
+    font-size: 10.5px;
   }
   .error {
     grid-column: 1 / -1;

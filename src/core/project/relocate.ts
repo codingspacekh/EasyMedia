@@ -36,6 +36,16 @@ export function dirOf(path: string): string {
   return cut < 0 ? '.' : path.slice(0, cut);
 }
 
+/** P2: a file name not yet in `used` (case-insensitive): photo.jpg, photo-2.jpg…; remembers it. */
+export function uniqueFileName(file: string, used: Set<string>): string {
+  const dot = file.lastIndexOf('.');
+  const [base, ext] = dot > 0 ? [file.slice(0, dot), file.slice(dot)] : [file, ''];
+  let name = file;
+  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base}-${n}${ext}`;
+  used.add(name.toLowerCase());
+  return name;
+}
+
 export function fileNameOf(path: string): string {
   return path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
 }

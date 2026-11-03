@@ -3,6 +3,7 @@
 import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
 import type { AnimationDoc } from './animation/types.ts';
+import type { Pixels } from './animation/trace.ts';
 import type { TextImage } from './render/compile.ts';
 import type { Container, ExportSettings } from './render/formats.ts';
 import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
@@ -36,6 +37,8 @@ export interface ProbeInfo {
     bitDepth?: number;
     bitRate?: number;
   };
+  /** AN17: an animated GIF or web page that plays again and again (true) or once (false). */
+  loop?: boolean;
 }
 
 export interface JobHandle {
@@ -198,10 +201,19 @@ export interface Dialogs {
   unsavedChanges(): Promise<'save' | 'discard' | 'cancel'>;
   /** T6: a task check file (.mvetask) to open. */
   openTaskCheck(): Promise<string | null>;
+  /**
+   * T6: the exported file to check — a video, sound, GIF or web page — or every picture of a PNG
+   * sequence (AN17); [] when cancelled.
+   */
+  openExport(): Promise<string[]>;
   /** T6: where to save a task check for the students. */
   saveTaskCheck(suggestedName: string): Promise<string | null>;
   /** AN16: an animation (.mvea) to open. */
   openAnimation(): Promise<string | null>;
+  /** AN5: a picture for the stage (PNG, JPG, GIF, BMP or SVG). */
+  openPicture(): Promise<string | null>;
+  /** AN14: *Import frames…* — a folder of pictures for a stop motion; the pictures in it ([] if none). */
+  openFrames(): Promise<string[]>;
   /** AN16: where to save an animation. */
   saveAnimation(suggestedName: string): Promise<string | null>;
   /** AN15: where to save an exported animation; the file type follows the format. */
@@ -209,7 +221,7 @@ export interface Dialogs {
 }
 
 /** AN15: the animation export formats (M13: a picture of the stage; M14: mp4, gif, a PNG sequence; M16 html). */
-export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence';
+export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence' | 'html';
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
 export interface ProjectFiles {
@@ -224,9 +236,29 @@ export interface ProjectFiles {
   writeBytes(path: string, bytes: Uint8Array): Promise<void>;
 }
 
+/**
+ * AN15: what an HTML web animation carries inside it, so it plays without the internet. The page
+ * cannot read files itself (ARCHITECTURE §2): the main process reads them.
+ */
+export interface PageAssets {
+  /** The player's script (core/animation/player.ts and draw.ts, bundled at build time). */
+  playerScript(): Promise<string>;
+  /** A picture the app has opened, as a data: URL. */
+  pictureDataUrl(path: string): Promise<string>;
+  /** A bundled font file, by its name in resources/fonts (e.g. "Inter.ttf"), as a data: URL. */
+  fontDataUrl(file: string): Promise<string>;
+  /**
+   * AN18: Test — shows a web page in a window of its own, sized for the stage, where it plays and
+   * its buttons work, as the exported file will in a browser.
+   */
+  openTest(html: string, title: string, width: number, height: number): Promise<void>;
+}
+
 /** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */
 export interface StageRenderer {
   renderPng(doc: AnimationDoc, frame?: number): Promise<Uint8Array>;
+  /** AN5: a picture's pixels, scaled down to at most `maxSide` px on its longer side. */
+  pixels(path: string, maxSide: number): Promise<Pixels>;
 }
 
 /** Draws text as a transparent PNG with the bundled fonts (ARCHITECTURE §7.3). */

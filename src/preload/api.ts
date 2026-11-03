@@ -77,6 +77,9 @@ export interface Channels {
   'dialog:openTaskCheck': { args: []; result: string | null };
   'dialog:saveTaskCheck': { args: [suggestedName: string]; result: string | null };
   'dialog:openAnimation': { args: []; result: string | null };
+  'dialog:openPicture': { args: []; result: string | null };
+  'dialog:openFrames': { args: []; result: string[] };
+  'dialog:openExport': { args: []; result: string[] };
   'dialog:saveAnimation': { args: [suggestedName: string]; result: string | null };
   'dialog:exportAnimation': {
     args: [suggestedName: string, format: AnimationExportFormat];
@@ -90,6 +93,17 @@ export interface Channels {
   'project:copy': { args: [from: string, to: string]; result: null };
   'project:saveImage': { args: [name: string, png: Uint8Array]; result: string };
   'project:writeBytes': { args: [path: string, bytes: Uint8Array]; result: null };
+  /** AN15: the HTML web animation's player script. */
+  'page:player': { args: []; result: string };
+  /** AN15: a picture the app opened, as a data: URL. */
+  'page:picture': { args: [path: string]; result: string };
+  /** AN15: a bundled font file of the built pages (its file name in assets/), as a data: URL. */
+  'page:font': { args: [assetName: string]; result: string };
+  /** AN18: Test — shows a web page in a window of its own. */
+  'page:test': {
+    args: [html: string, title: string, width: number, height: number];
+    result: null;
+  };
 }
 
 export type Channel = keyof Channels;
@@ -121,6 +135,9 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:openTaskCheck',
   'dialog:saveTaskCheck',
   'dialog:openAnimation',
+  'dialog:openPicture',
+  'dialog:openFrames',
+  'dialog:openExport',
   'dialog:saveAnimation',
   'dialog:exportAnimation',
   'app:closeAnswer',
@@ -130,6 +147,10 @@ export const CHANNELS: readonly Channel[] = [
   'project:copy',
   'project:saveImage',
   'project:writeBytes',
+  'page:player',
+  'page:picture',
+  'page:font',
+  'page:test',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */
@@ -151,7 +172,16 @@ export type MenuAction =
   | 'licences'
   | 'newAnimation'
   | 'openAnimation'
-  | 'exportAnimation';
+  | 'exportAnimation'
+  | 'learnInspect'
+  | 'learnFormats'
+  | 'learnAnimation'
+  | 'learnTask'
+  | 'glossary'
+  | 'toggleLeft'
+  | 'toggleRight'
+  | 'toggleBottom'
+  | 'resetLayout';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

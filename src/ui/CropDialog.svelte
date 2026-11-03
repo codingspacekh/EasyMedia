@@ -141,6 +141,9 @@
   }
 </script>
 
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && !saving && onclose()} />
+
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Resize and crop image">
     <h2>Resize &amp; crop image <span class="syl">11.1 resizing and cropping a still</span></h2>

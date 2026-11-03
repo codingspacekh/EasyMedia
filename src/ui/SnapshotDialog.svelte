@@ -1,9 +1,9 @@
 <script lang="ts">
+  import Why from './Why.svelte';
   // Snapshot — extract a still image (V10, screen 09): choose the exact frame, hide text, pick a
   // picture format, and optionally put the still on the timeline.
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
-  import { WHY } from '../core/effects/help.ts';
   import { formatTime } from '../core/model/time.ts';
   import { mainTrackDuration } from '../core/model/timeline.ts';
   import TimeField from './TimeField.svelte';
@@ -54,6 +54,9 @@
     if (id !== null) onclose();
   }
 </script>
+
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && !saving && onclose()} />
 
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Snapshot">
@@ -122,10 +125,7 @@
         : ' once you save it — until then, in EasyMedia’s own folder'}.
     </p>
 
-    <details class="why" open>
-      <summary>Why extract a still?</summary>
-      <p>{WHY.snapshot}</p>
-    </details>
+    <Why tool="snapshot" title="Why extract a still?" />
 
     <div class="actions">
       <button onclick={onclose}>Cancel</button>
@@ -202,12 +202,6 @@
   }
   .file-name input {
     flex: 1;
-    min-width: 0;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 6px;
-    padding: 5px 8px;
   }
   .file-name span {
     color: var(--tx-3);
@@ -222,16 +216,6 @@
     color: var(--tx-3);
     font-size: 11.5px;
     margin: 0;
-  }
-  .why summary {
-    cursor: pointer;
-    color: var(--accent);
-    font-size: 12px;
-  }
-  .why p {
-    margin: 4px 0 0;
-    font-size: 12px;
-    color: var(--tx-2);
   }
   .actions {
     display: flex;

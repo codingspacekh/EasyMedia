@@ -61,6 +61,15 @@ export function addLayer(
   return { doc: withLayers(doc, doc.layers.toSpliced(at, 0, layer)), layer };
 }
 
+/** A change to one layer's contents (AN14's keyframes), refused on a locked or hidden layer. */
+export function changeLayer(
+  doc: AnimationDoc,
+  id: Id,
+  change: (layer: Layer) => Layer,
+): AnimationDoc {
+  return replaceLayer(doc, change(editable(layerOf(doc, id))));
+}
+
 export function renameLayer(doc: AnimationDoc, id: Id, name: string): AnimationDoc {
   const trimmed = name.trim();
   if (trimmed === '') throw new EditError('Give the layer a name.');
@@ -238,7 +247,13 @@ export function groupObjects(
   if (found.some((f) => f.layerId !== layer.id))
     throw new EditError('Objects can only be grouped with others in the same layer.');
   const members = found.sort((a, b) => a.index - b.index);
-  const group = { ...createGroup(members.map((m) => m.object)), name: uniqueName(doc, 'Group') };
+  const drawing = members[0]!.object.drawing;
+  const group = {
+    ...createGroup(members.map((m) => m.object)),
+    name: uniqueName(doc, 'Group'),
+    // AN14: on a frame-by-frame layer the group stays in the drawing its parts were in.
+    ...(drawing !== undefined ? { drawing } : {}),
+  };
   const at = members.at(-1)!.index - (members.length - 1);
   const objects = layer.objects.filter((o) => !ids.includes(o.id)).toSpliced(at, 0, group);
   return { doc: replaceLayer(doc, { ...layer, objects }), group };

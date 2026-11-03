@@ -91,6 +91,46 @@ describe('exporting the animation (AN15)', () => {
     expect(s.bytes.has('/work/Half.png')).toBe(true);
   });
 
+  it('AN15 HTML: one web page with the animation, its player, pictures and fonts inside', async () => {
+    const s = setup();
+    s.anim.addText({ x: 10, y: 300 });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.html');
+    await s.anim.exportAnimation('html');
+    expect(s.dialogs.exportAnimation).toHaveBeenCalledWith('Untitled', 'html');
+    const html = s.disk.get('/work/Task1.html')!;
+    expect(html).toContain('<canvas id="stage" width="600" height="400"');
+    expect(html).toContain('/* player */');
+    expect(html).toContain(`url('data:font/ttf;base64,${btoa('Inter.ttf')}')`);
+    expect(s.stageRenderer.renderPng).not.toHaveBeenCalled();
+    expect(s.state().message?.text).toBe(
+      'Saved Task1.html. Open it in any web browser: it plays without the internet.',
+    );
+    expect(s.state().busy).toBeNull();
+  });
+
+  it('AN15 HTML: a picture that cannot be read is left out, and the student is told', async () => {
+    const s = setup();
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
+    await s.anim.addPicture({ x: 0, y: 0 });
+    s.pageAssets.pictureDataUrl.mockRejectedValueOnce(new Error('ENOENT'));
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task3.html');
+    await s.anim.exportAnimation('html');
+    expect(s.disk.has('/work/Task3.html')).toBe(true);
+    expect(s.state().message?.text).toBe(
+      'Saved Task3.html without photo.jpg: that picture could not be read.',
+    );
+  });
+
+  it('AN15 HTML: an error writing the file is shown, and nothing is busy afterwards', async () => {
+    const s = setup();
+    s.pageAssets.playerScript.mockRejectedValueOnce(new Error('player missing'));
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.html');
+    await s.anim.exportAnimation('html');
+    expect(s.disk.has('/work/Task1.html')).toBe(false);
+    expect(s.state().message?.kind).toBe('error');
+    expect(s.state().busy).toBeNull();
+  });
+
   it('nothing happens when the save box is closed', async () => {
     const s = setup();
     await s.anim.exportAnimation('mp4');

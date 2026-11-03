@@ -155,9 +155,9 @@ describe('pictures (AN5)', () => {
     const s = setup();
     await s.anim.addPicture({ x: 0, y: 0 });
     expect(s.objects()).toEqual([]);
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/photo.jpg']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
     await s.anim.addPicture({ x: 0, y: 0 });
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/photo.jpg']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/photo.jpg');
     await s.anim.addPicture({ x: 50, y: 50 });
     expect(s.doc().pictures).toHaveLength(1);
     expect(s.objects()).toHaveLength(2);
@@ -165,7 +165,7 @@ describe('pictures (AN5)', () => {
 
   it('a file that cannot be read says so', async () => {
     const s = setup();
-    s.dialogs.openMedia.mockResolvedValueOnce(['/m/missing.jpg']);
+    s.dialogs.openPicture.mockResolvedValueOnce('/m/missing.jpg');
     await s.anim.addPicture({ x: 0, y: 0 });
     expect(s.state().message?.kind).toBe('error');
   });

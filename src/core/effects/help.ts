@@ -34,7 +34,7 @@ export const WHY = {
   transition:
     'A transition decides how one clip changes into the next. A plain cut is quick; dissolves and fades are smoother. Too many different transitions distract the audience.',
   snapshot:
-    'A still holds an important moment on screen, can be a background for captions or credits, or can be edited in an image editor and put back into the video.',
+    'A still holds an important moment on screen. It can be a background for captions or credits, or be edited in an image editor and put back into the video.',
   audio:
     'Sound gets an emotional response from the viewer: music sets the mood, a voiceover (narration) explains what is happening, and sound effects emphasise the action. Lowering the music under the voice keeps the words clear.',
   export:
@@ -77,6 +77,8 @@ export const WHY = {
     'Vector objects are stored as points and equations, so they can be moved, resized, turned and recoloured without losing quality, and the computer can work out the frames in between (tweening). A bitmap picture cannot be tweened the same way.',
   animText:
     'Text is an object like any other: it has a font, size, colour and position, and it can be moved, faded and tweened. Splitting a word into letters lets each letter arrive or leave on its own.',
+  animTrace:
+    'Trace bitmap turns a picture into vector shapes, one for each area of colour, so its parts can be recoloured, moved and animated separately and it can be resized without blurring. Some detail is lost: fewer colours and less detail give fewer, simpler shapes.',
   animPicture:
     'A picture (bitmap) can be placed, moved, resized and faded in an animation. To change its parts separately, trace it into vector shapes first; some detail is lost in the trace.',
   objectProperties:
@@ -93,6 +95,16 @@ export const WHY = {
     'Morphing (shape tweening) changes one shape into another, with every in-between shape generated: a circle can become a square, or a cloud a sun. The colour, size and position can change at the same time.',
   animMask:
     'A mask is a layer whose shapes decide what can be seen of the layer beneath it: only the parts under the shapes show. A moving mask, such as a spotlight, reveals the picture or the words as it passes.',
+  animButton:
+    'Buttons let the viewer control the animation: Pause stops it so a picture can be studied, Continue plays on, Restart plays it again and Go to frame jumps to a part. They work in an HTML web animation (and in Test); a video or GIF cannot be clicked, so there they are only pictures of buttons.',
+  animStopMotion:
+    'Stop motion makes still photographs move: an object (a clay model, a toy) is moved a little between photographs, and the photographs are shown one after another, a few each second. Import frames puts a folder of them on a layer, each held for its frames; 12 pictures a second is smooth enough and halves the photographs needed for 24.',
+  animFrameByFrame:
+    'Frame-by-frame animation draws every keyframe separately, as the pages of a flip book or the cels of cel animation: it gives complete control over every change (a face changing expression, a flowchart step lighting up) but takes far longer than a tween. Duplicate frame copies the drawing to change it a little; onion skin shows the drawings before and after faintly to keep the steps even.',
+  animLibrary:
+    'The library gives ready-made pictures, icons and backgrounds drawn as vector shapes, so a scene can be built quickly and every part (a wheel, an eye, a cloud) can still be recoloured and animated on its own. The background is a secondary component; the characters are the primary ones.',
+  animEffects:
+    'An effect adds the keyframes of a common motion in one click: a fade or a fly-in brings an object on, a fade or a fly-out takes it away, and a pulse, shake or spin draws the eye to it. The computer works out the frames in between (tweening), and the keyframes can still be changed on the timeline.',
   animExport:
     'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
 } as const;
@@ -156,6 +168,7 @@ export const TOOLS: Tool[] = [
   tool('vectorShapes', 'Vector shapes', '20.1 creating vector objects'),
   tool('animText', 'Text', '20.1 adding text'),
   tool('animPicture', 'Picture', '20.1 importing and tracing bitmaps'),
+  tool('animTrace', 'Trace bitmap', '20.1 importing and tracing bitmaps'),
   tool('objectProperties', 'Object properties', '20.1 controlling object properties'),
   tool('animLayers', 'Layers', '20.1 using layers'),
   tool('animGroup', 'Group', '20.1 animation variables'),
@@ -163,11 +176,41 @@ export const TOOLS: Tool[] = [
   tool('animPath', 'Motion path', '20.1 setting paths'),
   tool('animMorph', 'Morph', '20.1 morphing'),
   tool('animMask', 'Mask', '20.1 applying masks'),
+  tool('animButton', 'Button', '20.1 controlling animations by stopping them'),
+  tool('animStopMotion', 'Import frames (stop motion)', '20.1 stop motion'),
+  tool('animFrameByFrame', 'Frame-by-frame layer', '20.1 frames, key frames and tweening'),
+  tool('animLibrary', 'Library', '20.1 creating vector objects'),
+  tool('animEffects', 'Effects', '20.1 frames, key frames and tweening'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
 ];
 
 export function toolById(id: ToolId): Tool {
   return TOOLS.find((t) => t.id === id)!;
+}
+
+/** N17: a "Why use this?" text arranged to read at a glance: a short answer, then its reasons. */
+export interface Explained {
+  answer: string;
+  reasons: string[];
+}
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const sentence = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
+/** Where a long first sentence divides: a list after a colon, ", so …", or an example. */
+const DIVIDE = /^(.*?)(?::\s+|,\s+(?=so\s)|\s+—\s+(?=for example)|,\s+(?=for example))(.+)$/s;
+
+/**
+ * Splits a why-text into its first sentence (the answer) and the rest (the reasons); a first
+ * sentence that is the only one divides at a colon, ", so" or "for example". The words are kept
+ * exactly; only the arrangement changes.
+ */
+export function explain(text: string): Explained {
+  const sentences = text.trim().split(/(?<=[.!?])\s+(?=[A-Z“"(])/);
+  const first = sentences[0] ?? '';
+  const reasons = sentences.slice(1);
+  const parts = DIVIDE.exec(first);
+  if (!parts || (reasons.length > 0 && first.length <= 150)) return { answer: first, reasons };
+  return { answer: sentence(parts[1]!), reasons: [capital(parts[2]!), ...reasons] };
 }
 
 /** A toolbar button's or menu item's tooltip: what it does, then why it is used (T5). */

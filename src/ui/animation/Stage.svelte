@@ -4,6 +4,7 @@
   // applied as one undo step when the pointer is let go.
   import type { App } from '../../app/app.ts';
   import { drawStage, type StageCanvas } from '../../core/animation/draw.ts';
+  import { onionSkin } from '../../core/animation/frames.ts';
   import {
     createEllipse,
     createLine,
@@ -66,6 +67,14 @@
   );
   const zoom = $derived($store.zoom === 'fit' ? Math.max(0.05, Math.min(fitZoom, 4)) : $store.zoom);
   const rulerSize = $derived(view.rulers ? RULER : 0);
+  /**
+   * N16: the space around the stage on each axis — at least MARGIN, more to keep the stage in the
+   * middle of its area whatever the panels' sizes and the zoom (as Video mode's preview).
+   */
+  const padX = $derived(Math.max(MARGIN, Math.floor((areaW - rulerSize - stage.width * zoom) / 2)));
+  const padY = $derived(
+    Math.max(MARGIN, Math.floor((areaH - rulerSize - stage.height * zoom) / 2)),
+  );
 
   type Drag =
     | { kind: 'move'; start: Point; ids: Id[]; union: Bounds; dx: number; dy: number }
@@ -218,6 +227,13 @@
     ctx.stroke();
   }
 
+  function skinOf(layerId: string) {
+    const layer = $store.history.present.layers.find((l) => l.id === layerId);
+    if (!layer) return [];
+    const { before, after } = onionSkin(layer, $store.frame);
+    return [...before, ...after];
+  }
+
   $effect(() => {
     void loaded;
     const ctx = canvas?.getContext('2d');
@@ -231,6 +247,8 @@
       // AN12: a mask works on the stage while its layer is locked, as in the coursebook.
       editing: true,
       ...(view.grid.show && !view.grid.over ? { afterBackground: drawGrid } : {}),
+      // AN14: the drawings before and after, faintly, on frame-by-frame layers.
+      ...($store.onionSkin ? { onionSkin: skinOf } : {}),
     });
   });
 
@@ -383,6 +401,11 @@
     if (tool === 'picture') {
       const p = snapPoint(raw, e.altKey);
       void anim.addPicture({ x: round(p.x), y: round(p.y) });
+      return;
+    }
+    if (tool === 'button') {
+      const p = snapPoint(raw, e.altKey);
+      anim.addButton({ x: round(p.x), y: round(p.y) });
       return;
     }
     if (tool === 'pen') {
@@ -641,8 +664,8 @@
 <div class="stage-area" bind:clientWidth={areaW} bind:clientHeight={areaH}>
   <div
     class="sheet"
-    style:width="{rulerSize + stage.width * zoom + 2 * MARGIN}px"
-    style:height="{rulerSize + stage.height * zoom + 2 * MARGIN}px"
+    style:width="{rulerSize + stage.width * zoom + 2 * padX}px"
+    style:height="{rulerSize + stage.height * zoom + 2 * padY}px"
   >
     {#if view.rulers}
       <div class="corner" style:width="{RULER}px" style:height="{RULER}px"></div>
@@ -650,20 +673,20 @@
       <svg
         class="ruler top"
         style:left="{RULER}px"
-        width={stage.width * zoom + 2 * MARGIN}
+        width={stage.width * zoom + 2 * padX}
         height={RULER}
         aria-label="Horizontal ruler"
         onpointerdown={(e) => startGuide(e, 'y', null)}
       >
         {#each ticks(stage.width) as t (t)}
-          <line x1={MARGIN + t * zoom} y1={RULER - 8} x2={MARGIN + t * zoom} y2={RULER} />
-          <text x={MARGIN + t * zoom + 2} y={9}>{t}</text>
+          <line x1={padX + t * zoom} y1={RULER - 8} x2={padX + t * zoom} y2={RULER} />
+          <text x={padX + t * zoom + 2} y={9}>{t}</text>
           {#if minor * zoom >= 5}
             {#each [1, 2, 3, 4] as m (m)}
               <line
-                x1={MARGIN + (t + m * minor) * zoom}
+                x1={padX + (t + m * minor) * zoom}
                 y1={RULER - 4}
-                x2={MARGIN + (t + m * minor) * zoom}
+                x2={padX + (t + m * minor) * zoom}
                 y2={RULER}
               />
             {/each}
@@ -672,9 +695,9 @@
         {#if animUi.pointer}
           <line
             class="mark"
-            x1={MARGIN + animUi.pointer.x * zoom}
+            x1={padX + animUi.pointer.x * zoom}
             y1={0}
-            x2={MARGIN + animUi.pointer.x * zoom}
+            x2={padX + animUi.pointer.x * zoom}
             y2={RULER}
           />
         {/if}
@@ -684,22 +707,21 @@
         class="ruler left"
         style:top="{RULER}px"
         width={RULER}
-        height={stage.height * zoom + 2 * MARGIN}
+        height={stage.height * zoom + 2 * padY}
         aria-label="Vertical ruler"
         onpointerdown={(e) => startGuide(e, 'x', null)}
       >
         {#each ticks(stage.height) as t (t)}
-          <line x1={RULER - 8} y1={MARGIN + t * zoom} x2={RULER} y2={MARGIN + t * zoom} />
-          <text x={-(MARGIN + t * zoom) - 2} y={9} transform="rotate(-90)" text-anchor="end"
-            >{t}</text
+          <line x1={RULER - 8} y1={padY + t * zoom} x2={RULER} y2={padY + t * zoom} />
+          <text x={-(padY + t * zoom) - 2} y={9} transform="rotate(-90)" text-anchor="end">{t}</text
           >
           {#if minor * zoom >= 5}
             {#each [1, 2, 3, 4] as m (m)}
               <line
                 x1={RULER - 4}
-                y1={MARGIN + (t + m * minor) * zoom}
+                y1={padY + (t + m * minor) * zoom}
                 x2={RULER}
-                y2={MARGIN + (t + m * minor) * zoom}
+                y2={padY + (t + m * minor) * zoom}
               />
             {/each}
           {/if}
@@ -708,9 +730,9 @@
           <line
             class="mark"
             x1={0}
-            y1={MARGIN + animUi.pointer.y * zoom}
+            y1={padY + animUi.pointer.y * zoom}
             x2={RULER}
-            y2={MARGIN + animUi.pointer.y * zoom}
+            y2={padY + animUi.pointer.y * zoom}
           />
         {/if}
       </svg>
@@ -718,8 +740,8 @@
     <div
       class="paper"
       bind:this={paper}
-      style:left="{rulerSize + MARGIN}px"
-      style:top="{rulerSize + MARGIN}px"
+      style:left="{rulerSize + padX}px"
+      style:top="{rulerSize + padY}px"
       style:width="{stage.width * zoom}px"
       style:height="{stage.height * zoom}px"
     >

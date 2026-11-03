@@ -6,6 +6,7 @@
   import type { Tool } from '../../app/animation.ts';
   import { withWhy } from '../../core/effects/help.ts';
   import Icon, { type IconName } from '../Icon.svelte';
+  import { animUi } from './animation-ui.svelte.ts';
 
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
@@ -41,6 +42,12 @@
     ['brush', 'Brush', 'brush', withWhy('Draw freehand (B)', 'vectorShapes')],
     ['text', 'Text', 'text', withWhy('Click to add text (T)', 'animText')],
     ['picture', 'Picture', 'picture', withWhy('Click to place a picture file (I)', 'animPicture')],
+    [
+      'button',
+      'Button',
+      'button',
+      withWhy('Click to place a button: Pause, Continue, Restart or Go to frame (U)', 'animButton'),
+    ],
   ];
   const snapping = $derived(
     view.snap.grid || view.snap.guides || view.snap.objects || view.snap.pixels,
@@ -59,6 +66,25 @@
       >
     {/each}
   </div>
+  <div class="hsep"></div>
+  <button
+    class="tbtn"
+    aria-label="Library"
+    title={withWhy(
+      'Library: ready-made cartoons, icons and backgrounds to add to the stage (K)',
+      'animLibrary',
+    )}
+    onclick={() => (animUi.dialog = 'library')}><Icon name="sparkles" /></button
+  >
+  <button
+    class="tbtn"
+    aria-label="Import frames"
+    title={withWhy(
+      'Import frames: a folder of pictures shown one after another (stop motion)',
+      'animStopMotion',
+    )}
+    onclick={() => (animUi.dialog = 'frames')}><Icon name="import" /></button
+  >
   <div class="hsep"></div>
   <div class="tools" role="group" aria-label="Stage helpers">
     <button

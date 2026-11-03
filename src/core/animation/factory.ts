@@ -5,8 +5,10 @@ import { FONTS } from '../text/fonts.ts';
 import { fileNameOf } from '../project/relocate.ts';
 import { shiftTracks } from './geometry.ts';
 import type {
-  AnimObject,
   AnimationDoc,
+  AnimObject,
+  ButtonAction,
+  ButtonObject,
   EllipseObject,
   GroupObject,
   Layer,
@@ -40,7 +42,7 @@ export function createLayer(name: string, extra: Partial<Layer> = {}): Layer {
 
 export function createAnimation({ name }: { name: string }): AnimationDoc {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     name,
     stage: { width: 1280, height: 720, background: '#ffffff', fps: 24, length: 120 },
     layers: [createLayer('Layer 1')],
@@ -166,6 +168,30 @@ export function createPicture(picture: Picture, at: { x: number; y: number }): P
     }),
     fill: { kind: 'none' },
     stroke: undefined,
+  };
+}
+
+/** AN18: a button's label for each action, as the workbook names them. */
+export const BUTTON_LABELS: Record<ButtonAction, string> = {
+  pause: 'Pause',
+  continue: 'Continue',
+  restart: 'Restart',
+  goto: 'Go to frame',
+};
+
+/** AN18: a small grey button labelled with its action (workbook Task 4's Pause and Continue). */
+export function createButton(action: ButtonAction, at: { x: number; y: number }): ButtonObject {
+  const label = BUTTON_LABELS[action];
+  return {
+    kind: 'button',
+    label,
+    action,
+    ...(action === 'goto' ? { frame: 0 } : {}),
+    size: 13,
+    colour: '#000000',
+    ...base(label, { x: at.x, y: at.y, width: 90, height: 24 }),
+    fill: { kind: 'solid', colour: '#efefef' },
+    stroke: { colour: '#767676', width: 1, dash: 'solid' },
   };
 }
 

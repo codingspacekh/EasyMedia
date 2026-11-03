@@ -16,14 +16,23 @@ const task1 = () => {
 };
 
 describe('animation export (AN15)', () => {
-  it('offers MP4, animated GIF, PNG sequence and a picture of the frame, each with pros and cons', () => {
-    expect(ANIMATION_FORMATS.map((f) => f.id)).toEqual(['mp4', 'gif', 'png-sequence', 'png']);
+  it('offers MP4, animated GIF, a web page, PNG sequence and a picture of the frame, each with pros and cons', () => {
+    expect(ANIMATION_FORMATS.map((f) => f.id)).toEqual([
+      'mp4',
+      'gif',
+      'html',
+      'png-sequence',
+      'png',
+    ]);
     for (const f of ANIMATION_FORMATS) {
       expect(f.label.length).toBeGreaterThan(2);
       expect(f.pros.length).toBeGreaterThan(0);
       expect(f.cons.length).toBeGreaterThan(0);
     }
     expect(ANIMATION_FORMATS.find((f) => f.id === 'gif')!.cons.join(' ')).toMatch(/256 colours/);
+    const html = ANIMATION_FORMATS.find((f) => f.id === 'html')!;
+    expect(html.pros.join(' ')).toMatch(/any web browser/i);
+    expect(html.pros.join(' ')).toMatch(/Pause/);
   });
 
   it('a 3 s animation at 24 fps exports frames 0 to 71: 72 frames, 3.00 s', () => {
@@ -46,6 +55,19 @@ describe('animation export (AN15)', () => {
     expect(mp4).toBeGreaterThan(10_000);
     const longer = { ...doc, stage: { ...doc.stage, length: 144 } };
     expect(estimateAnimationSize(longer, 'mp4')).toBeCloseTo(2 * mp4, 0);
+  });
+
+  it('AN15: a web page is small — the drawing, not every frame — and grows with its pictures', () => {
+    const doc = task1();
+    const html = estimateAnimationSize(doc, 'html');
+    expect(html).toBeLessThan(estimateAnimationSize(doc, 'mp4'));
+    const longer = { ...doc, stage: { ...doc.stage, length: 720 } };
+    expect(estimateAnimationSize(longer, 'html')).toBe(html);
+    const withPicture = {
+      ...doc,
+      pictures: [{ id: 'p', path: 'Paris1.jpg', width: 800, height: 600 }],
+    };
+    expect(estimateAnimationSize(withPicture, 'html')).toBeGreaterThan(html + 100_000);
   });
 
   it('names the PNG sequence after the chosen file, numbered from 0001', () => {

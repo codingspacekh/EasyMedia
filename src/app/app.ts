@@ -13,6 +13,8 @@ import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
 import { createLearnApp } from './learn.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
 import { proxyPathFor } from './proxy-path.ts';
+import { createLayoutApp } from './layout.ts';
+import { createPreferences } from './preferences.ts';
 import { createStore, type Store } from './store.ts';
 import {
   EditError,
@@ -38,6 +40,7 @@ import type {
   MediaEngine,
   ProbeInfo,
   ProjectFiles,
+  PageAssets,
   StageRenderer,
   TextRenderer,
   Recorder,
@@ -45,7 +48,13 @@ import type {
 } from '../core/ports.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
-import { dirOf, fileNameOf, projectFromDisk, projectToDisk } from '../core/project/relocate.ts';
+import {
+  dirOf,
+  fileNameOf,
+  projectFromDisk,
+  projectToDisk,
+  uniqueFileName,
+} from '../core/project/relocate.ts';
 import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
 
@@ -104,6 +113,8 @@ export interface AppDeps {
   audioRecorder?: Recorder;
   /** AN15: draws an animation's stage as a picture (an OffscreenCanvas in the app). */
   stageRenderer?: StageRenderer;
+  /** AN15: what an HTML web animation carries inside it. */
+  pageAssets?: PageAssets;
   autosaveMs?: number;
 }
 
@@ -131,6 +142,7 @@ export function createApp({
   audioUndoStore,
   audioRecorder,
   stageRenderer,
+  pageAssets,
   autosaveMs = 60_000,
 }: AppDeps) {
   const fresh = createProject({ name: 'Untitled' });
@@ -397,6 +409,8 @@ export function createApp({
   });
   /** Learn mode (T1, T3, T6): never changes the project. */
   const learn = createLearnApp({ engine, dialogs, files, paths });
+  const preferences = createPreferences(files, paths);
+  const layout = createLayoutApp(preferences);
   /** Animation mode (AN1–AN18): its own document and file (M13). */
   const animation = createAnimationApp({
     dialogs,
@@ -405,6 +419,7 @@ export function createApp({
     engine,
     autosaveMs,
     ...(stageRenderer ? { renderer: stageRenderer } : {}),
+    ...(pageAssets ? { pageAssets } : {}),
   });
 
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
@@ -418,18 +433,16 @@ export function createApp({
     audio,
     learn,
     animation,
+    /** N16: the panels' sizes and which are shown. */
+    layout,
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
       await animation.start();
+      await layout.load();
       // X7: the Welcome, on the first launch only.
-      if (paths.preferences) {
-        const seen = await files
-          .read(paths.preferences)
-          .then((t) => JSON.parse(t).welcomeSeen === true)
-          .catch(() => false);
-        if (!seen) patch({ welcome: true });
-      }
+      if (paths.preferences && (await preferences.read()).welcomeSeen !== true)
+        patch({ welcome: true });
       let text: string;
       try {
         text = await files.read(paths.recovery);
@@ -455,10 +468,7 @@ export function createApp({
     /** Closes the Welcome; it does not show by itself again. */
     async closeWelcome(): Promise<void> {
       patch({ welcome: false });
-      if (paths.preferences)
-        await files
-          .write(paths.preferences, `${JSON.stringify({ welcomeSeen: true })}\n`)
-          .catch(() => {});
+      await preferences.update({ welcomeSeen: true });
     },
 
     /** Help ▸ Licences: the third-party licences shipped with the app (README §17). */
@@ -719,7 +729,7 @@ export function createApp({
         const used = new Set<string>();
         const media: MediaAsset[] = [];
         for (const asset of project.media) {
-          const file = uniqueName(fileNameOf(asset.path), used);
+          const file = uniqueFileName(fileNameOf(asset.path), used);
           await files.copy(asset.path, `${dir}/media/${file}`);
           media.push({ ...asset, path: `media/${file}` });
         }
@@ -853,13 +863,3 @@ export function createApp({
 }
 
 export type App = ReturnType<typeof createApp>;
-
-/** "clip.mp4", then "clip-2.mp4", "clip-3.mp4"… for files with the same name. */
-function uniqueName(file: string, used: Set<string>): string {
-  const dot = file.lastIndexOf('.');
-  const [base, ext] = dot > 0 ? [file.slice(0, dot), file.slice(dot)] : [file, ''];
-  let name = file;
-  for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base}-${n}${ext}`;
-  used.add(name.toLowerCase());
-  return name;
-}

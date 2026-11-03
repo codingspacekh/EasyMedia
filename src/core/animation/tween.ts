@@ -40,6 +40,7 @@ export const TWEEN_PROPERTIES: readonly { id: TweenProperty; label: string }[] =
   { id: 'size', label: 'Font size' },
   { id: 'text', label: 'Words' },
   { id: 'shape', label: 'Shape' },
+  { id: 'picture', label: 'Picture' },
 ];
 
 /** The CSS-style bounce used by the text animations too: lands, then bounces smaller and smaller. */
@@ -210,6 +211,9 @@ export function propertyOf(object: AnimObject, property: TweenProperty): KeyValu
       return object.text;
     case 'shape':
       return shapeOf(object);
+    case 'picture':
+      if (object.kind !== 'picture') throw new EditError('Only a picture shows a picture.');
+      return object.pictureId;
     default:
       return object[property];
   }
@@ -220,8 +224,8 @@ const str = (v: KeyValue): string => String(v);
 
 /** AN10: the object drawn as the outline of a shape keyframe, in its own box. */
 function asShape(o: AnimObject, v: ShapeValue): PathObject {
-  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group')
-    throw new EditError('Only shapes can morph: not text, pictures or groups.');
+  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'button' || o.kind === 'group')
+    throw new EditError('Only shapes can morph: not text, pictures, buttons or groups.');
   const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, paths } = o;
   return {
     kind: 'path',
@@ -291,6 +295,9 @@ function setOne(object: AnimObject, property: TweenProperty, value: KeyValue): A
     case 'shape':
       if (!isShapeValue(value)) throw new EditError('A shape keyframe needs an outline.');
       return asShape(object, value);
+    case 'picture':
+      if (object.kind !== 'picture') throw new EditError('Only a picture shows a picture.');
+      return { ...object, pictureId: str(value) };
     case 'width':
     case 'height': {
       const width = property === 'width' ? num(value) : object.width;

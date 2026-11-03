@@ -146,6 +146,10 @@ export function localOutline(o: AnimObject): Point[] {
 
 export const isClosed = (o: AnimObject): boolean => o.kind !== 'path' || o.closed;
 
+/** A shape (it can morph, AN10); text, pictures, buttons and groups are boxes. */
+export const isShape = (o: AnimObject): boolean =>
+  o.kind !== 'text' && o.kind !== 'picture' && o.kind !== 'button' && o.kind !== 'group';
+
 /** The outline on the stage, turned. One polyline per object (lists, for masks and groups later). */
 export function outlineOf(o: AnimObject): Point[][] {
   return [localOutline(o).map((p) => toStage(o, p))];
@@ -188,13 +192,13 @@ function insidePolygon(p: Point, pts: readonly Point[]): boolean {
 }
 
 /**
- * Whether a stage point touches the object: inside a filled shape, a text box, a picture or a
- * group; or on the outline (within its stroke, at least 3 px) of any shape.
+ * Whether a stage point touches the object: inside a filled shape, a text box, a picture, a
+ * button or a group; or on the outline (within its stroke, at least 3 px) of any shape.
  */
 export function hitTest(o: AnimObject, p: Point): boolean {
   const [pts] = outlineOf(o);
   if (!pts || pts.length === 0) return false;
-  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group') return insidePolygon(p, pts);
+  if (!isShape(o)) return insidePolygon(p, pts);
   const reach = Math.max(TOUCH, (o.stroke?.width ?? 0) / 2);
   if (distanceToPolyline(p, pts, isClosed(o)) <= reach) return true;
   return o.fill.kind !== 'none' && isClosed(o) && insidePolygon(p, pts);

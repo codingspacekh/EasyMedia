@@ -136,6 +136,13 @@ export function validateObject(object: AnimObject): void {
     case 'path':
       if (object.points.length < 2) throw new EditError('A path needs at least two points.');
       break;
+    case 'button':
+      if (object.label.trim() === '') throw new EditError('A button needs words on it.');
+      if (!(object.size > 0)) throw new EditError('The label size must be more than 0 px.');
+      if (!isColour(object.colour)) throw new EditError(colourMessage('The label colour'));
+      if (object.frame !== undefined && !(Number.isInteger(object.frame) && object.frame >= 0))
+        throw new EditError('A button goes to frame 0 or later (a whole frame).');
+      break;
     case 'group':
       object.children.forEach(validateObject);
       break;

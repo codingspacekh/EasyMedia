@@ -7,6 +7,7 @@
   import { WHY } from '../../core/effects/help.ts';
   import { ui } from '../ui-state.svelte.ts';
   import AudioExportDialog from './AudioExportDialog.svelte';
+  import PanelSlot from '../PanelSlot.svelte';
   import AudioSidePanel from './AudioSidePanel.svelte';
   import AudioTracks from './AudioTracks.svelte';
   import EffectDialog from './EffectDialog.svelte';
@@ -72,7 +73,7 @@
 <div class="audio-mode">
   <div class="a-body">
     <AudioTracks {app} />
-    <AudioSidePanel {app} />
+    <PanelSlot layout={app.layout} id="audio.side"><AudioSidePanel {app} /></PanelSlot>
   </div>
   <SelectionBar {app} />
 </div>

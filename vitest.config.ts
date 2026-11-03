@@ -53,6 +53,8 @@ export default defineConfig({
       exclude: [
         'src/adapters/indexeddb/undo-store.ts',
         'src/ui/main.ts',
+        // The web page's start-up (AN15): runs only in the exported .html (tests/e2e).
+        'src/player/main.ts',
         'src/main/index.ts',
         'src/main/services.ts',
         'src/preload/index.ts',

@@ -2,10 +2,10 @@
   // Learn mode (screens 21–22 and the task checker): theory tools that never change the project.
   import type { App } from '../../app/app.ts';
   import { ui } from '../ui-state.svelte.ts';
+  import AnimationLearn from './AnimationLearn.svelte';
   import CompressionComparison from './CompressionComparison.svelte';
   import FileSizeCalculator from './FileSizeCalculator.svelte';
   import FormatGuide from './FormatGuide.svelte';
-  import Glossary from './Glossary.svelte';
   import MediaInspector from './MediaInspector.svelte';
   import SamplingVisualiser from './SamplingVisualiser.svelte';
   import TaskChecker from './TaskChecker.svelte';
@@ -26,11 +26,12 @@
   {:else if ui.learnTab === 'formats'}
     <FormatGuide />
     <VideoQuality {learn} />
+  {:else if ui.learnTab === 'animation'}
+    <AnimationLearn />
   {:else}
     <TaskChecker {learn} />
   {/if}
 </div>
-{#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
 
 <style>
   .learn {
@@ -52,6 +53,9 @@
   .task {
     grid-template-columns: minmax(0, 1fr);
   }
+  .animation {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
   /* Wide content (a 40-sample table) scrolls inside its card instead of widening the column. */
   .stack {
     display: flex;
@@ -67,6 +71,9 @@
     }
     .inspect > .stack {
       grid-column: 1 / -1;
+    }
+    .animation {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

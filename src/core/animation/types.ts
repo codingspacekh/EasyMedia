@@ -51,7 +51,9 @@ export type TweenProperty =
   | 'radius'
   | 'size'
   | 'text'
-  | 'shape';
+  | 'shape'
+  /** AN14: the picture a picture object shows (stop motion); it changes at the keyframe. */
+  | 'picture';
 
 /** AN10: a shape keyframe's outline, in the object's box scaled to 0–1. */
 export interface ShapeValue {
@@ -118,6 +120,11 @@ interface ObjectBase {
    * before, after the last at its end. Its position keyframes are not used while it has paths.
    */
   paths?: MotionPath[];
+  /**
+   * AN14: on a frame-by-frame layer, the keyframe (frame) of the drawing the object belongs to;
+   * it is shown from that frame until the layer's next keyframe.
+   */
+  drawing?: number;
 }
 
 export interface RectObject extends ObjectBase {
@@ -179,6 +186,23 @@ export interface PictureObject extends ObjectBase {
   pictureId: Id;
 }
 
+/** AN18: what a button does when it is clicked (in the HTML page and in Test). */
+export type ButtonAction = 'pause' | 'continue' | 'restart' | 'goto';
+
+/**
+ * AN18: a button (workbook Task 4: Pause and Continue). Its box is filled and outlined as a shape;
+ * the label is drawn in the middle in the bundled Inter, `size` px, in `colour`.
+ */
+export interface ButtonObject extends ObjectBase {
+  kind: 'button';
+  label: string;
+  action: ButtonAction;
+  /** For "Go to frame": the frame to go to. */
+  frame?: number;
+  size: number;
+  colour: string;
+}
+
 /** AN13: a group's children are placed inside its box and move, turn and scale with it. */
 export interface GroupObject extends ObjectBase {
   kind: 'group';
@@ -193,6 +217,7 @@ export type AnimObject =
   | PathObject
   | TextObject
   | PictureObject
+  | ButtonObject
   | GroupObject;
 
 export type ObjectKind = AnimObject['kind'];
@@ -209,6 +234,11 @@ export interface Layer {
   colour?: string;
   /** AN12: a mask: its shapes restrict what is seen of the layer directly beneath it. */
   mask?: boolean;
+  /**
+   * AN14: a frame-by-frame layer: the frames where a new drawing starts, sorted, the first 0.
+   * Each drawing (the objects whose `drawing` is that frame) is held until the next one.
+   */
+  drawings?: number[];
   /** Drawing order: the first object is at the back. */
   objects: AnimObject[];
 }
@@ -243,8 +273,11 @@ export interface ViewSettings {
 }
 
 export interface AnimationDoc {
-  /** 2 since M14 (keyframes), 3 since M15 (paths, morphs, masks); older apps refuse newer files. */
-  schemaVersion: 3;
+  /**
+   * 2 since M14 (keyframes), 3 since M15 (paths, morphs, masks), 4 since M16 (buttons, stop
+   * motion and frame-by-frame layers); older apps refuse newer files.
+   */
+  schemaVersion: 4;
   name: string;
   stage: Stage;
   layers: Layer[];

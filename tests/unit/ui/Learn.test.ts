@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import type { ProbeInfo } from '../../../src/core/ports.ts';
 import App from '../../../src/ui/App.svelte';
+import { tick } from 'svelte';
+import { menuActions } from '../../../src/ui/menu-actions.ts';
 import { ui } from '../../../src/ui/ui-state.svelte.ts';
 import { testApp, VIDEO } from '../../helpers/test-app.ts';
 
@@ -16,14 +18,12 @@ const SONG: ProbeInfo = {
   audio: { codec: 'mp3', sampleRate: 44100, channels: 2, bitRate: 128_000 },
 };
 
+/** Learn is opened from the menu bar's Learn menu (N15); its tabs switch between the pages. */
 async function learnMode(tab?: string) {
   const t = testApp({ '/m/clip.mp4': VIDEO, '/m/song.mp3': SONG });
   render(App, { props: { app: t.app } });
-  await fireEvent.click(
-    within(screen.getByRole('navigation', { name: 'Mode' })).getByRole('button', {
-      name: 'Learn',
-    }),
-  );
+  menuActions(t.app).learnInspect();
+  await tick();
   if (tab) await fireEvent.click(screen.getByRole('tab', { name: tab }));
   return { ...t, learn: t.app.learn };
 }
@@ -48,6 +48,7 @@ describe('Learn mode layout (screens 21–22)', () => {
     expect(screen.getAllByRole('tab').map((t) => t.textContent!.trim())).toEqual([
       'Inspector & sampling',
       'Formats & compression',
+      'Animation',
       'Task checker',
     ]);
     for (const name of [
@@ -59,6 +60,32 @@ describe('Learn mode layout (screens 21–22)', () => {
       expect(card(name)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Glossary' })).toBeTruthy();
     expect(screen.getByText('Learn mode does not change your project')).toBeTruthy();
+  });
+});
+
+describe('N15 Learn from the menu bar', () => {
+  it('fills the window with a Back button to the editor it was opened from', async () => {
+    const t = testApp();
+    render(App, { props: { app: t.app } });
+    ui.mode = 'Animation';
+    menuActions(t.app).learnAnimation();
+    await tick();
+    expect(screen.getByRole('tab', { name: 'Animation' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+    expect(screen.queryByRole('navigation', { name: 'Mode' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Back to Animation' }));
+    expect(ui.mode).toBe('Animation');
+    expect(screen.getByRole('navigation', { name: 'Mode' })).toBeTruthy();
+  });
+
+  it('the Glossary opens over an editor too (Learn ▸ Glossary)', async () => {
+    const t = testApp();
+    render(App, { props: { app: t.app } });
+    menuActions(t.app).glossary();
+    await tick();
+    expect(screen.getByRole('dialog', { name: /Glossary/ })).toBeTruthy();
+    expect(ui.mode).toBe('Video');
   });
 });
 
@@ -198,6 +225,53 @@ describe('T3 compression comparison', () => {
   });
 });
 
+describe('Animation tab (AN17, syllabus 20.1)', () => {
+  it('shows the types of animation with advantages and disadvantages, the principles and the components', async () => {
+    await learnMode('Animation');
+    const types = within(card('Types of animation')).getByRole('table');
+    const rows = within(types).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual([
+      'Cel animation',
+      'Stop motion',
+      'Time lapse',
+      'Flip book animation',
+      'CGI in 2D',
+      'CGI in 3D',
+    ]);
+    expect(within(rows[1]!).getByText(/Import frames/)).toBeTruthy();
+    for (const topic of ['Key frames and property key frames', 'Inbetweening (tweening)'])
+      expect(
+        within(card('Principles of animation')).getByRole('article', { name: topic }),
+      ).toBeTruthy();
+    expect(
+      within(card('Components and animation variables')).getByRole('article', {
+        name: 'Animation variables and avars',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('demonstrates the same motion at 5, 12 and 24 fps side by side, and can be paused', async () => {
+    await learnMode('Animation');
+    const demo = within(card('Frame rate'));
+    expect(demo.getAllByRole('img').map((i) => i.getAttribute('aria-label'))).toEqual([
+      '5 fps: 10 frames in 2 seconds',
+      '12 fps: 24 frames in 2 seconds',
+      '24 fps: 48 frames in 2 seconds',
+    ]);
+    await fireEvent.click(demo.getByRole('button', { name: 'Pause' }));
+    expect(demo.getByRole('button', { name: 'Play' })).toBeTruthy();
+    await fireEvent.click(demo.getByRole('button', { name: 'Play' }));
+  });
+
+  it('the glossary has the animation words', async () => {
+    await learnMode('Animation');
+    await fireEvent.click(screen.getByRole('button', { name: 'Glossary' }));
+    const dialog = within(screen.getByRole('dialog'));
+    for (const word of ['Key frame', 'Tween', 'Mask', 'Avar', 'Onion skin'])
+      expect(dialog.getAllByText(word).length).toBeGreaterThan(0);
+  });
+});
+
 describe('Formats & compression tab (screen 22)', () => {
   it('T7 lists every export format with its advantages and disadvantages', async () => {
     await learnMode('Formats & compression');
@@ -259,7 +333,7 @@ describe('T6 task checker', () => {
     t.dialogs.saveTaskCheck.mockResolvedValueOnce('/t/Task 11b.mvetask');
     await fireEvent.click(within(task).getByRole('button', { name: 'Save task…' }));
     expect(t.dialogs.saveTaskCheck).toHaveBeenCalledWith('Task 11b');
-    t.dialogs.openMedia.mockResolvedValueOnce(['/m/clip.mp4']);
+    t.dialogs.openExport.mockResolvedValueOnce(['/m/clip.mp4']);
     await fireEvent.click(
       within(card('Check an export')).getByRole('button', { name: 'Check a file…' }),
     );
@@ -277,7 +351,7 @@ describe('T6 task checker', () => {
     await fireEvent.change(within(card('Task')).getByLabelText('Height'), {
       target: { value: '720' },
     });
-    t.dialogs.openMedia.mockResolvedValueOnce(['/m/clip.mp4']);
+    t.dialogs.openExport.mockResolvedValueOnce(['/m/clip.mp4']);
     await fireEvent.click(
       within(card('Check an export')).getByRole('button', { name: 'Check a file…' }),
     );
@@ -285,6 +359,23 @@ describe('T6 task checker', () => {
     await vi.waitFor(() => expect(result.textContent).toMatch(/Not yet/));
     const row = within(result).getByRole('row', { name: /Resolution/ });
     expect(row.textContent).toMatch(/1280 × 720.*1920 × 1080.*✗/);
+  });
+});
+
+describe('T6 task checker for animations (AN17)', () => {
+  it('the teacher can ask for a frame rate and looping', async () => {
+    const t = await learnMode('Task checker');
+    const task = within(card('Task'));
+    await fireEvent.change(task.getByLabelText('Frame rate (fps)'), { target: { value: '24' } });
+    await fireEvent.change(task.getByLabelText('Looping'), { target: { value: 'true' } });
+    expect(t.learn.store.get().task.spec).toMatchObject({ fps: 24, loop: true });
+    await fireEvent.change(task.getByLabelText('Looping'), { target: { value: 'false' } });
+    expect(t.learn.store.get().task.spec.loop).toBe(false);
+    await fireEvent.change(task.getByLabelText('Looping'), { target: { value: '' } });
+    expect(t.learn.store.get().task.spec.loop).toBeUndefined();
+    expect(
+      within(task.getByLabelText('File format')).getByRole('option', { name: 'HTML' }),
+    ).toBeTruthy();
   });
 });
 

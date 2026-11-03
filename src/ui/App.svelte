@@ -23,21 +23,22 @@
   import AnimationStatusBar from './animation/AnimationStatusBar.svelte';
   import AnimationToolbar from './animation/AnimationToolbar.svelte';
   import { animationTitle } from '../app/animation.ts';
-  import type { LearnTab } from './ui-state.svelte.ts';
+  import { EDITORS, leaveLearn, type LearnTab } from './ui-state.svelte.ts';
+  import Glossary from './learn/Glossary.svelte';
+  import PanelSlot from './PanelSlot.svelte';
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const animStore = $derived(app.animation.store);
-  const modes = ['Video', 'Audio', 'Learn', 'Animation'] as const;
   const MODE_ICONS = {
     Video: 'video',
     Audio: 'audio',
-    Learn: 'learn',
     Animation: 'animation',
   } as const;
   const LEARN_TABS: [LearnTab, string][] = [
     ['inspect', 'Inspector & sampling'],
     ['formats', 'Formats & compression'],
+    ['animation', 'Animation'],
     ['task', 'Task checker'],
   ];
   let settingsOpen = $state(false);
@@ -54,14 +55,21 @@
 <div class="app">
   <header class="toolbar">
     <h1 class="visually-hidden">EasyMedia</h1>
-    <nav class="seg" aria-label="Mode">
-      {#each modes as m (m)}
-        <button type="button" aria-pressed={ui.mode === m} onclick={() => (ui.mode = m)}>
-          <Icon name={MODE_ICONS[m]} />
-          {m}
-        </button>
-      {/each}
-    </nav>
+    {#if ui.mode === 'Learn'}
+      <!-- N15: Learn fills the window; Back returns to the editor it was opened from. -->
+      <button type="button" class="back" onclick={leaveLearn}
+        ><span class="arrow"><Icon name="chevron" size={14} /></span>Back to {ui.learnFrom}</button
+      >
+    {:else}
+      <nav class="seg" aria-label="Mode">
+        {#each EDITORS as m (m)}
+          <button type="button" aria-pressed={ui.mode === m} onclick={() => (ui.mode = m)}>
+            <Icon name={MODE_ICONS[m]} />
+            {m}
+          </button>
+        {/each}
+      </nav>
+    {/if}
     <span class="vsep"></span>
     {#if ui.mode === 'Audio'}
       <AudioToolbar {app} />
@@ -162,11 +170,11 @@
   </header>
   {#if ui.mode === 'Video'}
     <main class="workspace">
-      <MediaBin {app} />
+      <PanelSlot layout={app.layout} id="video.bin"><MediaBin {app} /></PanelSlot>
       <Preview {app} />
-      <Inspector {app} />
+      <PanelSlot layout={app.layout} id="video.inspector"><Inspector {app} /></PanelSlot>
     </main>
-    <Timeline {app} />
+    <PanelSlot layout={app.layout} id="video.timeline"><Timeline {app} /></PanelSlot>
   {:else if ui.mode === 'Audio'}
     <main class="workspace">
       <AudioMode {app} />
@@ -192,6 +200,7 @@
   {#if settingsOpen}<ProjectSettings {app} onclose={() => (settingsOpen = false)} />{/if}
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
+  {#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
   {#if $store.licences !== null}
     <Licences text={$store.licences} onclose={() => app.closeLicences()} />
   {:else if $store.welcome}
@@ -228,6 +237,14 @@
   }
   .seg > button {
     gap: 6px;
+  }
+  .back {
+    gap: 6px;
+  }
+  /* The chevron points down: turned to point back. */
+  .back .arrow {
+    display: inline-flex;
+    transform: rotate(90deg);
   }
   .tools {
     display: flex;

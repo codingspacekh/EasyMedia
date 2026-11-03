@@ -1,9 +1,9 @@
 <script lang="ts">
   // Export video (screen 12; V16, V17, T7): where the video will be played, the file format and
   // compression, the settings, the estimated file size and the pros and cons of the format.
+  import Why from './Why.svelte';
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
-  import { WHY } from '../core/effects/help.ts';
   import {
     CONTAINERS,
     EXPORT_FPS,
@@ -121,6 +121,9 @@
     onclose();
   }
 </script>
+
+<!-- Escape closes it, as every dialog (not while it is working). -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
 
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Export video">
@@ -253,10 +256,7 @@
           </ul>
         </div>
 
-        <details class="why">
-          <summary>Why choose a format and size?</summary>
-          <p>{WHY.export}</p>
-        </details>
+        <Why tool="export" title="Why choose a format and size?" />
       </div>
     </div>
 
@@ -273,14 +273,6 @@
 </div>
 
 <style>
-  select {
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 4px 6px;
-  }
   .backdrop {
     position: fixed;
     inset: 0;
@@ -450,17 +442,6 @@
   }
   .con {
     color: var(--danger);
-  }
-  .why summary {
-    cursor: pointer;
-    color: var(--accent);
-    font-size: 12px;
-    margin-top: 8px;
-  }
-  .why p {
-    margin: 4px 0 0;
-    font-size: 12px;
-    color: var(--tx-2);
   }
   .actions {
     display: flex;

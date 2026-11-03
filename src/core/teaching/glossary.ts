@@ -6,7 +6,7 @@ export interface GlossaryEntry {
   meaning: string;
 }
 
-export const GLOSSARY: GlossaryEntry[] = [
+const MEDIA: GlossaryEntry[] = [
   {
     term: 'Amplify',
     meaning:
@@ -15,7 +15,7 @@ export const GLOSSARY: GlossaryEntry[] = [
   {
     term: 'Aspect ratio',
     meaning:
-      'The ratio of the width of a screen or video frame to its height, such as 16:9 (widescreen, used by almost all screens today) or 4:3 (old television). A video shown at the wrong aspect ratio gets black bars or looks stretched.',
+      'The ratio of the width of a screen, video frame or animation stage to its height. 4:3 is 4 units wide to 3 units high, called standard: old televisions used it, so it is rarely used now. 16:9 is used by television, computer monitors and laptops; 2.35:1 is widescreen for films; 16:10 suits most modern mobile phones. Shown at the wrong aspect ratio, a video gets black bars or looks stretched.',
   },
   {
     term: 'Bit rate',
@@ -70,7 +70,7 @@ export const GLOSSARY: GlossaryEntry[] = [
   {
     term: 'Frame',
     meaning:
-      'A single image in a video file. The frame rate is how many frames are shown each second (fps); 30 fps needs twice the data of 15 fps.',
+      'One screen, picture or page of a video or animation: a series of frames shown quickly one after the other gives the illusion of movement. The frame rate is how many frames are shown each second (fps); 30 fps needs twice the data of 15 fps.',
   },
   {
     term: 'Lossless compression',
@@ -162,6 +162,185 @@ export const GLOSSARY: GlossaryEntry[] = [
       'A voice that explains or tells a story over the video or music (narration), recorded separately.',
   },
 ];
+
+/** Chapter 19 (animation, syllabus 20.1): the key words, so its questions can be answered. */
+const ANIMATION: GlossaryEntry[] = [
+  {
+    term: 'Animation',
+    meaning:
+      'A series of still images played one after another quickly enough to look like movement.',
+  },
+  {
+    term: 'Avar',
+    meaning:
+      'An animation variable: a hinge on a wire-frame (3D) model, such as a joint of a finger, that is turned to change the position of that part of the object.',
+  },
+  {
+    term: 'Bitmap',
+    meaning:
+      'A picture stored as a grid of coloured pixels, such as a photograph. It is not made of points and equations as a vector graphic is, so its parts cannot be tweened separately, and it may pixelate when it is enlarged. Tracing turns it into vector shapes, losing some detail.',
+  },
+  {
+    term: 'Cel animation',
+    meaning:
+      'Animation where every frame is drawn, usually by hand, on its own separate sheet (a cel), coloured in, then photographed one frame at a time and shown in order. Also written cell animation.',
+  },
+  {
+    term: 'CGI',
+    meaning:
+      'Computer-generated imagery: any still or moving image made with a computer. 2D CGI is drawn on the x and y axes only (most cartoons); 3D CGI also has depth (the z axis), as in film effects.',
+  },
+  {
+    term: 'Coordinates',
+    meaning:
+      'The position of an object on the stage: x pixels across from the left edge and y pixels down from the top, with (0, 0) at the top-left corner.',
+  },
+  {
+    term: 'Flip book animation',
+    meaning:
+      'A different picture is drawn on each page of a book, changing a little each time; when the pages are flicked through quickly the picture seems to move.',
+  },
+  {
+    term: 'Frame rate',
+    meaning:
+      'How many frames are shown each second (fps). A frame is not one second: at 10 fps, 200 frames last 20 seconds. A higher frame rate needs more frames for the same time but makes movement smoother; too low a rate looks jerky.',
+  },
+  {
+    term: 'Grid',
+    meaning:
+      'Lines drawn across the background of the stage (not in the finished animation) to help line up and align objects; snapping can make objects jump to its lines.',
+  },
+  {
+    term: 'Guides',
+    meaning:
+      'Lines dragged out of the rulers onto the stage to help position and line up objects; they are not part of the finished animation.',
+  },
+  {
+    term: 'Key frame',
+    meaning:
+      'A frame on the timeline that marks a change in the animation: a new drawing, or the start or end of a tween. Ordinary frames between key frames show no change of their own. A property key frame fixes one property (such as x or opacity) at a frame.',
+  },
+  {
+    term: 'Layer',
+    meaning:
+      'Part of an animation with its own timeline, so the objects on it are animated independently of the others (each leg of a stick person on its own layer). Layers also set the order: the top layer is in front.',
+  },
+  {
+    term: 'Library',
+    meaning:
+      'The list of the symbols and imported pictures used in an animation, from which more copies (instances) can be placed.',
+  },
+  {
+    term: 'Mask',
+    meaning:
+      'A layer whose shapes restrict what can be seen of the layer beneath: only the parts under the shapes are visible. For example, a moving circle as a spotlight that reveals words as it passes over them.',
+  },
+  {
+    term: 'Morphing',
+    meaning:
+      'Another name for a shape tween: one shape gradually changes into another, such as a rain cloud into a sun.',
+  },
+  {
+    term: 'Motion path',
+    meaning:
+      'A line drawn for an object to follow during a tween, so it can move along a curve, such as a car on a winding road.',
+  },
+  {
+    term: 'Motion tween',
+    meaning:
+      'A tween that changes where an object is (its position) and how it is turned (rotation) — and in most software its size, colour and opacity — between two key frames; the computer fills in the frames between.',
+  },
+  {
+    term: 'Object',
+    meaning:
+      'An image, or a combination of images, that is changed and moved as one item in an animation.',
+  },
+  {
+    term: 'Onion skin',
+    meaning:
+      'Showing the drawings of the frames just before and after the current one faintly, so each new drawing in frame-by-frame animation can be changed by an even step.',
+  },
+  {
+    term: 'Primary variable',
+    meaning:
+      'The main focus of an animation: its graphic components, such as the main characters, which the animator changes most.',
+  },
+  {
+    term: 'Ruler',
+    meaning:
+      'A scale along the top and left of the stage that shows the position of items, and helps draw them at the correct size; guides are dragged out of it.',
+  },
+  {
+    term: 'Secondary variable',
+    meaning:
+      'Parts of an animation that are animated but are not its focus: the background and sound, such as rippling water or trees moving in the wind.',
+  },
+  {
+    term: 'Shape tween',
+    meaning:
+      'A tween in which one shape changes into another (morphing), such as a red circle into a blue square; the computer works out the shapes between.',
+  },
+  {
+    term: 'Snapping',
+    meaning:
+      'Objects jump into line with the grid, guides or other objects when they come close, so they line up and align exactly and quickly without careful dragging.',
+  },
+  {
+    term: 'Stage',
+    meaning:
+      'The area where the animation takes place, measured in pixels: only what is on the stage is in the animation. Its size, colour and aspect ratio are set first.',
+  },
+  {
+    term: 'Stop motion animation',
+    meaning:
+      'Real objects or models are photographed, moved a little, and photographed again, many times; the photographs are then shown one after another so the objects seem to move.',
+  },
+  {
+    term: 'Stroke and fill',
+    meaning:
+      'The stroke (line) colour is the outline of a shape; the fill colour is the inside of the shape. Each can be set separately, or left empty.',
+  },
+  {
+    term: 'Symbol',
+    meaning:
+      'An object (or several grouped together) given a name and kept in the library, so it can be animated with a tween as one item and copied many times (instances); changing the symbol changes every copy.',
+  },
+  {
+    term: 'Time lapse',
+    meaning:
+      'A camera stays still and automatically takes a photograph at set intervals, such as once a minute; the photographs are shown one after another so a slow change, such as a plant growing, happens in seconds.',
+  },
+  {
+    term: 'Timeline',
+    meaning:
+      'The part of animation software that shows the frames in order from left to right, one row per layer, with the key frames and tweens, and controls the order the frames are played.',
+  },
+  {
+    term: 'Tracing bitmap',
+    meaning:
+      'Turning a bitmap picture into vector shapes, one for each area of colour, so its parts can be changed and animated; some detail is lost.',
+  },
+  {
+    term: 'Transform',
+    meaning:
+      'Changing an object’s size, rotation (orientation), skew or centre point, typed exactly or dragged; over the frames between two key frames a transform becomes a tween.',
+  },
+  {
+    term: 'Tween',
+    meaning:
+      'Inbetweening: only the start and end key frames are set and the computer works out (generates) every frame between them in small, even steps, so the change is smooth rather than robotic or jerky, and quicker to make than drawing every frame.',
+  },
+  {
+    term: 'Vector graphic',
+    meaning:
+      'A picture stored as points (coordinates) and equations that are used to calculate its lines, shapes and colours, so it can be resized without losing quality (it does not pixelate) and its parts can be changed and tweened.',
+  },
+];
+
+/** Every key word, in alphabetical order. */
+export const GLOSSARY: GlossaryEntry[] = [...MEDIA, ...ANIMATION].sort((a, b) =>
+  a.term.localeCompare(b.term, 'en'),
+);
 
 /** The entries whose word or meaning contains the text (capitals ignored); all for no text. */
 export function searchGlossary(text: string): GlossaryEntry[] {

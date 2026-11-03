@@ -76,8 +76,9 @@
 
 <style>
   .side {
-    width: 280px;
-    flex: none;
+    /* N16: the size is the panel slot's (App, PanelSlot.svelte). */
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     background: var(--bg-1);
@@ -134,10 +135,5 @@
   .hist li.fut {
     color: var(--tx-3);
     text-decoration: line-through;
-  }
-  @media (max-width: 1300px) {
-    .side {
-      width: 220px;
-    }
   }
 </style>

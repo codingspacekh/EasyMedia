@@ -148,7 +148,7 @@ describe('motion paths (AN11)', () => {
     expect(stateAt(doc, 36).layers[0]!.objects[0]).toMatchObject({ x: 140, y: -10 });
     const back = deserializeAnimation(serializeAnimation(doc));
     expect(back).toEqual(doc);
-    expect(back.schemaVersion).toBe(3);
+    expect(back.schemaVersion).toBe(4);
     expect(() => withPaths(box(), [{ ...straight, to: 10, from: 20 }])).toThrow(/before/);
   });
 

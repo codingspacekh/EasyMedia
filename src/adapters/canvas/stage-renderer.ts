@@ -1,8 +1,11 @@
 // StageRenderer (AN15) on an OffscreenCanvas: the stage drawn by core/animation/draw.ts — the
 // same drawing as the preview — and saved as a PNG. Pictures are fetched through media://.
-import { drawStage, fontOf, type StageCanvas } from '../../core/animation/draw.ts';
-import type { AnimObject, AnimationDoc } from '../../core/animation/types.ts';
+import { drawStage, fontsUsed, type StageCanvas } from '../../core/animation/draw.ts';
+import type { AnimationDoc } from '../../core/animation/types.ts';
+import type { Pixels } from '../../core/animation/trace.ts';
 import { toMediaUrl } from '../../core/media-url.ts';
+import { MediaError } from '../../core/model/errors.ts';
+import { fileNameOf } from '../../core/project/relocate.ts';
 import type { StageRenderer } from '../../core/ports.ts';
 
 export interface StageRendererDeps {
@@ -20,26 +23,52 @@ export interface StageRendererDeps {
   loadFonts?: (fonts: string[]) => Promise<void>;
 }
 
-const defaultLoadImage = async (path: string): Promise<unknown | null> => {
+export interface PictureLoaders {
+  fetch: (url: string) => Promise<{ ok: boolean; blob(): Promise<Blob> }>;
+  createImageBitmap: (blob: Blob) => Promise<unknown>;
+  /** An <img> of the file's bytes, decoded. */
+  loadElement: (blob: Blob) => Promise<unknown>;
+}
+
+const browserLoaders = (): PictureLoaders => ({
+  fetch: (url) => fetch(url),
+  createImageBitmap: (blob) => createImageBitmap(blob),
+  async loadElement(blob) {
+    // From a data: URL (the page's own): an <img> from media:// would count as another site's
+    // picture and the canvas could then not be saved; blob: URLs are not allowed by the page.
+    const img = new Image();
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(await blob.text())}`;
+    await img.decode();
+    return img;
+  },
+});
+
+/**
+ * AN5: a picture file as something drawImage accepts; null when it cannot be loaded. A bitmap
+ * cannot be made from an SVG, so an SVG is drawn from an <img> (it keeps its size from the file).
+ */
+export async function loadPicture(
+  path: string,
+  loaders: PictureLoaders = browserLoaders(),
+): Promise<unknown | null> {
   try {
-    const response = await fetch(toMediaUrl(path));
+    const response = await loaders.fetch(toMediaUrl(path));
     if (!response.ok) return null;
-    return await createImageBitmap(await response.blob());
+    const blob = await response.blob();
+    if (blob.type === 'image/svg+xml') return await loaders.loadElement(blob);
+    return await loaders.createImageBitmap(blob);
   } catch {
     return null;
   }
-};
+}
+
+const defaultLoadImage = (path: string): Promise<unknown | null> => loadPicture(path);
 
 const defaultLoadFonts = async (fonts: string[]): Promise<void> => {
   const set = (globalThis as { document?: { fonts?: FontFaceSet } }).document?.fonts;
   if (!set) return;
   await Promise.all(fonts.map((f) => set.load(f).catch(() => [])));
 };
-
-const textFonts = (objects: readonly AnimObject[]): string[] =>
-  objects.flatMap((o) =>
-    o.kind === 'text' ? [fontOf(o)] : o.kind === 'group' ? textFonts(o.children) : [],
-  );
 
 export function createCanvasStageRenderer({
   makeCanvas = (w, h) =>
@@ -70,10 +99,25 @@ export function createCanvasStageRenderer({
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('No canvas is available to draw the stage.');
       const images = await imagesOf(doc);
-      await loadFonts([...new Set(textFonts(doc.layers.flatMap((l) => l.objects)))]);
+      await loadFonts(fontsUsed(doc.layers.flatMap((l) => l.objects)));
       drawStage(ctx, doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());
+    },
+
+    async pixels(path: string, maxSide: number): Promise<Pixels> {
+      const image = (await loadImage(path)) as { width: number; height: number } | null;
+      if (!image || !(image.width > 0) || !(image.height > 0))
+        throw new MediaError(`${fileNameOf(path)} could not be read as a picture.`);
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const ctx = makeCanvas(width, height).getContext('2d') as
+        | (StageCanvas & { getImageData(x: number, y: number, w: number, h: number): ImageData })
+        | null;
+      if (!ctx) throw new Error('No canvas is available to read the picture.');
+      ctx.drawImage(image, 0, 0, width, height);
+      return { width, height, data: ctx.getImageData(0, 0, width, height).data };
     },
   };
 }

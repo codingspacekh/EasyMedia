@@ -3,6 +3,7 @@ import { createApp } from '../app/app.ts';
 import { createCanvasTextRenderer } from '../adapters/canvas/text-renderer.ts';
 import { createCanvasStageRenderer } from '../adapters/canvas/stage-renderer.ts';
 import { createElectronMediaEngine } from '../adapters/electron/media-engine.ts';
+import { createElectronPageAssets } from '../adapters/electron/page-assets.ts';
 import {
   createElectronDialogs,
   createElectronProjectFiles,
@@ -16,8 +17,20 @@ import { menuActions } from './menu-actions.ts';
 import App from './App.svelte';
 import './fonts.css';
 import './theme.css';
+import './forms.css';
 
 const target = document.getElementById('app')!;
+
+/** AN15: the bundled fonts' URLs in the built pages, by file name, for HTML web animations. */
+const FONT_URLS = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>('../../resources/fonts/*.ttf', {
+      query: '?url',
+      import: 'default',
+      eager: true,
+    }),
+  ).map(([path, url]) => [path.split('/').at(-1)!, url]),
+);
 
 /** Chromium's MediaStreamTrackProcessor: a microphone track's sound as frames (A14). */
 declare const MediaStreamTrackProcessor: new (init: { track: MediaStreamTrack }) => {
@@ -34,6 +47,7 @@ if (!window.mve) {
     files: createElectronProjectFiles(api),
     text: createCanvasTextRenderer(),
     stageRenderer: createCanvasStageRenderer(),
+    pageAssets: createElectronPageAssets(api, FONT_URLS),
     paths: await getAppPaths(api),
     audioOutput: createWebAudioOutput(),
     audioUndoStore: createIndexedDbUndoStore(),

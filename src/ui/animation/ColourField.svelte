@@ -83,6 +83,9 @@
     font: 500 12.5px var(--mono);
     padding: 4px 0;
     outline: none;
+    height: auto;
+    box-shadow: none;
+    border-radius: 0;
   }
   input[aria-invalid='true'] {
     color: var(--danger);

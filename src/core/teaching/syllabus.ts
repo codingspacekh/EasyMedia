@@ -1,4 +1,4 @@
-// Cambridge International AS & A Level IT 9626 (2025–2027), Chapter 11: every syllabus point in
+// Cambridge International AS & A Level IT 9626 (2025–2027), sections 11 and 20.1: every syllabus point in
 // its own words, where it is done in EasyMedia, and the app's tools under it (their `syllabus`
 // labels). The teacher notes are made from this (scripts/guides.ts).
 
@@ -273,10 +273,11 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     'lossy and lossless',
     'Learn ▸ Media inspector (codecs marked lossy / lossless / uncompressed) and the compression comparison',
   ),
-  // ---- 20.1 Animation (phase 2; the theory pages arrive in M16) ----
+  // ---- 20.1 Animation (phase 2) ----
   an(
     'creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience',
-    'Animation ▸ the stage, timeline and export; Learn ▸ Animation (M16)',
+    'Animation ▸ the stage, timeline and export; Import frames… (stop motion) on the tool strip; Learn ▸ Animation (types of animation)',
+    ['20.1 stop motion'],
   ),
   an(
     'configuring the stage/frame/canvas: colour, size',
@@ -300,7 +301,7 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ),
   an(
     'importing and creating vector objects: tracing bitmaps',
-    'Animation ▸ Picture on the toolbar, then Trace bitmap (M16)',
+    'Animation ▸ Picture on the tool strip, then Properties ▸ Trace bitmap…',
     ['20.1 importing and tracing bitmaps'],
   ),
   an('importing and creating vector objects: adding text', 'Animation ▸ Text on the toolbar', [
@@ -324,7 +325,8 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ]),
   an(
     'controlling animations by adjusting frame rates, looping or stopping animations',
-    'Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop',
+    'Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, and Button (Pause, Continue, Restart, Go to frame) tried with Test',
+    ['20.1 controlling animations by stopping them'],
   ),
   an('exporting an animation for its application', 'Animation ▸ Export on the toolbar', [
     '20.1 exporting an animation',
@@ -333,7 +335,7 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     '20.1',
     ANIM_PRINCIPLES,
     'frames, key frames, property key frames, timings, coordinates',
-    'Animation ▸ the timeline; the rulers show coordinates; Learn ▸ Animation (M16)',
+    'Animation ▸ the timeline (keyframes per property); the rulers show coordinates; Learn ▸ Animation (principles, and the frame-rate demonstration)',
     ['20.1 frames, key frames and tweening'],
   ),
   p(
@@ -347,19 +349,20 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     '20.1',
     ANIM_TYPES,
     'cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types',
-    'Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse (M16)',
+    'Learn ▸ Animation (types of animation, with advantages and disadvantages); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation',
+    ['20.1 stop motion', '20.1 frames, key frames and tweening'],
   ),
   p(
     '20.1',
     ANIM_PARTS,
     'the primary (main focus, such as main characters), the secondary (sound, background), other components',
-    'Learn ▸ Animation (M16)',
+    'Learn ▸ Animation (components and animation variables)',
   ),
   p(
     '20.1',
     ANIM_PARTS,
     'the use of animation variables to control the position of an animated object or parts of an animated object',
-    'Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (M16)',
+    'Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (components and animation variables)',
     ['20.1 animation variables'],
   ),
 ];

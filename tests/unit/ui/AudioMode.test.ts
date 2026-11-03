@@ -211,8 +211,8 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     expect((within(dialog).getByLabelText('Maximum peak') as HTMLInputElement).value).toBe('-1');
     expect(within(dialog).getByText('11.2 normalising, removing DC offset')).toBeTruthy();
     expect(within(dialog).getByText(/applies to 0\.00 – 4\.00 s/i)).toBeTruthy();
-    await fireEvent.click(within(dialog).getByRole('button', { name: /why/i }));
-    expect(within(dialog).getByText(/faulty recording device/i)).toBeTruthy();
+    await fireEvent.click(within(dialog).getByText('Why use this?'));
+    expect(within(screen.getByRole('tooltip')).getByText(/faulty recording device/i)).toBeTruthy();
     await fireEvent.change(within(dialog).getByLabelText('Maximum peak'), {
       target: { value: '2' },
     });

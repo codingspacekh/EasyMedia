@@ -1,13 +1,13 @@
 // M11 exit gate through the real app: Learn mode (screens 21–22). Book A Activity 11.28 in the
 // sampling visualiser; the media inspector and the compression comparison on real files made by
 // FFmpeg; the task checker with a saved task file.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { answerDialogs, launchApp } from './app.ts';
+import { answerDialogs, launchApp, menu } from './app.ts';
 import { shot } from './audio.ts';
 
 const CLIP = 'clip_1080p30_10s.mp4';
@@ -24,17 +24,16 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => rm(dir, { recursive: true, force: true }));
 
-async function learnMode(page: Page) {
-  await page
-    .getByRole('navigation', { name: 'Mode' })
-    .getByRole('button', { name: 'Learn' })
-    .click();
+/** N15: Learn is opened from the menu bar's Learn menu. */
+async function learnMode(app: ElectronApplication, page: Page) {
+  await menu(app, 'Learn', 'Inspector & Sampling');
+  await expect(page.getByRole('button', { name: /^Back to / })).toBeVisible();
 }
 const card = (page: Page, name: string) => page.getByRole('region', { name });
 
 test('Book A Activity 11.28: the sound wave sampled 10 times, then twice as often', async () => {
   const { app, window: page } = await launchApp();
-  await learnMode(page);
+  await learnMode(app, page);
   const box = card(page, 'Sampling visualiser');
   const values = box.locator('td[data-kind="value"]');
   await expect(values).toHaveText(['6', '8.5', '2.5', '8', '3.5', '2', '4.5', '3', '8.5', '3.5']);
@@ -53,7 +52,7 @@ test('Book A Activity 11.28: the sound wave sampled 10 times, then twice as ofte
 test('T1 + T3: inspect real files and compare their compression (screens 21–22)', async () => {
   test.setTimeout(300_000);
   const { app, window: page } = await launchApp();
-  await learnMode(page);
+  await learnMode(app, page);
   const inspector = card(page, 'Media inspector');
   await answerDialogs(app, { open: [join(dir, MUSIC)] });
   await inspector.getByRole('button', { name: 'Choose a file…' }).click();
@@ -99,7 +98,7 @@ test('T1 + T3: inspect real files and compare their compression (screens 21–22
 
 test('T6: the teacher saves a task; a student checks an export against it', async () => {
   const { app, window: page } = await launchApp();
-  await learnMode(page);
+  await learnMode(app, page);
   await page.getByRole('tab', { name: 'Task checker' }).click();
   const task = card(page, 'Task');
   await task.getByLabel('Task name').fill('Task 11b');
@@ -133,7 +132,7 @@ test('T6: the teacher saves a task; a student checks an export against it', asyn
 
 test('Glossary: the exam-style questions can be answered from it', async () => {
   const { app, window: page } = await launchApp();
-  await learnMode(page);
+  await learnMode(app, page);
   await page.getByRole('button', { name: 'Glossary' }).click();
   const glossary = page.getByRole('dialog', { name: 'Glossary' });
   await glossary.getByRole('searchbox').fill('sample rate');

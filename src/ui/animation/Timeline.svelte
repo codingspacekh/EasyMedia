@@ -5,7 +5,9 @@
   // and the repeat mark. The playhead is dragged on the ruler or typed; a dot is clicked to edit
   // its easing, hold and repeat, dragged to move it, Alt-dragged to copy it.
   import type { App } from '../../app/app.ts';
+  import { objectsShown } from '../../core/animation/frames.ts';
   import { parseFrame, timeLabel } from '../../core/animation/time.ts';
+  import { withWhy } from '../../core/effects/help.ts';
   import { EASINGS, TWEEN_PROPERTIES } from '../../core/animation/tween.ts';
   import type {
     AnimObject,
@@ -58,7 +60,15 @@
   ];
 
   type Row =
-    | { kind: 'layer'; id: Id; name: string; frames: number[]; open: boolean }
+    | {
+        kind: 'layer';
+        id: Id;
+        name: string;
+        frames: number[];
+        open: boolean;
+        /** AN14: a frame-by-frame layer's keyframes (each starts a drawing). */
+        drawings?: number[];
+      }
     | { kind: 'object'; id: Id; name: string; frames: number[]; open: boolean; animated: boolean }
     | { kind: 'property'; id: Id; track: Track }
     /** AN11: the frames an object follows its path. */
@@ -74,9 +84,11 @@
         name: layer.name,
         frames: framesOf(layer.objects),
         open,
+        ...(layer.drawings ? { drawings: layer.drawings } : {}),
       });
       if (!open) continue;
-      for (const o of [...layer.objects].reverse()) {
+      // AN14: on a frame-by-frame layer, the objects of the drawing at the playhead.
+      for (const o of [...objectsShown(layer, frame)].reverse()) {
         const tracks = (o.tracks ?? []).filter((t) => t.keyframes.length > 0);
         const shown = openObjects[o.id] ?? $store.selection.includes(o.id);
         out.push({
@@ -215,6 +227,10 @@
       ? dragging.to
       : at;
 
+  // ---- frame-by-frame (AN14) ----
+  const current = $derived(doc.layers.find((l) => l.id === $store.layerId));
+  const onDrawingKey = $derived(current?.drawings?.includes(frame) ?? false);
+
   function insertKeyframes(): void {
     for (const id of $store.selection) anim.insertKeyframe(id, 'all');
   }
@@ -294,6 +310,54 @@
       onchange={goTo}
     />
     <span class="spacer"></span>
+    {#if current?.drawings}
+      <span class="fbf" role="group" aria-label="Frame-by-frame">
+        <button
+          class="sm"
+          aria-label="Insert blank keyframe"
+          title={withWhy(
+            `A blank keyframe at the playhead on ${current.name}: the next drawing starts empty (F7)`,
+            'animFrameByFrame',
+          )}
+          onclick={() => (error = anim.insertDrawing('blank'))}>Blank keyframe</button
+        >
+        <button
+          class="sm"
+          aria-label="Duplicate frame"
+          title={withWhy(
+            `A keyframe at the playhead on ${current.name} holding a copy of the drawing, to change it a little (F6)`,
+            'animFrameByFrame',
+          )}
+          onclick={() => (error = anim.insertDrawing('copy'))}>Duplicate frame</button
+        >
+        <button
+          class="sm icon-only"
+          aria-label="Remove keyframe"
+          title="Remove the keyframe at the playhead and its drawing (Shift + F6)"
+          disabled={!onDrawingKey}
+          onclick={() => (error = anim.removeDrawing())}><Icon name="delete" size={14} /></button
+        >
+        <button
+          class="sm"
+          class:on={$store.onionSkin}
+          aria-label="Onion skin"
+          aria-pressed={$store.onionSkin}
+          title="Onion skin: see the drawings before and after faintly, to keep the steps even"
+          onclick={() => anim.setOnionSkin(!$store.onionSkin)}>Onion skin</button
+        >
+      </span>
+    {:else}
+      <button
+        class="sm"
+        aria-label="Make frame-by-frame"
+        title={withWhy(
+          `Make ${current?.name ?? 'the layer'} frame-by-frame: every keyframe holds its own drawing, as a flip book`,
+          'animFrameByFrame',
+        )}
+        disabled={!current}
+        onclick={() => (error = anim.makeFrameByFrame())}>Frame-by-frame</button
+      >
+    {/if}
     <button
       class="sm"
       aria-label="Insert keyframe"
@@ -495,6 +559,17 @@
               .motion.to}"
           ></span>
         {:else}
+          {#if row.kind === 'layer' && row.drawings}
+            {#each row.drawings as f, i (f)}
+              <span
+                class="drawing"
+                style:left="{xOf(f)}px"
+                style:width="{((row.drawings[i + 1] ?? stage.length) - f) * px}px"
+                title="Drawing from frame {f}"
+                aria-label="Keyframe of a drawing at frame {f}"
+              ></span>
+            {/each}
+          {/if}
           {#each row.frames as f (f)}
             <span class="dot" style:left="{xOf(f)}px" aria-hidden="true"></span>
           {/each}
@@ -510,8 +585,9 @@
     --label-w: 150px;
     display: flex;
     flex-direction: column;
-    height: 190px;
-    min-height: 120px;
+    /* The rows keep their height; a bar that wraps on a small window (or the keyframe bar)
+       makes the timeline taller rather than hiding rows: the stage fits what is left. */
+    flex: none;
     border-top: 1px solid var(--line);
     background: var(--bg-1);
     font-size: 12px;
@@ -567,13 +643,9 @@
   }
   select,
   input:not([type]) {
-    font: inherit;
+    height: 26px;
     font-size: 12px;
-    background: var(--bg-2);
-    color: var(--tx-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 2px 6px;
+    padding: 0 6px;
   }
   .zoom input {
     width: 80px;
@@ -592,7 +664,9 @@
   }
   .grid {
     position: relative;
-    flex: 1;
+    flex: none;
+    /* N16: the rows' height is the panel slot's (the bar above may wrap on a small window). */
+    height: var(--panel-size, 152px);
     overflow: auto;
     display: grid;
     grid-template-columns: var(--label-w) max-content;
@@ -600,6 +674,10 @@
     grid-template-rows: 30px;
     grid-auto-rows: 22px;
     align-content: start;
+    /* A row scrolled into view (a click, the keyboard) stops below the sticky ruler and beside
+       the sticky names, not under them: on a small window the rows scroll. */
+    scroll-padding-top: 30px;
+    scroll-padding-left: var(--label-w);
   }
   .corner,
   .label {
@@ -699,6 +777,30 @@
   }
   .lane.layer {
     background: var(--bg-2);
+  }
+  .fbf {
+    display: inline-flex;
+    gap: 4px;
+    margin-right: 6px;
+  }
+  /* AN14: a drawing held from its keyframe (a filled circle, as Animate's) to the next one. */
+  .drawing {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    border-left: 1px solid var(--tx-2);
+    background: var(--bg-3, var(--line));
+  }
+  .drawing::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    margin-top: -3.5px;
+    border-radius: 50%;
+    background: var(--tx-1);
   }
   .dot,
   .key {

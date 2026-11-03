@@ -1,7 +1,7 @@
 // Native menu items act on the mode that is showing (Video or Audio).
 import { describe, expect, it, vi } from 'vitest';
 import { menuActions } from '../../../src/ui/menu-actions.ts';
-import { ui } from '../../../src/ui/ui-state.svelte.ts';
+import { leaveLearn, ui } from '../../../src/ui/ui-state.svelte.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
 describe('menu actions follow the mode', () => {
@@ -48,5 +48,47 @@ describe('menu actions follow the mode', () => {
     expect(selectAll).not.toHaveBeenCalled();
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, 8]);
     input.remove();
+  });
+
+  it('N15 a Learn menu item shows that Learn page; Back returns to the editor it came from', () => {
+    const { app } = testApp();
+    ui.mode = 'Animation';
+    const actions = menuActions(app);
+    actions.learnFormats();
+    expect([ui.mode, ui.learnTab, ui.learnFrom]).toEqual(['Learn', 'formats', 'Animation']);
+    // Another Learn page keeps where it came from.
+    actions.learnTask();
+    expect([ui.learnTab, ui.learnFrom]).toEqual(['task', 'Animation']);
+    actions.learnInspect();
+    actions.learnAnimation();
+    expect(ui.learnTab).toBe('animation');
+    leaveLearn();
+    expect(ui.mode).toBe('Animation');
+  });
+
+  it('N15 Glossary opens over any mode, without leaving it', () => {
+    const { app } = testApp();
+    ui.mode = 'Audio';
+    menuActions(app).glossary();
+    expect([ui.mode, ui.glossary]).toEqual(['Audio', true]);
+    ui.glossary = false;
+  });
+
+  it('N16 View ▸ Show / Hide acts on the panels of the editor that is showing; Reset Layout on all', async () => {
+    const { app } = testApp();
+    const actions = menuActions(app);
+    ui.mode = 'Animation';
+    await actions.toggleLeft();
+    await actions.toggleBottom();
+    expect(app.layout.store.get().hidden).toEqual(['animation.layers', 'animation.timeline']);
+    ui.mode = 'Video';
+    await actions.toggleRight();
+    expect(app.layout.store.get().hidden).toContain('video.inspector');
+    ui.mode = 'Audio';
+    await actions.toggleLeft(); // Audio mode has no left panel: nothing changes
+    expect(app.layout.store.get().hidden).toHaveLength(3);
+    await actions.resetLayout();
+    expect(app.layout.store.get().hidden).toEqual([]);
+    ui.mode = 'Video';
   });
 });

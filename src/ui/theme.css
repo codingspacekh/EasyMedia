@@ -76,10 +76,8 @@ button.sm.icon-only {
   width: 26px;
   height: 26px;
 }
+/* Form controls show focus inside their border (forms.css). */
 button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -160,4 +158,11 @@ button.primary {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tx-2);
+}
+
+/* N10: every modal dialog stays inside the window and scrolls, so its buttons can always be
+   reached on a small laptop screen (a dialog may set its own, smaller, limit). */
+[role='dialog'][aria-modal='true'] {
+  max-height: calc(100vh - 32px);
+  overflow: auto;
 }

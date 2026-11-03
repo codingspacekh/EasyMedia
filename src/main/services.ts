@@ -5,6 +5,7 @@ import { CONTAINERS } from '../core/render/formats.ts';
 import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { PICTURE_EXTENSIONS, picturesIn } from './media/pictures.ts';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -37,6 +38,7 @@ const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extensio
   gif: { label: 'Animated GIF', extension: 'gif' },
   // The frames are saved beside the chosen name: Task1_0001.png, Task1_0002.png…
   'png-sequence': { label: 'PNG sequence (one picture per frame)', extension: 'png' },
+  html: { label: 'HTML web animation', extension: 'html' },
 };
 
 export function electronDialogs(window: () => BrowserWindow | undefined): Dialogs {
@@ -128,6 +130,35 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async openPicture() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Add a picture',
+        properties: ['openFile'],
+        filters: [{ name: 'Pictures', extensions: PICTURE_EXTENSIONS }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async openExport() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Check a file: choose your export (all the pictures of a PNG sequence)',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          {
+            name: 'Exported video, sound, GIF, web page or PNG sequence',
+            extensions: [...MEDIA_EXTENSIONS, 'html', 'htm'],
+          },
+        ],
+      });
+      return r.canceled ? [] : r.filePaths;
+    },
+    async openFrames() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Import frames: choose the folder of pictures',
+        properties: ['openDirectory'],
+      });
+      const folder = r.canceled ? undefined : r.filePaths[0];
+      return folder ? picturesIn(folder) : [];
     },
     async saveAnimation(name) {
       const r = await dialog.showSaveDialog(win(), {

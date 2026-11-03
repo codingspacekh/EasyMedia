@@ -3,6 +3,7 @@
 // chain is pure, so a test can ask for frame 36 and read off the numbers.
 import { EditError } from '../model/errors.ts';
 import { centreOf, type Point } from './geometry.ts';
+import { objectsShown } from './frames.ts';
 import { objectAt } from './tween.ts';
 import type { AnimObject, AnimationDoc, Id } from './types.ts';
 
@@ -11,7 +12,8 @@ export function stateAt(doc: AnimationDoc, frame: number): AnimationDoc {
     ...doc,
     layers: doc.layers.map((layer) => ({
       ...layer,
-      objects: layer.objects.map((o) => objectAt(o, frame)),
+      // AN14: a frame-by-frame layer shows only the drawing of the keyframe at or before it.
+      objects: objectsShown(layer, frame).map((o) => objectAt(o, frame)),
     })),
   };
 }

@@ -87,6 +87,8 @@
             <span class="db">{signed(value)}</span>
             <input
               type="range"
+              class="vertical"
+              aria-orientation="vertical"
               aria-label={spec.label}
               min={spec.min}
               max={spec.max}
@@ -180,14 +182,6 @@
     color: var(--tx-1);
   }
   input,
-  select {
-    font: inherit;
-    color: var(--tx-1);
-    background: var(--bg-0);
-    border: 1px solid var(--line-strong);
-    border-radius: 5px;
-    padding: 3px 6px;
-  }
   .unit,
   .hint {
     color: var(--tx-3);

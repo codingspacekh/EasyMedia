@@ -1,0 +1,258 @@
+/*
+ * The app's form controls, one look everywhere (text, number and search boxes, menus, text areas,
+ * sliders, colour pickers, checkboxes and radio buttons). The rules use :where(), so they weigh
+ * nothing: a component sets only its layout (width, margins) and keeps this look. Focus is shown
+ * inside the control's border, so it never covers a unit or the control beside it.
+ */
+
+/* ---- boxes: text, numbers, menus, text areas ---- */
+:where(
+  input:not([type]),
+  input[type='text'],
+  input[type='number'],
+  input[type='search'],
+  input[type='email'],
+  input[type='url'],
+  input[type='password'],
+  input[type='time'],
+  select,
+  textarea
+) {
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--tx-1);
+  background-color: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+:where(
+    input:not([type]),
+    input[type='text'],
+    input[type='number'],
+    input[type='search'],
+    input[type='email'],
+    input[type='url'],
+    input[type='password'],
+    input[type='time'],
+    select,
+    textarea
+  ):hover:not(:disabled):not(:focus) {
+  border-color: var(--line-strong);
+}
+:where(
+  input:not([type]),
+  input[type='text'],
+  input[type='number'],
+  input[type='search'],
+  input[type='email'],
+  input[type='url'],
+  input[type='password'],
+  input[type='time'],
+  select,
+  textarea
+):focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+:where(input, select, textarea)[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+:where(input, select, textarea):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:where(input, textarea)::placeholder {
+  color: var(--tx-3);
+  opacity: 1;
+}
+
+/* Numbers: no spin arrows (the fields have their own steps and units). */
+:where(input[type='number'])::-webkit-inner-spin-button,
+:where(input[type='number'])::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+:where(input[type='number']) {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+:where(input[type='search'])::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* Menus: the app's own arrow. */
+:where(select) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 22px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a9b0bc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  text-overflow: ellipsis;
+}
+:where(select) option,
+:where(select) optgroup {
+  background: var(--bg-1);
+  color: var(--tx-1);
+}
+
+/* Text areas: as tall as they need, taller by dragging. */
+:where(textarea) {
+  height: auto;
+  min-height: 56px;
+  padding: 6px 8px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* ---- sliders ---- */
+:where(input[type='range']) {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+:where(input[type='range'])::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+:where(input[type='range'])::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+:where(input[type='range'])::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+:where(input[type='range'])::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-1);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+:where(input[type='range'])::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-1);
+}
+:where(input[type='range']):focus {
+  outline: none;
+}
+:where(input[type='range']):focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 4px var(--accent-soft);
+}
+:where(input[type='range']):focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* ---- colour pickers: a swatch in a box ---- */
+:where(input[type='color']) {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  padding: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+:where(input[type='color'])::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+:where(input[type='color'])::-webkit-color-swatch {
+  border: 0;
+  border-radius: 2px;
+}
+:where(input[type='color'])::-moz-color-swatch {
+  border: 0;
+  border-radius: 2px;
+}
+:where(input[type='color']):focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* ---- checkboxes and radio buttons ---- */
+:where(input[type='checkbox'], input[type='radio']) {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  background: var(--bg-2) center / 12px 12px no-repeat;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s;
+}
+:where(input[type='radio']) {
+  border-radius: 50%;
+}
+:where(input[type='checkbox'], input[type='radio']):hover:not(:disabled) {
+  border-color: var(--accent);
+}
+:where(input[type='checkbox']):checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+:where(input[type='checkbox']):indeterminate {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+}
+:where(input[type='radio']):checked {
+  border-color: var(--accent);
+  background-image: radial-gradient(circle, var(--accent) 0 4px, transparent 4.5px);
+  background-size: 100% 100%;
+}
+:where(input[type='checkbox'], input[type='radio']):focus {
+  outline: none;
+}
+:where(input[type='checkbox'], input[type='radio']):focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* Vertical sliders (the graphic EQ's bands): the track runs up the middle. */
+:where(input[type='range']):where(.vertical)::-webkit-slider-runnable-track {
+  width: 4px;
+  height: 100%;
+  margin: 0 auto;
+}
+:where(input[type='range']):where(.vertical)::-webkit-slider-thumb {
+  margin-top: 0;
+  margin-left: -5px;
+}
+:where(input[type='range']):where(.vertical)::-moz-range-track {
+  width: 4px;
+  height: 100%;
+}

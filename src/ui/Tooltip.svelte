@@ -3,6 +3,7 @@
   // it says what the button does: its title, or the label of an icon-only button. A "Why?" part
   // (T5) is shown under it. The built-in tooltip is kept away while ours shows, so there are
   // never two.
+  import { explain, type Explained } from '../core/effects/help.ts';
   import { TOOLTIP_DELAY } from './ui-state.svelte.ts';
 
   const TARGETS =
@@ -10,8 +11,13 @@
   const GAP = 6;
   const MARGIN = 8;
 
-  let tip: { what: string; why: string | null; x: number; y: number; above: boolean } | null =
-    $state(null);
+  let tip: {
+    what: string;
+    why: Explained | null;
+    x: number;
+    y: number;
+    above: boolean;
+  } | null = $state(null);
   let current: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -70,7 +76,8 @@
     const above = r.bottom + 60 > window.innerHeight;
     tip = {
       what: what!.trim(),
-      why: why?.trim() ?? null,
+      // N17: the short answer, then its reasons as points.
+      why: why ? explain(why.trim().replace(/^Why\?\s*/, '')) : null,
       x: r.left + r.width / 2,
       y: above ? r.top - GAP : r.bottom + GAP,
       above,
@@ -126,7 +133,16 @@
 {#if tip}
   <div class="tooltip" class:above={tip.above} role="tooltip" style:top="{tip.y}px" {@attach place}>
     <div class="what">{tip.what}</div>
-    {#if tip.why}<div class="why">{tip.why}</div>{/if}
+    {#if tip.why}
+      <div class="why">
+        <div class="answer"><span class="tag">Why?</span> {tip.why.answer}</div>
+        {#if tip.why.reasons.length}
+          <ul>
+            {#each tip.why.reasons as reason (reason)}<li>{reason}</li>{/each}
+          </ul>
+        {/if}
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -134,15 +150,15 @@
   .tooltip {
     position: fixed;
     z-index: 1000;
-    max-width: 320px;
+    max-width: 360px;
     padding: 6px 9px;
     border-radius: 6px;
     background: #10141b;
     border: 1px solid var(--line-strong);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
     color: var(--tx-1);
-    font-size: 12px;
-    line-height: 1.4;
+    font-size: 13px;
+    line-height: 1.5;
     pointer-events: none;
     white-space: pre-line;
   }
@@ -153,8 +169,23 @@
     font-weight: 600;
   }
   .why {
-    margin-top: 4px;
-    color: var(--tx-2);
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
     font-weight: 400;
+    white-space: normal;
+  }
+  .tag {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .answer {
+    color: var(--tx-1);
+  }
+  ul {
+    margin: 4px 0 0;
+    padding-left: 16px;
+    color: var(--tx-1);
+    opacity: 0.85;
   }
 </style>

@@ -31,6 +31,7 @@ export function parseFrame(text: string, fps: number): number | null {
 
 const retimed = (o: AnimObject, scale: number): AnimObject => ({
   ...o,
+  ...(o.drawing !== undefined ? { drawing: Math.round(o.drawing * scale) } : {}),
   ...(o.tracks
     ? {
         tracks: o.tracks.map((t) => ({
@@ -55,6 +56,13 @@ export function changeFps(doc: AnimationDoc, fps: number, keep: 'times' | 'frame
   return {
     ...doc,
     stage: { ...doc.stage, fps, length: Math.max(1, Math.round(doc.stage.length * scale)) },
-    layers: doc.layers.map((l) => ({ ...l, objects: l.objects.map((o) => retimed(o, scale)) })),
+    layers: doc.layers.map((l) => ({
+      ...l,
+      objects: l.objects.map((o) => retimed(o, scale)),
+      // AN14: a frame-by-frame layer's drawings keep their times too.
+      ...(l.drawings
+        ? { drawings: [...new Set(l.drawings.map((f) => Math.round(f * scale)))] }
+        : {}),
+    })),
   };
 }

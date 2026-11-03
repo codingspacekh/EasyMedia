@@ -4,7 +4,7 @@
 // starting where they are closest), then blended; at the keyframes the outline is exactly the one
 // drawn, so a line that became a circle and a rectangle is the same line again at the end.
 import { EditError } from '../model/errors.ts';
-import { isClosed, localOutline, type Point } from './geometry.ts';
+import { isClosed, isShape, localOutline, type Point } from './geometry.ts';
 import { pointAt, polylineOf, pathLength } from './path.ts';
 import type { AnimObject, ShapeValue } from './types.ts';
 
@@ -12,8 +12,8 @@ const POINTS = 64;
 
 /** The object's outline in its box, scaled to 0–1 (a side of no size stays at 0). */
 export function shapeOf(o: AnimObject): ShapeValue {
-  if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'group')
-    throw new EditError('Only shapes can morph: not text, pictures or groups.');
+  if (!isShape(o))
+    throw new EditError('Only shapes can morph: not text, pictures, buttons or groups.');
   const w = o.width || 1;
   const h = o.height || 1;
   return { points: localOutline(o).map((p) => ({ x: p.x / w, y: p.y / h })), closed: isClosed(o) };

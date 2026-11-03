@@ -121,36 +121,36 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience | Animation ▸ the stage, timeline and export; Learn ▸ Animation (M16) | — |
+| creating an animation (stop motion and key frame) that meets the requirements of its intended application and audience | Animation ▸ the stage, timeline and export; Import frames… (stop motion) on the tool strip; Learn ▸ Animation (types of animation) | Import frames (stop motion) |
 | configuring the stage/frame/canvas: colour, size | Animation ▸ the stage chip (600 × 400 · 24 fps · colour) at the top | Stage settings |
 | configuring the stage: the aspect ratio using rulers, guides and grid settings | Animation ▸ the stage chip (4:3, 16:9, 16:10, 2.35:1 presets); Rulers, Grid and Guides on the toolbar | Rulers, grid & guides |
 | configuring the stage: snapping options | Animation ▸ Snap on the toolbar (grid, guides, objects, pixels); the status bar says what it snapped to | Snapping |
-| importing and creating vector objects | Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar | Vector shapes |
-| importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the toolbar, then Trace bitmap (M16) | Picture |
+| importing and creating vector objects | Animation ▸ Rectangle, Ellipse, Star, Polygon, Line, Pen and Brush on the toolbar | Vector shapes, Library |
+| importing and creating vector objects: tracing bitmaps | Animation ▸ Picture on the tool strip, then Properties ▸ Trace bitmap… | Picture, Trace bitmap |
 | importing and creating vector objects: adding text | Animation ▸ Text on the toolbar | Text |
 | controlling object properties: stroke and fill settings; size, position and orientation; transparency | Animation ▸ the Properties panel (X, Y, W, H, rotation, opacity, fill, stroke) | Object properties |
 | setting paths | Animation ▸ Properties ▸ Motion path (Follow path, Orient to path); a pen path’s points and curves are edited on the stage | Motion path |
 | using layers | Animation ▸ the Layers panel (add, rename, order, lock, hide, folders) | Layers |
 | applying masks | Animation ▸ the Mask button on a layer (lock the layer to see it work) | Mask |
-| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate) and the timeline’s Loop and Stop | — |
+| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, and Button (Pause, Continue, Restart, Go to frame) tried with Test | Button |
 | exporting an animation for its application | Animation ▸ Export on the toolbar | Export animation |
 
 ### The basic principles of animation
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline; the rulers show coordinates; Learn ▸ Animation (M16) | Timeline and keyframes |
-| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Morph |
+| frames, key frames, property key frames, timings, coordinates | Animation ▸ the timeline (keyframes per property); the rulers show coordinates; Learn ▸ Animation (principles, and the frame-rate demonstration) | Timeline and keyframes, Frame-by-frame layer, Effects |
+| inbetweening (tweening) tools to change motion, shape, size, colour; morphing and the effect it creates | Animation ▸ keyframes on the timeline, and Properties ▸ Morph into… | Timeline and keyframes, Frame-by-frame layer, Effects, Morph |
 
 ### Different animation types and methods
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (M16); Animation ▸ Import frames… for stop motion and time lapse (M16) | — |
+| cel animation, stop motion, time lapse, flip book, CGI, 2D, 3D; advantages and disadvantages of different animation types | Learn ▸ Animation (types of animation, with advantages and disadvantages); Animation ▸ Import frames… for stop motion and time lapse, and a frame-by-frame layer (the timeline’s Frame-by-frame) for flip-book and cel animation | Import frames (stop motion), Timeline and keyframes, Frame-by-frame layer, Effects |
 
 ### Components of an animation and animation variables
 
 | Syllabus point | Where in EasyMedia | Tools |
 |---|---|---|
-| the primary (main focus, such as main characters), the secondary (sound, background), other components | Learn ▸ Animation (M16) | — |
-| the use of animation variables to control the position of an animated object or parts of an animated object | Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (M16) | Group |
+| the primary (main focus, such as main characters), the secondary (sound, background), other components | Learn ▸ Animation (components and animation variables) | — |
+| the use of animation variables to control the position of an animated object or parts of an animated object | Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (components and animation variables) | Group |

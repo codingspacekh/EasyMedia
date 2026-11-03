@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -57,6 +57,34 @@ describe('Node + FFmpeg engine, real-file details', () => {
     expect(await engine.probe(join(media, file))).toMatchObject({ kind, container });
   });
 
+  it('AN5 an SVG picture (FFmpeg reads no size) gets its size from the file; a GIF is a gif', async () => {
+    const svg = join(out, 'star.svg');
+    await writeFile(
+      svg,
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 135 120"><path d="M0 0h1"/></svg>',
+    );
+    expect(await engine.probe(svg)).toMatchObject({
+      kind: 'image',
+      container: 'svg',
+      video: { width: 135, height: 120 },
+    });
+    const gif = join(out, 'still.gif');
+    await execFileAsync(bundledFfmpeg().ffmpeg, [
+      ...['-v', 'error', '-f', 'lavfi', '-i', 'color=red:s=40x30', '-frames:v', '1', gif],
+    ]);
+    expect(await engine.probe(gif)).toMatchObject({
+      container: 'gif',
+      video: { width: 40, height: 30 },
+    });
+    // A GIF FFmpeg was not told to loop plays once: no NETSCAPE2.0 block.
+    const once = join(out, 'once.gif');
+    await execFileAsync(bundledFfmpeg().ffmpeg, [
+      ...['-v', 'error', '-f', 'lavfi', '-i', 'color=red:s=40x30:r=5', '-frames:v', '3'],
+      ...['-loop', '-1', once],
+    ]);
+    expect((await engine.probe(once)).loop).toBe(false);
+  });
+
   it('AN15 a GIF has one picture per frame (72), loops, and the frames folder is removed after', async () => {
     const folder = await mkdtemp(join(out, 'gif-frames-'));
     await execFileAsync(bundledFfmpeg().ffmpeg, [
@@ -75,6 +103,11 @@ describe('Node + FFmpeg engine, real-file details', () => {
       ...['-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', join(out, 'count.gif')],
     ]);
     expect(Number(stdout.trim())).toBe(72);
+    // AN17: the task checker sees that it loops (the NETSCAPE2.0 block of -loop 0).
+    expect(await engine.probe(join(out, 'count.gif'))).toMatchObject({
+      container: 'gif',
+      loop: true,
+    });
     await expect(readdir(folder)).rejects.toThrow();
   });
 
