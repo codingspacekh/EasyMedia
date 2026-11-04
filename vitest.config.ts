@@ -22,8 +22,9 @@ export default defineConfig({
           include: ['tests/unit/ui/**/*.test.ts'],
           environment: 'jsdom',
           setupFiles: ['tests/helpers/jsdom-setup.ts'],
-          // Whole-app renders are slower under coverage instrumentation.
-          testTimeout: 15_000,
+          // Whole-app renders are slower under coverage instrumentation: on a busy computer some
+          // took 16–20 s (2026-11-05).
+          testTimeout: 30_000,
         },
       },
       {

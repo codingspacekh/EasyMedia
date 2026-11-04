@@ -68,11 +68,13 @@ describe('the drawing tools', () => {
     expect(s.objects().map((o) => o.kind)).toEqual(['ellipse', 'star', 'polygon', 'path']);
     expect(s.objects()[1]).toMatchObject({ width: 60, height: 60 });
     expect(s.objects()[3]).toMatchObject({ x: 0, y: 500, width: 600, height: 0 });
-    // A drag too small to be a shape adds nothing.
+  });
+
+  it('a drag too small to be a shape adds nothing; dragged up and to the left works too', async () => {
+    const s = await mode();
     await s.tool('Rectangle');
     await drag(s.stage(), [10, 10], [11, 11]);
-    expect(s.objects()).toHaveLength(4);
-    // Dragged up and to the left works too.
+    expect(s.objects()).toHaveLength(0);
     await s.tool('Rectangle');
     await drag(s.stage(), [100, 100], [60, 70]);
     expect(s.objects().at(-1)).toMatchObject({ x: 60, y: 70, width: 40, height: 30 });

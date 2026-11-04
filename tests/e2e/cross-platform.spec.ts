@@ -113,20 +113,53 @@ test('check: the package opens on this OS with every file, and exports the same 
 });
 
 /** X6: the other computer's export and this one's: same size, length and pictures. */
-async function expectSameVideo(madeFile: string, checkFile: string) {
+async function expectSameVideo(
+  madeFile: string,
+  checkFile: string,
+  /** A filter put on both before comparing (e.g. covering a region), or none. */
+  filter = 'null',
+) {
   const made = await measure(madeFile);
   const again = await measure(checkFile);
   expect([again.width, again.height]).toEqual([made.width, made.height]);
   expect(Math.abs(again.videoDuration - made.videoDuration)).toBeLessThanOrEqual(1 / 30 + 0.001);
   // The same pictures: average PSNR between the two exports (different encoders may be used).
+  const psnr = await psnrOf(madeFile, checkFile, filter);
+  console.log(`PSNR between the exports of ${madeFile} (${filter}): ${psnr} dB`);
+  expect(psnr).toBeGreaterThanOrEqual(40);
+}
+
+/** The average PSNR between two videos, after the same filter on both. */
+async function psnrOf(a: string, b: string, filter: string): Promise<number> {
   const { stderr } = await promisify(execFile)(bundledFfmpeg().ffmpeg, [
-    ...['-hide_banner', '-i', madeFile, '-i', checkFile],
-    ...['-lavfi', '[0:v][1:v]psnr', '-f', 'null', '-'],
+    ...['-hide_banner', '-i', a, '-i', b],
+    ...['-lavfi', `[0:v]${filter}[a];[1:v]${filter}[b];[a][b]psnr`, '-f', 'null', '-'],
   ]);
   const average = /average:([\d.]+|inf)/.exec(stderr)?.[1];
-  const psnr = average === 'inf' ? Infinity : Number(average); // inf: identical pictures
-  console.log(`PSNR between the exports of ${madeFile}: ${psnr} dB`);
-  expect(psnr).toBeGreaterThanOrEqual(40);
+  return average === 'inf' ? Infinity : Number(average); // inf: identical pictures
+}
+
+/** The box (first and last row and column) of the dark pixels in a region of the frame at 1 s. */
+async function inkBox(file: string, crop: { x: number; y: number; w: number; h: number }) {
+  const { stdout } = await promisify(execFile)(
+    bundledFfmpeg().ffmpeg,
+    [
+      ...['-v', 'error', '-ss', '1', '-i', file, '-frames:v', '1'],
+      ...['-vf', `crop=${crop.w}:${crop.h}:${crop.x}:${crop.y},format=gray`],
+      ...['-f', 'rawvideo', '-'],
+    ],
+    { encoding: 'buffer' },
+  );
+  const px = stdout as Buffer;
+  const rows: number[] = [];
+  const cols: number[] = [];
+  for (let y = 0; y < crop.h; y++)
+    for (let x = 0; x < crop.w; x++)
+      if (px[y * crop.w + x]! < 128) {
+        rows.push(y);
+        cols.push(x);
+      }
+  return [Math.min(...rows), Math.max(...rows), Math.min(...cols), Math.max(...cols)];
 }
 
 // ---- M17 step 3: an animation with pictures (.mvea) ----
@@ -265,5 +298,18 @@ test('check: the packaged animation opens on this OS with its pictures, and expo
   ]);
   expect(again.video).toMatchObject({ width: 600, height: 400, fps: 24 });
   expect(made.video).toMatchObject({ width: 600, height: 400, fps: 24 });
-  await expectSameVideo(join(DIR, 'anim-made.mp4'), check);
+  // Text is drawn by each OS's own font engine (DirectWrite, Core Text): the same bundled font,
+  // size and place, but the letters' edges are smoothed a little differently (2026-11-05: the
+  // text band 25–27 dB, everything else 56–59 dB). Everything but the text must match as planned;
+  // the text must be in the same place and alike.
+  const TEXT = { x: 180, y: 190, w: 300, h: 60 };
+  const covered = `drawbox=x=${TEXT.x}:y=${TEXT.y}:w=${TEXT.w}:h=${TEXT.h}:color=black:t=fill`;
+  await expectSameVideo(join(DIR, 'anim-made.mp4'), check, covered);
+  const text = `crop=${TEXT.w}:${TEXT.h}:${TEXT.x}:${TEXT.y}`;
+  const textPsnr = await psnrOf(join(DIR, 'anim-made.mp4'), check, text);
+  console.log(`PSNR of the text between the exports: ${textPsnr} dB`);
+  // 24.7–26.9 dB between Windows and a Mac; a shifted line or another font is far lower.
+  expect(textPsnr).toBeGreaterThanOrEqual(20);
+  const [a, b] = await Promise.all([inkBox(join(DIR, 'anim-made.mp4'), TEXT), inkBox(check, TEXT)]);
+  a.forEach((edge, i) => expect(Math.abs(edge - b[i]!), `text edge ${i}`).toBeLessThanOrEqual(1));
 });
