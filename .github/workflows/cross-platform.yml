@@ -1,7 +1,7 @@
 name: Cross-platform
 
 # M12 (X1, X2, X6): a project made and packaged on Windows opens and exports the same on macOS,
-# and the other way round (tests/e2e/cross-platform.spec.ts).
+# and the other way round (tests/e2e/cross-platform.spec.ts). M17: an animation with pictures too.
 on:
   push:
     branches: [main, dev]

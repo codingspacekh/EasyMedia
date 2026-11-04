@@ -68,14 +68,16 @@ said; it looks again later. A Mac that cannot put the update in by itself downlo
 
 ## The first time you open it
 
-A **Welcome** page shows the three modes (Video, Audio, Learn) and where your work is saved.
-**Help ▸ Welcome** shows it again. Rest the mouse on any button to see what it does.
+A **Welcome** page shows the three editors (**Video**, **Audio** and **Animation**, chosen at the
+top left), the **Learn** menu with the theory, and where your work is saved. **Help ▸ Welcome**
+shows it again. Rest the mouse on any button to see what it does.
 
 - **File ▸ Save** makes a project file (`.mve`) and, if you used Audio mode, a folder of sound next
-  to it. Your videos, pictures and music stay where they are.
-- To move a project to another computer (for example from a Mac at school to a Windows laptop at
-  home), use **File ▸ Package Project**: it copies the project and every file it uses into one
-  folder. Open the `.mve` in that folder on the other computer.
+  to it. Your videos, pictures and music stay where they are. In Animation mode it makes an
+  animation file (`.mvea`); the pictures in it stay where they are too.
+- To move your work to another computer (for example from a Mac at school to a Windows laptop at
+  home), use **File ▸ Package Project**: it copies the project, or the animation, and every file it
+  uses into one folder. Open the `.mve` (or `.mvea`) in that folder on the other computer.
 - If OneEditor closes unexpectedly, it offers to restore your work the next time it opens.
 
 ## For teachers
