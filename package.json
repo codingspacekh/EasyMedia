@@ -24,6 +24,7 @@
     "coverage": "vitest run --coverage",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.ts",
     "fixtures": "node scripts/make-fixtures.ts",
+    "heavy-animation": "node scripts/heavy-animation.ts",
     "render": "node scripts/render.ts",
     "spike": "electron spikes/m0-electron/main.cjs",
     "build:app": "vite build && vite build -c vite.electron.config.ts --mode main && vite build -c vite.electron.config.ts --mode preload && vite build -c vite.electron.config.ts --mode player",

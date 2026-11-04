@@ -222,6 +222,23 @@ describe('P2 main-process IPC handlers', () => {
     });
   });
 
+  it('N1 the performance report: off unless asked for; on, it is sent each play of the stage', async () => {
+    const off = inProcessBridge(createMockMediaEngine({})).api;
+    expect(await off.invoke('perf:enabled')).toEqual({ ok: true, value: false });
+    const sample = { seconds: 3, fps: 29.7, targetFps: 30, longestGapMs: 18 };
+    expect(await off.invoke('perf:playback', sample)).toEqual({ ok: true, value: null });
+
+    const playback = vi.fn();
+    const { api } = inProcessBridge(createMockMediaEngine({}), { perf: { playback } });
+    expect(await api.invoke('perf:enabled')).toEqual({ ok: true, value: true });
+    expect(await api.invoke('perf:playback', sample)).toEqual({ ok: true, value: null });
+    expect(playback).toHaveBeenCalledWith(sample);
+    // What the page sends is checked.
+    const bad = { ...sample, fps: 'fast' } as unknown as typeof sample;
+    expect(await api.invoke('perf:playback', bad)).toMatchObject({ ok: false });
+    expect(playback).toHaveBeenCalledTimes(1);
+  });
+
   it('V18 combines only pictures the app opened, and allows the picture it makes', async () => {
     const photo = {
       kind: 'image' as const,

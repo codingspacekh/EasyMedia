@@ -25,7 +25,7 @@ import { menuTemplate } from './menu.ts';
 import { microphoneAccess } from './microphone.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
 import { moveOldSettings } from './old-settings.ts';
-import { recordPerformance } from './perf.ts';
+import { createPerformanceReport } from './perf.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
 import { selfCheck } from './self-check.ts';
@@ -198,7 +198,11 @@ void app.whenReady().then(async () => {
     loadUpdater: async () => (await import('electron-updater')).autoUpdater,
   });
 
+  const perf = process.env.ONEEDITOR_PERF_REPORT
+    ? createPerformanceReport(process.env.ONEEDITOR_PERF_REPORT)
+    : undefined;
   registerIpc({
+    ...(perf ? { perf } : {}),
     ipc: ipcMain,
     send: <E extends keyof Events>(event: E, payload: Events[E]) =>
       sendToWindow(mainWindow, event, payload),
@@ -255,8 +259,7 @@ void app.whenReady().then(async () => {
   if (DEV_ICON) app.dock?.setIcon(DEV_ICON);
   mainWindow = createWindow();
   updates.start();
-  if (process.env.ONEEDITOR_PERF_REPORT)
-    recordPerformance(process.env.ONEEDITOR_PERF_REPORT, mainWindow);
+  perf?.watch(mainWindow);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });

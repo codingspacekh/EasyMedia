@@ -15,6 +15,7 @@ import { unwrap } from '../adapters/electron/media-engine.ts';
 import { createIndexedDbUndoStore } from '../adapters/indexeddb/undo-store.ts';
 import { createElectronUpdates } from '../adapters/electron/updates.ts';
 import { menuActions } from './menu-actions.ts';
+import { watchPlayback } from '../app/animation/paint-watch.ts';
 import App from './App.svelte';
 import './fonts.css';
 import './theme.css';
@@ -66,6 +67,13 @@ if (!window.mve) {
   api.on('app:closeRequested', () => {
     void app.confirmClose().then((close) => api.invoke('app:closeAnswer', close));
   });
+  // N1: with the performance report on, each play of the animation stage is measured for it.
+  if (await unwrap(api.invoke('perf:enabled')))
+    watchPlayback(
+      app.animation.store,
+      (sample) => void api.invoke('perf:playback', sample),
+      (callback) => requestAnimationFrame(callback),
+    );
   mount(App, { target, props: { app } });
   void app.start();
 }

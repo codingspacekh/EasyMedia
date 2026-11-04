@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { serializeAnimation } from '../../src/core/animation/serialize.ts';
-import { heavyAnimation } from '../helpers/heavy-animation.ts';
+import { heavyAnimation } from '../../scripts/lib/heavy-animation.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
 import { measure } from '../integration/helpers/measure.ts';
 import { answerDialogs, launchApp, menu } from './app.ts';

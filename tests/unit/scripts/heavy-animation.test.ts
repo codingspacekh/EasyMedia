@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { deserializeAnimation, serializeAnimation } from '../../../src/core/animation/serialize.ts';
 import { stateAt } from '../../../src/core/animation/state.ts';
-import { HEAVY, heavyAnimation } from '../../helpers/heavy-animation.ts';
+import { HEAVY, heavyAnimation } from '../../../scripts/lib/heavy-animation.ts';
 
 describe('heavyAnimation (N1, N2 with an animation)', () => {
   it('is a 1024 × 768, 10 s, 30 fps animation of 100 moving objects on five layers that opens again', () => {

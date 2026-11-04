@@ -16,6 +16,7 @@ import type { CombinePlan } from '../core/image/combine.ts';
 import type { ResizeCrop } from '../core/image/crop.ts';
 import type { Container } from '../core/render/formats.ts';
 import type { UpdateState } from '../core/updates.ts';
+import type { PlaybackSample } from '../core/animation/paint-meter.ts';
 
 export interface Channels {
   'media:probe': { args: [path: string]; result: ProbeInfo };
@@ -116,6 +117,10 @@ export interface Channels {
   'updates:seen': { args: []; result: UpdateState };
   'updates:showDmg': { args: []; result: UpdateState };
   'updates:openDmg': { args: []; result: UpdateState };
+  /** N1: is the performance report on (ONEEDITOR_PERF_REPORT)? Then the page measures the stage. */
+  'perf:enabled': { args: []; result: boolean };
+  /** N1: one play of the stage, for the performance report. */
+  'perf:playback': { args: [sample: PlaybackSample]; result: null };
 }
 
 export type Channel = keyof Channels;
@@ -172,6 +177,8 @@ export const CHANNELS: readonly Channel[] = [
   'updates:seen',
   'updates:showDmg',
   'updates:openDmg',
+  'perf:enabled',
+  'perf:playback',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */

@@ -4,6 +4,7 @@ import { isAbsolute, join, relative } from 'node:path';
 import { EditError, JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
+import { isPlaybackSample, type PlaybackSample } from '../core/animation/paint-meter.ts';
 import { combineFilter } from '../core/image/combine.ts';
 import type { Updates } from './updates.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
@@ -27,6 +28,8 @@ export interface MainServices {
   pageFiles: PageFiles;
   /** M17a U1–U5: updates (electron-updater in the installed app). */
   updates: Updates;
+  /** N1: the performance report, when ONEEDITOR_PERF_REPORT asks for one. */
+  perf?: { playback(sample: PlaybackSample): void };
 }
 
 export interface PageFiles {
@@ -228,6 +231,12 @@ export function registerIpc(s: MainServices): void {
     'updates:seen': async () => s.updates.seen(),
     'updates:showDmg': async () => s.updates.showDmg(),
     'updates:openDmg': () => s.updates.openDmg(),
+    'perf:enabled': async () => s.perf !== undefined,
+    'perf:playback': async (sample) => {
+      if (!isPlaybackSample(sample)) throw new Error('Not a measurement of the stage.');
+      s.perf?.playback(sample);
+      return null;
+    },
     'page:test': async (html, title, width, height) => {
       if (typeof html !== 'string' || !(width > 0) || !(height > 0))
         throw new EditError('There is nothing to test.');
