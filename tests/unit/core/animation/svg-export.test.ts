@@ -5,6 +5,7 @@ import {
   createAnimation,
   createButton,
   createEllipse,
+  createGroup,
   createLayer,
   createPicture,
   createRect,
@@ -50,6 +51,21 @@ describe('AN22 SVG picture of a frame', () => {
     expect(svg).toMatch(/<path d="M300 150A150 150 0 1 1 0 150A150 150 0 1 1 300 150Z?"/);
     // 100 × 50 turned 90° about (150, 125): its corners are now at x 125–175, y 75–175.
     expect(svg).toContain('<path d="M175 75L175 175L125 175L125 75Z" fill="#B40000"/>');
+  });
+
+  it('a see-through group is one <g> with the opacity; its parts have none of their own', () => {
+    const cloud = {
+      ...createGroup([
+        plain(createEllipse({ x: 100, y: 100, width: 80, height: 80 })),
+        plain(createEllipse({ x: 140, y: 100, width: 80, height: 80 })),
+      ]),
+      opacity: 50,
+    };
+    const svg = stageSvg(stageWith([cloud]));
+    const group = /<g opacity="0\.5">([\s\S]*?)<\/g>/.exec(svg);
+    expect(group).not.toBeNull();
+    expect(group![1]!.match(/<path /g)).toHaveLength(2);
+    expect(group![1]).not.toContain('opacity=');
   });
 
   it('gradients, outlines (dashed) and opacity', () => {

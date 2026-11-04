@@ -121,6 +121,8 @@ export interface Channels {
   'perf:enabled': { args: []; result: boolean };
   /** N1: one play of the stage, for the performance report. */
   'perf:playback': { args: [sample: PlaybackSample]; result: null };
+  /** Help ▸ Report a Problem…: an unexpected error in the page, for the problem log. */
+  'log:page': { args: [text: string]; result: null };
 }
 
 export type Channel = keyof Channels;
@@ -179,6 +181,7 @@ export const CHANNELS: readonly Channel[] = [
   'updates:openDmg',
   'perf:enabled',
   'perf:playback',
+  'log:page',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */
@@ -210,7 +213,8 @@ export type MenuAction =
   | 'toggleRight'
   | 'toggleBottom'
   | 'resetLayout'
-  | 'updates';
+  | 'updates'
+  | 'candidate';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

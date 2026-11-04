@@ -16,6 +16,7 @@ import { createIndexedDbUndoStore } from '../adapters/indexeddb/undo-store.ts';
 import { createElectronUpdates } from '../adapters/electron/updates.ts';
 import { menuActions } from './menu-actions.ts';
 import { watchPlayback } from '../app/animation/paint-watch.ts';
+import { onUnexpected } from '../app/problems.ts';
 import App from './App.svelte';
 import './fonts.css';
 import './theme.css';
@@ -43,6 +44,23 @@ if (!window.mve) {
   target.textContent = 'OneEditor runs as a desktop app: start it with "npm run app".';
 } else {
   const api = window.mve;
+  // Help ▸ Report a Problem…: what went wrong in the page goes to the main process's log.
+  const note = (text: string) => void api.invoke('log:page', text);
+  onUnexpected(note);
+  window.addEventListener('error', (e) =>
+    note(
+      e.error instanceof Error
+        ? `${e.error.name}: ${e.error.message}\n${e.error.stack ?? ''}`
+        : e.message,
+    ),
+  );
+  window.addEventListener('unhandledrejection', (e) =>
+    note(
+      e.reason instanceof Error
+        ? `${e.reason.name}: ${e.reason.message}\n${e.reason.stack ?? ''}`
+        : String(e.reason),
+    ),
+  );
   const app = createApp({
     engine: createElectronMediaEngine(api),
     dialogs: createElectronDialogs(api),

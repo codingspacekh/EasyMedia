@@ -2,12 +2,16 @@
 // starts the animation in the page with the browser's own canvas, clock and fonts.
 import type { StageCanvas } from '../core/animation/draw.ts';
 import { boot } from './boot.ts';
+import { withLayers } from '../adapters/canvas/layers.ts';
 
 void boot({
   document,
   now: () => performance.now(),
   requestFrame: (callback) => void requestAnimationFrame(callback),
-  context: (canvas) => canvas.getContext('2d') as unknown as StageCanvas | null,
+  context: (canvas) => {
+    const ctx = canvas.getContext('2d');
+    return ctx ? (withLayers(ctx) as unknown as StageCanvas) : null;
+  },
   async loadImage(url) {
     const image = new Image();
     image.src = url;

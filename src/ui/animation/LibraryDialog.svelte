@@ -5,6 +5,7 @@
   import Dialog from '../Dialog.svelte';
   import type { App } from '../../app/app.ts';
   import { drawObject, type StageCanvas } from '../../core/animation/draw.ts';
+  import { withLayers } from '../../adapters/canvas/layers.ts';
   import {
     LIBRARY_CATEGORIES,
     buildItem,
@@ -39,7 +40,7 @@
       x: (THUMB / scale - built.width) / 2,
       y: (THUMB / scale - built.height) / 2,
     };
-    drawObject(ctx as unknown as StageCanvas, placed);
+    drawObject(withLayers(ctx) as unknown as StageCanvas, placed);
   }
 
   function place(item: LibraryItem): void {

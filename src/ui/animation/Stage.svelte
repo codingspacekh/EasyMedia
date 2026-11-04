@@ -4,6 +4,7 @@
   // applied as one undo step when the pointer is let go.
   import type { App } from '../../app/app.ts';
   import { drawStage, type StageCanvas } from '../../core/animation/draw.ts';
+  import { withLayers } from '../../adapters/canvas/layers.ts';
   import { onionSkin } from '../../core/animation/frames.ts';
   import { TRANSPARENT } from '../../core/animation/rules.ts';
   import {
@@ -147,7 +148,7 @@
     // N1: the same canvas from frame to frame, cleared and its settings reset as a resize would.
     if (!sizeCanvas(canvas, stage, zoom, dpr)) ctx.reset();
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, 0, 0);
-    drawStage(ctx as unknown as StageCanvas, shown, {
+    drawStage(withLayers(ctx) as unknown as StageCanvas, shown, {
       image,
       // AN12: a mask works on the stage while its layer is locked, as in the coursebook.
       editing: true,

@@ -30,6 +30,10 @@ and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 - **Export** makes the finished video or sound file. Export does not save the project: save it too.
 - OneEditor saves your work in the background. If it closes unexpectedly, it offers to restore your
   work the next time it opens.
+- **In an exam**, open **File ▸ Candidate Details…** and type your centre number, candidate number
+  and name once. Every Save and Export box then suggests the name the paper asks for, for example
+  `Gas_ZZ999_9999`: change only the first part. Click **Clear** there before someone else uses the
+  computer.
 
 ### Arrange the panels
 
@@ -333,5 +337,9 @@ pictures a second ▸ Choose folder…; Export ▸ MP4.
   another format or a smaller size, and make sure there is free space on the disk.
 - **The microphone does not work**: see "Microphone" in the install guide (`INSTALL.md`), then close
   the recording window and open it again.
+- **Something else went wrong** ("Something went wrong", a frozen window, OneEditor closed by
+  itself): choose **Help ▸ Report a Problem…**, save the report (on the Desktop), write in it what
+  you were doing, and give it to your teacher. It lists the last things OneEditor did and the errors
+  it met; nothing is sent anywhere.
 - **Help ▸ Welcome** shows the first page again. **Help ▸ Licences** lists the free software
   OneEditor includes.

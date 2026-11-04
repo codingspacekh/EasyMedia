@@ -63,6 +63,12 @@ export interface StageCanvas {
     y1: number,
     r1: number,
   ): CanvasGradientLike;
+  /**
+   * Draws `draw` into a layer of its own, then puts the layer down at `alpha`: a see-through
+   * group is faded as one picture, so where its parts overlap it is no darker. A canvas without
+   * it fades each part instead.
+   */
+  withLayer?(alpha: number, draw: (layer: StageCanvas) => void): void;
 }
 
 export interface CanvasGradientLike {
@@ -255,7 +261,11 @@ export function drawObject(
     case 'group':
       // The children are placed in the group's box: move its top-left corner to the origin.
       ctx.translate(ox, oy);
-      for (const child of o.children) drawObject(ctx, child, options, shown);
+      if (shown < 1 && o.children.length > 1 && ctx.withLayer)
+        ctx.withLayer(shown, (layer) => {
+          for (const child of o.children) drawObject(layer, child, options);
+        });
+      else for (const child of o.children) drawObject(ctx, child, options, shown);
       break;
     case 'text':
       drawText(ctx, o, styleOf(ctx, o.fill, o.width, o.height));

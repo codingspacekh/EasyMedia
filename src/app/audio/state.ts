@@ -85,7 +85,7 @@ export const DISK_MIN_SAMPLES = 44100;
 /** How much of the selection an effect's Preview plays (as Audacity). */
 export const PREVIEW_SECONDS = 6;
 
-export const UNEXPECTED = 'Something went wrong. Please try again.';
+export { UNEXPECTED } from '../problems.ts';
 export const NOTHING =
   'Import a sound first (Import audio, or Tracks ▸ Import audio as new track).';
 

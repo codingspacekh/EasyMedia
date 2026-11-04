@@ -28,6 +28,7 @@ function recorder() {
   const ctx = new Proxy(target, {
     get(_t, key: string) {
       if (key in target) return target[key];
+      if (key === 'withLayer') return undefined; // only when a test gives the canvas layers
       return (...args: unknown[]) => {
         const shown = args.map((a) =>
           typeof a === 'number'
@@ -187,6 +188,52 @@ describe('drawStage', () => {
     drawStage(c2, doc, { image: () => null });
     expect(calls2.some((c) => c.startsWith('drawImage('))).toBe(false);
     expect(calls2).toContain('strokeRect(-320,-180,640,360)');
+  });
+
+  it('a see-through group is faded as one picture: its parts are drawn in a layer, then the layer at 50 %', () => {
+    const { ctx, calls } = recorder();
+    const layered: string[] = [];
+    (ctx as StageCanvas).withLayer = (alpha, draw) => {
+      calls.push(`withLayer(${alpha})`);
+      const inner = recorder();
+      draw(inner.ctx);
+      layered.push(...inner.calls);
+    };
+    const cloud = {
+      ...createGroup([
+        createEllipse({ x: 100, y: 100, width: 80, height: 80 }),
+        createEllipse({ x: 140, y: 100, width: 80, height: 80 }),
+      ]),
+      opacity: 50,
+    };
+    drawStage(ctx, stageWith(cloud));
+    expect(calls).toContain('withLayer(0.5)');
+    // In the layer the parts are at full strength, so where they overlap it is no darker.
+    expect(layered.filter((c) => c.startsWith('ellipse('))).toHaveLength(2);
+    expect(layered.some((c) => c.startsWith('globalAlpha='))).toBe(false);
+    expect(calls.filter((c) => c.startsWith('ellipse('))).toHaveLength(0);
+  });
+
+  it('without layers (or for one part, or at 100 %) each part takes the group’s opacity, as before', () => {
+    const two = createGroup([
+      createRect({ x: 0, y: 0, width: 50, height: 50 }),
+      createRect({ x: 25, y: 0, width: 50, height: 50 }),
+    ]);
+    const { ctx, calls } = recorder();
+    drawStage(ctx, stageWith({ ...two, opacity: 50 }));
+    expect(calls.filter((c) => c === 'globalAlpha=0.5')).toHaveLength(3);
+    for (const group of [
+      { ...two, opacity: 100 },
+      { ...createGroup([createRect({ x: 0, y: 0 })]), opacity: 50 },
+    ]) {
+      const r = recorder();
+      let used = false;
+      (r.ctx as StageCanvas).withLayer = () => {
+        used = true;
+      };
+      drawStage(r.ctx, stageWith(group));
+      expect(used).toBe(false);
+    }
   });
 
   it('AN13 a group draws its children inside its own box and turn', () => {

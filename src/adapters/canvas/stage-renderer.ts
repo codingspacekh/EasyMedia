@@ -1,6 +1,7 @@
 // StageRenderer (AN15) on an OffscreenCanvas: the stage drawn by core/animation/draw.ts — the
 // same drawing as the preview — and saved as a PNG. Pictures are fetched through media://.
 import { drawStage, fontsUsed, type StageCanvas } from '../../core/animation/draw.ts';
+import { withLayers } from './layers.ts';
 import type { AnimationDoc } from '../../core/animation/types.ts';
 import type { Pixels } from '../../core/animation/trace.ts';
 import { toMediaUrl } from '../../core/media-url.ts';
@@ -107,7 +108,7 @@ export function createCanvasStageRenderer({
       if (!ctx) throw new Error('No canvas is available to draw the stage.');
       const images = await imagesOf(doc);
       await loadFonts(fontsUsed(doc.layers.flatMap((l) => l.objects)));
-      drawStage(ctx, doc, { image: (id) => images.get(id) ?? null, frame });
+      drawStage(withLayers(ctx), doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());
     },

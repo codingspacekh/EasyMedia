@@ -755,6 +755,10 @@ v1.4.0 is tagged. Gate record: [`acceptance/M17a.md`](acceptance/M17a.md).
     builds with the update feed; `INSTALL.md` for the pilot; one test update (1.5.0 → 1.5.1)
     seen arriving on a Windows laptop and a Mac before the pilot starts.
 
+12. **Before the pilot** (the maintainer, 2026-11-05): a see-through group is faded as one picture
+    (no darker where its parts overlap: the Gas cloud); **P8** exam file names (File ▸ Candidate
+    Details…); **P9** Help ▸ Report a Problem… with the problem log.
+
 **Exit gate**
 - Each step's tests green; CI green on all three platforms; the papers' steps above done again
   in the app by the teacher.

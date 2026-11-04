@@ -10,7 +10,8 @@ import { EditError, MediaError, MicrophoneError } from '../../core/model/errors.
 import type { Seconds } from '../../core/model/time.ts';
 import type { Id } from '../../core/model/types.ts';
 import { createStore, type Store } from '../store.ts';
-import { UNEXPECTED, type AudioDeps, type AudioState } from './state.ts';
+import type { AudioDeps, AudioState } from './state.ts';
+import { unexpected } from '../problems.ts';
 import { createUndoSteps } from './undo-steps.ts';
 
 export function createAudioContext(services: AudioDeps) {
@@ -38,7 +39,7 @@ export function createAudioContext(services: AudioDeps) {
   const errorText = (error: unknown) =>
     error instanceof EditError || error instanceof MediaError || error instanceof MicrophoneError
       ? error.message
-      : UNEXPECTED;
+      : unexpected(error);
   const showError = (error: unknown) =>
     patch({ message: { kind: 'error', text: errorText(error) } });
   const showProblem = (text: string) => patch({ message: { kind: 'error', text } });

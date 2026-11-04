@@ -2,6 +2,7 @@
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Menu,
   net,
@@ -13,6 +14,7 @@ import {
 import { execFile } from 'node:child_process';
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
+import { cpus, release, totalmem, type } from 'node:os';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
 import type { Events } from '../preload/api.ts';
@@ -26,6 +28,7 @@ import { microphoneAccess } from './microphone.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
 import { moveOldSettings } from './old-settings.ts';
 import { createPerformanceReport } from './perf.ts';
+import { createProblemLog, saveProblemReport, type ProblemLog } from './problem-log.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
 import { selfCheck } from './self-check.ts';
@@ -56,6 +59,18 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | undefined;
+/** Help ▸ Report a Problem…: errors, failed jobs and menu commands, in the app's data folder. */
+let problems: ProblemLog | undefined;
+const describeError = (error: unknown) =>
+  error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ''}` : String(error);
+process.on('uncaughtExceptionMonitor', (error) =>
+  problems?.record('error', 'main', describeError(error)),
+);
+process.on('unhandledRejection', (reason) => {
+  // Listening stops Node printing it: it is still printed for the developer.
+  console.error('Unhandled rejection:', reason);
+  problems?.record('error', 'main', describeError(reason));
+});
 
 /**
  * AN18: Test — the animation's web page in a window of its own, the stage's size (smaller on a
@@ -107,6 +122,10 @@ function createWindow(): BrowserWindow {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.once('ready-to-show', () => win.show());
+  win.webContents.on('render-process-gone', (_e, d) =>
+    problems?.record('error', 'main', `The page stopped: ${d.reason} (exit code ${d.exitCode}).`),
+  );
+  win.on('unresponsive', () => problems?.record('error', 'main', 'The page stopped responding.'));
   // P7: unsaved work is not lost by closing the window or quitting; the page asks first.
   closeGuard = createCloseGuard(
     {
@@ -157,6 +176,8 @@ async function runSelfCheck(file: string): Promise<void> {
 
 void app.whenReady().then(async () => {
   if (process.env.ONEEDITOR_SELF_CHECK) return runSelfCheck(process.env.ONEEDITOR_SELF_CHECK);
+  problems = createProblemLog(join(app.getPath('userData'), 'problems.log'));
+  const log = problems;
   const binaries = binaryPaths(RESOURCES, platformKey(process.platform, process.arch));
   const proxies = join(app.getPath('userData'), 'proxies');
   await mkdir(proxies, { recursive: true });
@@ -202,6 +223,7 @@ void app.whenReady().then(async () => {
     ? createPerformanceReport(process.env.ONEEDITOR_PERF_REPORT)
     : undefined;
   registerIpc({
+    problems: log,
     ...(perf ? { perf } : {}),
     ipc: ipcMain,
     send: <E extends keyof Events>(event: E, payload: Events[E]) =>
@@ -242,7 +264,10 @@ void app.whenReady().then(async () => {
     Menu.buildFromTemplate(
       menuTemplate(
         process.platform,
-        (action) => sendToWindow(mainWindow, 'menu:action', action),
+        (action) => {
+          log.record('action', 'menu', action);
+          sendToWindow(mainWindow, 'menu:action', action);
+        },
         !app.isPackaged,
         // Installed: in the resources; in development: made by "npm run guides".
         (guide) =>
@@ -252,6 +277,33 @@ void app.whenReady().then(async () => {
               `${guide}.html`,
             ),
           ),
+        () =>
+          void saveProblemReport({
+            log,
+            computer: {
+              version: app.getVersion(),
+              installed: app.isPackaged,
+              os: `${type()} ${release()}`,
+              arch: process.arch,
+              cpu: cpus()[0]?.model ?? 'unknown processor',
+              ramGB: Math.round(totalmem() / 2 ** 30),
+            },
+            now: () => new Date(),
+            offset: -new Date().getTimezoneOffset(),
+            choose: async (name) => {
+              const options = {
+                title: 'Save the problem report',
+                defaultPath: join(app.getPath('desktop'), name),
+                filters: [{ name: 'Text', extensions: ['txt'] }],
+              };
+              const r = mainWindow
+                ? await dialog.showSaveDialog(mainWindow, options)
+                : await dialog.showSaveDialog(options);
+              return r.canceled || !r.filePath ? null : r.filePath;
+            },
+            write: (path, text) => writeFile(path, text),
+            show: (path) => shell.showItemInFolder(path),
+          }),
       ),
     ),
   );

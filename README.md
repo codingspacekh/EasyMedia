@@ -258,6 +258,8 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 | **P5** | Supported import: video MP4, MOV, AVI, WMV, MKV, MPG; image JPG, PNG, BMP, TIFF, GIF; audio MP3, WAV, M4A, AAC, FLAC, OGG, WMA. |
 | **P6** | Missing-media detection with "locate file" prompt. |
 | **P7** | Separate **Save project** (editable) and **Export** (playable file) commands, clearly explained — the coursebook tips stress this distinction. |
+| **P8** | **Exam file names**: *File ▸ Candidate Details…* (centre number, candidate number, name) kept on the computer; every Save and Export box then suggests `<name>_<centre>_<candidate>`, as the 9626 papers ask (e.g. `Gas_ZZ999_9999`). Clear before another student uses the computer. |
+| **P9** | **Help ▸ Report a Problem…**: OneEditor keeps a short log (the last 300 errors, failed jobs and menu commands) in its data folder; the report adds the version and the computer and is saved as a text file for the teacher. Nothing is sent anywhere. |
 
 ## 10. Non-functional requirements
 

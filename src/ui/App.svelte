@@ -15,6 +15,7 @@
   import Licences from './Licences.svelte';
   import UpdateNote from './UpdateNote.svelte';
   import UpdatesDialog from './UpdatesDialog.svelte';
+  import CandidateDialog from './CandidateDialog.svelte';
   import Welcome from './Welcome.svelte';
   import AudioMode from './audio/AudioMode.svelte';
   import AudioStatusBar from './audio/AudioStatusBar.svelte';
@@ -33,6 +34,7 @@
   const store = $derived(app.store);
   const animStore = $derived(app.animation.store);
   const updatesView = $derived(app.updates.store);
+  const candidateView = $derived(app.candidate.store);
   const MODE_ICONS = {
     Video: 'video',
     Audio: 'audio',
@@ -206,6 +208,7 @@
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
   {#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
   {#if $updatesView.dialog}<UpdatesDialog {app} />{/if}
+  {#if $candidateView.dialog}<CandidateDialog {app} />{/if}
   {#if $store.licences !== null}
     <Licences text={$store.licences} onclose={() => app.closeLicences()} />
   {:else if $store.welcome}

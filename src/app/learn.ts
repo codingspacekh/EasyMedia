@@ -20,6 +20,7 @@ import {
 } from '../core/teaching/task-check.ts';
 import { createStore, type Store } from './store.ts';
 import { webPageInfo } from '../core/animation/html.ts';
+import { unexpected } from './problems.ts';
 
 export interface ComparisonItem {
   label: string;
@@ -62,7 +63,6 @@ export interface LearnDeps {
 /** T3: how much of a file the comparison exports (README: 5–10 s). */
 export const AUDIO_SECONDS = 10;
 export const VIDEO_SECONDS = 5;
-const UNEXPECTED = 'Something went wrong. Please try again.';
 const FIRST = 'Inspect a file first (Choose a file, or drop one on the inspector).';
 const DEFAULT_TASK: TaskSpec = {
   name: 'My task',
@@ -110,7 +110,9 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
       message: {
         kind: 'error',
         text:
-          error instanceof MediaError || error instanceof EditError ? error.message : UNEXPECTED,
+          error instanceof MediaError || error instanceof EditError
+            ? error.message
+            : unexpected(error),
       },
     });
   const out = (n: number, extension: string) => `${paths.learn}/compare-${n}.${extension}`;

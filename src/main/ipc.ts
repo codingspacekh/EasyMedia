@@ -30,6 +30,8 @@ export interface MainServices {
   updates: Updates;
   /** N1: the performance report, when ONEEDITOR_PERF_REPORT asks for one. */
   perf?: { playback(sample: PlaybackSample): void };
+  /** Help ▸ Report a Problem…: the problem log (main/problem-log.ts). */
+  problems?: { record(kind: 'error', where: 'page' | 'request' | 'job', text: string): void };
 }
 
 export interface PageFiles {
@@ -81,13 +83,15 @@ export function registerIpc(s: MainServices): void {
           onDone?.();
           s.send('job:event', { type: 'done', jobId: key, label });
         },
-        (error: unknown) =>
-          s.send(
-            'job:event',
-            error instanceof JobCancelledError
-              ? { type: 'cancelled', jobId: key, label }
-              : { type: 'failed', jobId: key, label, error: toWire(error) },
-          ),
+        (error: unknown) => {
+          if (error instanceof JobCancelledError) {
+            s.send('job:event', { type: 'cancelled', jobId: key, label });
+            return;
+          }
+          const wire = toWire(error);
+          s.problems?.record('error', 'job', `${label}: ${wire.name}: ${wire.message}`);
+          s.send('job:event', { type: 'failed', jobId: key, label, error: wire });
+        },
       )
       .finally(() => {
         jobs.delete(key);
@@ -231,6 +235,11 @@ export function registerIpc(s: MainServices): void {
     'updates:seen': async () => s.updates.seen(),
     'updates:showDmg': async () => s.updates.showDmg(),
     'updates:openDmg': () => s.updates.openDmg(),
+    'log:page': async (text) => {
+      if (typeof text !== 'string') throw new Error('Only text can be noted.');
+      s.problems?.record('error', 'page', text);
+      return null;
+    },
     'perf:enabled': async () => s.perf !== undefined,
     'perf:playback': async (sample) => {
       if (!isPlaybackSample(sample)) throw new Error('Not a measurement of the stage.');
@@ -257,7 +266,10 @@ export function registerIpc(s: MainServices): void {
       try {
         return { ok: true, value: await handler(...args) };
       } catch (error) {
-        return { ok: false, error: toWire(error) };
+        const wire = toWire(error);
+        if (wire.name !== 'JobCancelledError')
+          s.problems?.record('error', 'request', `${channel}: ${wire.name}: ${wire.message}`);
+        return { ok: false, error: wire };
       }
     });
   }

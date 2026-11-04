@@ -239,6 +239,40 @@ describe('P2 main-process IPC handlers', () => {
     expect(playback).toHaveBeenCalledTimes(1);
   });
 
+  it('Report a Problem: the page’s unexpected errors and failed requests go to the problem log', async () => {
+    const record = vi.fn();
+    const { api } = inProcessBridge(createMockMediaEngine({}), { problems: { record } });
+    expect(await api.invoke('log:page', 'TypeError: frame is undefined')).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(record).toHaveBeenCalledWith('error', 'page', 'TypeError: frame is undefined');
+    await api.invoke('media:probe', '/m/gone.mp4');
+    expect(record).toHaveBeenLastCalledWith(
+      'error',
+      'request',
+      expect.stringMatching(/^media:probe: MediaError: .*could not be found/),
+    );
+    // A job that fails (the file is gone) is noted with its label.
+    const failed = new Promise((resolve) =>
+      api.on('job:event', (e) => e.type === 'failed' && resolve(e)),
+    );
+    await api.invoke('media:proxy', 'k1', '/m/gone.mp4', '/cache/p.mp4', 10);
+    await failed;
+    expect(record).toHaveBeenLastCalledWith(
+      'error',
+      'job',
+      expect.stringMatching(/: MediaError: /),
+    );
+    // Only text is taken from the page.
+    expect(await api.invoke('log:page', { evil: true } as unknown as string)).toMatchObject({
+      ok: false,
+    });
+    // Without a log (tests, development) nothing breaks.
+    const plain = inProcessBridge(createMockMediaEngine({})).api;
+    expect(await plain.invoke('log:page', 'x')).toEqual({ ok: true, value: null });
+  });
+
   it('V18 combines only pictures the app opened, and allows the picture it makes', async () => {
     const photo = {
       kind: 'image' as const,

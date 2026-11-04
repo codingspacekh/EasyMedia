@@ -12,8 +12,9 @@ import { EditError, MediaError, ProjectFileError } from '../../core/model/errors
 import type { PageAssets, StageRenderer } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
 import type { AnimationDeps, AnimationState } from './state.ts';
+import { unexpected } from '../problems.ts';
 
-export const UNEXPECTED = 'Something went wrong. Please try again.';
+export { UNEXPECTED } from '../problems.ts';
 
 const NO_RENDERER: StageRenderer = {
   renderPng: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
@@ -61,7 +62,9 @@ export function createAnimationContext(deps: AnimationDeps) {
       error instanceof EditError ||
       error instanceof MediaError ||
       error instanceof ProjectFileError;
-    patch({ message: { kind: 'error', text: known ? (error as Error).message : UNEXPECTED } });
+    patch({
+      message: { kind: 'error', text: known ? (error as Error).message : unexpected(error) },
+    });
   }
 
   // ---- the player (AN8) ----
@@ -129,7 +132,7 @@ export function createAnimationContext(deps: AnimationDeps) {
       store.update((s) => ({ ...s, history: execute(s.history, command) }));
       return null;
     } catch (error) {
-      return error instanceof EditError ? error.message : UNEXPECTED;
+      return error instanceof EditError ? error.message : unexpected(error);
     }
   }
 

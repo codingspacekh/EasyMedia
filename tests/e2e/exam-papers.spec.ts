@@ -1,13 +1,16 @@
 // M17a: steps of real 9626 papers through the real app, where only the real canvas and FFmpeg
 // can show the result. AN21 (M/J/23 Conveyor, M/J/26 Gas): a stage with no background exports
 // a PNG and a GIF that are see-through around the drawing. AN22 (O/N/25 Apple): the SVG of a
-// frame looks like the PNG of the same frame.
+// frame looks like the PNG of the same frame. M/J/26 Gas: a see-through group (the cloud) is
+// faded as one picture, so where its parts overlap it is no darker, on the stage and in exports.
 import { expect, test, type Page } from '@playwright/test';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { bundledFfmpeg, run } from '../integration/helpers/ffmpeg.ts';
-import { answerDialogs, launchApp } from './app.ts';
+import { createAnimation, createEllipse, createGroup } from '../../src/core/animation/factory.ts';
+import { serializeAnimation } from '../../src/core/animation/serialize.ts';
+import { answerDialogs, launchApp, menu } from './app.ts';
 
 let dir: string;
 test.beforeAll(async () => {
@@ -156,5 +159,97 @@ test('AN22 Apple: the SVG of a frame, drawn by a browser, matches the PNG of tha
   );
   // Only the edges' smoothing may differ: well under 1 % of the pixels.
   expect(differ).toBeLessThan(0.01);
+  await app.close();
+});
+
+test('Gas: a cloud grouped at 50 % is no darker where its parts overlap, on the stage and in the PNG and SVG', async () => {
+  test.setTimeout(180_000);
+  // Two blue circles that overlap, grouped, at 50 %, on a white 400 × 200 stage.
+  const blue = { kind: 'solid' as const, colour: '#0000ff' };
+  const part = (x: number) => ({
+    ...createEllipse({ x, y: 50, width: 160, height: 100 }),
+    fill: blue,
+    stroke: undefined,
+  });
+  const doc = createAnimation({ name: 'Cloud' });
+  const file = join(dir, 'Cloud.mvea');
+  await writeFile(
+    file,
+    serializeAnimation({
+      ...doc,
+      stage: { ...doc.stage, width: 400, height: 200, background: '#ffffff' },
+      layers: [
+        { ...doc.layers[0]!, objects: [{ ...createGroup([part(50), part(130)]), opacity: 50 }] },
+      ],
+    }),
+  );
+  const { app, window: page } = await launchApp();
+  await page
+    .getByRole('navigation', { name: 'Mode' })
+    .getByRole('button', { name: 'Animation' })
+    .click();
+  await answerDialogs(app, { open: [file] });
+  await menu(app, 'File', 'Open Animation…');
+  await expect(page.getByText('Group', { exact: true }).first()).toBeVisible();
+
+  // Stage points: (80, 100) in the left circle only, (170, 100) in both, (250, 100) right only.
+  const points: [number, number][] = [
+    [80, 100],
+    [170, 100],
+    [250, 100],
+  ];
+  const halfBlue = (rgb: number[]) => {
+    expect(Math.abs(rgb[0]! - 127)).toBeLessThanOrEqual(3);
+    expect(Math.abs(rgb[1]! - 127)).toBeLessThanOrEqual(3);
+    expect(rgb[2]).toBeGreaterThanOrEqual(250);
+  };
+
+  // On the stage (the canvas may be zoomed and on a Retina screen: read it at the same places).
+  const onStage = await page.evaluate((pts) => {
+    // The stage's drawing, under its overlay (the "Stage" the student clicks on).
+    const overlay = document.querySelector('svg[aria-label="Stage"]')!;
+    const canvas = overlay.parentElement!.querySelector('canvas')!;
+    const g = canvas.getContext('2d')!;
+    return pts.map(([x, y]) => {
+      const d = g.getImageData(
+        Math.round((x / 400) * canvas.width),
+        Math.round((y / 200) * canvas.height),
+        1,
+        1,
+      ).data;
+      return [d[0]!, d[1]!, d[2]!];
+    });
+  }, points);
+  onStage.forEach(halfBlue);
+
+  const png = join(dir, 'Cloud.png');
+  await answerDialogs(app, { exportTo: png });
+  await exportAs(page, /PNG picture of this frame/);
+  await expect.poll(() => exists(png), { timeout: 30_000 }).toBe(true);
+  for (const [x, y] of points) halfBlue(await pixel(png, x, y, 400));
+
+  const svg = join(dir, 'Cloud.svg');
+  await answerDialogs(app, { exportTo: svg });
+  await exportAs(page, /SVG picture of this frame/);
+  await expect.poll(() => exists(svg), { timeout: 30_000 }).toBe(true);
+  const svgUrl = `data:image/svg+xml;base64,${(await readFile(svg)).toString('base64')}`;
+  const inSvg = await page.evaluate(
+    async ([src, pts]) => {
+      const img = new Image();
+      img.src = src as string;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = 400;
+      c.height = 200;
+      const g = c.getContext('2d')!;
+      g.drawImage(img, 0, 0);
+      return (pts as [number, number][]).map(([x, y]) => {
+        const d = g.getImageData(x, y, 1, 1).data;
+        return [d[0]!, d[1]!, d[2]!];
+      });
+    },
+    [svgUrl, points] as const,
+  );
+  inSvg.forEach(halfBlue);
   await app.close();
 });

@@ -227,6 +227,17 @@ class SvgCanvas implements StageCanvas {
     this.groups++;
   }
 
+  /** A see-through group: its parts in one <g> with the opacity, so overlaps are no darker. */
+  withLayer(alpha: number, draw: (layer: StageCanvas) => void): void {
+    this.flush();
+    this.body.push(`<g opacity="${n(alpha)}">`);
+    this.save();
+    this.globalAlpha = 1;
+    draw(this);
+    this.restore();
+    this.body.push('</g>');
+  }
+
   // ---- rectangles, text and pictures ----
 
   private isPlain(): boolean {

@@ -15,6 +15,8 @@ import { createHistory, execute, redo, undo, type Command, type History } from '
 import { proxyPathFor } from './proxy-path.ts';
 import { createLayoutApp } from './layout.ts';
 import { createPreferences } from './preferences.ts';
+import { createCandidateApp } from './candidate.ts';
+import { UNEXPECTED, unexpected } from './problems.ts';
 import { createStore, type Store } from './store.ts';
 import {
   EditError,
@@ -130,7 +132,6 @@ export const projectTitle = (s: AppState): string =>
 
 const PEAKS_PER_SECOND = 10;
 const DISCARD = 'You have unsaved changes. Discard them and';
-const UNEXPECTED = 'Something went wrong. Please try again.';
 const NEW_TEXT: Record<TextItem['kind'], string> = {
   caption: 'Caption',
   subtitle: 'Subtitle',
@@ -139,7 +140,7 @@ const NEW_TEXT: Record<TextItem['kind'], string> = {
 
 export function createApp({
   engine,
-  dialogs,
+  dialogs: givenDialogs,
   files,
   text,
   paths,
@@ -151,6 +152,10 @@ export function createApp({
   updates,
   autosaveMs = 60_000,
 }: AppDeps) {
+  const preferences = createPreferences(files, paths);
+  /** File ▸ Candidate Details…: every dialog below suggests the papers' file names. */
+  const candidate = createCandidateApp(preferences);
+  const dialogs = candidate.dialogsFor(givenDialogs);
   const fresh = createProject({ name: 'Untitled' });
   const store: Store<AppState> = createStore<AppState>({
     history: createHistory(fresh),
@@ -175,7 +180,9 @@ export function createApp({
       error instanceof EditError ||
       error instanceof MediaError ||
       error instanceof ProjectFileError;
-    patch({ message: { kind: 'error', text: known ? (error as Error).message : UNEXPECTED } });
+    patch({
+      message: { kind: 'error', text: known ? (error as Error).message : unexpected(error) },
+    });
   }
 
   function run(command: Command): void {
@@ -418,7 +425,6 @@ export function createApp({
   });
   /** Learn mode (T1, T3, T6): never changes the project. */
   const learn = createLearnApp({ engine, dialogs, files, paths });
-  const preferences = createPreferences(files, paths);
   const layout = createLayoutApp(preferences);
   /** Animation mode (AN1–AN18): its own document and file (M13). */
   const animation = createAnimationApp({
@@ -444,6 +450,7 @@ export function createApp({
     animation,
     /** N16: the panels' sizes and which are shown. */
     layout,
+    candidate,
     /** M17a U1–U5: updates (the note at the bottom, Help ▸ Check for Updates…). */
     updates: createAppUpdates(updates),
 
@@ -451,6 +458,7 @@ export function createApp({
     async start(): Promise<void> {
       await animation.start();
       await layout.load();
+      await candidate.load();
       // X7: the Welcome, on the first launch only.
       if (paths.preferences && (await preferences.read()).welcomeSeen !== true)
         patch({ welcome: true });
@@ -722,7 +730,7 @@ export function createApp({
         store.update((s) => ({ ...s, history: execute(s.history, command) }));
         return null;
       } catch (error) {
-        return error instanceof EditError ? error.message : UNEXPECTED;
+        return error instanceof EditError ? error.message : unexpected(error);
       }
     },
 
