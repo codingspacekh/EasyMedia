@@ -65,6 +65,7 @@ function setup(
     remove: async (path: string) => void disk.delete(path),
     copy: async (from: string, to: string) => void copies.push(`${from} → ${to}`),
     saveImage: vi.fn(async (name: string) => `/cache/text/${name}.png`),
+    saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
     writeBytes: async () => {},
   };
   // Every text picture is 10 bytes; credits blocks are 300 px tall.
@@ -572,6 +573,24 @@ describe('M4 app use cases', () => {
           cap: { path: '/cache/text/text-cap.png', ...frame },
         });
         expect(s.state().exporting.state).toBe('done');
+      });
+
+      it("V7 title presets: the words' middle and box go with each picture (spins and typing on)", async () => {
+        const s = await withClip();
+        const render = vi.spyOn(s.engine, 'renderVideo');
+        const words = {
+          anchor: { x: 960, y: 540 },
+          box: { x: 900, y: 520, width: 120, height: 40 },
+        };
+        s.text.draw.mockImplementation(async (_t, _s, frame) => ({
+          png: new Uint8Array(1),
+          ...frame,
+          ...words,
+        }));
+        s.app.edit(addTextItem(createTextItem('caption', 'The lake', 6, { id: 'cap' })));
+        s.dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+        await s.app.exportVideo();
+        expect(render.mock.calls[0]![2].textImages!['cap']).toMatchObject(words);
       });
 
       it('draws scrolling credits as a block of rows, and still credits as a full frame', async () => {

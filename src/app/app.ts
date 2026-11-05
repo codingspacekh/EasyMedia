@@ -35,7 +35,17 @@ import {
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
 import { findMainItemAt, mainTrackDuration, setItemDuration } from '../core/model/timeline.ts';
-import type { AudioModeSession, Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
+import type {
+  AudioModeSession,
+  AudioTrackIndex,
+  Id,
+  MediaAsset,
+  Project,
+  TextItem,
+} from '../core/model/types.ts';
+
+/** X8: Video mode's sound effects are saved at the export's sample rate. */
+const SOUND_EFFECT_RATE = 48000;
 import type {
   AppPaths,
   Dialogs,
@@ -62,6 +72,8 @@ import {
 import { planCombine, type Placement } from '../core/image/combine.ts';
 import { planResizeCrop, type Keep } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
+import { makeSoundEffect, soundEffect } from '../core/audio/sound-effects.ts';
+import { encodeWav } from '../core/audio/wav.ts';
 
 export interface AssetStatus {
   state: 'preparing' | 'ready' | 'failed';
@@ -214,6 +226,10 @@ export function createApp({
       try {
         info = await engine.probe(asset.path);
       } catch (error) {
+        if (asset.soundEffect && soundEffect(asset.soundEffect)) {
+          await remakeSoundEffect(asset);
+          return;
+        }
         setAsset(asset.id, { state: 'failed', progress: 0, message: (error as Error).message });
         return;
       }
@@ -360,10 +376,44 @@ export function createApp({
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
 
+  /** X8: a built-in sound effect saved as a WAV in the app's folder, as the probe would see it. */
+  async function soundEffectFile(id: string): Promise<{ path: string; info: ProbeInfo }> {
+    const channels = makeSoundEffect(id, SOUND_EFFECT_RATE);
+    const wav = encodeWav(channels, SOUND_EFFECT_RATE);
+    const path = await files.saveSound(id, wav);
+    const duration = channels[0]!.length / SOUND_EFFECT_RATE;
+    return {
+      path,
+      info: {
+        kind: 'audio',
+        container: 'wav',
+        duration,
+        sizeBytes: wav.length,
+        audio: { codec: 'pcm_s16le', sampleRate: SOUND_EFFECT_RATE, channels: channels.length },
+      },
+    };
+  }
+
+  /** X8: a project from another computer: its sound effect is made again here. */
+  async function remakeSoundEffect(asset: MediaAsset): Promise<void> {
+    try {
+      const { path, info } = await soundEffectFile(asset.soundEffect!);
+      const replacement = { ...asset, path };
+      run(relinkMedia(asset.id, replacement));
+      await prepare(replacement, info);
+    } catch (error) {
+      setAsset(asset.id, { state: 'failed', progress: 0, message: (error as Error).message });
+    }
+  }
+
   /** V13: a sound at the playhead on the music track, or the voiceover track if music is there. */
-  function placeSound(asset: MediaAsset): void {
+  function placeSound(
+    asset: MediaAsset,
+    tracks: readonly AudioTrackIndex[] = [0, 1],
+    full = 'There is no free space on the music or voiceover track at the playhead. Move the playhead or delete a sound first.',
+  ): void {
     const item = createAudioItem(asset, store.get().playhead);
-    for (const track of [0, 1] as const) {
+    for (const track of tracks) {
       try {
         store.update((s) => ({ ...s, history: execute(s.history, addAudioItem(item, track)) }));
         patch({ selection: item.id });
@@ -372,12 +422,7 @@ export function createApp({
         // busy here: try the other track
       }
     }
-    patch({
-      message: {
-        kind: 'error',
-        text: 'There is no free space on the music or voiceover track at the playhead. Move the playhead or delete a sound first.',
-      },
-    });
+    patch({ message: { kind: 'error', text: full } });
   }
 
   /** One picture per title slide with words and per caption, subtitle or credits item. */
@@ -399,7 +444,7 @@ export function createApp({
     ];
     const images: Record<Id, TextImage> = {};
     for (const item of wanted) {
-      const { png, width, height, anchor } = await text.draw(
+      const { png, width, height, anchor, box } = await text.draw(
         item.text,
         item.style,
         frame,
@@ -410,6 +455,7 @@ export function createApp({
         width,
         height,
         ...(anchor ? { anchor } : {}),
+        ...(box ? { box } : {}),
       };
     }
     return images;
@@ -719,6 +765,31 @@ export function createApp({
           void prepare(asset, info);
         }
         placeSound(asset);
+      } catch (error) {
+        showError(error);
+      }
+    },
+
+    /** X8: a built-in sound effect at the playhead, on effects track 1 (or 2 when 1 is busy). */
+    async addSoundEffect(id: string): Promise<void> {
+      if (!soundEffect(id)) {
+        patch({ message: { kind: 'error', text: `There is no sound effect called "${id}".` } });
+        return;
+      }
+      try {
+        let asset = present().media.find((m) => m.soundEffect === id);
+        if (!asset) {
+          const { path, info } = await soundEffectFile(id);
+          const made: MediaAsset = { ...assetFromProbe(path, info), soundEffect: id };
+          run(importMediaCommand(made));
+          void prepare(made, info);
+          asset = made;
+        }
+        placeSound(
+          asset,
+          [2, 3],
+          'There is no free space on the effects tracks at the playhead. Move the playhead or delete a sound effect first.',
+        );
       } catch (error) {
         showError(error);
       }

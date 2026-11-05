@@ -258,6 +258,13 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(path);
       return path;
     },
+    'project:saveSound': async (name, wav) => {
+      if (!/^[a-z][a-z-]{0,40}$/.test(name) || !(wav instanceof Uint8Array))
+        throw new Error('A sound effect needs a plain name.');
+      const path = await s.files.saveSound(name, wav);
+      s.allow.add(path);
+      return path;
+    },
   };
 
   for (const channel of CHANNELS) {

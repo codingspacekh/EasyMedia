@@ -4,7 +4,13 @@ import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
-import type { PageAssets, ProbeInfo, StageRenderer, UpdatesPort } from '../../src/core/ports.ts';
+import type {
+  PageAssets,
+  ProbeInfo,
+  ProjectFiles,
+  StageRenderer,
+  UpdatesPort,
+} from '../../src/core/ports.ts';
 
 export const VIDEO: ProbeInfo = {
   kind: 'video',
@@ -33,6 +39,8 @@ export function testApp(
   /** Files copied (P2), [from, to]. */
   const copies: [string, string][] = [];
   const recorder = createMockRecorder();
+  /** X8: sound effects saved in the app's folder. */
+  const saveSound = vi.fn<ProjectFiles['saveSound']>(async (name) => `/cache/sounds/${name}.wav`);
   const stageRenderer = {
     renderPng: vi.fn<StageRenderer['renderPng']>(async () => new Uint8Array([137, 80, 78, 71])),
     pixels: vi.fn<StageRenderer['pixels']>(async () => ({
@@ -64,6 +72,7 @@ export function testApp(
       },
       copy: async (from, to) => void copies.push([from, to]),
       saveImage: async (name) => `/cache/text/${name}.png`,
+      saveSound,
       writeBytes: async (p, b) => void bytes.set(p, b),
     },
     stageRenderer,
@@ -94,6 +103,7 @@ export function testApp(
     disk,
     bytes,
     copies,
+    saveSound,
     stageRenderer,
     pageAssets,
   };

@@ -44,6 +44,22 @@ describe('X2 bundled fonts', () => {
       expect(FONTS.filter((f) => f.group === group).length).toBeGreaterThanOrEqual(2);
   });
 
+  it('X2 punchy display fonts for loud titles (M17a step 13), each saying what it suits', () => {
+    const display = FONTS.filter((f) => f.group === 'Display').map((f) => f.name);
+    expect(display).toEqual(
+      expect.arrayContaining([
+        'Bungee',
+        'Black Ops One',
+        'Titan One',
+        'Archivo Black',
+        'Russo One',
+        'Bowlby One',
+      ]),
+    );
+    for (const font of FONTS) expect(font.hint.length, font.name).toBeGreaterThan(5);
+    expect(new Set(FONTS.map((f) => f.hint)).size).toBe(FONTS.length);
+  });
+
   it('the fonts of earlier versions are still there (saved projects)', () => {
     expect(FONTS.map((f) => f.name)).toEqual(
       expect.arrayContaining(['Inter', 'Noto Serif', 'Courier Prime']),

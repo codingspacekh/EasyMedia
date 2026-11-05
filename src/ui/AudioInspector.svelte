@@ -12,15 +12,18 @@
     setSoundSpeed,
     trimAudio,
   } from '../app/commands.ts';
-  import { audioDuration, mainTrackDuration } from '../core/model/timeline.ts';
-  import type { AudioItem } from '../core/model/types.ts';
+  import { AUDIO_TRACK_NAMES, audioDuration, mainTrackDuration } from '../core/model/timeline.ts';
+  import type { AudioItem, AudioTrackIndex } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
+  import { mediaName } from '../core/audio/sound-effects.ts';
   import Icon from './Icon.svelte';
   import PercentField from './PercentField.svelte';
   import NumberField from './NumberField.svelte';
   import TimeField from './TimeField.svelte';
 
-  let { app, item, track }: { app: App; item: AudioItem; track: 0 | 1 } = $props();
+  let { app, item, track }: { app: App; item: AudioItem; track: AudioTrackIndex } = $props();
+  const KIND = ['music', 'voice', 'fx', 'fx'] as const;
+  const ICON = ['music', 'mic', 'sfx', 'sfx'] as const;
   const store = $derived(app.store);
   const project = $derived($store.history.present);
   const asset = $derived(project.media.find((m) => m.id === item.assetId));
@@ -33,13 +36,13 @@
 </script>
 
 <div class="head">
-  <div class="thumb {track === 0 ? 'music' : 'voice'}">
-    <Icon name={track === 0 ? 'music' : 'mic'} />
+  <div class="thumb {KIND[track]}">
+    <Icon name={ICON[track]} />
   </div>
   <div class="who">
-    <div class="title">{asset ? fileNameOf(asset.path) : 'Missing file'}</div>
+    <div class="title">{asset ? mediaName(asset, fileNameOf(asset.path)) : 'Missing file'}</div>
     <div class="kind">
-      {track === 0 ? 'Music · Audio 1' : 'Voiceover · Audio 2'} ·
+      {AUDIO_TRACK_NAMES[track]} · Audio {track + 1} ·
       <span class="len">{length.toFixed(2)} s</span>
     </div>
   </div>
@@ -143,10 +146,13 @@
       id="audio-track"
       value={String(track)}
       onchange={(e) =>
-        (actionError = app.edit(moveAudioToTrack(item.id, Number(e.currentTarget.value) as 0 | 1)))}
+        (actionError = app.edit(
+          moveAudioToTrack(item.id, Number(e.currentTarget.value) as AudioTrackIndex),
+        ))}
     >
-      <option value="0">Music (Audio 1)</option>
-      <option value="1">Voiceover (Audio 2)</option>
+      {#each AUDIO_TRACK_NAMES as name, i (name)}
+        <option value={String(i)}>{name} (Audio {i + 1})</option>
+      {/each}
     </select>
   </div>
   <p class="hint">Echo, EQ, noise reduction and pitch will be in Audio mode (a later version).</p>
@@ -176,6 +182,9 @@
   }
   .thumb.voice {
     background: var(--c-voice);
+  }
+  .thumb.fx {
+    background: var(--c-fx);
   }
   .who {
     min-width: 0;

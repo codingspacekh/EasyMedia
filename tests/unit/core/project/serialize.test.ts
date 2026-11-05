@@ -114,6 +114,35 @@ describe('P1 / P11 project files (.mve)', () => {
     expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
   });
 
+  it('V13: keeps sound effects on the two effects tracks; more than four tracks is refused', () => {
+    const p = fullProject();
+    const pop = createMediaAsset({
+      id: 'pop',
+      kind: 'audio',
+      path: 'pop.wav',
+      duration: 0.15,
+      soundEffect: 'pop',
+    });
+    const effects = {
+      ...p,
+      media: [...p.media, pop],
+      timeline: {
+        ...p.timeline,
+        audio: [p.timeline.audio[0], [], [], [createAudioItem(pop, 3, { id: 'e' })]],
+      },
+    } as Project;
+    expect(deserializeProject(serializeProject(effects))).toEqual(effects);
+    const five = JSON.stringify({
+      ...effects,
+      timeline: { ...effects.timeline, audio: [...effects.timeline.audio, []] },
+    });
+    expect(() => deserializeProject(five)).toThrow(/not a OneEditor project/i);
+    const one = JSON.stringify({ ...p, timeline: { ...p.timeline, audio: [[]] } });
+    expect(() => deserializeProject(one)).toThrow(/not a OneEditor project/i);
+    const badId = JSON.stringify({ ...effects, media: [...p.media, { ...pop, soundEffect: 3 }] });
+    expect(() => deserializeProject(badId)).toThrow(/not a OneEditor project/i);
+  });
+
   it('V13: keeps the speed of a sound and rejects one that is not a number', () => {
     const p = fullProject();
     const fast = {

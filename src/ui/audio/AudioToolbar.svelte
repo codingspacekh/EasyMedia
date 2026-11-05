@@ -191,6 +191,11 @@
         >
         <button
           role="menuitem"
+          title="A built-in sound effect (a whoosh, a ding, a drum roll…) as a new track"
+          onclick={() => choose(() => (ui.soundEffects = true))}>Add a sound effect…</button
+        >
+        <button
+          role="menuitem"
           disabled={!audio.canRecord}
           title={withWhy('Record a voiceover into a new track', 'recording')}
           onclick={() => choose(() => audio.openRecorder())}>Record into new track</button

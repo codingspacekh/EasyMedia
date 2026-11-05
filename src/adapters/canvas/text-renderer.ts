@@ -35,6 +35,7 @@ export function createCanvasTextRenderer(parts: CanvasParts = browserCanvas()): 
         width,
         height,
         anchor: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+        box: { x: box.x, y: box.y, width: box.width, height: box.height },
       };
     },
   };

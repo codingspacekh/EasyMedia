@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addAudioItem,
   moveAudioToTrack,
+  moveTimedItem,
+  removeItem,
   setAudioFades,
   setAudioVolume,
   setClipVolume,
@@ -249,3 +252,54 @@ function removeVoiceover(): Command {
     apply: (p) => ({ ...p, timeline: { ...p.timeline, audio: [p.timeline.audio[0], []] } }),
   };
 }
+
+describe('V13 sound effects: two more audio tracks (music, voiceover, effects 1, effects 2)', () => {
+  const whoosh = createMediaAsset({ id: 'whoosh', kind: 'audio', path: 'whoosh.wav', duration: 1 });
+  const withWhoosh = (): Project => ({ ...sample(), media: [...sample().media, whoosh] });
+
+  it('a sound effect goes on an effects track, even where music and voiceover play', () => {
+    const p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 11, { id: 'w' }), 2));
+    expect(p.timeline.audio[2]?.map((a) => a.id)).toEqual(['w']);
+    const both = run(p, addAudioItem(createAudioItem(whoosh, 11.5, { id: 'w2' }), 3));
+    expect(both.timeline.audio[3]?.map((a) => a.id)).toEqual(['w2']);
+    expect(both.timeline.audio[0].map((a) => a.id)).toEqual(['m']);
+  });
+
+  it('two effects cannot overlap on the same effects track', () => {
+    const p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 11, { id: 'w' }), 2));
+    refuses(addAudioItem(createAudioItem(whoosh, 11.5, { id: 'w2' }), 2), /overlap|space/i, p);
+  });
+
+  it('moves between any of the four tracks; only music is lowered under the voiceover', () => {
+    const p = run(sample(), moveAudioToTrack('m', 3));
+    expect(p.timeline.audio[3]?.map((a) => a.id)).toEqual(['m']);
+    expect(p.timeline.audio[0]).toEqual([]);
+    expect(moveAudioToTrack('m', 2).label).toBe('Move to effects track 1');
+    expect(moveAudioToTrack('m', 3).label).toBe('Move to effects track 2');
+    refuses(setDucking('m', true), /music track/i, p);
+    const ducked = run(sample(), setDucking('m', true));
+    expect(audio(run(ducked, moveAudioToTrack('m', 2)), 'm').duck).toBeUndefined();
+  });
+
+  it('split, join, trim and move work on an effects track', () => {
+    let p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 2, { id: 'w' }), 2));
+    p = run(p, splitSound(2.5, 'w', ['a', 'b']));
+    expect(p.timeline.audio[2]?.map((a) => a.id)).toEqual(['a', 'b']);
+    p = run(p, joinSoundWithNext('a'));
+    expect(p.timeline.audio[2]?.map((a) => a.id)).toEqual(['a']);
+    p = run(p, moveTimedItem('a', 6));
+    expect(audio(p, 'a').start).toBe(6);
+    p = run(p, setAudioVolume('a', 1.5));
+    expect(audio(p, 'a').volume).toBe(1.5);
+  });
+
+  it('a project with only music and voiceover keeps its two tracks (older versions open it)', () => {
+    const p = run(sample(), setAudioVolume('m', 0.5));
+    expect(p.timeline.audio).toHaveLength(2);
+    const added = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 1, { id: 'w' }), 3));
+    expect(added.timeline.audio).toHaveLength(4);
+    expect(added.timeline.audio[2]).toEqual([]);
+    const removed = run(added, removeItem('w'));
+    expect(removed.timeline.audio).toHaveLength(2);
+  });
+});

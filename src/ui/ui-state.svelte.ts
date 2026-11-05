@@ -23,6 +23,8 @@ export const ui = $state({
   learnFrom: 'Video' as Editor,
   /** Learn mode's glossary is open. */
   glossary: false,
+  /** X8: the Sound effects box is open (Video mode or Audio mode adds the sound). */
+  soundEffects: false,
 });
 
 /** How long the mouse rests on a button before its tooltip shows (the built-in one is slower). */

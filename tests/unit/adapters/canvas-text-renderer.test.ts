@@ -53,6 +53,7 @@ describe('canvas text renderer', () => {
       width: 1280,
       height: 720,
       anchor: { x: 640, y: 360 },
+      box: { x: 630, y: 336, width: 20, height: 48 }, // one 48-px line (40 px × 1.2)
     });
   });
 
@@ -66,6 +67,15 @@ describe('canvas text renderer', () => {
     );
     expect(out.anchor!.x).toBeLessThan(400);
     expect(out.anchor!.y).toBeLessThan(200);
+  });
+
+  it("V7 title presets: says where the words' box is (spins cut it out, typing on runs across it)", async () => {
+    const { renderer } = fakes();
+    const out = await renderer.draw('Hello', STYLE, { width: 1920, height: 1080 }, 'frame');
+    const box = out.box!;
+    expect(box.width).toBe(50); // 10 px a letter
+    expect(box.x + box.width / 2).toBe(out.anchor!.x);
+    expect(box.y + box.height / 2).toBe(out.anchor!.y);
   });
 
   it('makes a block-sized canvas for scrolling credits', async () => {

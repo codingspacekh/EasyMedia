@@ -758,6 +758,12 @@ v1.4.0 is tagged. Gate record: [`acceptance/M17a.md`](acceptance/M17a.md).
 12. **Before the pilot** (the maintainer, 2026-11-05): a see-through group is faded as one picture
     (no darker where its parts overlap: the Gas cloud); **P8** exam file names (File ▸ Candidate
     Details…); **P9** Help ▸ Report a Problem… with the problem log.
+13. **Built-in extras** (the maintainer, 2026-11-05: "sound effects, punchy fonts, transitions,
+    multi-track"): **V13** two sound effects tracks in Video mode (more audio tracks only: still
+    one video track); **X8** 28 built-in sound effects made by the app's own code, in Video mode
+    (at the playhead, on an effects track) and Audio mode (a new track); **X2** six more bold
+    display fonts (26); **V9** ten more transitions (43); **V7** title presets: slam, type on,
+    spin in, whip in; pop out, spin away, whip off.
 
 **Exit gate**
 - Each step's tests green; CI green on all three platforms; the papers' steps above done again

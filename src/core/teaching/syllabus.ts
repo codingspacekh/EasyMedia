@@ -89,7 +89,7 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ]),
   v(
     'adding transitions',
-    'Video ▸ the next clip’s Effects tab ▸ Transition into this clip (33 kinds in five groups)',
+    'Video ▸ the next clip’s Effects tab ▸ Transition into this clip (43 kinds in five groups)',
     ['11.1 adding transitions', '11.1 transitions'],
   ),
   v(

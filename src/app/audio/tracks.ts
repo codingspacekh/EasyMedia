@@ -1,5 +1,6 @@
 // Tracks (A1, A2, A6, A15): importing sound as tracks, adding, removing, moving and aligning
 // them, their settings, mute and solo, and mixing them down.
+import { makeSoundEffect, soundEffect } from '../../core/audio/sound-effects.ts';
 import {
   alignEndToEnd,
   alignStartTo,
@@ -15,9 +16,14 @@ import { fileNameOf } from '../../core/project/relocate.ts';
 import type { AudioContext } from './context.ts';
 import { baseName } from './state.ts';
 
+/** X8: the rate a sound effect is played at when heard in the Sound effects box. */
+const HEAR_RATE = 48000;
+
 export function trackActions(ctx: AudioContext) {
   const { services, store, patch, doc, selection, showError, showProblem, run, selectOnly } = ctx;
   const { engine, dialogs } = services;
+  /** A sound effect is being heard (not Audio mode's own playing). */
+  let hearing = false;
   return {
     /** A1, A2: opens sound files (or the sound of video files), each as a new track. */
     async importAudio(): Promise<void> {
@@ -49,6 +55,41 @@ export function trackActions(ctx: AudioContext) {
           patch({ busy: null });
         }
       }
+    },
+
+    /** X8: a built-in sound effect as a new track, starting at the cursor (the selection start). */
+    addSoundEffect(effectId: string): void {
+      const effect = soundEffect(effectId);
+      if (!effect) {
+        showProblem(`There is no sound effect called "${effectId}".`);
+        return;
+      }
+      const id = newId();
+      const channels = makeSoundEffect(effectId, doc().rate);
+      const offset = selection().start;
+      run(`Add sound effect ${effect.name}`, (tx) =>
+        tx.addTrack(createTrack({ id, name: effect.name, channels, offset })),
+      );
+      selectOnly(id);
+    },
+
+    /** X8: plays a sound effect once, to hear it before adding it (stops anything playing). */
+    hearSoundEffect(effectId: string): void {
+      if (!soundEffect(effectId)) return;
+      services.output.stop();
+      if (store.get().playing) patch({ playing: false });
+      const rate = HEAR_RATE;
+      hearing = true;
+      services.output.play(
+        { sampleRate: rate, channels: makeSoundEffect(effectId, rate) },
+        { loop: false, onEnded: () => (hearing = false) },
+      );
+    },
+
+    /** X8: the Sound effects box closes: a sound still being heard stops. */
+    stopHearing(): void {
+      if (hearing) services.output.stop();
+      hearing = false;
     },
 
     /** A2 Add new track: an empty mono or stereo track to paste or record into. */

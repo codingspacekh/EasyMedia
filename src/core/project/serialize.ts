@@ -1,6 +1,7 @@
 // P1: reading and writing .mve project files (JSON).
 import { ProjectFileError } from '../model/errors.ts';
 import type { Project } from '../model/types.ts';
+import { AUDIO_TRACK_COUNT } from '../model/timeline.ts';
 import { CURRENT_SCHEMA, DAMAGED, migrate, type ProjectDocument } from './migrate.ts';
 
 export function serializeProject(project: Project): string {
@@ -45,7 +46,8 @@ function isProject(doc: ProjectDocument): doc is ProjectDocument & Project {
     listOf(timeline.main, isMainItem) &&
     listOf(timeline.text, isTextItem) &&
     Array.isArray(timeline.audio) &&
-    timeline.audio.length === 2 &&
+    timeline.audio.length >= 2 &&
+    timeline.audio.length <= AUDIO_TRACK_COUNT &&
     timeline.audio.every((track) => listOf(track, isAudioItem)) &&
     (doc.audioMode === undefined || isAudioMode(doc.audioMode))
   );
@@ -77,7 +79,8 @@ function isMediaAsset(m: Obj): boolean {
     has(m, ['id', 'path'], isString) &&
     ['video', 'image', 'audio'].includes(m.kind as string) &&
     (m.duration === undefined || isNumber(m.duration)) &&
-    (m.hasAudio === undefined || typeof m.hasAudio === 'boolean')
+    (m.hasAudio === undefined || typeof m.hasAudio === 'boolean') &&
+    (m.soundEffect === undefined || isString(m.soundEffect))
   );
 }
 

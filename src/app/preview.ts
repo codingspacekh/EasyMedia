@@ -11,12 +11,12 @@ import {
   mainTrackDuration,
   transitionOverlap,
 } from '../core/model/timeline.ts';
-import type { Id, MainItem, PanZoomFrame, TextStyle } from '../core/model/types.ts';
+import type { Id, MainItem, PanZoomFrame, TextEffects, TextStyle } from '../core/model/types.ts';
 import { previewFilter, transitionById } from '../core/effects/registry.ts';
 import { panZoomAt } from '../core/effects/panzoom.ts';
 import { textImageSize, type TextImageMode } from '../core/text/draw.ts';
 import { layoutText, type Measure } from '../core/text/layout.ts';
-import { textMotion } from '../core/text/motion.ts';
+import { motionWindow, revealEdge, textMotion } from '../core/text/motion.ts';
 import type { AppState } from './app.ts';
 
 /** How the clip looks at this moment (approximate preview of the export, ARCHITECTURE §7.3). */
@@ -150,7 +150,13 @@ export interface TextLayer {
   y: number;
   /** Zoom entrances and exits: the size, around `anchor` (the middle of the words). */
   scale: number;
+  /** Spins: turned clockwise about `anchor`, in radians. */
+  rotate: number;
   anchor: { x: number; y: number };
+  /** Typing on: only what is left of this x (frame pixels, before moving) is shown; null: all. */
+  clipRight: number | null;
+  /** Typing on: the part shown so far (1 = all). */
+  reveal: number;
   /**
    * Where the preview draws it: a title's words belong to its clip (`main`, or `incoming`
    * during a transition into the next title), so they take part in the transition as in the
@@ -165,21 +171,25 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
   const frame = { width: project.settings.width, height: project.settings.height };
   const layers: TextLayer[] = [];
   const hit = findMainItemAt(project.timeline.main, time);
-  const middle = (text: string, style: TextStyle) => {
+  /** The middle of the words (zooms and spins turn about it) and the edge of typing on. */
+  const place = (effects: TextEffects, text: string, style: TextStyle, reveal: number) => {
     const { box } = layoutText(text, style, frame, measure);
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    return {
+      anchor: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      clipRight:
+        reveal < 1 ? revealEdge(reveal, box, frame, motionWindow(effects, box, frame)) : null,
+    };
   };
   const title = (i: number, offset: Seconds, slot: 'main' | 'incoming') => {
     const it = project.timeline.main[i];
     if (it?.type !== 'title' || it.text.trim() === '') return;
     const motion = textMotion(it, offset, it.duration, frame);
-    const anchor = middle(it.text, it.style);
     layers.push({
       id: it.id,
       text: it.text,
       style: it.style,
       mode: 'frame',
-      anchor,
+      ...place(it, it.text, it.style, motion.reveal),
       slot,
       ...motion,
     });
@@ -199,8 +209,15 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
         ? { creditsHeight: textImageSize(t.text, t.style, frame, mode, measure).height }
         : undefined;
     const motion = textMotion(t, time - t.start, t.duration, frame, credits);
-    const anchor = middle(t.text, t.style);
-    layers.push({ id: t.id, text: t.text, style: t.style, mode, anchor, slot: 'over', ...motion });
+    layers.push({
+      id: t.id,
+      text: t.text,
+      style: t.style,
+      mode,
+      ...place(t, t.text, t.style, motion.reveal),
+      slot: 'over',
+      ...motion,
+    });
   }
   return layers;
 }

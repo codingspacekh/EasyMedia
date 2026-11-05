@@ -11,13 +11,14 @@ import {
 import { filtersFor, transitionById } from '../effects/registry.ts';
 import type {
   AudioItem,
+  AudioTrackIndex,
   MainItem,
   MediaAsset,
   Project,
   ProjectSettings,
   TextEffects,
 } from '../model/types.ts';
-import { ENTRANCE_SECONDS, motionExpressions } from '../text/motion.ts';
+import { motionExpressions } from '../text/motion.ts';
 import { atempoChain, fitFilter, num } from './filters.ts';
 import {
   codecArgs,
@@ -50,6 +51,8 @@ export interface TextImage {
   height: number;
   /** The middle of the words in the frame: zooms grow around it (default: the frame's middle). */
   anchor?: { x: number; y: number };
+  /** The words' box in the frame: spins and typing on need it (default: the whole frame). */
+  box?: { x: number; y: number; width: number; height: number };
 }
 
 export interface RenderPlan {
@@ -220,10 +223,10 @@ export function compileProject(project: Project, options: RenderOptions): Render
     }
   }
 
-  // V13: each music / voiceover clip is read, shaped in its own time, moved to its start
+  // V13: each music / voiceover / sound effect clip is read, shaped in its own time, moved to its start
   // (exact to the sample) and mixed over the clips' sound, which sets the length.
   const voiceover = tracks.filter((t) => t.track === 1);
-  tracks.forEach(({ item, heard }, j) => {
+  tracks.forEach(({ item, track, heard }, j) => {
     const k = inputIndex++;
     const speed = item.speed ?? 1;
     inputs.push(
@@ -241,7 +244,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
     const fadeIn = item.fadeIn > 0 ? `,afade=t=in:st=0:d=${num(item.fadeIn)}` : '';
     const fadeOut =
       item.fadeOut > 0 ? `,afade=t=out:st=${num(heard - item.fadeOut)}:d=${num(item.fadeOut)}` : '';
-    const ducking = item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
+    const ducking = track === 0 && item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
     filters.push(
       `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${tempo}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${ducking}[m${j}]`,
     );
@@ -350,18 +353,18 @@ function assertExportable(project: Project): void {
 
 interface HeardAudio {
   item: AudioItem;
-  track: 0 | 1;
+  track: AudioTrackIndex;
   /** How long it plays on the timeline: its own length, or until the video ends. */
   heard: Seconds;
 }
 
-/** Music and voiceover in mixing order; anything starting after the video ends is left out. */
+/** Music, voiceover and sound effects in mixing order; anything starting after the video ends is left out. */
 function heardAudio(audio: Project['timeline']['audio'], total: Seconds): HeardAudio[] {
   return audio.flatMap((items, track) =>
     items
       .map((item) => ({
         item,
-        track: track as 0 | 1,
+        track: track as AudioTrackIndex,
         heard: Math.min(audioDuration(item), total - item.start),
       }))
       .filter((a) => a.heard > 1e-6),
@@ -433,18 +436,27 @@ function motion(
   image: TextImage,
 ): { filters: string; position: string } {
   const anchor = image.anchor ?? { x: image.width / 2, y: image.height / 2 };
-  const m = motionExpressions(effects, start, duration, image, anchor);
+  const m = motionExpressions(effects, start, duration, image, anchor, image.box);
   const end = start + duration;
   const extra =
-    (m.fadeIn ? `,fade=t=in:st=${num(start)}:d=${ENTRANCE_SECONDS}:alpha=1` : '') +
-    (m.fadeOut
-      ? `,fade=t=out:st=${num(end - ENTRANCE_SECONDS)}:d=${ENTRANCE_SECONDS}:alpha=1`
-      : '');
+    (m.fadeIn ? `,fade=t=in:st=${num(start)}:d=${num(m.fadeIn)}:alpha=1` : '') +
+    (m.fadeOut ? `,fade=t=out:st=${num(end - m.fadeOut)}:d=${num(m.fadeOut)}:alpha=1` : '');
+  // Spinning words are cut out first; typing on keeps what is left of the edge (padded on the
+  // left by the picture's width, cropped at the edge, so the kept part stays where it was).
+  const w = m.window;
+  const cutW = w?.width ?? image.width;
+  const cutH = w?.height ?? image.height;
+  const cut = w ? `,crop=w=${w.width}:h=${w.height}:x=${w.x}:y=${w.y}` : '';
+  const reveal = m.edge
+    ? `,pad=w=${2 * cutW}:h=${cutH}:x=${cutW}:y=0:color=black@0,` +
+      `crop=w=${cutW}:h=${cutH}:x='${w ? `${m.edge}-${w.x}` : m.edge}':y=0`
+    : '';
+  const turn = m.angle ? `,rotate=a='${m.angle}':ow=${m.size}:oh=${m.size}:c=none` : '';
   const scale = m.scale
     ? `,scale=w='max(1,iw*(${m.scale}))':h='max(1,ih*(${m.scale}))':eval=frame`
     : '';
   return {
-    filters: `${fades(start, end, effects)}${extra}${scale}`,
+    filters: `${fades(start, end, effects)}${extra}${cut}${reveal}${turn}${scale}`,
     position: `x=${m.x}:y=${m.y}`,
   };
 }

@@ -16,6 +16,7 @@
   import UpdateNote from './UpdateNote.svelte';
   import UpdatesDialog from './UpdatesDialog.svelte';
   import CandidateDialog from './CandidateDialog.svelte';
+  import SoundEffectsDialog from './SoundEffectsDialog.svelte';
   import Welcome from './Welcome.svelte';
   import AudioMode from './audio/AudioMode.svelte';
   import AudioStatusBar from './audio/AudioStatusBar.svelte';
@@ -125,6 +126,14 @@
         >
           <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
         </button>
+        <button
+          class="tool"
+          aria-label="Sound effects"
+          title="Built-in sound effects: add one at the playhead"
+          onclick={() => (ui.soundEffects = true)}
+        >
+          <Icon name="sfx" /><span class="long">Sound FX</span><span class="short">Sounds</span>
+        </button>
       </div>
       <span class="spacer"></span>
       <button
@@ -209,6 +218,9 @@
   {#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
   {#if $updatesView.dialog}<UpdatesDialog {app} />{/if}
   {#if $candidateView.dialog}<CandidateDialog {app} />{/if}
+  {#if ui.soundEffects && (ui.mode === 'Video' || ui.mode === 'Audio')}
+    <SoundEffectsDialog {app} editor={ui.mode} onclose={() => (ui.soundEffects = false)} />
+  {/if}
   {#if $store.licences !== null}
     <Licences text={$store.licences} onclose={() => app.closeLicences()} />
   {:else if $store.welcome}

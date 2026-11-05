@@ -2,6 +2,7 @@
   "1.5.0": [
     "The app is now called OneEditor, and it updates itself: new versions arrive without reinstalling",
     "Type any speed (such as 1.25×), a clip's start time in Audio mode, and any export size (such as 852 × 480)",
+    "Sound effects: 28 built-in sounds (whoosh, ding, drum roll…) and two sound effects tracks in Video mode; six bold new fonts, ten new transitions and new title animations (slam, type on, spin)",
     "Export audio as OGG; stretch a picture without cropping; place a picture on another picture",
     "Animation: a transparent stage, and the frame as an SVG picture; a see-through group is no darker where its parts overlap",
     "File ▸ Candidate Details…: every save and export suggests the exam's file name, such as Gas_ZZ999_9999",

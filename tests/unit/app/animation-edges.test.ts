@@ -193,6 +193,7 @@ describe('files at the edges', () => {
         remove: async () => {},
         copy: async () => {},
         saveImage: async () => '',
+        saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
         writeBytes: async () => Promise.reject(new Error('disk full')),
       },
       paths: { proxies: '/c', recovery: '/c/recovery.mve', snapshots: '/c', learn: '/c' },

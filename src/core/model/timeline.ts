@@ -202,6 +202,17 @@ export function joinAudioItems(a: AudioItem, b: AudioItem): AudioItem {
   return { ...a, out: b.out, fadeOut: b.fadeOut };
 }
 
+/** V13: Video mode's audio tracks, top to bottom (types.ts AudioTracks). */
+export const AUDIO_TRACK_COUNT = 4;
+export const AUDIO_TRACK_NAMES = ['Music', 'Voiceover', 'Effects 1', 'Effects 2'] as const;
+/** Where "Move to …" puts a sound. */
+export const AUDIO_TRACK_PLACES = [
+  'music track',
+  'voiceover track',
+  'effects track 1',
+  'effects track 2',
+] as const;
+
 /** Items on one audio track may touch but must not overlap. */
 export function assertFitsInTrack(track: readonly AudioItem[], item: AudioItem): void {
   const end = item.start + audioDuration(item);

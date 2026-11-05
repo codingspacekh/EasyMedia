@@ -14,6 +14,8 @@ import {
 import type { Seconds } from '../core/model/time.ts';
 import {
   assertFitsInTrack,
+  AUDIO_TRACK_COUNT,
+  AUDIO_TRACK_PLACES,
   audioDuration,
   findMainItemAt,
   itemDuration,
@@ -30,6 +32,8 @@ import {
 } from '../core/model/timeline.ts';
 import type {
   AudioItem,
+  AudioTrackIndex,
+  AudioTracks,
   ClipFade,
   ClipLook,
   PanZoom,
@@ -48,7 +52,7 @@ import type {
 } from '../core/model/types.ts';
 import type { Command } from './history.ts';
 
-type AudioTrack = 0 | 1;
+type AudioTrack = AudioTrackIndex;
 
 export function importMedia(asset: MediaAsset): Command {
   return {
@@ -119,7 +123,7 @@ export function removeItem(id: Id): Command {
         timeline: {
           main: main.filter((m) => m.id !== id),
           text: text.filter((t) => t.id !== id),
-          audio: [audio[0].filter((a) => a.id !== id), audio[1].filter((a) => a.id !== id)],
+          audio: tidyTracks(audio.map((items) => items?.filter((a) => a.id !== id))),
         },
       };
     },
@@ -296,7 +300,7 @@ export function splitSound(time: Seconds, id: Id, ids: [Id, Id] = [newId(), newI
     label: 'Split',
     apply: (p) => {
       const track = audioTrackOf(p, id);
-      const items = p.timeline.audio[track];
+      const items = itemsOn(p, track);
       const index = items.findIndex((a) => a.id === id);
       const item = items[index]!;
       const offset = time - item.start;
@@ -316,7 +320,7 @@ export function joinSoundWithNext(id: Id): Command {
     label: 'Join',
     apply: (p) => {
       const track = audioTrackOf(p, id);
-      const items = p.timeline.audio[track];
+      const items = itemsOn(p, track);
       const item = items.find((a) => a.id === id)!;
       const end = item.start + audioDuration(item);
       const next = items.find((a) => a.id !== id && Math.abs(a.start - end) < 1e-6);
@@ -331,23 +335,23 @@ export function joinSoundWithNext(id: Id): Command {
   };
 }
 
-/** Moves a sound between the music (0) and voiceover (1) tracks, at the same time. */
+/** Moves a sound to another audio track (music, voiceover, effects 1 or 2), at the same time. */
 export function moveAudioToTrack(id: Id, track: AudioTrack): Command {
   return {
-    label: track === 0 ? 'Move to music track' : 'Move to voiceover track',
+    label: `Move to ${AUDIO_TRACK_PLACES[track]}`,
     apply: (p) => {
       const from = audioTrackOf(p, id);
       if (from === track) return p;
-      const item = p.timeline.audio[from].find((a) => a.id === id)!;
-      assertFitsInTrack(p.timeline.audio[track], item);
+      const item = itemsOn(p, from).find((a) => a.id === id)!;
+      assertFitsInTrack(itemsOn(p, track), item);
       const moved: AudioItem = { ...item };
-      if (track === 1) delete moved.duck;
+      if (track !== 0) delete moved.duck;
       const removed = withAudio(
         p,
         from,
-        p.timeline.audio[from].filter((a) => a.id !== id),
+        itemsOn(p, from).filter((a) => a.id !== id),
       );
-      return withAudio(removed, track, [...p.timeline.audio[track], moved]);
+      return withAudio(removed, track, [...itemsOn(p, track), moved]);
     },
   };
 }
@@ -429,7 +433,7 @@ export function moveTimedItem(id: Id, start: Seconds): Command {
       const track = p.timeline.audio.findIndex((tr) => tr.some((a) => a.id === id));
       if (track < 0)
         throw new EditError('This item could not be found. It may already have been deleted.');
-      const items = p.timeline.audio[track]!;
+      const items = itemsOn(p, track as AudioTrack);
       const moved = { ...items.find((a) => a.id === id)!, start };
       assertFitsInTrack(items, moved);
       return withAudio(
@@ -453,11 +457,11 @@ export function addTextItem(item: TextItem): Command {
 
 export function addAudioItem(item: AudioItem, track: AudioTrack): Command {
   return {
-    label: track === 0 ? 'Add music' : 'Add voiceover',
+    label: track === 0 ? 'Add music' : track === 1 ? 'Add voiceover' : 'Add sound effect',
     apply: (p) => {
       requireAsset(p, item.assetId);
       assertStart(item.start);
-      const items = p.timeline.audio[track];
+      const items = itemsOn(p, track);
       assertFitsInTrack(items, item);
       return withAudio(p, track, [...items, item]);
     },
@@ -711,7 +715,7 @@ function audioTrackOf(p: Project, id: Id): AudioTrack {
 
 function updateAudio(p: Project, id: Id, change: (item: AudioItem) => AudioItem): Project {
   const track = audioTrackOf(p, id);
-  const items = p.timeline.audio[track];
+  const items = itemsOn(p, track);
   const changed = change(items.find((a) => a.id === id)!);
   assertFitsInTrack(items, changed);
   return withAudio(
@@ -771,7 +775,20 @@ function withText(p: Project, text: TextItem[]): Project {
 }
 
 function withAudio(p: Project, track: AudioTrack, items: AudioItem[]): Project {
-  const audio: Project['timeline']['audio'] = [...p.timeline.audio];
+  const audio: (AudioItem[] | undefined)[] = [...p.timeline.audio];
   audio[track] = items;
-  return { ...p, timeline: { ...p.timeline, audio } };
+  return { ...p, timeline: { ...p.timeline, audio: tidyTracks(audio) } };
+}
+
+/** The sounds on a track (an effects track left out of the file is empty). */
+function itemsOn(p: Project, track: AudioTrack): AudioItem[] {
+  return p.timeline.audio[track] ?? [];
+}
+
+/** Music and voiceover always; the effects tracks only up to the last one with a sound. */
+function tidyTracks(tracks: readonly (AudioItem[] | undefined)[]): AudioTracks {
+  const full = Array.from({ length: AUDIO_TRACK_COUNT }, (_, i) => tracks[i] ?? []);
+  let length = AUDIO_TRACK_COUNT;
+  while (length > 2 && full[length - 1]!.length === 0) length--;
+  return full.slice(0, length) as AudioTracks;
 }

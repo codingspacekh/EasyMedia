@@ -69,7 +69,7 @@ Problems with the current options:
 
 ### Non-goals
 
-- Professional features: multi-cam, colour grading wheels, motion tracking, VFX, 3D, plugins, more than 4 tracks.
+- Professional features: multi-cam, colour grading wheels, motion tracking, VFX, 3D, plugins, more than one video track (no overlay or picture-in-picture tracks; V18 makes a picture on a picture instead).
 - Animation: 3D, bones / rigging, scripting (ActionScript / JavaScript), SWF export, interactivity beyond simple buttons (AN18).
 - 4K/8K editing, HDR, RAW camera formats.
 - Burning physical DVD/Blu-ray discs (a DVD-compatible *file* is produced instead).
@@ -114,11 +114,12 @@ Not supported: Windows 7/8, 32-bit Windows, Linux (possible later from the same 
 | ID | Requirement |
 |---|---|
 | **X1** | A project saved on Windows opens on macOS and vice versa (media paths stored **relative** to the project file; *Package project* (P2) for moving between machines). |
-| **X2** | **Bundled fonts** (open-licence: 20 fonts in five groups — sans-serif, serif, display, handwriting, typewriter & retro — including a "Courier-style" font) are used for titles, captions and credits, so text looks identical on both platforms. System fonts can still be chosen but are flagged as "may differ on other computers". |
+| **X2** | **Bundled fonts** (open-licence: 26 fonts in five groups — sans-serif, serif, display, handwriting, typewriter & retro — including a "Courier-style" font) are used for titles, captions and credits, so text looks identical on both platforms. System fonts can still be chosen but are flagged as "may differ on other computers". |
 | **X3** | Keyboard shortcuts follow platform conventions (`Ctrl` on Windows, `⌘` on macOS); menus use the native menu bar on macOS. |
 | **X4** | Microphone access: on macOS the app declares microphone usage (`NSMicrophoneUsageDescription`) and shows a clear message if permission is denied; on Windows it respects the *Microphone privacy* setting. |
 | **X5** | FFmpeg/ffprobe binaries bundled for each platform and architecture (Windows x64, macOS arm64, macOS x64). |
 | **X6** | Exported files are identical in format and settings on both platforms (same FFmpeg version and command lines). |
+| **X8** | **Built-in sound effects** (M17a step 13): 28 short sounds in six groups (buttons & alerts, movement, hits, games, time & tension, celebration) — click, pop, ding, whoosh, riser, boom, drum roll, ta-da… — each with a hint for when to use it, heard with *Play* before it is added. Made by the app's own code (`core/audio/sound-effects.ts`: tones, filtered noise, envelopes), so nothing is downloaded or licensed and every computer makes the same samples. Video mode saves the sound as a WAV in the app's folder and puts it on an effects track (made again if a project moves to another computer); Audio mode (*Tracks ▸ Add a sound effect…*) adds it as a new track at the cursor. |
 | **X7** | Installation and first launch instructions for both platforms, including what to do about the macOS Gatekeeper warning if the app is not notarised (see §15). |
 
 ## 5. Functional requirements — Video editor (syllabus 11.1)
@@ -131,13 +132,13 @@ Not supported: Windows 7/8, 32-bit Windows, Linux (possible later from the same 
 | **V4** | Titles, subtitles and captions | **Title slide**: text on a solid colour or image background. **Caption/subtitle**: text overlay on a clip. Controls: font, size, colour, bold/italic, alignment, line breaks, position (drag or 9-point presets), start time, duration. Subtitles have their own default style (bottom-centre). | Text rendered to PNG → `overlay` with `enable='between(t,a,b)'` |
 | **V5** | Credits, scrolling credits with blank lines | **Credits** object: multi-line text that scrolls bottom to top, on black or over an image/clip, with blank lines kept. Duration sets the scroll speed. | Tall PNG → `overlay` with animated y |
 | **V6** | Ensuring readability of text | Optional outline, drop shadow and semi-transparent background box. **Contrast warning** when text and background colours are too similar. | Drawn into the text PNG |
-| **V7** | Fading effects | Fade in / fade out on clips, images and text; fade to/from black or white; numeric duration. | `fade`, `afade` |
+| **V7** | Fading effects | Fade in / fade out on clips, images and text; fade to/from black or white; numeric duration. Titles, captions and subtitles also get a one-second **entrance** (fly in from any side, rise, drop and bounce, zoom, pop, and the punchy presets *slam down and shake*, *type on* (left to right), *spin in*, *whip in*) and **exit** (fly out, sink, zoom away, *pop out*, *spin away*, *whip off*); the preview moves the words exactly as the export does. | `fade`, `afade`; text: `overlay` position, `scale`, `rotate`, `crop` |
 | **V8** | Pan and zoom | **Presets** (zoom in/out at centre/left/right/top/bottom, pan left→right, etc. — like Movie Maker) and a **custom 2-keyframe mode** (start and end position/zoom — like DaVinci Resolve). | `zoompan` (images), animated `crop`+`scale` (video) |
 | **V9** | Transitions | Library: dissolve/crossfade, fade through black, wipes, slides, push, circle, etc. Numeric duration (default 1.0 s). | `xfade` |
 | **V10** | Extracting a still image | *Snapshot* button at the playhead → save as **PNG, JPG, BMP or TIFF**; option to add the still to the timeline automatically. | `-ss <t> -frames:v 1` |
 | **V11** | Resizing and cropping a still to the video's aspect ratio | Image dialog: width/height with **constrain proportions**, crop to target ratio with a **9-point anchor** (as in Photoshop *Canvas Size*), or **stretch to the frame without cropping** (M17a, 9626/02 M/J/26 Q1), save as a new file. | `scale`, `crop` |
 | **V12** | Inserting a still image | Images are clips with a numeric duration (default 5 s). | `loop`, `-t` |
-| **V13** | Adding / editing / removing audio | Video clip audio can be **muted**, **unlinked** and **deleted**. Two audio tracks (music, voiceover) with start offset, trim, volume, fade in/out. *Add music at the current point*. | `amix`, `volume`, `adelay`, `-an` |
+| **V13** | Adding / editing / removing audio | Video clip audio can be **muted**, **unlinked** and **deleted**. Four audio tracks — music, voiceover and two **sound effects** tracks (M17a step 13; the effects tracks are saved only when used, so such a project still opens in 1.4) — with start offset, trim, volume, fade in/out; only music is lowered under the voiceover. *Add music at the current point*; *Sound FX* adds a built-in sound effect (X8) at the playhead. | `amix`, `volume`, `adelay`, `-an` |
 | **V14** | Altering speed | Speed 0.25× – 4× (presets + numeric); clip length recalculates automatically (e.g. 6.3 s at 1.5× → 4.2 s). Option to keep or mute audio. | `setpts`, chained `atempo` |
 | **V15** | Filters and colour correction | Brightness, contrast, saturation, black & white, sepia, cyan tone, blur, sharpen, invert. Apply to a whole clip or to a segment created by *Split*. Multiple effects per clip. | `eq`, `hue`, `colorchannelmixer`, `boxblur`, `unsharp`, `negate` |
 | **V16** | Export in MP4, AVI, MOV, WMV | Export dialog: choose container and codec. **Lossy** and genuinely **lossless** options for each container (see table below). | See table below |
@@ -325,7 +326,7 @@ These cover the **theory** parts of the syllabus that ordinary editors don't tea
 1. **Proxy editing.** On import, each video is converted in the background to a 640×360 H.264 proxy. The preview always plays proxies; export always uses the originals. This is the single biggest performance gain.
 2. **Approximate preview, exact export.** There is no real-time compositing engine. Preview uses at most two `<video>` elements, CSS filters (which map almost one-to-one onto FFmpeg `eq` / `hue` / `boxblur`) and CSS opacity for fades and transitions. A **"Render preview of selection"** button produces a frame-exact check using FFmpeg.
 3. **Text rendered once, to PNG.** Titles, captions and credits are drawn by the UI's canvas and saved as transparent PNGs, which FFmpeg overlays. Fonts in the export therefore match the preview exactly.
-4. **Deliberately small timeline**: 1 main video track (magnetic, Movie Maker style), 1 text track, 2 audio tracks. This covers every task in both coursebooks and the practice exam paper.
+4. **Deliberately small timeline**: 1 main video track (magnetic, Movie Maker style), 1 text track, 4 audio tracks (music, voiceover, two sound effects tracks since M17a step 13). This covers every task in both coursebooks and the practice exam paper; still one video track, so the preview needs at most two `<video>` elements.
 5. **All encoding/decoding by FFmpeg**, never in JavaScript. Hardware encoders are used when detected (VideoToolbox on macOS; Quick Sync / AMF / NVENC on Windows), with `libx264 -preset veryfast` as the fallback.
 6. **Audio as in-memory PCM.** Decoded once by FFmpeg; a 3-minute stereo clip is ≈ 64 MB as 32-bit float. Effects work on the selected region in a Web Worker; undo stores snapshots of only the changed region.
 

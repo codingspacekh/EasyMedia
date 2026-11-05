@@ -394,6 +394,52 @@ test('more choices: a Lobster title with the Neon look pops in; the preview matc
   await app.close();
 });
 
+test('V7 title presets: a title types on, then spins in; the preview matches the export half way', async () => {
+  test.setTimeout(300_000);
+  const { app, window: page } = await launchApp();
+  const output = join(dir, 'presets.mp4');
+  await answerDialogs(app, { exportTo: output });
+  await page.getByRole('button', { name: 'Add title' }).click();
+  await setText(page, 'TYPE ON');
+  await setSize(page, '160');
+  await setTime(page, 'Duration', '3');
+  const near = (a: number, b: number) => Math.abs(a - b);
+  // A click on the ruler at 0.5 s lands 1 px (0.025 s) later: frame 16 of the 30 fps export.
+  const HALF = 16 / 30;
+
+  // Type on: half way, the words are cut at the same edge in both.
+  await page.getByLabel('Entrance', { exact: true }).selectOption('type-on');
+  await exportTo(page, output);
+  const whole = (await grayFrame(output, 2)).brightBox()!;
+  const typing = (await grayFrame(output, HALF)).brightBox()!;
+  expect(typing.x1).toBeLessThan(whole.x1 - 100);
+  await seek(page, 0.5);
+  await expect
+    .poll(async () => {
+      const box = await previewTextBox(page);
+      return box ? near(box.x1, typing.x1) : 999;
+    })
+    .toBeLessThanOrEqual(24);
+
+  // Spin: half way, the turned words fill the same box in both.
+  await page.getByLabel('Entrance', { exact: true }).selectOption('spin');
+  await exportTo(page, output);
+  const turning = (await grayFrame(output, HALF)).brightBox()!;
+  expect(turning.y1 - turning.y0).toBeGreaterThan(whole.y1 - whole.y0 + 50); // tilted
+  await seek(page, 0.5);
+  await expect
+    .poll(async () => {
+      const box = await previewTextBox(page);
+      if (!box) return 999;
+      return Math.max(
+        near(box.x1 - box.x0, turning.x1 - turning.x0),
+        near(box.y1 - box.y0, turning.y1 - turning.y0),
+      );
+    })
+    .toBeLessThanOrEqual(24);
+  await app.close();
+});
+
 test('more choices: two titles joined by a clock wipe chosen from the transition tiles', async () => {
   test.setTimeout(240_000);
   const { app, window: page } = await launchApp();

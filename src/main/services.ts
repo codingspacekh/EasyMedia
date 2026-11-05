@@ -192,7 +192,10 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
  * Project files are written to a temporary file and renamed, so a crash never leaves half a file
  * (ARCHITECTURE §9). Text pictures go into `textFolder`, the app's own folder.
  */
-export const projectFiles = (textFolder: string): ProjectFiles => ({
+export const projectFiles = (
+  textFolder: string,
+  soundFolder = join(dirname(textFolder), 'sounds'),
+): ProjectFiles => ({
   read: (path) => readFile(path, 'utf8'),
   async write(path, text) {
     const temp = `${path}.saving`;
@@ -212,6 +215,12 @@ export const projectFiles = (textFolder: string): ProjectFiles => ({
     await mkdir(textFolder, { recursive: true });
     const path = join(textFolder, `${name}.png`);
     await writeFile(path, png);
+    return path;
+  },
+  async saveSound(name, wav) {
+    await mkdir(soundFolder, { recursive: true });
+    const path = join(soundFolder, `${name}.wav`);
+    await writeFile(path, wav);
     return path;
   },
   async writeBytes(path, bytes) {

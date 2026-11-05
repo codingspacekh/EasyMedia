@@ -3,6 +3,7 @@ import type { AppState, AssetStatus } from '../../../src/app/app.ts';
 import { createHistory } from '../../../src/app/history.ts';
 import { previewAt, soundsAt, textLayersAt } from '../../../src/app/preview.ts';
 import { toMediaUrl } from '../../../src/core/media-url.ts';
+import { layoutText } from '../../../src/core/text/layout.ts';
 import {
   createAudioItem,
   createImageClip,
@@ -172,6 +173,34 @@ describe('text drawn over the preview (same pictures as the export)', () => {
     // A caption starts at the top left: its middle is there too, not in the frame's middle.
     expect(caption!.anchor.x).toBeLessThan(400);
     expect(caption!.anchor.y).toBeLessThan(200);
+  });
+
+  it('V7 title presets: a typing-on caption is shown left of the edge; a spinning one is turned', () => {
+    const s = withText();
+    const project = s.history.present;
+    const withEntrance = (entrance: 'type-on' | 'spin') => ({
+      ...s,
+      history: createHistory({
+        ...project,
+        timeline: {
+          ...project.timeline,
+          text: [{ ...project.timeline.text[0]!, entrance }],
+        },
+      }),
+    });
+    const [typing] = textLayersAt(withEntrance('type-on'), 2.5, measure);
+    // "The lake" is 80 px wide at the top left; half way, the edge is half way across it.
+    const { box } = layoutText(
+      project.timeline.text[0]!.text,
+      project.timeline.text[0]!.style,
+      { width: 1920, height: 1080 },
+      measure,
+    );
+    expect(typing!.clipRight).toBeCloseTo(box.x + box.width / 2);
+    expect(textLayersAt(withEntrance('type-on'), 4, measure)[0]!.clipRight).toBeNull();
+    const [spinning] = textLayersAt(withEntrance('spin'), 2.5, measure);
+    expect(spinning!.rotate).toBeCloseTo(-Math.PI / 4);
+    expect(spinning!.clipRight).toBeNull();
   });
 
   it("during a transition the next title's words come in with it (on the incoming layer)", () => {
@@ -376,5 +405,27 @@ describe('V13 music and voiceover heard in the preview', () => {
   it('lowers the music by 6 dB while the voiceover plays', () => {
     expect(soundsAt(withSound(true), 4)[0]!.volume).toBeCloseTo(0.8, 5);
     expect(soundsAt(withSound(true), 5.5)[0]!.volume).toBeCloseTo(0.8 * 0.501, 3);
+  });
+
+  it('V13 plays the sound effects tracks too, never lowered under the voiceover', () => {
+    const s = withSound(true);
+    const project = s.history.present;
+    const vo = project.timeline.audio[1][0]!;
+    const effects = {
+      ...project,
+      timeline: {
+        ...project.timeline,
+        audio: [
+          project.timeline.audio[0],
+          project.timeline.audio[1],
+          [{ ...vo, id: 'e1', fadeIn: 0, fadeOut: 0, volume: 1, duck: true }],
+          [{ ...vo, id: 'e2', fadeIn: 0, fadeOut: 0, volume: 0.5 }],
+        ] as typeof project.timeline.audio,
+      },
+    };
+    const heard = soundsAt({ ...s, history: createHistory(effects) }, 5.5);
+    expect(heard.map((x) => x.itemId)).toEqual(['m', 'vo', 'e1', 'e2']);
+    expect(heard[2]!.volume).toBe(1);
+    expect(heard[3]!.volume).toBe(0.5);
   });
 });

@@ -16,6 +16,7 @@
   import { handleDrag, moveDrag } from '../app/timeline-edit.ts';
   import { formatTime } from '../core/model/time.ts';
   import {
+    AUDIO_TRACK_NAMES,
     audioDuration,
     findMainItemAt,
     layoutMain,
@@ -26,9 +27,14 @@
   import { fileNameOf } from '../core/project/relocate.ts';
   import { withWhy } from '../core/effects/help.ts';
   import { toMediaUrl } from '../core/media-url.ts';
+  import { mediaName } from '../core/audio/sound-effects.ts';
   import Icon from './Icon.svelte';
   import { shortcutAllowed } from './keys.ts';
   import { ui } from './ui-state.svelte.ts';
+
+  /** V13: how each audio track's clips look: music, voiceover, then two sound effects tracks. */
+  const LANE_KIND = ['music', 'voice', 'fx', 'fx'] as const;
+  const LANE_ICON = ['music', 'mic', 'sfx', 'sfx'] as const;
 
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
@@ -116,7 +122,7 @@
 
   function soundName(item: AudioItem): string {
     const asset = project.media.find((m) => m.id === item.assetId);
-    return asset ? fileNameOf(asset.path) : 'Missing file';
+    return asset ? mediaName(asset, fileNameOf(asset.path)) : 'Missing file';
   }
 
   /** The waveform of the part of the sound that is used, mirrored around the middle (V13). */
@@ -326,6 +332,15 @@
           <div class="ts">Audio 2</div>
         </div>
       </div>
+      {#each [2, 3] as track (track)}
+        <div class="th fx">
+          <span class="dot"></span>
+          <div>
+            <div class="tn">{AUDIO_TRACK_NAMES[track]}</div>
+            <div class="ts">Audio {track + 1}</div>
+          </div>
+        </div>
+      {/each}
     </div>
 
     <div class="scroller">
@@ -441,17 +456,18 @@
           {/each}
         </div>
 
-        {#each [0, 1] as track (track)}
+        {#each [0, 1, 2, 3] as track (track)}
           <div
             class="lane track audio-lane"
-            aria-label={track === 0 ? 'Music track' : 'Voiceover track'}
+            class:fx-lane={track >= 2}
+            aria-label="{AUDIO_TRACK_NAMES[track]} track"
           >
-            {#each project.timeline.audio[track]! as item (item.id)}
+            {#each project.timeline.audio[track] ?? [] as item (item.id)}
               {@const timed = timedAudio(item)}
               {@const name = soundName(item)}
               {@const wave = waveform(item)}
               <button
-                class="clip sound {track === 0 ? 'music' : 'voice'}"
+                class="clip sound {LANE_KIND[track]}"
                 aria-label="{name} {timed.duration.toFixed(2)} s"
                 aria-pressed={$store.selection === item.id}
                 class:moving={moving?.id === item.id}
@@ -469,7 +485,7 @@
                   >
                 {/if}
                 <span class="sl">
-                  <Icon name={track === 0 ? 'music' : 'mic'} size={12} />
+                  <Icon name={LANE_ICON[track]!} size={12} />
                   <span class="name">{name}</span>
                   <span class="len">starts {item.start.toFixed(2)} s</span>
                 </span>
@@ -531,6 +547,9 @@
     flex: 1;
     min-height: 0;
     display: flex;
+    /* A short panel scrolls its tracks up and down; the names stay beside their tracks. */
+    overflow-y: auto;
+    align-items: flex-start;
   }
   .heads {
     width: 150px;
@@ -569,6 +588,22 @@
   .th.voice,
   .audio-lane {
     height: 46px;
+  }
+  /* V13: sound effects are short, so their two tracks are thinner. */
+  .th.fx,
+  .audio-lane.fx-lane {
+    height: 32px;
+  }
+  .th.fx .dot {
+    background: var(--c-fx);
+  }
+  .th.fx .tn,
+  .th.fx .ts {
+    line-height: 1.15;
+  }
+  /* A short sound shows its name, not where it starts (that is in the inspector). */
+  .clip.sound.fx .len {
+    display: none;
   }
   .tn {
     font-weight: 600;
@@ -775,6 +810,11 @@
   .clip.sound.voice {
     background: color-mix(in srgb, var(--c-voice) 35%, var(--bg-1));
   }
+  .clip.sound.fx {
+    background: color-mix(in srgb, var(--c-fx) 35%, var(--bg-1));
+    top: 3px;
+    bottom: 3px;
+  }
   .clip.sound.moving {
     cursor: grabbing;
     outline: 2px dashed #fff;
@@ -805,6 +845,9 @@
   }
   .clip.sound.voice .wave path {
     fill: var(--c-voice);
+  }
+  .clip.sound.fx .wave path {
+    fill: var(--c-fx);
   }
   .clip.sound .fade-in,
   .clip.sound .fade-out {

@@ -16,6 +16,7 @@
   import { fileNameOf } from '../core/project/relocate.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import AudioInspector from './AudioInspector.svelte';
+  import type { AudioTrackIndex } from '../core/model/types.ts';
   import ClipLookInspector from './ClipLookInspector.svelte';
   import PercentField from './PercentField.svelte';
   import Icon from './Icon.svelte';
@@ -35,11 +36,11 @@
   );
   const item = $derived(laid?.item);
   const textItem = $derived(project.timeline.text.find((t) => t.id === $store.selection));
-  /** A selected music or voiceover clip, with its track. */
+  /** A selected music, voiceover or sound effect clip, with its track. */
   const sound = $derived.by(() => {
-    for (const track of [0, 1] as const) {
-      const found = project.timeline.audio[track].find((a) => a.id === $store.selection);
-      if (found) return { item: found, track };
+    for (const [track, items] of project.timeline.audio.entries()) {
+      const found = items.find((a) => a.id === $store.selection);
+      if (found) return { item: found, track: track as AudioTrackIndex };
     }
     return null;
   });

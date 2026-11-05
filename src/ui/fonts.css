@@ -164,6 +164,42 @@
   src: url('../../resources/fonts/Bangers-Regular.ttf') format('truetype');
 }
 @font-face {
+  font-family: 'Bungee';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/Bungee-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Black Ops One';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/BlackOpsOne-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Titan One';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/TitanOne-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Archivo Black';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/ArchivoBlack-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Russo One';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/RussoOne-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Bowlby One';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../resources/fonts/BowlbyOne-Regular.ttf') format('truetype');
+}
+@font-face {
   font-family: 'Lobster';
   font-style: normal;
   font-weight: 400;

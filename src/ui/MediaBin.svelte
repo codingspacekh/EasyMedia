@@ -7,6 +7,7 @@
   import { fileNameOf } from '../core/project/relocate.ts';
   import CombineDialog from './CombineDialog.svelte';
   import CropDialog from './CropDialog.svelte';
+  import { mediaName } from '../core/audio/sound-effects.ts';
   import Icon from './Icon.svelte';
 
   let { app }: { app: App } = $props();
@@ -87,7 +88,7 @@
   {/if}
   <ul class="grid">
     {#each shown as asset (asset.id)}
-      {@const name = fileNameOf(asset.path)}
+      {@const name = mediaName(asset, fileNameOf(asset.path))}
       {@const status = $store.assets[asset.id]}
       {@const src = picture(asset, status)}
       <li class="media" class:failed={status?.state === 'failed'}>

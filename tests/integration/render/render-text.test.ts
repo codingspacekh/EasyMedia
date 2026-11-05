@@ -154,4 +154,36 @@ describe('text in the exported video', () => {
     expect(falling === null || falling.y1 < 440).toBe(true); // still above its place
     expect((await grayFrame(drop, 2)).brightBox()!.y0).toBeCloseTo(440, -1);
   });
+
+  it('V7 title presets: type on, spin and slam, as the preview shows them', async () => {
+    const words = { ...box, box: { x: 760, y: 440, width: 400, height: 200 } };
+    const caption = (entrance: 'type-on' | 'spin' | 'slam'): TextItem => ({
+      ...setItemDuration(createTextItem('caption', 'Box', 0, { id: 'c' }), 3),
+      entrance,
+    });
+    // Type on: half way, the edge is half way across (from 38 px before the box to 38 px after).
+    const typing = await render([black(3)], [caption('type-on')], { c: words }, 'type-on.mp4');
+    const half = (await grayFrame(typing, 0.5)).brightBox()!;
+    expect(half.x0).toBeCloseTo(760, -1);
+    expect(half.x1).toBeCloseTo(960, -1);
+    const typed = (await grayFrame(typing, 2)).brightBox()!;
+    expect([typed.x0, typed.x1, typed.y0, typed.y1]).toEqual([760, 1159, 440, 639]);
+
+    // Spin: at 0.5 s the box is 87.5 % of its size and turned −45°, still about its middle.
+    const spin = await render([black(3)], [caption('spin')], { c: words }, 'spin.mp4');
+    const turning = (await grayFrame(spin, 0.5)).brightBox()!;
+    expect(turning.x1 - turning.x0).toBeCloseTo((350 + 175) * Math.SQRT1_2, -1);
+    expect((turning.x0 + turning.x1) / 2).toBeCloseTo(960, -1);
+    expect((turning.y0 + turning.y1) / 2).toBeCloseTo(540, -1);
+    const still = (await grayFrame(spin, 2)).brightBox()!;
+    expect(still.x0).toBeCloseTo(760, -1);
+    expect(still.x1 - still.x0).toBeCloseTo(400, -1);
+
+    // Slam: at 0.3 s it is 2.28 × its size (3 − 2 × 0.6²) and 60 % shown.
+    const slam = await render([black(3)], [caption('slam')], { c: words }, 'slam.mp4');
+    const falling = (await grayFrame(slam, 0.3)).brightBox(60)!;
+    expect(falling.x1 - falling.x0).toBeCloseTo(912, -1);
+    expect((falling.x0 + falling.x1) / 2).toBeCloseTo(960, -1);
+    expect((await grayFrame(slam, 2)).brightBox()!.x0).toBeCloseTo(760, -1);
+  });
 });

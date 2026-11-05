@@ -239,6 +239,8 @@ export interface ProjectFiles {
   copy(from: string, to: string): Promise<void>;
   /** Saves a PNG in the app's own folder (not the student's) and returns its path. */
   saveImage(name: string, png: Uint8Array): Promise<string>;
+  /** X8: saves a built-in sound effect's WAV in the app's own folder and returns its path. */
+  saveSound(name: string, wav: Uint8Array): Promise<string>;
   /** Writes a file the student named (an exported picture, AN15). */
   writeBytes(path: string, bytes: Uint8Array): Promise<void>;
 }
@@ -279,6 +281,8 @@ export interface RenderedText {
   height: number;
   /** For a frame image: the middle of the words (zoom entrances and exits grow around it). */
   anchor?: { x: number; y: number };
+  /** For a frame image: the words' box (spinning words are cut out, typing on runs across it). */
+  box?: { x: number; y: number; width: number; height: number };
 }
 
 export interface AppPaths {

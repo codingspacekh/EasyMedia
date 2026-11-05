@@ -137,6 +137,7 @@ describe('P2 main-process IPC handlers', () => {
         remove: async () => {},
         copy: async (from, to) => void copied.push(`${from}→${to}`),
         saveImage: async () => '',
+        saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
         writeBytes: async () => {},
       },
     });
@@ -161,6 +162,7 @@ describe('P2 main-process IPC handlers', () => {
           saved.push(`${name}:${png.length}`);
           return `/cache/text/${name}.png`;
         },
+        saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
         writeBytes: async (path, bytes) => {
           saved.push(`${path}:${bytes.length}`);
         },
@@ -178,6 +180,36 @@ describe('P2 main-process IPC handlers', () => {
     expect(saved).toEqual(['text-ab_1:3']);
     const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
     expect(allow.has('/cache/text/text-ab_1.png')).toBe(true);
+  });
+
+  it('X8 saves a sound effect only by a plain name, into the app folder, and lets it be played', async () => {
+    const saved: string[] = [];
+    const { api } = inProcessBridge(createMockMediaEngine(), {
+      files: {
+        read: async () => '',
+        write: async () => {},
+        remove: async () => {},
+        copy: async () => {},
+        saveImage: async () => '',
+        saveSound: async (name, wav) => {
+          saved.push(`${name}:${wav.length}`);
+          return `/cache/sounds/${name}.wav`;
+        },
+        writeBytes: async () => {},
+      },
+    });
+    for (const bad of ['../evil', '/etc/x', 'a b', 'C:\\x', '', 'Pop', 'x'.repeat(60)]) {
+      expect(await api.invoke('project:saveSound', bad, new Uint8Array(3))).toMatchObject({
+        ok: false,
+      });
+    }
+    expect(await api.invoke('project:saveSound', 'tick-tock', new Uint8Array(4))).toEqual({
+      ok: true,
+      value: '/cache/sounds/tick-tock.wav',
+    });
+    expect(saved).toEqual(['tick-tock:4']);
+    const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
+    expect(allow.has('/cache/sounds/tick-tock.wav')).toBe(true);
   });
 
   it('V11 crops only pictures the app has opened, and lets the preview show the new one', async () => {

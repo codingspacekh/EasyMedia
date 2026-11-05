@@ -76,11 +76,18 @@
       ctx.save();
       ctx.globalAlpha = layer.opacity;
       ctx.translate(layer.x, layer.y);
-      if (layer.scale !== 1) {
-        // Zoom entrances and exits grow around the middle of the words, as in the export.
+      if (layer.scale !== 1 || layer.rotate !== 0) {
+        // Zooms and spins grow and turn about the middle of the words, as in the export.
         ctx.translate(layer.anchor.x, layer.anchor.y);
         ctx.scale(layer.scale, layer.scale);
+        ctx.rotate(layer.rotate);
         ctx.translate(-layer.anchor.x, -layer.anchor.y);
+      }
+      if (layer.clipRight !== null) {
+        // Typing on: only the words left of the edge (in the picture, so it moves with it).
+        ctx.beginPath();
+        ctx.rect(0, 0, layer.clipRight, settings.height);
+        ctx.clip();
       }
       drawText(ctx, layer.text, layer.style, settings, layer.mode);
       ctx.restore();

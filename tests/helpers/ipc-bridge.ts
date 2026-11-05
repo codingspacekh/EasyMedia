@@ -60,6 +60,7 @@ export function inProcessBridge(engine: MediaEngine, overrides: Partial<MainServ
       remove: async (path) => void files.delete(path),
       copy: async () => {},
       saveImage: async (name) => `/cache/text/${name}.png`,
+      saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
       writeBytes: async () => {},
     },
     microphoneAccess: async () => true,

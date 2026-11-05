@@ -88,6 +88,7 @@ export const TRANSITION_LIST: TransitionDef[] = [
   t('wipedown', 'Wipes', 'Wipe down', 'wipedown', WIPE),
   t('push', 'Wipes', 'Soft wipe left', 'smoothleft', SOFT),
   t('softright', 'Wipes', 'Soft wipe right', 'smoothright', SOFT),
+  t('softup', 'Wipes', 'Soft wipe up', 'smoothup', SOFT),
   t(
     'clock',
     'Wipes',
@@ -102,6 +103,20 @@ export const TRANSITION_LIST: TransitionDef[] = [
     'wipetl',
     'The next clip grows from one corner of the screen. It is a lively wipe that leads the eye across the picture.',
   ),
+  t(
+    'diagonalbr',
+    'Wipes',
+    'Diagonal from bottom right',
+    'diagbr',
+    'The next clip sweeps in at a slant from the bottom-right corner. A slanted edge feels faster and more energetic than a straight one.',
+  ),
+  t(
+    'diagonaltl',
+    'Wipes',
+    'Diagonal from top left',
+    'diagtl',
+    'The next clip sweeps in at a slant from the top-left corner, the way we read. It is a bold, quick change for a lively video.',
+  ),
   // ---- Slides ----
   t('slide', 'Slides', 'Push left', 'slideleft', PUSH),
   t('pushright', 'Slides', 'Push right', 'slideright', PUSH),
@@ -111,6 +126,8 @@ export const TRANSITION_LIST: TransitionDef[] = [
   t('coverright', 'Slides', 'Slide in from the left', 'coverright', COVER),
   t('revealleft', 'Slides', 'Slide away to the left', 'revealleft', REVEAL),
   t('revealright', 'Slides', 'Slide away to the right', 'revealright', REVEAL),
+  t('coverup', 'Slides', 'Slide in from the bottom', 'coverup', COVER),
+  t('revealup', 'Slides', 'Slide away to the top', 'revealup', REVEAL),
   // ---- Shapes ----
   t(
     'circle',
@@ -154,6 +171,13 @@ export const TRANSITION_LIST: TransitionDef[] = [
     'horzopen',
     'The next clip opens from a line across the middle, like a letterbox or an eye opening. It makes a calm, wide reveal.',
   ),
+  t(
+    'closedoors',
+    'Shapes',
+    'Doors close',
+    'vertclose',
+    'The next clip closes in from both sides like two doors shutting on the old one. It feels like the end of a scene or leaving a place.',
+  ),
   // ---- Fun ----
   t(
     'zoom',
@@ -189,6 +213,34 @@ export const TRANSITION_LIST: TransitionDef[] = [
     'Wind',
     'hlwind',
     'The old clip is blown away in streaks, as if by the wind. It suits outdoor, weather or action scenes.',
+  ),
+  t(
+    'windup',
+    'Fun',
+    'Blown upwards',
+    'vuwind',
+    'Streaks of the next clip shoot up from the bottom, like flames or a rocket taking off. Punchy, for sport, games or a big reveal.',
+  ),
+  t(
+    'slicesup',
+    'Fun',
+    'Slices up',
+    'vuslice',
+    'The next clip rises from the bottom in thin strips, like a shop shutter going up. It is eye-catching, so keep it for an important moment.',
+  ),
+  t(
+    'squeezeside',
+    'Fun',
+    'Squeeze sideways',
+    'squeezev',
+    'The old clip is squeezed thin from the sides and disappears. It is quick and cartoon-like, good for comedy or a surprise.',
+  ),
+  t(
+    'melt',
+    'Fun',
+    'Melt',
+    'distance',
+    'The old picture melts away, its colours turning into the next clip. It looks strange and dreamy: use it for a flashback or a dream.',
   ),
 ];
 
@@ -240,6 +292,20 @@ export function transitionLook(xfade: string, p: number): TransitionLook {
       return { from: {}, to: soft('to right') };
     case 'smoothright':
       return { from: {}, to: soft('to left') };
+    case 'smoothup':
+    case 'vuslice':
+    case 'vuwind':
+      return { from: {}, to: soft('to bottom') };
+    case 'diagbr':
+      return { from: {}, to: soft('to bottom right') };
+    case 'diagtl':
+      return { from: {}, to: soft('to top left') };
+    case 'coverup':
+      return { from: {}, to: { transform: `translate(0, ${pct(q)})` } };
+    case 'revealup':
+      return { from: { transform: `translate(0, ${pct(-p)})` }, to: {}, above: 'from' };
+    case 'vertclose':
+      return { from: { clipPath: `inset(0 ${pct(p / 2)})` }, to: {}, above: 'from' };
     case 'radial':
       return { from: {}, to: { mask: `conic-gradient(black ${p * 360}deg, transparent 0)` } };
     case 'slideleft':
@@ -324,6 +390,8 @@ export function transitionLook(xfade: string, p: number): TransitionLook {
       };
     case 'squeezeh':
       return { from: { transform: `scale(1, ${q})` }, to: { opacity: p } };
+    case 'squeezev':
+      return { from: { transform: `scale(${q}, 1)` }, to: { opacity: p } };
     case 'hlslice':
     case 'hlwind':
       return { from: {}, to: soft('to right') };

@@ -96,6 +96,7 @@ export interface Channels {
   'project:remove': { args: [path: string]; result: null };
   'project:copy': { args: [from: string, to: string]; result: null };
   'project:saveImage': { args: [name: string, png: Uint8Array]; result: string };
+  'project:saveSound': { args: [name: string, wav: Uint8Array]; result: string };
   'project:writeBytes': { args: [path: string, bytes: Uint8Array]; result: null };
   /** AN15: the HTML web animation's player script. */
   'page:player': { args: []; result: string };
@@ -166,6 +167,7 @@ export const CHANNELS: readonly Channel[] = [
   'project:remove',
   'project:copy',
   'project:saveImage',
+  'project:saveSound',
   'project:writeBytes',
   'page:player',
   'page:picture',

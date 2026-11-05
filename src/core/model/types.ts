@@ -23,6 +23,8 @@ export interface MediaAsset {
   duration?: Seconds;
   /** Whether the file has a sound track, from the probe at import. Missing = treated as no sound. */
   hasAudio?: boolean;
+  /** X8: a built-in sound effect's id; the app makes the file again if it is missing. */
+  soundEffect?: string;
 }
 
 /** One filter from the effect registry with its settings (V15). */
@@ -131,10 +133,32 @@ export interface TextStyle {
 
 /** How text arrives on screen (Book B: "an appropriate animation effect"). Lasts 1 s. */
 export type Entrance =
-  'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down' | 'rise' | 'drop' | 'zoom' | 'pop';
+  | 'none'
+  | 'fly-left'
+  | 'fly-right'
+  | 'fly-up'
+  | 'fly-down'
+  | 'rise'
+  | 'drop'
+  | 'zoom'
+  | 'pop'
+  | 'slam'
+  | 'type-on'
+  | 'spin'
+  | 'whip';
 
 /** How text leaves the screen, in its last second. */
-export type Exit = 'none' | 'fly-left' | 'fly-right' | 'fly-up' | 'fly-down' | 'sink' | 'zoom';
+export type Exit =
+  | 'none'
+  | 'fly-left'
+  | 'fly-right'
+  | 'fly-up'
+  | 'fly-down'
+  | 'sink'
+  | 'zoom'
+  | 'pop'
+  | 'spin'
+  | 'whip';
 
 /** Fades, entrance and exit shared by title slides and text items (V7 for text). */
 export interface TextEffects {
@@ -189,6 +213,10 @@ export interface AudioItem {
   speed?: number;
 }
 
+/** Video mode's audio tracks: music, voiceover and, when used, two sound effects tracks. */
+export type AudioTracks = [AudioItem[], AudioItem[], ...AudioItem[][]];
+export type AudioTrackIndex = 0 | 1 | 2 | 3;
+
 export interface Project {
   schemaVersion: 2;
   name: string;
@@ -198,8 +226,11 @@ export interface Project {
     /** Magnetic: items play one after another with no gaps. */
     main: MainItem[];
     text: TextItem[];
-    /** Track 0 = music, track 1 = voiceover. */
-    audio: [AudioItem[], AudioItem[]];
+    /**
+     * Track 0 = music, 1 = voiceover, 2 and 3 = sound effects (V13). The effects tracks are left
+     * out while empty, so a project without effects opens in versions before 1.5.
+     */
+    audio: AudioTracks;
   };
   /** Audio mode's work, saved with the project (P1); absent when there is none. */
   audioMode?: AudioModeSession;

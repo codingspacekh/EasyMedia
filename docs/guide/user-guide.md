@@ -82,14 +82,15 @@ left. Click **Add** on an item to put it at the end of the timeline.
 
 In the **Text** tab:
 
-- **Font** opens a list of 20 fonts in groups, each written in its own letters. Use the same font
+- **Font** opens a list of 26 fonts in groups, each written in its own letters. Use the same font
   for all the words in a video unless the task says otherwise.
 - **Ready-made looks** (Neon, Gold, Fire, Comic, Highlighter…) change the colours and effects in one
   click. **Readability and effects** has a shadow, an outline, a box, glow, gradient and 3D, and a
   second colour. The note under it says whether the words are easy to read.
 - **Position**: the 3 × 3 grid (for example top right), and left / centre / right lines.
-- **Effects**: fade in and out, an **Entrance** (fly in, rise, drop and bounce, zoom, pop) and an
-  **Exit** (fly out, sink, zoom away).
+- **Effects**: fade in and out, an **Entrance** (fly in, rise, drop and bounce, zoom, pop, slam
+  down and shake, type on, spin in, whip in) and an **Exit** (fly out, sink, zoom away, pop out,
+  spin away, whip off).
 
 ### 5. Effects and transitions
 
@@ -98,7 +99,7 @@ In a clip's **Effects** tab:
 - **Fade** in and out, to black or to white.
 - **Filters & colour**: brightness, contrast, saturation, black and white, sepia, blur and more.
 - **Pan & zoom**: move across or into a still picture.
-- **Transition into this clip**: 33 transitions in five groups. Rest the mouse on a tile to see it
+- **Transition into this clip**: 43 transitions in five groups. Rest the mouse on a tile to see it
   move. Choose how long it lasts underneath.
 
 ### 6. Sound in a video
@@ -108,6 +109,9 @@ In a clip's **Effects** tab:
 - **Add music** puts a sound file on the music track at the playhead. A voiceover goes on the
   second track. Drag sound clips to move them; select one to change its volume, fades and speed.
   Tick **Lower under voiceover** on the music to make the words easier to hear.
+- **Sound FX** opens the built-in sound effects (a whoosh, a ding, a drum roll…): **Play** to hear
+  one, **Add** to put it at the playhead on the **Effects 1** track (or **Effects 2** if that is
+  busy). Move, trim and change its volume like music.
 
 ### 7. Snapshot (a still from the video)
 
@@ -132,7 +136,8 @@ Audio mode edits sound on **tracks**, like Audacity.
 ### Tracks and clips
 
 - **Import audio** opens a sound file (MP3, WAV, M4A, AAC, FLAC, OGG, or the sound of a video) as a
-  new track. **Tracks ▸ Add new mono / stereo track** adds an empty one.
+  new track. **Tracks ▸ Add new mono / stereo track** adds an empty one. **Tracks ▸ Add a sound
+  effect…** adds a built-in sound effect as a new track at the cursor.
 - Each track holds **clips**. With the **Clip tool** (the arrows button, chosen at the start):
   - click a clip to select it (the playhead goes where you clicked);
   - drag a clip to move it in time;
