@@ -19,6 +19,7 @@ export { UNEXPECTED } from '../problems.ts';
 const NO_RENDERER: StageRenderer = {
   renderPng: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
   pixels: () => Promise.reject(new EditError('Tracing needs the OneEditor app.')),
+  textTops: async () => ({}), // the SVG then keeps the font's own top edge
 };
 const NO_PAGE_ASSETS: PageAssets = {
   playerScript: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),

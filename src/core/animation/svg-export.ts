@@ -5,6 +5,7 @@
 // masks as clip paths. Pure: no DOM.
 import { drawStage, type CanvasGradientLike, type StageCanvas } from './draw.ts';
 import type { AnimationDoc, Id } from './types.ts';
+import { fontFaceRule, genericFamily, type FontFile } from '../text/fonts.ts';
 
 type Matrix = [number, number, number, number, number, number];
 
@@ -15,6 +16,9 @@ function n(v: number): string {
   const r = Math.round(v * 1000) / 1000;
   return String(Object.is(r, -0) ? 0 : r);
 }
+
+/** A canvas font without its size: '700 48px "Inter"' → '700 "Inter"' (AN22 text tops). */
+export const fontKey = (font: string): string => font.replace(/ [\d.]+px /, ' ');
 
 const escape = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -53,6 +57,11 @@ class SvgCanvas implements StageCanvas {
   font = '10px sans-serif';
   textAlign = 'start';
   textBaseline = 'alphabetic';
+
+  private readonly textTops: Readonly<Record<string, number>>;
+  constructor(textTops: Readonly<Record<string, number>> = {}) {
+    this.textTops = textTops;
+  }
 
   private m: Matrix = [1, 0, 0, 1, 0, 0];
   private dash: number[] = [];
@@ -283,14 +292,21 @@ class SvgCanvas implements StageCanvas {
     const font = /^(italic )?(\d+) ([\d.]+)px "(.*)"$/.exec(this.font);
     const [, italic, weight, size, family] = font ?? [];
     const anchor = { left: 'start', start: 'start', center: 'middle', right: 'end', end: 'end' };
+    // Text drawn from the top of the em square (as the stage draws it) goes on the baseline the
+    // app measured for the font: "text-before-edge" follows the font's own ascender instead,
+    // which puts a tall-lettered font (Pacifico) far lower than the stage shows it.
+    const top = font && this.textBaseline === 'top' ? this.textTops[fontKey(this.font)] : undefined;
+    if (top !== undefined) y += top * Number(size);
     const baseline =
-      this.textBaseline === 'top'
-        ? 'text-before-edge'
-        : this.textBaseline === 'middle'
-          ? 'central'
-          : 'alphabetic';
+      top !== undefined
+        ? 'alphabetic'
+        : this.textBaseline === 'top'
+          ? 'text-before-edge'
+          : this.textBaseline === 'middle'
+            ? 'central'
+            : 'alphabetic';
     const fontAttrs = font
-      ? ` font-family="${escape(family!)}" font-size="${size}" font-weight="${weight}"${italic ? ' font-style="italic"' : ''}`
+      ? ` font-family="'${escape(family!)}', ${genericFamily(family!)}" font-size="${size}" font-weight="${weight}"${italic ? ' font-style="italic"' : ''}`
       : '';
     this.body.push(
       `<text x="${n(x)}" y="${n(y)}"${fontAttrs} text-anchor="${anchor[this.textAlign as keyof typeof anchor] ?? 'start'}" dominant-baseline="${baseline}" xml:space="preserve"${paint}${this.opacity()}${this.transform()}>${escape(text)}</text>`,
@@ -348,10 +364,11 @@ class SvgCanvas implements StageCanvas {
   }
 
   /** The finished SVG document. */
-  finish(width: number, height: number): string {
+  finish(width: number, height: number, styles: readonly string[] = []): string {
     this.flush();
     for (; this.groups > 0; this.groups--) this.body.push('</g>');
-    const defs = [...this.gradients.map(String), ...this.clips];
+    const style = styles.length ? [`<style>${styles.join('\n')}</style>`] : [];
+    const defs = [...style, ...this.gradients.map(String), ...this.clips];
     return (
       `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n` +
       (defs.length ? `<defs>${defs.join('')}</defs>\n` : '') +
@@ -363,17 +380,26 @@ class SvgCanvas implements StageCanvas {
 
 /**
  * AN22: the stage at `frame` as an SVG document. `pictures` gives each picture used as a data URL
- * (one the app could not read is drawn as the stage draws a missing picture: a dashed box).
+ * (one the app could not read is drawn as the stage draws a missing picture: a dashed box);
+ * `fonts` the bundled fonts its text uses, put inside so it looks the same on any computer
+ * (9626/04 M/J/18 TTS10 in a script font, M/J/21 GlobalLogo in a sans-serif); `textTops` where
+ * each font's baseline sits below the top the stage draws text from (StageRenderer.textTops).
  */
 export function stageSvg(
   doc: AnimationDoc,
   frame = 0,
   pictures: Readonly<Record<Id, string>> = {},
+  fonts: readonly { face: FontFile; url: string }[] = [],
+  textTops: Readonly<Record<string, number>> = {},
 ): string {
-  const canvas = new SvgCanvas();
+  const canvas = new SvgCanvas(textTops);
   drawStage(canvas, doc, {
     frame,
     image: (id) => (pictures[id] ? ({ href: pictures[id] } satisfies Href) : null),
   });
-  return canvas.finish(doc.stage.width, doc.stage.height);
+  return canvas.finish(
+    doc.stage.width,
+    doc.stage.height,
+    fonts.map((f) => fontFaceRule(f.face, f.url)),
+  );
 }

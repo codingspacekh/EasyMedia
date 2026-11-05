@@ -122,35 +122,34 @@ describe('V10 one frame for a snapshot', () => {
       { ...still('s', 5), effects: [{ effectId: 'video.sepia', params: {} }] },
     ]);
 
+  /** The stretch of the finished video a snapshot keeps: [start, end) in seconds. */
+  const kept = (frameAt: number) => {
+    const args = compileProject(p(), { ...options, frameAt }).args.join(' ');
+    const m = /\[vout\]trim=start=([\d.]+):end=([\d.]+)\[snap\]/.exec(args)!;
+    return [Number(m[1]), Number(m[2])];
+  };
+
   it('renders the frame at the time asked, with no sound and no video encoder', () => {
     const plan = compileProject(p(), { ...options, frameAt: 12.5 });
-    expect(plan.args.slice(-9)).toEqual([
-      '-map',
-      '[vout]',
-      '-ss',
-      '12.5',
-      '-frames:v',
-      '1',
-      '-update',
-      '1',
-      '-an',
-    ]);
+    // A short stretch of the video up to the time is kept and its last frame written.
+    expect(plan.args.slice(-5)).toEqual(['-map', '[snap]', '-update', '1', '-an']);
+    expect(plan.args).not.toContain('-frames:v');
     expect(plan.args).not.toContain('-c:v');
     expect(plan.hasAudio).toBe(false);
     expect(plan.args.join(' ')).toContain('colorchannelmixer'); // the look is in the frame
   });
 
-  it('the playhead inside the last frame takes that frame (it seeks just before it starts)', () => {
-    // M17 exam trial: at 14.99 s of a 15 s video at 30 fps the last frame starts at 14.9666…; a
-    // seek to 14.99 left FFmpeg no frame to write ("Something went wrong").
-    const seek = (frameAt: number) => {
-      const args = compileProject(p(), { ...options, frameAt }).args;
-      return Number(args[args.indexOf('-ss', args.indexOf('[vout]')) + 1]);
-    };
-    expect(seek(449 / 30)).toBeCloseTo(448.5 / 30, 5);
-    expect(seek(14.99)).toBeCloseTo(448.5 / 30, 5);
-    expect(seek(14.9)).toBe(14.9); // any other time is kept: the first frame at or after it
-    expect(seek(0)).toBe(0);
+  it('the frame written is the first at or after the time, or the last picture there is', () => {
+    // M17 exam trial and 9626/02 M/J/18: a seek to a frame the finished video did not have (its
+    // clips round their own frame counts) left FFmpeg nothing to write. The kept stretch ends one
+    // frame after the time, so its last frame is the one at or after it when there is one, and
+    // the video's last picture when there is not.
+    const [start, end] = kept(14.99);
+    expect(start).toBeCloseTo(14.74, 5);
+    expect(end).toBeCloseTo(14.99 + 1 / 30, 5);
+    expect(kept(12.5)[0]).toBeCloseTo(12.25, 5);
+    expect(kept(0)[0]).toBe(0);
+    expect(kept(0)[1]).toBeCloseTo(1 / 30, 5);
   });
 
   it('explains a time outside the video', () => {

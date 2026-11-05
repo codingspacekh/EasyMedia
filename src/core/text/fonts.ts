@@ -60,6 +60,25 @@ export interface FontFile {
   file: string;
 }
 
+/** The CSS rule that brings a bundled font into a web page or an SVG, given its file as data. */
+export const fontFaceRule = (face: FontFile, url: string): string =>
+  `@font-face { font-family: '${face.family}'; font-style: ${face.style}; ` +
+  `font-weight: ${face.weight}; src: url('${url}') format('truetype'); }`;
+
+const GENERIC: Record<FontGroup, string> = {
+  'Sans-serif': 'sans-serif',
+  Serif: 'serif',
+  Display: 'sans-serif',
+  Handwriting: 'cursive',
+  'Typewriter & retro': 'monospace',
+};
+
+/** The general family of the same kind (sans-serif, serif, cursive, monospace) for a font. */
+export const genericFamily = (name: string): string => {
+  const font = FONTS.find((f) => f.name === name);
+  return font ? GENERIC[font.group] : 'sans-serif';
+};
+
 const face = (
   family: string,
   style: FontFile['style'],

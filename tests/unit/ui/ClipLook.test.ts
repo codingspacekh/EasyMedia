@@ -107,6 +107,17 @@ describe('fades, filters, pan & zoom and transitions in the inspector (screens 0
     expect(item().transitionIn).toBeUndefined();
   });
 
+  it('V9 a transition into a clip under a second long starts short enough to fit (9626/02 O/N/21: a 0.53 s still)', async () => {
+    const { item } = await twoClips(1); // the photo, 5 s
+    await type('Duration', '0.6');
+    const picker = screen.getByRole('radiogroup', { name: 'Transition' });
+    await fireEvent.click(within(picker).getByRole('radio', { name: /^Dissolve/ }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(item().transitionIn).toEqual({ effectId: 'transition.dissolve', duration: 0.3 });
+    // Its length can then be typed, as for any transition.
+    expect(screen.getByLabelText('Transition length')).toBeTruthy();
+  });
+
   it('V9 the transitions are shown in groups: fades, wipes, slides, shapes and fun', async () => {
     await twoClips(1);
     const picker = screen.getByRole('radiogroup', { name: 'Transition' });

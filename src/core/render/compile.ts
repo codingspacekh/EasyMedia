@@ -64,18 +64,22 @@ export interface RenderPlan {
 }
 
 const SAMPLE_RATE = 48000;
+/** Seconds of the last picture a video clip may be padded with (the trim keeps only what it needs). */
+const HOLD = 1;
 const SILENCE = 'anullsrc=r=48000:cl=stereo';
 const AUDIO_FORMAT = 'aformat=sample_rates=48000:channel_layouts=stereo';
 
 /**
- * V10: where a snapshot seeks in the finished video. FFmpeg keeps the first frame at or after the
- * time, so a playhead inside the last frame (9.99 s of a 10 s video at 30 fps: that frame starts at
- * 9.9666…) left it no frame to write. There the seek goes half a frame before the last frame
- * starts, clear of rounding; any other time is kept.
+ * V10: the stretch of the finished video a snapshot keeps, [start, end): it ends one frame after
+ * the time, and its last frame is written. That is the first frame at or after the time, as the
+ * preview shows it; past the video's last picture it is that last picture. (A seek to the frame
+ * at or after the time found nothing there: the finished video can have a frame fewer than the
+ * timeline's length suggests, as each clip rounds its own frame count — M17 exam trial,
+ * 9626/02 M/J/18 186MCP.wmv.)
  */
-function seekTo(time: Seconds, total: Seconds, fps: number): Seconds {
-  const last = Math.ceil(total * fps - 1e-6) - 1;
-  return time > last / fps - 1e-6 ? Math.max(0, (last - 0.5) / fps) : time;
+const SNAPSHOT_LOOK_BACK = 0.25;
+function snapshotStretch(time: Seconds, fps: number): [Seconds, Seconds] {
+  return [Math.max(0, time - SNAPSHOT_LOOK_BACK), time + 1 / fps];
 }
 
 export function compileProject(project: Project, options: RenderOptions): RenderPlan {
@@ -132,7 +136,12 @@ export function compileProject(project: Project, options: RenderOptions): Render
       );
       const setpts =
         item.speed === 1 ? 'setpts=PTS-STARTPTS' : `setpts=(PTS-STARTPTS)/${num(item.speed)}`;
-      filters.push(`[${k}:v]${setpts},${fitFilter(settings)},trim=duration=${d}${vOut}`);
+      // The last picture is held for any moment the file's pictures stop short of the clip's
+      // length (a file's stated length can run a frame or two past its last picture: 9626/02
+      // M/J/18 186MCP.wmv), so the clip is never shorter than planned and its last frame exists.
+      filters.push(
+        `[${k}:v]${setpts},${fitFilter(settings)},tpad=stop_mode=clone:stop_duration=${HOLD},trim=duration=${d}${vOut}`,
+      );
       if (hasAudio) {
         if (soundOf(item)) {
           const tempo = atempoChain(item.speed)
@@ -283,9 +292,11 @@ export function compileProject(project: Project, options: RenderOptions): Render
       args: [
         ...inputs,
         '-filter_complex',
-        filters.join(';'),
-        ...['-map', '[vout]', '-ss', num(seekTo(frameAt, total, settings.fps)), '-frames:v', '1'],
-        ...['-update', '1', '-an'],
+        [
+          ...filters,
+          `[vout]trim=start=${num(snapshotStretch(frameAt, settings.fps)[0])}:end=${num(snapshotStretch(frameAt, settings.fps)[1])}[snap]`,
+        ].join(';'),
+        ...['-map', '[snap]', '-update', '1', '-an'],
       ],
       duration: total,
       hasAudio: false,

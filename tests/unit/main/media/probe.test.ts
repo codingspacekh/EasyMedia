@@ -44,6 +44,20 @@ describe('T1 parseProbe: what is inside a media file', () => {
     });
   });
 
+  it('a video is as long as its pictures, when its sound runs on after them (9626/02 M/J/17 173t2.mp4)', () => {
+    const info = parseProbe({
+      format: fmt('mov,mp4,m4a,3gp,3g2,mj2', { duration: '19.359002' }),
+      streams: [
+        { ...h264, duration: '19.285933' },
+        { ...aac, duration: '19.359002' },
+      ],
+    });
+    expect(info.duration).toBeCloseTo(19.285933, 6);
+    // A sound file keeps the whole length; a video whose stream gives no length keeps the file's.
+    expect(parseProbe({ format: fmt('mp3'), streams: [aac] }).duration).toBe(10);
+    expect(parseProbe({ format: fmt('matroska,webm'), streams: [h264, aac] }).duration).toBe(10);
+  });
+
   it.each([
     ['mov,mp4,m4a,3gp,3g2,mj2', { major_brand: 'qt  ' }, 'mov'],
     ['avi', undefined, 'avi'],

@@ -179,6 +179,27 @@ describe('looks in the exported video', () => {
     expect(await engine.renderFrame(project, 2.99, snap, { projectDir: dir })).toBe(snap);
     expect((await engine.probe(snap)).video).toBeTruthy();
   });
+
+  it('V10 a clip whose pictures end a little before its planned end still gives its last frame and its full length (9626/02 M/J/18 186MCP.wmv)', async () => {
+    // The file says 10.07 s, as 186MCP.wmv says 12.074 s; its pictures end at 10.00 s.
+    const long = { ...hd, id: 'long', duration: 10.07 };
+    const p = createProject({ name: 'short pictures' });
+    const item = trimVideo(createVideoClip(long, { id: 'v' }), { in: 0, out: 10.07 }, long);
+    const project: Project = {
+      ...p,
+      media: [long, halves],
+      timeline: { ...p.timeline, main: [still('s', 1), item] },
+    };
+    const snap = join(dir, 'short-pictures.png');
+    expect(await engine.renderFrame(project, 11.06, snap, { projectDir: dir })).toBe(snap);
+    expect((await engine.probe(snap)).video).toBeTruthy();
+    // The export is as long as the timeline: the last picture is held for the missing moment.
+    const file = join(dir, 'short-pictures.mp4');
+    await engine.renderVideo(project, file, { projectDir: dir }).done;
+    expect(Math.abs((await measure(file)).videoDuration - 11.07)).toBeLessThanOrEqual(
+      FRAME + 0.001,
+    );
+  });
 });
 
 function title(colour: string, id: string): TitleSlide {

@@ -10,6 +10,7 @@ import {
   sequenceName,
   type AnimationFormat,
 } from '../../core/animation/export.ts';
+import { fontsUsed } from '../../core/animation/draw.ts';
 import { fontsNeeded, picturesUsed, webPage } from '../../core/animation/html.ts';
 import type { AnimationDoc, Id } from '../../core/animation/types.ts';
 import { TRANSPARENT } from '../../core/animation/rules.ts';
@@ -96,15 +97,27 @@ export function exportActions(ctx: AnimationContext) {
   async function exportSvg(doc: AnimationDoc, frame: number, output: string) {
     patch({ busy: 'Exporting…' });
     try {
-      const read = await Promise.all(
-        picturesUsed(doc).map(async (p) => ({
-          picture: p,
-          url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
-        })),
-      );
+      const [read, fonts, tops] = await Promise.all([
+        Promise.all(
+          picturesUsed(doc).map(async (p) => ({
+            picture: p,
+            url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
+          })),
+        ),
+        // The fonts go inside, as in the web page: an SVG shows its words in the right font on
+        // any computer.
+        Promise.all(
+          fontsNeeded(doc).map(async (face) => ({
+            face,
+            url: await pageAssets.fontDataUrl(face.file),
+          })),
+        ),
+        // Where each font's baseline sits, measured as the stage draws it.
+        renderer.textTops(fontsUsed(doc.layers.flatMap((l) => l.objects))),
+      ]);
       const pictures: Record<Id, string> = {};
       for (const { picture, url } of read) if (url) pictures[picture.id] = url;
-      await files.write(output, stageSvg(doc, frame, pictures));
+      await files.write(output, stageSvg(doc, frame, pictures, fonts, tops));
       const missing = read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path));
       patch({
         message: {

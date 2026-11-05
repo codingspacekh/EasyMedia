@@ -93,8 +93,39 @@ describe('AN22 SVG picture of a frame', () => {
       stageWith([{ ...createText('Tom & <Jerry>', { x: 10, y: 20, size: 64 }), bold: true }]),
     );
     expect(svg).toMatch(
-      /<text x="[-\d.]+" y="[-\d.]+" font-family="Inter" font-size="64" font-weight="700" text-anchor="start" dominant-baseline="text-before-edge" xml:space="preserve" fill="#000000"( transform="[^"]*")?>Tom &amp; &lt;Jerry&gt;<\/text>/,
+      /<text x="[-\d.]+" y="[-\d.]+" font-family="'Inter', sans-serif" font-size="64" font-weight="700" text-anchor="start" dominant-baseline="text-before-edge" xml:space="preserve" fill="#000000"( transform="[^"]*")?>Tom &amp; &lt;Jerry&gt;<\/text>/,
     );
+  });
+
+  it('carries the fonts its text uses, so it looks the same where they are not installed (9626/04 M/J/18 TTS10, M/J/21 GlobalLogo)', () => {
+    const doc = stageWith([
+      { ...createText('TTS is 10!', { x: 10, y: 20, size: 64 }), font: 'Pacifico' },
+      { ...createText('Tawara Global', { x: 10, y: 120, size: 32 }), font: 'Noto Serif' },
+    ]);
+    const svg = stageSvg(doc, 0, {}, [
+      {
+        face: { family: 'Pacifico', style: 'normal', weight: '400', file: 'Pacifico.ttf' },
+        url: 'data:font/ttf;base64,UEFD',
+      },
+    ]);
+    expect(svg).toContain(
+      "<style>@font-face { font-family: 'Pacifico'; font-style: normal; font-weight: 400; src: url('data:font/ttf;base64,UEFD') format('truetype'); }</style>",
+    );
+    // And a general family of the same kind, should a viewer still not draw the font.
+    expect(svg).toContain(`font-family="'Pacifico', cursive"`);
+    expect(svg).toContain(`font-family="'Noto Serif', serif"`);
+  });
+
+  it('text is put on the baseline the stage draws it on, when the app has measured the font', () => {
+    const doc = stageWith([
+      { ...createText('TTS is 10!', { x: 10, y: 20, size: 50 }), font: 'Pacifico' },
+    ]);
+    const yOf = (svg: string) => Number(/<text x="[-\d.]+" y="([-\d.]+)"/.exec(svg)![1]);
+    const measured = stageSvg(doc, 0, {}, [], { '400 "Pacifico"': 1.2 });
+    // 1.2 × 50 px lower than the top it is drawn from, on the alphabetic baseline.
+    expect(yOf(measured) - yOf(stageSvg(doc))).toBeCloseTo(60, 6);
+    expect(measured).toContain('dominant-baseline="alphabetic"');
+    expect(stageSvg(doc)).toContain('dominant-baseline="text-before-edge"');
   });
 
   it('a picture is put in as data, at its place and size', () => {

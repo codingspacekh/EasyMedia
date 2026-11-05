@@ -72,7 +72,7 @@ export const ANIMATION_FORMATS: readonly AnimationFormatInfo[] = [
     ],
     cons: [
       'A single frame: nothing moves',
-      'Pictures inside make it big; text looks different where its font is not installed',
+      'Pictures and the fonts of its words are put inside: that makes it bigger',
     ],
   },
 ];

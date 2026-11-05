@@ -91,7 +91,7 @@ export const SAMPLE_RATES: { rate: number; hint: string }[] = [
   { rate: 96000, hint: 'Blu-ray, studio' },
 ];
 
-const LOSSY_BIT_RATES = [32, 64, 96, 128, 192, 320];
+const LOSSY_BIT_RATES = [32, 64, 96, 128, 160, 192, 256, 320];
 /** LAME's quality levels for a variable bit rate, and the average kbps they give for music. */
 const VBR: Record<number, { q: number; kbps: number }> = {
   320: { q: 0, kbps: 245 },

@@ -266,6 +266,12 @@ export interface PageAssets {
 /** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */
 export interface StageRenderer {
   renderPng(doc: AnimationDoc, frame?: number): Promise<Uint8Array>;
+  /**
+   * AN22: for each canvas font ('700 48px "Inter"'), how far below the top the stage draws text
+   * from its alphabetic baseline sits, in em, keyed without the size ('700 "Inter"'). An SVG puts
+   * its words on that baseline, so they sit where the stage shows them in every font.
+   */
+  textTops(fonts: string[]): Promise<Record<string, number>>;
   /** AN5: a picture's pixels, scaled down to at most `maxSide` px on its longer side. */
   pixels(path: string, maxSide: number): Promise<Pixels>;
 }

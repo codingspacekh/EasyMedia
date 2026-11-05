@@ -15,6 +15,7 @@ interface FfprobeStream {
   bit_rate?: string;
   display_aspect_ratio?: string;
   disposition?: { attached_pic?: number };
+  duration?: string;
 }
 
 export interface FfprobeJson {
@@ -60,7 +61,11 @@ export function parseProbe(json: FfprobeJson): ProbeInfo {
     container: containerName(format, kind, v?.codec_name),
     sizeBytes: Number(format.size ?? 0),
   };
-  const duration = Number(format.duration);
+  // A video is as long as its pictures: phones and cameras often record a little more sound
+  // after the last picture, and "the last frame" must be a picture (9626/02 M/J/17 173t2.mp4).
+  const pictures = kind === 'video' ? Number(v?.duration) : NaN;
+  const whole = Number(format.duration);
+  const duration = pictures > 0 && !(pictures > whole) ? pictures : whole;
   if (kind !== 'image' && Number.isFinite(duration)) info.duration = duration;
   const bitRate = Number(format.bit_rate);
   if (Number.isFinite(bitRate)) info.bitRate = bitRate;

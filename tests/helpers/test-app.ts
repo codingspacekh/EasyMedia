@@ -43,6 +43,9 @@ export function testApp(
   const saveSound = vi.fn<ProjectFiles['saveSound']>(async (name) => `/cache/sounds/${name}.wav`);
   const stageRenderer = {
     renderPng: vi.fn<StageRenderer['renderPng']>(async () => new Uint8Array([137, 80, 78, 71])),
+    textTops: vi.fn<StageRenderer['textTops']>(async (fonts) =>
+      Object.fromEntries(fonts.map((f) => [f.replace(/ [\d.]+px /, ' '), 0.9])),
+    ),
     pixels: vi.fn<StageRenderer['pixels']>(async () => ({
       width: 1,
       height: 1,

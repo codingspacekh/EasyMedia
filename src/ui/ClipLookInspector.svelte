@@ -26,6 +26,14 @@
   const fade = $derived(item.fade ?? { in: 0, out: 0, colour: 'black' as const });
   const length = $derived(itemDuration(item));
   const QUICK = [0.5, 1, 1.5, 2];
+  /** A new transition lasts 1 s, or half the shorter clip when that is under 2 s, so it fits. */
+  const firstLength = $derived.by(() => {
+    const main = app.store.get().history.present.timeline.main;
+    const before = main[index - 1];
+    if (!before) return 1;
+    const half = Math.min(itemDuration(before), length) / 2;
+    return half >= 1 ? 1 : Math.max(0.1, Math.floor(half * 10) / 10);
+  });
   const inUse = $derived(new Set((item.effects ?? []).map((e) => e.effectId)));
   /** What each filter does to a little picture, as a CSS filter: a preview on its button. */
   const SWATCH: Record<string, string> = {
@@ -198,7 +206,10 @@
       value={current?.effectId ?? null}
       onchange={(id) =>
         edit(
-          setTransition(item.id, id ? { effectId: id, duration: current?.duration ?? 1 } : null),
+          setTransition(
+            item.id,
+            id ? { effectId: id, duration: current?.duration ?? firstLength } : null,
+          ),
         )}
     />
     {#if current}

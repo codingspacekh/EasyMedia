@@ -1,6 +1,7 @@
 // StageRenderer (AN15) on an OffscreenCanvas: the stage drawn by core/animation/draw.ts — the
 // same drawing as the preview — and saved as a PNG. Pictures are fetched through media://.
 import { drawStage, fontsUsed, type StageCanvas } from '../../core/animation/draw.ts';
+import { fontKey } from '../../core/animation/svg-export.ts';
 import { withLayers } from './layers.ts';
 import type { AnimationDoc } from '../../core/animation/types.ts';
 import type { Pixels } from '../../core/animation/trace.ts';
@@ -111,6 +112,27 @@ export function createCanvasStageRenderer({
       drawStage(withLayers(ctx), doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());
+    },
+
+    async textTops(fonts: string[]): Promise<Record<string, number>> {
+      await loadFonts(fonts);
+      const ctx = makeCanvas(8, 8).getContext('2d') as
+        (StageCanvas & { measureText(t: string): { actualBoundingBoxAscent: number } }) | null;
+      if (!ctx) throw new Error('No canvas is available to measure the text.');
+      const tops: Record<string, number> = {};
+      for (const font of fonts) {
+        const key = fontKey(font);
+        if (key in tops) continue;
+        // The same letters measured from the alphabetic baseline and from the top the stage
+        // draws from: the difference is how far the baseline sits below that top.
+        ctx.font = font.replace(/ [\d.]+px /, ' 100px ');
+        ctx.textBaseline = 'alphabetic';
+        const fromBaseline = ctx.measureText('Hg').actualBoundingBoxAscent;
+        ctx.textBaseline = 'top';
+        const fromTop = ctx.measureText('Hg').actualBoundingBoxAscent;
+        tops[key] = Math.round(fromBaseline - fromTop) / 100;
+      }
+      return tops;
     },
 
     async pixels(path: string, maxSide: number): Promise<Pixels> {

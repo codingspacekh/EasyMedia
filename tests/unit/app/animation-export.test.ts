@@ -52,6 +52,20 @@ describe('exporting the animation (AN15)', () => {
     expect(s.state().message?.text).toBe('Saved Apple_ZZ999_9999.svg.');
   });
 
+  it('AN22 SVG: the fonts of its text are inside it, as in the web page', async () => {
+    const s = setup();
+    s.anim.addText({ x: 20, y: 20 });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Logo.svg');
+    await s.anim.exportAnimation('svg');
+    const svg = s.disk.get('/work/Logo.svg')!;
+    expect(svg).toMatch(
+      /@font-face \{ font-family: 'Inter'; [^}]*src: url\('data:font\/ttf;base64,/,
+    );
+    // Its words sit on the baseline the stage draws them on (measured by the renderer).
+    expect(s.stageRenderer.textTops).toHaveBeenCalledWith(['400 48px "Inter"']);
+    expect(svg).toContain('dominant-baseline="alphabetic"');
+  });
+
   it('MP4: frames 0–71 drawn, made into a 600 × 400, 24 fps, 3.00 s H.264 video', async () => {
     const s = setup();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.mp4');

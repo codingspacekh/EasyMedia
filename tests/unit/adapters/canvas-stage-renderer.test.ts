@@ -56,6 +56,32 @@ function doc() {
 }
 
 describe('createCanvasStageRenderer', () => {
+  it("AN22 measures how far below the top of its letters each font's baseline sits, as the stage draws them (for SVG text)", async () => {
+    const loaded: string[][] = [];
+    const fonts: string[] = [];
+    // A canvas whose letters reach 80 px above the alphabetic baseline at 100 px; with the
+    // baseline at the top of the em square they reach 12 px above it (Pacifico-like).
+    const ctx = {
+      font: '',
+      textBaseline: 'alphabetic',
+      measureText() {
+        fonts.push(this.font);
+        return { actualBoundingBoxAscent: this.textBaseline === 'top' ? -12 : 80 };
+      },
+    };
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: () => ({
+        getContext: () => ctx as unknown as StageCanvas,
+        convertToBlob: async () => new Blob(),
+      }),
+      loadFonts: async (f) => void loaded.push(f),
+    });
+    const tops = await renderer.textTops(['italic 400 64px "Pacifico"', '700 20px "Inter"']);
+    expect(loaded).toEqual([['italic 400 64px "Pacifico"', '700 20px "Inter"']]);
+    expect(tops).toEqual({ 'italic 400 "Pacifico"': 0.92, '700 "Inter"': 0.92 });
+    expect(fonts).toContain('italic 400 100px "Pacifico"');
+  });
+
   it('draws the stage at its size with the loaded pictures and fonts, and returns PNG bytes', async () => {
     const calls: string[] = [];
     const canvas = fakeCanvas(calls);

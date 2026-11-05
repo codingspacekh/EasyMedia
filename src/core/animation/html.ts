@@ -2,7 +2,7 @@
 // and fonts as data: URLs, and the player (core/animation/player.ts with draw.ts, bundled into one
 // script at build time), so it plays at the stage's size, looping, in any browser without the
 // internet — and with the Pause / Continue buttons of AN18.
-import { faceFor, type FontFile } from '../text/fonts.ts';
+import { faceFor, fontFaceRule, type FontFile } from '../text/fonts.ts';
 import { BUTTON_FONT } from './draw.ts';
 import { pictureIdsOf } from './layers.ts';
 import { fileNameOf } from '../project/relocate.ts';
@@ -67,9 +67,7 @@ const scriptJson = (value: unknown): string => JSON.stringify(value).replace(/</
 /** Script text that cannot end its <script> early. */
 const scriptCode = (code: string): string => code.replace(/<\/script/gi, '<\\/script');
 
-const fontFace = ({ face, url }: WebPageAssets['fonts'][number]): string =>
-  `@font-face { font-family: '${face.family}'; font-style: ${face.style}; ` +
-  `font-weight: ${face.weight}; src: url('${url}') format('truetype'); }`;
+const fontFace = ({ face, url }: WebPageAssets['fonts'][number]): string => fontFaceRule(face, url);
 
 export function webPage(doc: AnimationDoc, assets: WebPageAssets): string {
   const { width, height } = doc.stage;
