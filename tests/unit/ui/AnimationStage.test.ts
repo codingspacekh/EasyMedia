@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { tick } from 'svelte';
+import { pickColour } from '../../helpers/colour.ts';
 import App from '../../../src/ui/App.svelte';
 import { animUi } from '../../../src/ui/animation/animation-ui.svelte.ts';
 import type {
@@ -389,9 +390,7 @@ describe('toolbar, status bar and stage settings', () => {
     await fireEvent.change(within(dialog).getByLabelText('Length', { exact: true }), {
       target: { value: '72' },
     });
-    await fireEvent.change(within(dialog).getByLabelText('Colour swatch'), {
-      target: { value: '#123456' },
-    });
+    await pickColour('Colour swatch', '#123456', { inside: dialog });
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
     expect(s.doc().stage).toMatchObject({
       width: 600,
@@ -492,9 +491,7 @@ describe('the Properties panel in detail', () => {
     expect(s.objects()[0]!.fill).toEqual({ kind: 'solid', colour: '#FF1CC8' });
     await fillColour('red');
     expect(screen.getByRole('alert').textContent).toMatch(/colour such as/);
-    await fireEvent.change(screen.getAllByLabelText(/Colour swatch/)[1]!, {
-      target: { value: '#00ff00' },
-    });
+    await pickColour('Colour swatch', '#00ff00', { index: 1 });
     expect(s.objects()[0]!.stroke!.colour).toBe('#00ff00');
     await typeIn('Width', '3.5');
     await fireEvent.change(screen.getByLabelText('Style'), { target: { value: 'dotted' } });

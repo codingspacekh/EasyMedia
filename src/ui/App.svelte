@@ -251,7 +251,10 @@
     gap: 10px;
     padding: 0 12px;
     min-width: 0;
-    overflow: hidden;
+    /* Too wide a header is cut off at the side (N10) but not below it: the Tracks and Effect
+       menus open downwards from here (issues/audio-2.png). */
+    overflow-x: clip;
+    overflow-y: visible;
     background: var(--bg-1);
     border-bottom: 1px solid var(--line);
   }

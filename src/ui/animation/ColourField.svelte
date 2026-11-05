@@ -1,6 +1,7 @@
 <script lang="ts">
   // A colour of the Properties panel (AN6): a swatch to pick from and the hex code to type, as
   // tasks give colours like #F4C8EE. Applied when the code is complete or the picker changes.
+  import ColourPicker from '../ColourPicker.svelte';
   let {
     label,
     value,
@@ -21,20 +22,15 @@
     const hex = raw.startsWith('#') ? raw : `#${raw}`;
     error = /^#[0-9a-f]{6}$/i.test(hex) ? commit(hex) : 'Type a colour such as #F4C8EE.';
   }
-  function fromPicker(event: Event): void {
-    error = commit((event.currentTarget as HTMLInputElement).value);
-  }
 </script>
 
 <div class="field">
   <label for={id}>{label}</label>
   <div class="box">
-    <input
-      class="swatch"
-      type="color"
-      aria-label="{label} swatch"
+    <ColourPicker
+      label="{label} swatch"
       value={value.toLowerCase()}
-      onchange={fromPicker}
+      onchange={(colour) => (error = commit(colour))}
       {disabled}
     />
     <input
@@ -68,18 +64,21 @@
     background: var(--bg-2);
     border: 1px solid var(--line);
     border-radius: 4px;
-    padding: 0 6px;
+    padding: 0 6px 0 2px;
   }
   .box:focus-within {
     border-color: var(--accent);
   }
-  .swatch {
-    width: 22px;
-    height: 20px;
-    padding: 0;
+  .box :global(.colour-button) {
+    height: 22px;
+    min-width: 22px;
+    padding: 2px;
     border: 0;
     background: transparent;
-    cursor: pointer;
+  }
+  .box :global(.colour-button .chip) {
+    width: 18px;
+    height: 18px;
   }
   input[type='text'] {
     flex: 1;

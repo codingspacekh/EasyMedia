@@ -141,3 +141,14 @@ export async function exportVideo(
   await dialog.getByRole('button', { name: 'Export', exact: true }).click();
   await expect(page.getByText(`Saved to ${output}`)).toBeVisible({ timeout });
 }
+
+/** Chooses a colour with the app's own colour picker: open the swatch, type the hex, close it. */
+export async function pickColour(page: Page, label: string, hex: string) {
+  await page.getByRole('button', { name: label, exact: true }).click();
+  const picker = page.getByRole('dialog', { name: label });
+  const box = picker.getByLabel(`${label} hex`);
+  await box.fill(hex);
+  await box.press('Enter');
+  await page.keyboard.press('Escape');
+  await picker.waitFor({ state: 'detached' });
+}

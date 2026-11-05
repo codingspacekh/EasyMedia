@@ -50,6 +50,63 @@ describe('X8 built-in sound effects: made by the app itself, the same on every c
     },
   );
 
+  it('has the sounds most used in videos, and keeps every id saved by earlier versions', () => {
+    expect(SOUND_EFFECTS.length).toBeGreaterThanOrEqual(55);
+    const ids = SOUND_EFFECTS.map((s) => s.id);
+    // the first 28 (1.5): saved in projects, so never renamed or removed
+    for (const id of [
+      'click',
+      'pop',
+      'ding',
+      'beep',
+      'chime',
+      'correct',
+      'buzzer',
+      'whoosh',
+      'swoosh',
+      'riser',
+      'drop',
+      'boing',
+      'slide-up',
+      'thud',
+      'boom',
+      'punch',
+      'drum',
+      'cymbal',
+      'laser',
+      'coin',
+      'power-up',
+      'jump',
+      'game-over',
+      'tick-tock',
+      'heartbeat',
+      'drum-roll',
+      'ta-da',
+      'sparkle',
+    ])
+      expect(ids, id).toContain(id);
+    for (const id of [
+      'whoosh-deep',
+      'downlifter',
+      'reverse-cymbal',
+      'glitch',
+      'record-scratch',
+      'tape-stop',
+      'impact',
+      'camera-shutter',
+      'typewriter',
+      'cash-register',
+      'notification',
+      'sad-trombone',
+      'rimshot',
+      'crickets',
+      'countdown',
+      'applause',
+    ])
+      expect(ids, id).toContain(id);
+    expect(SOUND_GROUPS).toEqual(expect.arrayContaining(['Comedy', 'Everyday sounds']));
+  });
+
   it('is the same each time (no randomness between runs)', () => {
     for (const s of SOUND_EFFECTS) {
       const a = makeSoundEffect(s.id, 48000);

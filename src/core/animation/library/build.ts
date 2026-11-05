@@ -12,7 +12,8 @@ import {
 } from '../factory.ts';
 import type { AnimObject, Paint } from '../types.ts';
 
-export type Category = 'cartoons' | 'icons' | 'backgrounds';
+export type Category =
+  'cartoons' | 'school' | 'maths' | 'science' | 'biology' | 'computers' | 'icons' | 'backgrounds';
 
 /** A colour, a two-colour gradient, or nothing. */
 export type Fill = string | { from: string; to: string; angle?: number; radial?: boolean } | null;

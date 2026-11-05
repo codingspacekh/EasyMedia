@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg, run } from '../integration/helpers/ffmpeg.ts';
 import { countPixels, grayFrame, measure, tinyFrame } from '../integration/helpers/measure.ts';
-import { answerDialogs, launchApp, exportVideo, openTab } from './app.ts';
+import { answerDialogs, launchApp, exportVideo, openTab, pickColour } from './app.ts';
 import { shot } from './audio.ts';
 
 const FRAME = 1 / 30;
@@ -138,7 +138,7 @@ test('Book A 11.05: a black three-line Courier caption in the top-left corner of
   );
   await chooseFont(page, 'Courier Prime');
   await setSize(page, '60');
-  await page.getByLabel('Colour', { exact: true }).fill('#000000');
+  await pickColour(page, 'Colour', '#000000');
   await page.getByRole('button', { name: 'Top left' }).click();
   await exportTo(page, output);
 
@@ -177,7 +177,7 @@ test('Book A 11.10: two texts with a smooth change between them, then a yellow 5
     page,
     'To find out more about bees visit the website\nwww.bumblebeeconservation.org',
   );
-  await page.getByLabel('Colour', { exact: true }).fill('#ffff00');
+  await pickColour(page, 'Colour', '#ffff00');
   await setTime(page, 'Duration', '5');
   await exportTo(page, output);
 
@@ -241,7 +241,7 @@ test('Book B Task 11a: resize & crop Fish_Eagle to 1920 × 1080, dark blue 60 pt
   await page.getByRole('button', { name: 'Add title' }).click();
   await setText(page, 'Lake Naivasha, Kenya');
   await setSize(page, '60');
-  await page.getByLabel('Colour', { exact: true }).fill('#00008b');
+  await pickColour(page, 'Colour', '#00008b');
   await page.getByLabel('Background', { exact: true }).selectOption('image');
   await page.getByLabel('Background picture').selectOption({ label: cropped });
   await page.getByLabel('Entrance').selectOption('fly-left');
@@ -280,7 +280,7 @@ test('Book B Activity 11a: 4:3 at 960 × 720, yellow 48 pt serif title over a pi
   await setText(page, 'Diving in Cozumel, Mexico');
   await chooseFont(page, 'Noto Serif');
   await setSize(page, '48');
-  await page.getByLabel('Colour', { exact: true }).fill('#ffff00');
+  await pickColour(page, 'Colour', '#ffff00');
   await page.getByLabel('Background', { exact: true }).selectOption('image');
   await page.getByLabel('Background picture').selectOption({ label: cropped });
   await page.getByLabel('Entrance').selectOption('fly-down');

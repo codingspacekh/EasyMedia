@@ -98,9 +98,11 @@
 
 <style>
   .panel {
+    /* In the middle of the window, as the other boxes are (issues/audio-1.png). */
     position: fixed;
-    top: 96px;
-    left: 330px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 340px;
     z-index: 20;
     background: var(--bg-1);

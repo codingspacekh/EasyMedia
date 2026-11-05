@@ -54,7 +54,12 @@ describe('X8 the Sound effects box', () => {
     render(App, { props: { app: t.app } });
     await fireEvent.click(screen.getByRole('button', { name: 'Sound effects' }));
     const box = screen.getByRole('dialog', { name: 'Sound effects' });
-    for (const group of SOUND_GROUPS) expect(within(box).getByText(group)).toBeTruthy();
+    const tabs = within(box).getByRole('tablist', { name: 'Sound groups' });
+    expect(
+      within(tabs)
+        .getAllByRole('tab')
+        .map((t) => t.textContent!.replace(/\d+$/, '').trim()),
+    ).toEqual(['All sounds', ...SOUND_GROUPS]);
     expect(within(box).getAllByRole('button', { name: /^Add / })).toHaveLength(
       SOUND_EFFECTS.length,
     );
@@ -67,6 +72,33 @@ describe('X8 the Sound effects box', () => {
     expect(screen.getByRole('dialog', { name: 'Sound effects' })).toBeTruthy(); // stays open
     await fireEvent.click(within(box).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog', { name: 'Sound effects' })).toBeNull();
+  });
+
+  it('66 sounds are found by group or by searching their names and uses', async () => {
+    const t = testApp();
+    render(App, { props: { app: t.app } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Sound effects' }));
+    const box = screen.getByRole('dialog', { name: 'Sound effects' });
+    const adds = () => within(box).queryAllByRole('button', { name: /^Add / });
+    await fireEvent.click(within(box).getByRole('tab', { name: /^Comedy/ }));
+    const comedy = SOUND_EFFECTS.filter((s) => s.group === 'Comedy');
+    expect(adds()).toHaveLength(comedy.length);
+    expect(within(box).getByRole('button', { name: 'Add Sad trombone' })).toBeTruthy();
+    // Searching looks in every group, by name and by when to use it.
+    await fireEvent.input(within(box).getByLabelText('Search the sounds'), {
+      target: { value: 'whoosh' },
+    });
+    expect(within(box).getByRole('button', { name: 'Add Whoosh' })).toBeTruthy();
+    expect(within(box).getByRole('button', { name: 'Add Deep whoosh' })).toBeTruthy();
+    await fireEvent.input(within(box).getByLabelText('Search the sounds'), {
+      target: { value: 'wrong answer' },
+    });
+    expect(within(box).getByRole('button', { name: 'Add Wrong buzzer' })).toBeTruthy();
+    await fireEvent.input(within(box).getByLabelText('Search the sounds'), {
+      target: { value: 'zzzz' },
+    });
+    expect(adds()).toEqual([]);
+    expect(within(box).getByText(/Nothing found/)).toBeTruthy();
   });
 
   it('opens from Audio mode’s Tracks menu and adds the sound as a new track', async () => {

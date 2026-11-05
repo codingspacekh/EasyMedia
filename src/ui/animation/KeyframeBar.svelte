@@ -124,9 +124,12 @@
     font-weight: 600;
     margin-right: 6px;
   }
+  /* One width for every choice (a menu sized by its chosen option would jump), and room on the
+     right for the arrow. */
   select {
+    width: 136px;
     height: 26px;
     font-size: 12px;
-    padding: 0 6px;
+    padding: 0 22px 0 6px;
   }
 </style>

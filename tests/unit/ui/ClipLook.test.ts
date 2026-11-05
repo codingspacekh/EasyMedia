@@ -47,6 +47,19 @@ describe('fades, filters, pan & zoom and transitions in the inspector (screens 0
     expect(item().effects).toEqual([{ effectId: 'video.blur', params: { radius: 12 } }]);
   });
 
+  it('V15 shows the filters as even tiles, each with a preview of its look; one in use is ticked', async () => {
+    await twoClips();
+    const grid = screen.getByRole('group', { name: 'Add a filter' });
+    const tiles = within(grid).getAllByRole('button');
+    expect(tiles).toHaveLength(7);
+    for (const tile of tiles) expect(tile.querySelector('.swatch')).toBeTruthy();
+    const sepia = within(grid).getByRole('button', { name: 'Add Sepia' });
+    expect(sepia.classList.contains('on')).toBe(false);
+    await fireEvent.click(sepia);
+    expect(sepia.classList.contains('on')).toBe(true);
+    expect(sepia.textContent).toMatch(/✓/);
+  });
+
   it('T5 every tool explains why it is used', async () => {
     await twoClips(1);
     expect(screen.getAllByText('Why use this?').length).toBeGreaterThanOrEqual(4);
