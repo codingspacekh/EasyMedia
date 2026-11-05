@@ -107,22 +107,22 @@ describe('X8 built-in sound effects: made by the app itself, the same on every c
     expect(SOUND_GROUPS).toEqual(expect.arrayContaining(['Comedy', 'Everyday sounds']));
   });
 
-  it('is the same each time (no randomness between runs)', () => {
-    for (const s of SOUND_EFFECTS) {
-      const a = makeSoundEffect(s.id, 48000);
-      const b = makeSoundEffect(s.id, 48000);
+  // One test per sound: 66 sounds made twice over ran past 15 s on CI's slower machines.
+  it.each(SOUND_EFFECTS.map((s) => [s.id]))(
+    '%s is the same each time (no randomness between runs)',
+    (id) => {
+      const a = makeSoundEffect(id, 48000);
+      const b = makeSoundEffect(id, 48000);
       expect(a.map((c) => [...c.subarray(0, 2000)])).toEqual(
         b.map((c) => [...c.subarray(0, 2000)]),
       );
-    }
-  });
+    },
+  );
 
-  it('lasts about as long at any sample rate', () => {
-    for (const s of SOUND_EFFECTS) {
-      const a = makeSoundEffect(s.id, 44100)[0]!.length / 44100;
-      const b = makeSoundEffect(s.id, 48000)[0]!.length / 48000;
-      expect(Math.abs(a - b)).toBeLessThan(0.001);
-    }
+  it.each(SOUND_EFFECTS.map((s) => [s.id]))('%s lasts about as long at any sample rate', (id) => {
+    const a = makeSoundEffect(id, 44100)[0]!.length / 44100;
+    const b = makeSoundEffect(id, 48000)[0]!.length / 48000;
+    expect(Math.abs(a - b)).toBeLessThan(0.001);
   });
 
   it('an unknown sound is refused with a clear message', () => {

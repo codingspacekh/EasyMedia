@@ -400,3 +400,28 @@ export function transitionLook(xfade: string, p: number): TransitionLook {
       return { from: {}, to: { opacity: p } };
   }
 }
+
+/**
+ * Transitions one build of FFmpeg 9.0.2 cannot make (Windows: squeezev ends with nothing written),
+ * made from another with both clips turned a quarter and the result turned back: the same picture.
+ */
+const TURNED: Readonly<Record<string, string>> = { squeezev: 'squeezeh' };
+
+/** The xfade step from clip `a` to clip `b` into `out`; `i` keeps its helper labels unique. */
+export function xfadeStep(
+  xfade: string,
+  a: string,
+  b: string,
+  duration: number | string,
+  offset: number | string,
+  out: string,
+  i: number,
+): string {
+  const turned = TURNED[xfade];
+  if (!turned)
+    return `${a}${b}xfade=transition=${xfade}:duration=${duration}:offset=${offset}${out}`;
+  return (
+    `${a}transpose=1[ta${i}];${b}transpose=1[tb${i}];` +
+    `[ta${i}][tb${i}]xfade=transition=${turned}:duration=${duration}:offset=${offset},transpose=2${out}`
+  );
+}

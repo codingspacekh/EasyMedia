@@ -113,6 +113,19 @@ describe('V9 transitions in the export', () => {
     expect(g).toContain('[v0][v1]concat=n=2:v=1:a=0[c1];[c1]settb=1/30[x1]');
     expect(g).toContain('[x1][v2]xfade=transition=fadeblack:duration=1:offset=5[vout]');
   });
+
+  it('squeeze sideways is made by turning both clips and squeezing, as one build of FFmpeg cannot squeeze sideways (CI, Windows)', () => {
+    const g = graph(
+      project([
+        still('a', 3),
+        { ...still('b', 3), transitionIn: { effectId: 'transition.squeezeside', duration: 1 } },
+      ]),
+    );
+    expect(g).toContain(
+      '[v0]transpose=1[ta1];[v1]transpose=1[tb1];[ta1][tb1]xfade=transition=squeezeh:duration=1:offset=2,transpose=2[vout]',
+    );
+    expect(g).not.toContain('squeezev');
+  });
 });
 
 describe('V10 one frame for a snapshot', () => {

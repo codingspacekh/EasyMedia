@@ -9,6 +9,7 @@ import {
   transitionOverlap,
 } from '../model/timeline.ts';
 import { filtersFor, transitionById } from '../effects/registry.ts';
+import { xfadeStep } from '../effects/transitions/transitions.ts';
 import type {
   AudioItem,
   AudioTrackIndex,
@@ -214,7 +215,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
         if (!kind)
           throw new EditError('This transition is not available in this version of OneEditor.');
         filters.push(
-          `${video}[v${i}]xfade=transition=${kind.xfade}:duration=${num(overlap)}:offset=${num(length - overlap)}${vNext}`,
+          xfadeStep(kind.xfade, video, `[v${i}]`, num(overlap), num(length - overlap), vNext, i),
         );
         if (hasAudio) filters.push(`${audio}[a${i}]acrossfade=d=${num(overlap)}${aNext}`);
       } else {

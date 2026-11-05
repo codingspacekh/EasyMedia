@@ -1,6 +1,7 @@
 // Every registry effect and transition is a valid filter for the bundled FFmpeg (P6).
 import { describe, expect, it } from 'vitest';
 import { defaultParams, EFFECTS, TRANSITIONS } from '../../../src/core/effects/registry.ts';
+import { xfadeStep } from '../../../src/core/effects/transitions/transitions.ts';
 import { bundledFfmpeg, run } from '../helpers/ffmpeg.ts';
 
 const ffmpeg = (args: string[]) => run(bundledFfmpeg().ffmpeg, ['-v', 'error', ...args]);
@@ -33,7 +34,8 @@ describe('registry transitions run in the bundled FFmpeg', () => {
       ...['-f', 'lavfi', '-i', SOURCE, '-f', 'lavfi', '-i', 'color=c=red:s=320x180:r=30:d=1'],
       ...[
         '-filter_complex',
-        `[0:v][1:v]xfade=transition=${t.xfade}:duration=0.5:offset=0.4,format=yuv420p`,
+        // As the export makes it (a transition some builds lack is made another way).
+        `${xfadeStep(t.xfade, '[0:v]', '[1:v]', 0.5, 0.4, '[x]', 1)};[x]format=yuv420p`,
       ],
       ...['-f', 'null', '-'],
     ]);
