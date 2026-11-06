@@ -70,6 +70,16 @@ describe('drawStage', () => {
     expect(calls.some((c) => c === 'fillRect(0,0,600,400)')).toBe(false);
   });
 
+  it('AN13 a group made 0 wide or high draws nothing (its parts wait to grow back)', () => {
+    const { ctx, calls } = recorder();
+    const g = createGroup([createText('Designs', { x: 100, y: 200, size: 72 })]);
+    drawStage(ctx, stageWith({ ...g, width: 0, height: 0 }));
+    expect(calls.some((c) => c.startsWith('fillText('))).toBe(false);
+    const shown = recorder();
+    drawStage(shown.ctx, stageWith(g));
+    expect(shown.calls.some((c) => c.startsWith('fillText('))).toBe(true);
+  });
+
   it('paints the stage colour first, then each object in drawing order', () => {
     const { ctx, calls } = recorder();
     drawStage(ctx, stageWith(createRect({ x: 10, y: 10 }), createEllipse({ x: 0, y: 0 })));

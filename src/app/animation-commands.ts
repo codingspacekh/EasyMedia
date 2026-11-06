@@ -4,11 +4,9 @@ import { EditError } from '../core/model/errors.ts';
 import {
   CENTRE_PIVOT,
   pivotOf,
-  placedAt,
   resizeFrom,
   rotated,
   setSize,
-  toStage,
   withPivot,
   type Handle,
   type Point,
@@ -36,7 +34,6 @@ import type {
   Picture,
   PictureObject,
   Stage,
-  TextObject,
   Track,
   TweenProperty,
 } from '../core/animation/types.ts';
@@ -141,32 +138,10 @@ export function setProperties(
         ? setSize(o, patch.width ?? o.width, patch.height ?? o.height)
         : o;
     const next = { ...sized, ...patch, width: sized.width, height: sized.height } as AnimObject;
-    // On the first frame the numbers typed stay exact (papers give x, y and size; as Animate).
-    return o.kind === 'text' && frame > 0 ? aboutCentre(o, patch, next) : next;
-  });
-}
-
-const hundredths = (n: number) => Math.round(n * 100) / 100;
-
-/**
- * AN4, AN6: a new font size typed in Properties on a later frame grows or shrinks the text about
- * its centre, so it grows in place: x and y are keyed with the size. On the first frame x and y
- * stay as typed. A size keyframe still plays from the top-left corner, so files play the same.
- */
-function aboutCentre(o: TextObject, patch: Partial<AnimObject>, next: AnimObject): AnimObject {
-  const { size } = patch as Partial<TextObject>;
-  if (size === undefined || size === o.size || patch.x !== undefined || patch.y !== undefined)
+    // A text's new font size keeps its top-left corner, as in Animate and Hype: the papers and
+    // the workbook give x, y and the size, in any order (WB Task 1.1 keys the size at 193, 73).
     return next;
-  // Without a measured box the letters scale it, as a size keyframe does.
-  const box =
-    patch.width !== undefined || patch.height !== undefined
-      ? next
-      : tween.withProperty(o, 'size', size);
-  // The centre stays where it is shown, turned about the point chosen too (AN27).
-  const centre = toStage(o, { x: o.width / 2, y: o.height / 2 });
-  const sized = { ...next, width: box.width, height: box.height };
-  const at = placedAt(sized, { x: box.width / 2, y: box.height / 2 }, centre);
-  return { ...next, x: hundredths(at.x), y: hundredths(at.y) };
+  });
 }
 
 export function moveObjects(ids: readonly Id[], dx: number, dy: number, frame = 0): AnimCommand {

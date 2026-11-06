@@ -63,3 +63,27 @@ describe('AN13 outline widths scale with a resized group', () => {
     expect(setSize(plain, 10, 10).children[0]!.stroke).toBeUndefined();
   });
 });
+
+describe('AN13 a group made 0 wide or high, then grown back (WB p.97: "Designs" grows from nothing)', () => {
+  const words = (): GroupObject =>
+    createGroup([
+      { ...createText('De', { x: 100, y: 200, size: 72 }), width: 90, height: 86 },
+      { ...createText('signs', { x: 190, y: 200, size: 72 }), width: 200, height: 86 },
+    ]);
+
+  it('keeps its parts as they are, so nothing is lost', () => {
+    const g = words();
+    const none = setSize(g, 0, 0);
+    expect(none).toMatchObject({ width: 0, height: 0 });
+    expect(none.children).toEqual(g.children);
+  });
+
+  it('grows back from its parts: half way is half the size, the end is as it was', () => {
+    const g = words();
+    const none = setSize(g, 0, 0);
+    const half = setSize(none, g.width / 2, g.height / 2);
+    expect(half.children[1]).toMatchObject({ x: 45, width: 100, size: 36 });
+    const back = setSize(none, g.width, g.height);
+    expect(back.children).toEqual(g.children);
+  });
+});

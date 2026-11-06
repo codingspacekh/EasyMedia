@@ -97,33 +97,19 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     ]);
   });
 
-  it('AN4 AN6 a font size typed on the first frame keeps x and y as typed; on a later frame the text grows from its centre, keyed with x and y', () => {
+  it('AN4 AN6 a font size typed in Properties keeps the top-left corner as typed, on every frame (WB Task 1.1: the text stays at 193, 73)', () => {
     const s = setup();
     s.anim.addText({ x: 100, y: 100 }, 'OPEN DAY', () => ({ width: 200, height: 48 }));
     const t = s.objects()[0]!;
     const size = t.kind === 'text' ? t.size : 0;
-    const centre = (o: AnimObject) => [o.x + o.width / 2, o.y + o.height / 2];
-    // Workbook Task 1 types X, Y and then Size: the numbers stay exactly as typed (as in Animate).
     expect(s.anim.setProperties({ size: size * 2, width: 400, height: 96 } as never)).toBeNull();
-    expect(s.objects()[0]).toMatchObject({
-      x: 100,
-      y: 100,
-      width: 400,
-      height: 96,
-      size: size * 2,
-    });
+    expect(s.objects()[0]).toMatchObject({ x: 100, y: 100, width: 400, height: 96 });
     s.anim.undo();
-    // At a later frame the size, box and position are keyed together: the text grows in place.
     s.anim.setFrame(10);
     s.anim.setProperties({ size: size * 2, width: 400, height: 96 } as never);
     const keyed = s.objects()[0]!;
-    const props = (keyed.tracks ?? []).map((k) => k.property);
-    expect(props).toEqual(expect.arrayContaining(['size', 'x', 'y', 'width', 'height']));
-    expect(objectAt(keyed, 10)).toMatchObject({ x: 0, y: 76, width: 400, size: size * 2 });
-    expect(objectAt(keyed, 0)).toMatchObject({ x: 100, y: 100, width: 200, size });
-    const [mx, my] = centre(objectAt(keyed, 5));
-    expect(mx).toBeCloseTo(200, 6);
-    expect(my).toBeCloseTo(124, 6);
+    expect(objectAt(keyed, 10)).toMatchObject({ x: 100, y: 100, width: 400, size: size * 2 });
+    expect(objectAt(keyed, 5)).toMatchObject({ x: 100, y: 100 });
   });
 
   it("AN18: a button's label size typed in Properties is kept (it is not a font-size keyframe)", () => {

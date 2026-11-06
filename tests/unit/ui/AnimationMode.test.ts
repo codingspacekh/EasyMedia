@@ -135,7 +135,7 @@ describe('drawing (AN3, AN4)', () => {
     expect(s.objects()[0]).toMatchObject({ size: 64 });
   });
 
-  it('AN4 AN6 a font size typed in Properties keeps x and y on the first frame, and the centre on a later one', async () => {
+  it('AN4 AN6 a font size typed in Properties keeps x and y as typed, on a later frame too', async () => {
     const s = await animationMode();
     s.anim.addText({ x: 400, y: 300 }, 'OPEN DAY');
     await tick();
@@ -143,13 +143,8 @@ describe('drawing (AN3, AN4)', () => {
     expect(s.objects()[0]).toMatchObject({ size: 96, x: 400, y: 300 });
     s.anim.setFrame(10);
     await tick();
-    const at10 = () => objectAt(s.objects()[0]!, 10);
-    const centre = (o: AnimObject) => [o.x + o.width / 2, o.y + o.height / 2];
-    const [x, y] = centre(at10());
     await typeIn('Size', '48');
-    expect(at10()).toMatchObject({ size: 48 });
-    expect(centre(at10())[0]).toBeCloseTo(x!, 1);
-    expect(centre(at10())[1]).toBeCloseTo(y!, 1);
+    expect(objectAt(s.objects()[0]!, 10)).toMatchObject({ size: 48, x: 400, y: 300 });
   });
 
   it('the fill can become a gradient with two colours, and the outline switched off', async () => {

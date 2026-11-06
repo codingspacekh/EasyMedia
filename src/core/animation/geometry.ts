@@ -396,6 +396,14 @@ function scaledWithGroup<T extends AnimObject>(o: T, k: number): T {
   };
 }
 
+/** How far a group's parts reach from its top-left corner (the box they were grouped in). */
+function partsExtent(children: readonly AnimObject[]): { width: number; height: number } {
+  return {
+    width: Math.max(0, ...children.map((c) => c.x + c.width)),
+    height: Math.max(0, ...children.map((c) => c.y + c.height)),
+  };
+}
+
 /** A new size with the top-left corner kept; a path's points scale with its box. */
 export function setSize<T extends AnimObject>(o: T, width: number, height: number): T {
   const sized = { ...o, width, height };
@@ -406,9 +414,13 @@ export function setSize<T extends AnimObject>(o: T, width: number, height: numbe
       ...(o.holes ? { holes: o.holes.map((h) => scaledPoints(h, o, { width, height })) } : {}),
     };
   if (o.kind === 'group') {
+    // A group made 0 wide or high keeps its parts as they are and shows nothing, so it can grow
+    // back from them (WB p.97: "Designs" grows from nothing); growing, it scales from its parts.
+    if (width === 0 || height === 0) return sized;
+    const from = o.width > 0 && o.height > 0 ? o : partsExtent(o.children);
     // AN13: a group's children scale with it, keeping their places inside it.
-    const sx = o.width === 0 ? 1 : width / o.width;
-    const sy = o.height === 0 ? 1 : height / o.height;
+    const sx = from.width === 0 ? 1 : width / from.width;
+    const sy = from.height === 0 ? 1 : height / from.height;
     return {
       ...sized,
       children: o.children.map((c) =>

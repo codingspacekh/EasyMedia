@@ -36,7 +36,7 @@ slowly, or not at all. The maintainer chose to build the small ones first; items
 |---|---|---|---|---|
 | 9 | **Animation: play once and stop** (GIF and web page) | *Syllabus 20.1:* "looping or stopping animations"; *papers:* March 2019 "should then stop". GIFs and the web page always looped | Small | ✅ Done |
 | 10 | **Animation: select the same colour** after *Trace bitmap* | *Papers:* March 2021 (1676 traced shapes) | Small | ✅ Done |
-| 11 | **Animation: a font size typed in Properties grows from the centre** | *Papers:* most; x and y had to be keyed too | Small | ✅ Done |
+| 11 | **Animation: a font size typed in Properties grows from the centre** | *Papers:* most; x and y had to be keyed too | Small | ✗ Withdrawn: the workbook keys sizes at fixed x, y (WB Task 1.1); *Zoom in* grows words in place |
 | 12 | **Animation: skew** | *Papers:* June 2021 shield "turned sideways" | Small | ✅ Done |
 | 13 | **Animation: outline widths scale with a resized group** | *Papers:* June 2020 meter redrawn smaller | Small | ✅ Done |
 | 14 | **Animation: crop a picture, make a colour see-through** | *Papers:* Nov 2019 pearl (a mask was the workaround) | Small | ✅ Done |

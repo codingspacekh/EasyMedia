@@ -8,7 +8,6 @@ import { tick } from 'svelte';
 import App from '../../../src/ui/App.svelte';
 import { animUi } from '../../../src/ui/animation/animation-ui.svelte.ts';
 import { pivotOnStage, toStage } from '../../../src/core/animation/geometry.ts';
-import { objectAt } from '../../../src/core/animation/tween.ts';
 import type { AnimObject } from '../../../src/core/animation/types.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -87,21 +86,6 @@ describe('AN27 Turn about a chosen point', () => {
     expect(centred.pivot).toBeUndefined();
     expect(toStage(centred, { x: 0, y: 0 }).x).toBeCloseTo(corner.x);
     expect(toStage(centred, { x: 0, y: 0 }).y).toBeCloseTo(corner.y);
-  });
-
-  it('AN27 a new font size typed on a later frame for text turned about a corner keeps its middle where it is shown', async () => {
-    const s = await mode();
-    s.anim.addText({ x: 100, y: 100 }, 'Needle');
-    await tick();
-    s.anim.setProperties({ rotation: 90 });
-    s.anim.setPivot({ x: 0, y: 0 });
-    const middle = (o: AnimObject) => toStage(o, { x: o.width / 2, y: o.height / 2 });
-    s.anim.setFrame(10);
-    const before = middle(objectAt(s.objects()[0]!, 10));
-    s.anim.setProperties({ size: 72 } as Partial<AnimObject>);
-    const after = middle(objectAt(s.objects()[0]!, 10));
-    expect(after.x).toBeCloseTo(before.x, 1);
-    expect(after.y).toBeCloseTo(before.y, 1);
   });
 
   it('AN27 a double-click on the dot of text turning about its centre still edits its words', async () => {

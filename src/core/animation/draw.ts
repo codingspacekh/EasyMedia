@@ -347,6 +347,8 @@ export function drawObject(
   const oy = -o.height / 2;
   switch (o.kind) {
     case 'group':
+      // A group made 0 wide or high shows nothing; its parts wait to grow back (AN13).
+      if (o.width === 0 || o.height === 0) break;
       // The children are placed in the group's box: move its top-left corner to the origin.
       ctx.translate(ox, oy);
       if (shown < 1 && o.children.length > 1 && ctx.withLayer)
