@@ -29,7 +29,7 @@ describe('X8 built-in sound effects in Video mode: on the effects tracks at the 
     expect(t.app.store.get().history.past.at(-1)).toBeDefined();
   });
 
-  it('the same sound again uses the same file; a second one at once goes on effects track 2', async () => {
+  it('the same sound again uses the same file; a second one at once goes on effects track 2 (V13: a third is explained)', async () => {
     const t = testApp();
     const project = () => t.app.store.get().history.present;
     t.app.setPlayhead(3);
@@ -39,7 +39,10 @@ describe('X8 built-in sound effects in Video mode: on the effects tracks at the 
     expect(t.saveSound).toHaveBeenCalledTimes(1);
     expect(project().timeline.audio[3]!.map((a) => a.start)).toEqual([3]);
     await t.app.addSoundEffect('pop');
-    expect(t.app.store.get().message?.text).toMatch(/no free space on the effects tracks/i);
+    expect(t.app.store.get().message).toEqual({
+      kind: 'error',
+      text: 'Both sound effects tracks already have a sound at 3.00 s. Move one, or choose another time.',
+    });
     expect(project().timeline.audio.flat()).toHaveLength(2);
   });
 

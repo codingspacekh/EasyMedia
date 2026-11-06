@@ -1,6 +1,7 @@
 <script lang="ts">
   // Main track (V2, V3, V12): select, split, join, drag to reorder, trim handles with snapping, zoom.
   // Text track (V4, V5): titles go on the main track; captions, subtitles and credits on their own.
+  // Over the video (V20): pictures and videos laid over the main track, on a track above it.
   // Track layout as in screen 01: headers on the left, ruler and lanes on the right.
   import type { App } from '../app/app.ts';
   import {
@@ -13,7 +14,10 @@
     splitSound,
     trimClip,
   } from '../app/commands.ts';
+  import type { Command } from '../app/history.ts';
+  import { moveOverlayItem } from '../app/overlay-commands.ts';
   import { handleDrag, moveDrag } from '../app/timeline-edit.ts';
+  import { overlayDuration } from '../core/model/overlay.ts';
   import { formatTime } from '../core/model/time.ts';
   import {
     AUDIO_TRACK_NAMES,
@@ -23,7 +27,7 @@
     mainTrackDuration,
     type LaidOutItem,
   } from '../core/model/timeline.ts';
-  import type { AudioItem, MainItem } from '../core/model/types.ts';
+  import type { AudioItem, MainItem, OverlayItem } from '../core/model/types.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import { withWhy } from '../core/effects/help.ts';
   import { toMediaUrl } from '../core/media-url.ts';
@@ -47,6 +51,8 @@
 
   const project = $derived($store.history.present);
   const layout = $derived(layoutMain(project.timeline.main));
+  /** V20: the pictures and videos over the video. */
+  const overlays = $derived(project.timeline.overlay ?? []);
   const selectedIndex = $derived(project.timeline.main.findIndex((m) => m.id === $store.selection));
   /** A selected music or voiceover clip: Split and Join then work on it (V13). */
   const selectedSound = $derived(
@@ -98,6 +104,7 @@
       total,
       ...project.timeline.text.map((t) => t.start + t.duration),
       ...project.timeline.audio.flat().map((a) => a.start + audioDuration(a)),
+      ...overlays.map((o) => o.start + overlayDuration(o)),
       $store.playhead,
     ) + 20,
   );
@@ -118,6 +125,14 @@
     if (item.type === 'image') return asset ? { image: toMediaUrl(asset.path) } : {};
     const thumb = $store.assets[item.assetId]?.thumbPath;
     return thumb ? { image: toMediaUrl(thumb) } : {};
+  }
+
+  /** V20: the file's name, and its picture (a still itself, or a video's thumbnail). */
+  function overlayLook(item: OverlayItem): { name: string; image?: string } {
+    const asset = project.media.find((m) => m.id === item.assetId);
+    if (!asset) return { name: 'Missing file' };
+    const thumb = item.type === 'image' ? asset.path : $store.assets[item.assetId]?.thumbPath;
+    return { name: fileNameOf(asset.path), ...(thumb ? { image: toMediaUrl(thumb) } : {}) };
   }
 
   function soundName(item: AudioItem): string {
@@ -189,15 +204,31 @@
     start: a.start,
     duration: audioDuration(a),
   });
+  const timedOverlay = (o: OverlayItem): Timed => ({
+    id: o.id,
+    start: o.start,
+    duration: overlayDuration(o),
+  });
 
-  /** Drag a text or sound clip along its track (V5, V13); it snaps like the trim handles. */
-  function startMove(event: MouseEvent, item: Timed): void {
+  /**
+   * Drag a text, sound or over-the-video clip along its track (V5, V13, V20); it snaps like the
+   * trim handles.
+   */
+  function startMove(
+    event: MouseEvent,
+    item: Timed,
+    moveTo: (id: string, start: number) => Command = moveTimedItem,
+  ): void {
     event.preventDefault();
     const startX = event.clientX;
     const targets = [
       $store.playhead,
       ...layout.flatMap((l) => [l.start, l.end]),
-      ...[...project.timeline.text, ...project.timeline.audio.flat().map(timedAudio)]
+      ...[
+        ...project.timeline.text,
+        ...project.timeline.audio.flat().map(timedAudio),
+        ...overlays.map(timedOverlay),
+      ]
         .filter((t) => t.id !== item.id)
         .flatMap((t) => [t.start, t.start + t.duration]),
     ];
@@ -215,7 +246,7 @@
       window.removeEventListener('mouseup', finish);
       moving = null;
       // A click without moving only selects.
-      if (Math.abs(e.clientX - startX) >= 3) error = app.edit(moveTimedItem(item.id, at(e)));
+      if (Math.abs(e.clientX - startX) >= 3) error = app.edit(moveTo(item.id, at(e)));
       app.select(item.id);
     };
     window.addEventListener('mousemove', move);
@@ -304,6 +335,13 @@
   <div class="body">
     <div class="heads">
       <div class="corner">{pxPerSecond} px = 1 s</div>
+      <div class="th overlay">
+        <span class="dot"></span>
+        <div>
+          <div class="tn">Over the video</div>
+          <div class="ts">Logo · picture-in-picture</div>
+        </div>
+      </div>
       <div class="th video">
         <span class="dot"></span>
         <div>
@@ -349,6 +387,31 @@
         <div class="ruler" onmousedown={seek}>
           {#each labels as t (t)}
             <span style:left="{t * pxPerSecond}px">{mmss(t)}</span>
+          {/each}
+        </div>
+
+        <div class="lane track overlay-lane" aria-label="Over the video track">
+          {#each overlays as item (item.id)}
+            {@const timed = timedOverlay(item)}
+            {@const look = overlayLook(item)}
+            <button
+              class="clip over {item.type}"
+              aria-label="{look.name} {timed.duration.toFixed(2)} s"
+              aria-pressed={$store.selection === item.id}
+              class:moving={moving?.id === item.id}
+              style:left="{(moving?.id === item.id ? moving.start : item.start) * pxPerSecond}px"
+              style:width="{timed.duration * pxPerSecond}px"
+              onmousedown={(e) => startMove(e, timed, moveOverlayItem)}
+              onclick={() => app.select(item.id)}
+            >
+              <span
+                class="pic"
+                style:background-image={look.image ? `url("${look.image}")` : null}
+                aria-hidden="true"
+              ></span>
+              <Icon name="pip" size={12} />
+              <span class="name">{look.name}</span>
+            </button>
           {/each}
         </div>
 
@@ -579,6 +642,45 @@
   .th.video,
   .video-lane {
     height: 76px;
+  }
+  /* V20: one row of pictures and videos over the video. */
+  .th.overlay,
+  .overlay-lane {
+    height: 34px;
+  }
+  .th.overlay .dot {
+    background: var(--c-image);
+  }
+  .th.overlay .tn,
+  .th.overlay .ts {
+    line-height: 1.15;
+  }
+  .clip.over {
+    top: 4px;
+    bottom: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px 0 0;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--c-image) 55%, var(--bg-1));
+  }
+  .clip.over.video {
+    background: color-mix(in srgb, var(--c-video) 55%, var(--bg-1));
+  }
+  .clip.over .pic {
+    width: 34px;
+    align-self: stretch;
+    flex: none;
+    background: center / cover no-repeat;
+  }
+  .clip.over .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .clip.over.moving {
+    cursor: grabbing;
+    outline: 2px dashed #fff;
   }
   .th.text,
   .text-track {

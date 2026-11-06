@@ -558,6 +558,26 @@ describe('the Properties panel in detail', () => {
       expect(within(row('Combine shapes')).getByRole('button', { name })).toBeTruthy();
   });
 
+  it('AN5 Arrange ▸ Select ▸ Same fill picks every part of that colour (a traced map, M/J/21)', async () => {
+    const s = await mode();
+    for (const x of [0, 20, 40]) {
+      s.anim.addShape('rect', { x, y: 0, width: 10, height: 10 });
+      if (x !== 20) s.anim.setProperties({ fill: { kind: 'solid', colour: '#3A7DC9' } });
+    }
+    s.anim.select([s.objects()[0]!.id]);
+    await tick();
+    const row = within(screen.getByRole('group', { name: 'Select same colour' }));
+    await fireEvent.click(row.getByRole('button', { name: 'Select same fill colour' }));
+    expect(s.state().selection).toEqual([s.objects()[0]!.id, s.objects()[2]!.id]);
+    expect(screen.getByText('Selected 2 objects with this fill.')).toBeTruthy();
+    await fireEvent.click(
+      within(screen.getByRole('group', { name: 'Select same colour' })).getByRole('button', {
+        name: 'Select same outline colour',
+      }),
+    );
+    expect(s.state().selection).toHaveLength(3);
+  });
+
   it('arrange buttons, the layer picker, Group / Ungroup / Duplicate / Delete, several selected', async () => {
     const s = await mode();
     s.anim.addShape('rect', { x: 0, y: 0, width: 10, height: 10 });

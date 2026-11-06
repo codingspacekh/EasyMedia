@@ -2,8 +2,10 @@
 // change the ones they are given.
 import { EditError } from './errors.ts';
 import type { Seconds } from './time.ts';
+import { volumeChangesWithin } from './volume-changes.ts';
 import type {
   ClipFade,
+  ClipTurn,
   AudioItem,
   Id,
   ImageClip,
@@ -60,6 +62,20 @@ export function findMainItemAt(
   const layout = layoutMain(items);
   const index = layout.findIndex((l) => time >= l.start && time < l.end);
   return index < 0 ? null : { index, offset: time - layout[index]!.start };
+}
+
+/**
+ * V3 "Insert at the playhead": where a new item goes. At the start of an item (within one
+ * `frame`), before it; inside an item, after it; past the last item (or on an empty track), at
+ * the end. During a transition the playhead is in the item going out, so the new item goes
+ * before the one coming in.
+ */
+export function insertIndexAt(items: readonly MainItem[], time: Seconds, frame: Seconds): number {
+  const layout = layoutMain(items);
+  const atStart = layout.findIndex((l) => Math.abs(time - l.start) <= frame + EPSILON);
+  if (atStart >= 0) return atStart;
+  const hit = findMainItemAt(items, time);
+  return hit ? hit.index + 1 : items.length;
 }
 
 export function trimVideo(
@@ -143,7 +159,13 @@ export function joinMainItems(a: MainItem, b: MainItem): MainItem {
   if (sameFilters && a.type === 'video' && b.type === 'video' && continuesVideo(a, b)) {
     return { ...a, ...joinedLook(a, b), out: b.out };
   }
-  if (sameFilters && a.type === 'image' && b.type === 'image' && a.assetId === b.assetId) {
+  if (
+    sameFilters &&
+    a.type === 'image' &&
+    b.type === 'image' &&
+    a.assetId === b.assetId &&
+    sameTurn(a, b)
+  ) {
     return { ...a, ...joinedLook(a, b), duration: a.duration + b.duration };
   }
   if (sameFilters && a.type === 'title' && b.type === 'title' && sameTitle(a, b)) {
@@ -179,10 +201,25 @@ export function splitAudioItem(
   assertMinDuration(offset);
   assertMinDuration(audioDuration(item) - offset);
   const cut = item.in + offset * (item.speed ?? 1);
+  const at = item.start + offset;
   return [
-    { ...item, id: idA, out: cut, fadeOut: 0 },
-    { ...item, id: idB, start: item.start + offset, in: cut, fadeIn: 0 },
+    withVolumeChanges({ ...item, id: idA, out: cut, fadeOut: 0 }, item.start, at),
+    withVolumeChanges(
+      { ...item, id: idB, start: at, in: cut, fadeIn: 0 },
+      at,
+      item.start + audioDuration(item),
+    ),
   ];
+}
+
+/** V13: a part of a split sound keeps the volume changes heard on it (none: not saved). */
+function withVolumeChanges(part: AudioItem, start: Seconds, end: Seconds): AudioItem {
+  if (!part.volumeChanges) return part;
+  const kept = volumeChangesWithin(part.volumeChanges, start, end);
+  if (kept.length) return { ...part, volumeChanges: kept };
+  const copy = { ...part };
+  delete copy.volumeChanges;
+  return copy;
 }
 
 /** Joins two sounds that came from splitting one and still play one after the other. */
@@ -199,7 +236,13 @@ export function joinAudioItems(a: AudioItem, b: AudioItem): AudioItem {
       'Only parts of the same sound that were split, and still play one after the other, can be joined.',
     );
   }
-  return { ...a, out: b.out, fadeOut: b.fadeOut };
+  const joined: AudioItem = { ...a, out: b.out, fadeOut: b.fadeOut };
+  // V13: the volume changes of both parts, each once, in time order.
+  const changes = [...(a.volumeChanges ?? []), ...(b.volumeChanges ?? [])]
+    .filter((c, i, all) => all.findIndex((o) => JSON.stringify(o) === JSON.stringify(c)) === i)
+    .sort((x, y) => x.from - y.from);
+  if (changes.length) joined.volumeChanges = changes;
+  return joined;
 }
 
 /** V13: Video mode's audio tracks, top to bottom (types.ts AudioTracks). */
@@ -232,11 +275,17 @@ export function assertFitsInTrack(track: readonly AudioItem[], item: AudioItem):
 function continuesVideo(a: VideoClip, b: VideoClip): boolean {
   return (
     a.assetId === b.assetId &&
+    sameTurn(a, b) &&
     a.speed === b.speed &&
     a.muted === b.muted &&
     a.volume === b.volume &&
     Math.abs(a.out - b.in) < EPSILON
   );
+}
+
+/** V19: both parts are turned and flipped the same way. */
+function sameTurn(a: ClipTurn, b: ClipTurn): boolean {
+  return (a.turn ?? 0) === (b.turn ?? 0) && !a.flipH === !b.flipH && !a.flipV === !b.flipV;
 }
 
 function sameTitle(a: TitleSlide, b: TitleSlide): boolean {

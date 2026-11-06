@@ -18,6 +18,8 @@ function setup(show = vi.fn(async () => {})) {
     ['/work/Paris1.jpg', bytes('jpeg')],
     ['/work/star.svg', bytes('<svg/>')],
     ['/work/secret.txt', bytes('secret')],
+    ['/work/alarm.mp3', bytes('mp3')],
+    ['/cache/sounds/ding.wav', bytes('wav')],
   ]);
   const bridge = inProcessBridge(createMockMediaEngine(), {
     pageFiles: {
@@ -58,6 +60,21 @@ describe('the web page’s files (AN15)', () => {
     );
     s.allow.add('/work/secret.txt');
     await expect(s.assets.pictureDataUrl('/work/secret.txt')).rejects.toThrow(/picture/);
+  });
+
+  it('AN28 a sound the app opened (or a sound effect it made), as a data: URL of its type', async () => {
+    const s = setup();
+    await expect(s.assets.soundDataUrl('/work/alarm.mp3')).rejects.toThrow(/opened in OneEditor/);
+    s.allow.add('/work/alarm.mp3');
+    s.allow.add('/cache/sounds/ding.wav');
+    expect(await s.assets.soundDataUrl('/work/alarm.mp3')).toBe(
+      `data:audio/mpeg;base64,${base64('mp3')}`,
+    );
+    expect(await s.assets.soundDataUrl('/cache/sounds/ding.wav')).toBe(
+      `data:audio/wav;base64,${base64('wav')}`,
+    );
+    s.allow.add('/work/secret.txt');
+    await expect(s.assets.soundDataUrl('/work/secret.txt')).rejects.toThrow(/sound/);
   });
 
   it('a bundled font from the app’s own pages, as a data: URL', async () => {

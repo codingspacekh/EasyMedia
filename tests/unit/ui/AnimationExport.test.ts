@@ -80,6 +80,29 @@ describe('the export dialog (AN15, T7)', () => {
     expect(s.disk.get('/work/Task1.html')).toContain('/* player */');
   });
 
+  it('AN8 AN15 GIF and HTML: When it ends — Loop or Play once and stop (M/J/19 "should then stop")', async () => {
+    const s = await animationMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    // An MP4 simply stops at its end.
+    expect(within(dialog()).queryByRole('radiogroup', { name: 'When it ends' })).toBeNull();
+    expect(within(dialog()).getByText(/A video plays once and stops/)).toBeTruthy();
+    await fireEvent.click(within(dialog()).getByRole('radio', { name: /Animated GIF/ }));
+    const ends = within(within(dialog()).getByRole('radiogroup', { name: 'When it ends' }));
+    expect((ends.getByRole('radio', { name: /^Loop/ }) as HTMLInputElement).checked).toBe(true);
+    await fireEvent.click(
+      ends.getByRole('radio', { name: /Play once and stop on the last frame/ }),
+    );
+    expect(s.anim.store.get().history.present.stage.playOnce).toBe(true);
+    // Saved with the animation, so it is still chosen for the web page and next time.
+    await fireEvent.click(within(dialog()).getByRole('radio', { name: /HTML web animation/ }));
+    const again = within(within(dialog()).getByRole('radiogroup', { name: 'When it ends' }));
+    expect(
+      (again.getByRole('radio', { name: /Play once and stop/ }) as HTMLInputElement).checked,
+    ).toBe(true);
+    await fireEvent.click(again.getByRole('radio', { name: /^Loop/ }));
+    expect(s.anim.store.get().history.present.stage.playOnce).toBeUndefined();
+  });
+
   it('an odd-sized stage: MP4 says it will be padded to even', async () => {
     await animationMode(601, 401);
     await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -119,6 +142,92 @@ describe('the export dialog (AN15, T7)', () => {
     await fireEvent.click(within(dialog()).getByRole('button', { name: 'Close' }));
     expect(animUi.dialog).toBeNull();
     expect(s.dialogs.exportAnimation).not.toHaveBeenCalled();
+  });
+});
+
+describe('more export choices (AN15, AN28)', () => {
+  it('AN15 offers AVI and MOV; a width keeps the proportions (1024 × 768 at 600 px is 600 × 450)', async () => {
+    await animationMode(1024, 768);
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const d = within(dialog());
+    expect(d.getByRole('radio', { name: /AVI video/ })).toBeTruthy();
+    await fireEvent.click(d.getByRole('radio', { name: /MOV video/ }));
+    expect(d.getByText(/Apple’s own QuickTime type/)).toBeTruthy();
+    expect(d.getByText('px → 1024 × 768')).toBeTruthy();
+    await fireEvent.input(d.getByRole('textbox', { name: 'Width in pixels' }), {
+      target: { value: '600' },
+    });
+    expect(d.getByText('px → 600 × 450')).toBeTruthy();
+    // An SVG is vector: no width to choose.
+    await fireEvent.click(d.getByRole('radio', { name: /SVG picture/ }));
+    expect(d.queryByRole('textbox', { name: 'Width in pixels' })).toBeNull();
+  });
+
+  it('AN15 a range of frames: its frames and length; one that cannot be used is explained', async () => {
+    await animationMode();
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const d = within(dialog());
+    await fireEvent.input(d.getByRole('textbox', { name: 'From frame' }), {
+      target: { value: '24' },
+    });
+    await fireEvent.input(d.getByRole('textbox', { name: 'To frame' }), {
+      target: { value: '2 s' },
+    });
+    expect(d.getByText(/^25 frames · 1\.04 s/)).toBeTruthy();
+    await fireEvent.input(d.getByRole('textbox', { name: 'To frame' }), {
+      target: { value: '10' },
+    });
+    expect(d.getByRole('alert').textContent).toMatch(/first frame must come before/);
+    expect((d.getByRole('button', { name: 'Export file' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    await fireEvent.click(d.getByRole('button', { name: 'Whole animation' }));
+    expect(d.getByText(/^72 frames · 3\.00 s/)).toBeTruthy();
+    // A picture of the frame has no range.
+    await fireEvent.click(d.getByRole('radio', { name: /PNG picture/ }));
+    expect(d.queryByRole('textbox', { name: 'From frame' })).toBeNull();
+  });
+
+  it('AN15 Export file makes a part at the width typed', async () => {
+    const s = await animationMode();
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Part.mp4');
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const d = within(dialog());
+    await fireEvent.input(d.getByRole('textbox', { name: 'Width in pixels' }), {
+      target: { value: '300' },
+    });
+    await fireEvent.input(d.getByRole('textbox', { name: 'From frame' }), {
+      target: { value: '0' },
+    });
+    await fireEvent.input(d.getByRole('textbox', { name: 'To frame' }), {
+      target: { value: '23' },
+    });
+    await fireEvent.click(d.getByRole('button', { name: 'Export file' }));
+    await vi.waitFor(() => expect(animUi.dialog).toBeNull());
+    expect(await s.engine.probe('/work/Part.mp4')).toMatchObject({
+      duration: 1,
+      video: { width: 300, height: 200 },
+    });
+  });
+
+  it('AN28 says where the sounds go: into a video, inside the page, left out of a GIF', async () => {
+    const s = await animationMode();
+    s.engine.addFile('/m/alarm.mp3', {
+      kind: 'audio',
+      container: 'mp3',
+      duration: 2,
+      sizeBytes: 32_000,
+      audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+    });
+    s.dialogs.openSound.mockResolvedValueOnce('/m/alarm.mp3');
+    await s.anim.addSound();
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const d = within(dialog());
+    expect(d.getByText('Its sound goes into the video, each at its time.')).toBeTruthy();
+    await fireEvent.click(d.getByRole('radio', { name: /HTML web animation/ }));
+    expect(d.getByText(/goes inside the page.*Click to play with sound/)).toBeTruthy();
+    await fireEvent.click(d.getByRole('radio', { name: /Animated GIF/ }));
+    expect(d.getByText(/A GIF has no sound: the animation’s sound is left out/)).toBeTruthy();
   });
 });
 

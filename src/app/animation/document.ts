@@ -22,6 +22,16 @@ export function documentActions(ctx: AnimationContext) {
 
     setStage: (stage: Stage): string | null => edit(cmd.setStage(stage)),
 
+    /**
+     * AN8, AN15: the GIF and the web page loop or play once and stop (saved with the animation).
+     * The preview's Loop button follows, unless it loops a range of frames.
+     */
+    setPlayOnce(once: boolean): void {
+      if (present().stage.playOnce === (once || undefined)) return;
+      if (!run(cmd.setPlayOnce(once))) return;
+      if (store.get().loop.from === undefined) patch({ loop: { on: !once } });
+    },
+
     addGuide: (axis: cmd.GuideAxis, value: number) => void run(cmd.addGuide(axis, value)),
     moveGuide: (axis: cmd.GuideAxis, index: number, value: number) =>
       void run(cmd.moveGuide(axis, index, value)),

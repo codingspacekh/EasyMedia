@@ -143,7 +143,7 @@ test('N4 N5 a video project and the animation open together stay within 600 MB; 
     for (const clip of CLIPS)
       await window.getByRole('button', { name: `Add ${clip} to the timeline` }).click();
   await expect(window.locator('[data-item]')).toHaveCount(10);
-  await window.getByRole('button', { name: 'Play' }).click();
+  await window.getByRole('button', { name: 'Play', exact: true }).click();
   await window.waitForTimeout(3000);
   await window.getByRole('button', { name: 'Pause' }).click();
   const video = await appMB(app);

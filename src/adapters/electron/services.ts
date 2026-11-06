@@ -17,6 +17,7 @@ export function createElectronDialogs(api: MveApi): Dialogs {
     saveTaskCheck: (name) => unwrap(api.invoke('dialog:saveTaskCheck', name)),
     openAnimation: () => unwrap(api.invoke('dialog:openAnimation')),
     openPicture: () => unwrap(api.invoke('dialog:openPicture')),
+    openSound: () => unwrap(api.invoke('dialog:openSound')),
     openFrames: () => unwrap(api.invoke('dialog:openFrames')),
     openExport: () => unwrap(api.invoke('dialog:openExport')),
     saveAnimation: (name) => unwrap(api.invoke('dialog:saveAnimation', name)),

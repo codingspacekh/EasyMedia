@@ -269,6 +269,73 @@ describe('Effect menu and the generated effect dialogs (P7)', () => {
     expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(2 * 44100);
   });
 
+  it('A21 Change tempo: multiplier and percent in step, the new length, the pitch kept', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.selectAll();
+    await menuItem('Effect', 'Change tempo…');
+    const dialog = screen.getByRole('dialog', { name: 'Change tempo' });
+    expect(within(dialog).getByRole('button', { name: /preview/i })).toBeTruthy();
+    await fireEvent.change(within(dialog).getByLabelText('Percent change'), {
+      target: { value: '100' },
+    });
+    expect((within(dialog).getByLabelText('Tempo multiplier') as HTMLInputElement).value).toBe('2');
+    expect(
+      within(dialog).getByText('Length: 4.00 s → 2.00 s. The pitch stays the same.'),
+    ).toBeTruthy();
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(2 * 44100);
+  });
+
+  it('A23 Volume change: a start and an end volume in %, a note, Preview and "Why use this?"', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.selectAll();
+    await menuItem('Effect', 'Volume change…');
+    const dialog = screen.getByRole('dialog', { name: 'Volume change' });
+    expect(within(dialog).getByRole('button', { name: /preview/i })).toBeTruthy();
+    expect(within(dialog).getByText(/why use this/i)).toBeTruthy();
+    await fireEvent.change(within(dialog).getByLabelText('Volume at the end'), {
+      target: { value: '20' },
+    });
+    expect(
+      within(dialog).getByText(
+        'The volume goes in a straight line from 100 % at the start of the selection to 20 % at its end (4.00 s).',
+      ),
+    ).toBeTruthy();
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(t.state().history.past.at(-1)!.label).toBe('Volume change 0.00 – 4.00 s');
+  });
+
+  it('A24 Remove silences: the time it saves is shown before Apply', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    t.audio.select({ start: 2, end: 2 });
+    t.audio.insertSilence(2);
+    t.audio.selectAll();
+    await menuItem('Effect', 'Remove silences…');
+    const dialog = screen.getByRole('dialog', { name: 'Remove silences' });
+    for (const label of ['Quieter than', 'Lasting at least', 'Shorten each to'])
+      expect(within(dialog).getByLabelText(label)).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: /preview/i })).toBeTruthy();
+    expect(
+      within(dialog).getByText(
+        '1 quiet part found: the selection gets 1.50 s shorter (6.00 s → 4.50 s).',
+      ),
+    ).toBeTruthy();
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(soundOf(t.doc(), 0).channels[0]!.length).toBe(Math.round(4.5 * 44100));
+  });
+
+  it('A22 Reverse applies at once to the selection; its menu item says why', async () => {
+    const t = await audioMode('/m/Task_11j_audio_1.mp3');
+    await typeTime('Selection end', '3');
+    await fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
+    expect(screen.getByRole('menuitem', { name: 'Reverse' }).getAttribute('title')).toMatch(
+      /Why\? .*backwards/,
+    );
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Reverse' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(t.state().history.past.at(-1)!.label).toBe('Reverse 0.00 – 3.00 s');
+  });
+
   it('A13 Noise reduction: step 1 takes the profile and closes; step 2 shows it and reduces', async () => {
     const t = await audioMode('/m/Task_11j_audio_1.mp3');
     t.audio.select({ start: 1, end: 2 });

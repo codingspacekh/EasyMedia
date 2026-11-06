@@ -18,6 +18,7 @@ import type { Handle, Point } from '../../core/animation/geometry.ts';
 import { findObject, pictureIdsOf } from '../../core/animation/layers.ts';
 import type { MeasureText } from '../../core/animation/letters.ts';
 import { itemById, placeItem } from '../../core/animation/library/index.ts';
+import { sameColour, type ColourPart } from '../../core/animation/same-colour.ts';
 import { objectAt } from '../../core/animation/tween.ts';
 import type {
   AnimObject,
@@ -73,6 +74,33 @@ export function drawingActions(ctx: AnimationContext) {
           ? objectsShown(layer, store.get().frame).map((o) => o.id)
           : [];
       patch({ selection: ids });
+    },
+    /**
+     * AN5: every object on the selected one's layer, as it is at the playhead, with the same fill
+     * or outline colour (after Trace bitmap: all the parts of one colour). Says how many.
+     */
+    selectSameColour(part: ColourPart): void {
+      const [id] = liveSelection();
+      const found = id ? findObject(present(), id) : null;
+      const say = (kind: 'error' | 'info', text: string) => patch({ message: { kind, text } });
+      if (!found) return say('error', 'Select an object first.');
+      const { frame } = store.get();
+      const like = objectAt(found.object, frame);
+      if (like.kind === 'group')
+        return say(
+          'error',
+          'A group has no colour of its own. Ungroup it, then select one of its parts.',
+        );
+      if (like.kind === 'picture')
+        return say('error', 'A picture has no fill. Trace it (Trace bitmap) to make it shapes.');
+      const shown = objectsShown(found.layer, frame).map((o) => objectAt(o, frame));
+      const ids = sameColour(shown, like, part).map((o) => o.id);
+      if (ids.length === 0) return say('error', 'The selected object has no outline.');
+      patch({ selection: ids });
+      say(
+        'info',
+        `Selected ${ids.length} ${ids.length === 1 ? 'object' : 'objects'} with this ${part}.`,
+      );
     },
     setTool: (tool: Tool) => patch({ tool }),
     setZoom: (zoom: number | 'fit') => patch({ zoom }),
@@ -191,6 +219,16 @@ export function drawingActions(ctx: AnimationContext) {
     rotateSelected(id: Id, degrees: number): void {
       pause();
       run(cmd.rotateObject(id, degrees, store.get().frame));
+    },
+
+    /**
+     * AN27: the point the selected objects turn about, as fractions of their boxes (null: the
+     * centre), one undo step; they stay where they are. Returns why not, for the field.
+     */
+    setPivot(pivot: Partial<Point> | null, ids: readonly Id[] = liveSelection()): string | null {
+      if (ids.length === 0) return null;
+      pause();
+      return edit(cmd.setPivot(ids, pivot, store.get().frame));
     },
 
     /** An object as it is shown at the playhead (for the Properties panel and the handles). */

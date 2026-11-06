@@ -101,15 +101,22 @@ export function createCanvasStageRenderer({
   }
 
   return {
-    async renderPng(doc: AnimationDoc, frame = 0): Promise<Uint8Array> {
-      const canvas = makeCanvas(doc.stage.width, doc.stage.height);
+    async renderPng(
+      doc: AnimationDoc,
+      frame = 0,
+      size?: { width: number; height: number },
+    ): Promise<Uint8Array> {
+      // AN15: another size: the vectors drawn scaled onto a canvas of that size, so they stay sharp.
+      const canvas = makeCanvas(size?.width ?? doc.stage.width, size?.height ?? doc.stage.height);
       // N4: drawn in ordinary memory: on the graphics card, Chromium keeps every frame's shapes in
       // its caches (over 250 MB for a 10 s export of 100 moving objects). The PNG is read back anyway.
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error('No canvas is available to draw the stage.');
       const images = await imagesOf(doc);
       await loadFonts(fontsUsed(doc.layers.flatMap((l) => l.objects)));
-      drawStage(withLayers(ctx), doc, { image: (id) => images.get(id) ?? null, frame });
+      const stage = withLayers(ctx);
+      if (size) stage.scale(size.width / doc.stage.width, size.height / doc.stage.height);
+      drawStage(stage, doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
       return new Uint8Array(await blob.arrayBuffer());
     },
@@ -117,7 +124,10 @@ export function createCanvasStageRenderer({
     async textTops(fonts: string[]): Promise<Record<string, number>> {
       await loadFonts(fonts);
       const ctx = makeCanvas(8, 8).getContext('2d') as
-        (StageCanvas & { measureText(t: string): { actualBoundingBoxAscent: number } }) | null;
+        | (Omit<StageCanvas, 'measureText'> & {
+            measureText(t: string): { actualBoundingBoxAscent: number };
+          })
+        | null;
       if (!ctx) throw new Error('No canvas is available to measure the text.');
       const tops: Record<string, number> = {};
       for (const font of fonts) {
@@ -133,6 +143,17 @@ export function createCanvasStageRenderer({
         tops[key] = Math.round(fromBaseline - fromTop) / 100;
       }
       return tops;
+    },
+
+    async textWidths(fonts: string[]): Promise<(font: string, text: string) => number> {
+      await loadFonts(fonts);
+      const ctx = makeCanvas(8, 8).getContext('2d') as
+        (StageCanvas & { measureText(t: string): { width: number } }) | null;
+      if (!ctx) throw new Error('No canvas is available to measure the text.');
+      return (font, text) => {
+        ctx.font = font;
+        return ctx.measureText(text).width;
+      };
     },
 
     async pixels(path: string, maxSide: number): Promise<Pixels> {

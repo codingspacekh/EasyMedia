@@ -9,6 +9,8 @@ import {
   removeItem,
 } from './commands.ts';
 import { createAnimationApp } from './animation.ts';
+import { addOverlayItem } from './overlay-commands.ts';
+import { createOverlayItem } from '../core/model/overlay.ts';
 import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
 import { createLearnApp } from './learn.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
@@ -34,7 +36,14 @@ import {
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
-import { findMainItemAt, mainTrackDuration, setItemDuration } from '../core/model/timeline.ts';
+import {
+  findMainItemAt,
+  insertIndexAt,
+  layoutMain,
+  mainTrackDuration,
+  MIN_DURATION,
+  setItemDuration,
+} from '../core/model/timeline.ts';
 import type {
   AudioModeSession,
   AudioTrackIndex,
@@ -133,6 +142,8 @@ export interface AppDeps {
   stageRenderer?: StageRenderer;
   /** AN15: what an HTML web animation carries inside it. */
   pageAssets?: PageAssets;
+  /** AN28: speakers of its own for Animation mode's sounds (Web Audio in the app). */
+  animationAudioOutput?: AudioOutput;
   /** M17a U1–U5: updates from the main process (none in tests or the browser). */
   updates?: UpdatesPort;
   autosaveMs?: number;
@@ -162,6 +173,7 @@ export function createApp({
   audioRecorder,
   stageRenderer,
   pageAssets,
+  animationAudioOutput,
   updates,
   autosaveMs = 60_000,
 }: AppDeps) {
@@ -419,7 +431,9 @@ export function createApp({
         store.update((s) => ({ ...s, history: execute(s.history, addAudioItem(item, track)) }));
         patch({ selection: item.id });
         return;
-      } catch {
+      } catch (error) {
+        // An effects track tries the other one itself and says why neither has room (V13).
+        if (track >= 2) return showError(error);
         // busy here: try the other track
       }
     }
@@ -482,6 +496,7 @@ export function createApp({
     autosaveMs,
     ...(stageRenderer ? { renderer: stageRenderer } : {}),
     ...(pageAssets ? { pageAssets } : {}),
+    ...(animationAudioOutput ? { audioOutput: animationAudioOutput } : {}),
   });
 
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
@@ -743,14 +758,55 @@ export function createApp({
       }
     },
 
-    addToTimeline(assetId: Id): void {
+    /**
+     * Puts a file from the media bin on the timeline: a clip or picture at the end of the main
+     * track, or (V3) at the playhead, between the items there — then the playhead moves to the
+     * end of it, so the next one goes after it. A sound always goes at the playhead (V13).
+     */
+    addToTimeline(assetId: Id, where: 'end' | 'playhead' = 'end'): void {
       const asset = present().media.find((m) => m.id === assetId);
       if (!asset) return;
       if (asset.kind === 'audio') {
         placeSound(asset);
         return;
       }
-      run(addMainItem(asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset)));
+      const item = asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset);
+      if (where === 'end') {
+        run(addMainItem(item));
+        return;
+      }
+      const { main } = present().timeline;
+      const frame = 1 / present().settings.fps;
+      const index = insertIndexAt(main, store.get().playhead, frame);
+      const before = present();
+      run(addMainItem(item, index));
+      if (present() === before) return;
+      const next = layoutMain(present().timeline.main)[index + 1];
+      patch({ playhead: next?.start ?? mainTrackDuration(present().timeline.main) });
+    },
+
+    /**
+     * V20: a picture or video from the media bin over the video at the playhead, then selected. A
+     * picture (a logo) shows until the video ends (5 s if the playhead is past the end); a video
+     * plays all of it, its own sound off.
+     */
+    addOverTheVideo(assetId: Id): void {
+      const asset = present().media.find((m) => m.id === assetId);
+      if (!asset) return;
+      const start = store.get().playhead;
+      const left = mainTrackDuration(present().timeline.main) - start;
+      try {
+        const item = createOverlayItem(
+          asset,
+          start,
+          left >= MIN_DURATION ? { duration: left } : {},
+        );
+        const before = present();
+        run(addOverlayItem(item));
+        if (present() !== before) patch({ selection: item.id });
+      } catch (error) {
+        showError(error);
+      }
     },
 
     /** V13 "Add music at the current point": choose a sound file; it starts at the playhead. */
@@ -790,11 +846,7 @@ export function createApp({
           void prepare(made, info);
           asset = made;
         }
-        placeSound(
-          asset,
-          [2, 3],
-          'There is no free space on the effects tracks at the playhead. Move the playhead or delete a sound effect first.',
-        );
+        placeSound(asset, [2]);
       } catch (error) {
         showError(error);
       }

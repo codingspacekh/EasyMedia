@@ -81,6 +81,7 @@ describe('P2 main-process IPC handlers', () => {
         saveTaskCheck: async (name) => `/t/${name}.mvetask`,
         openAnimation: async () => null,
         openPicture: async () => null,
+        openSound: async () => '/m/alarm.mp3',
         openFrames: async () => ['/shots/1.jpg', '/shots/2.jpg'],
         openExport: async () => ['/e/Task4.html'],
         saveAnimation: async () => null,
@@ -88,6 +89,7 @@ describe('P2 main-process IPC handlers', () => {
       },
     });
     expect(await api.invoke('dialog:openExport')).toEqual({ ok: true, value: ['/e/Task4.html'] });
+    expect(await api.invoke('dialog:openSound')).toEqual({ ok: true, value: '/m/alarm.mp3' });
     expect(await api.invoke('dialog:openFrames')).toEqual({
       ok: true,
       value: ['/shots/1.jpg', '/shots/2.jpg'],
@@ -373,6 +375,49 @@ describe('P2 main-process IPC handlers', () => {
     ).toEqual({ ok: true, value: null });
     await finished;
     expect(allow.has('/out/a.mp4')).toBe(true);
+  });
+
+  it('AN28 puts only sounds the app opened (or made) into a video', async () => {
+    const { api } = inProcessBridge(
+      createMockMediaEngine({
+        '/m/alarm.mp3': {
+          kind: 'audio',
+          container: 'mp3',
+          duration: 2,
+          sizeBytes: 32_000,
+          audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+        },
+      }),
+    );
+    const piece = {
+      path: '/m/alarm.mp3',
+      offset: 0,
+      heard: 2,
+      volume: 1,
+      fadeIn: 0,
+      fadeOut: 0,
+      cut: 0,
+      duration: 2,
+      at: 0,
+    };
+    const options = {
+      format: 'mp4' as const,
+      fps: 24,
+      frames: 72,
+      width: 600,
+      height: 400,
+      sounds: [piece],
+    };
+    const folder = '/cache/frames/export-2';
+    expect(await api.invoke('media:encodeFrames', 'k3', folder, '/out/b.mp4', options)).toEqual({
+      ok: false,
+      error: expect.objectContaining({ message: 'Only sounds opened in OneEditor can be used.' }),
+    });
+    await api.invoke('media:probe', '/m/alarm.mp3');
+    expect(await api.invoke('media:encodeFrames', 'k4', folder, '/out/b.mp4', options)).toEqual({
+      ok: true,
+      value: null,
+    });
   });
 
   it('only releases files it made for decoding', async () => {

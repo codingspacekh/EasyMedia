@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { volumeAt } from '../../../src/core/model/volume-changes.ts';
 import type { AppState, AssetStatus } from '../../../src/app/app.ts';
 import { createHistory } from '../../../src/app/history.ts';
 import { previewAt, soundsAt, textLayersAt } from '../../../src/app/preview.ts';
@@ -112,6 +113,35 @@ describe('what the preview shows at the playhead (approximate preview, ARCHITECT
       src: toMediaUrl('/m/photo.jpg'),
       itemId: 'i',
     });
+  });
+
+  it('V19 a turned clip or picture is turned in the preview by CSS, as in the export', () => {
+    const s = state(ready);
+    const main = s.history.present.timeline.main.map((m) =>
+      m.type === 'video'
+        ? { ...m, turn: 90 as const }
+        : m.type === 'image'
+          ? { ...m, flipH: true }
+          : m,
+    );
+    const turned = {
+      ...s,
+      history: {
+        ...s.history,
+        present: { ...s.history.present, timeline: { ...s.history.present.timeline, main } },
+      },
+    };
+    // The project is 1920 × 1080: a quarter-turned picture is fitted in a 1080 × 1920 box.
+    expect(previewAt(turned, 3)).toMatchObject({
+      kind: 'video',
+      turn: { transform: 'scale(1, 1) rotate(90deg)', width: '56.25%', height: '177.778%' },
+    });
+    expect(previewAt(turned, 5)).toMatchObject({
+      kind: 'image',
+      turn: { transform: 'scale(-1, 1) rotate(0deg)', width: '100%', height: '100%' },
+    });
+    // A clip that is not turned has nothing extra.
+    expect(previewAt(state(ready), 3)).not.toHaveProperty('turn');
   });
 
   it('nothing after the end of the timeline', () => {
@@ -405,6 +435,28 @@ describe('V13 music and voiceover heard in the preview', () => {
   it('lowers the music by 6 dB while the voiceover plays', () => {
     expect(soundsAt(withSound(true), 4)[0]!.volume).toBeCloseTo(0.8, 5);
     expect(soundsAt(withSound(true), 5.5)[0]!.volume).toBeCloseTo(0.8 * 0.501, 3);
+  });
+
+  it('V13 follows the volume changes as the export does, with the fades and the lowering', () => {
+    const s = withSound(true);
+    const project = s.history.present;
+    const changes = [{ from: 3, to: 4, volume: 0.2 }];
+    const changed = {
+      ...project,
+      timeline: {
+        ...project.timeline,
+        audio: [
+          [{ ...project.timeline.audio[0][0]!, volumeChanges: changes }],
+          project.timeline.audio[1],
+        ] as typeof project.timeline.audio,
+      },
+    };
+    const at = (t: number) => soundsAt({ ...s, history: createHistory(changed) }, t)[0]!.volume;
+    expect(at(2.5)).toBeCloseTo(0.8 * 0.75, 5); // still fading in (1–3 s)
+    expect(at(2.875)).toBeCloseTo(volumeAt(0.8, changes, 2.875) * (1.875 / 2), 5); // gliding down
+    expect(at(3.5)).toBeCloseTo(0.2, 5);
+    expect(at(4.125)).toBeCloseTo(0.5, 5); // half way back up
+    expect(at(5.5)).toBeCloseTo(0.8 * 0.501, 3); // lowered under the voiceover as before
   });
 
   it('V13 plays the sound effects tracks too, never lowered under the voiceover', () => {

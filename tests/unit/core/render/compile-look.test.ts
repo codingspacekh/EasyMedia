@@ -171,3 +171,29 @@ describe('V10 one frame for a snapshot', () => {
     );
   });
 });
+
+describe('V19 turning and flipping in the export', () => {
+  it('V19: turns a clip a quarter before fitting it to the frame (its width and height swap)', () => {
+    const g = graph(project([{ ...clip('v', 0, 4), turn: 90 }]));
+    expect(g).toContain('[0:v]setpts=PTS-STARTPTS,transpose=clock,scale=1920:1080');
+  });
+
+  it('V19: flips a picture before fitting it, and keeps its other looks after', () => {
+    const g = graph(
+      project([
+        {
+          ...still('s', 5),
+          turn: 270,
+          flipH: true,
+          effects: [{ effectId: 'video.blackwhite', params: {} }],
+        },
+      ]),
+    );
+    expect(g).toContain('[0:v]transpose=cclock,hflip,scale=1920:1080');
+    expect(g).toContain('[p0]hue=s=0[v0]');
+  });
+
+  it('V19: a clip that is not turned compiles exactly as before', () => {
+    expect(graph(project([clip('v', 0, 4)]))).toContain('[0:v]setpts=PTS-STARTPTS,scale=');
+  });
+});

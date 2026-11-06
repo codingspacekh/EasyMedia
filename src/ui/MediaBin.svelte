@@ -1,6 +1,8 @@
 <script lang="ts">
   // Media bin (screen 01): every imported file as a card with a picture, its length and size.
-  // Add puts it on the timeline; pictures can be resized & cropped (V11); missing files located (P6).
+  // Add puts it at the end of the timeline, Insert at the playhead between the clips there (V3);
+  // pictures can be resized & cropped (V11); missing files located (P6). A picture or video can
+  // also go over the video at the playhead (V20: a logo, picture-in-picture).
   import type { App, AssetStatus } from '../app/app.ts';
   import { toMediaUrl } from '../core/media-url.ts';
   import type { MediaAsset } from '../core/model/types.ts';
@@ -27,15 +29,16 @@
   const project = $derived($store.history.present);
   const shown = $derived(project.media.filter((m) => filter === 'all' || m.kind === filter));
   const used = $derived(
-    new Set(
-      project.timeline.main.flatMap((m) =>
+    new Set([
+      ...project.timeline.main.flatMap((m) =>
         m.type === 'title'
           ? m.background.kind === 'colour'
             ? []
             : [m.background.assetId]
           : [m.assetId],
       ),
-    ),
+      ...(project.timeline.overlay ?? []).map((o) => o.assetId),
+    ]),
   );
 
   /** 0:20 style length for the badge. */
@@ -117,6 +120,22 @@
                 title="Add to the timeline"
                 onclick={() => app.addToTimeline(asset.id)}><Icon name="plus" size={14} /></button
               >
+              {#if asset.kind !== 'audio'}
+                <button
+                  class="sm icon-only"
+                  aria-label={`Insert ${name} at the playhead`}
+                  title="Insert at the playhead (before the clip that starts there, or after the clip it is in)"
+                  onclick={() => app.addToTimeline(asset.id, 'playhead')}
+                  ><Icon name="insertAt" size={14} /></button
+                >
+                <button
+                  class="sm icon-only"
+                  aria-label={`Put ${name} over the video at the playhead`}
+                  title="Over the video at the playhead (a logo in a corner, or picture-in-picture)"
+                  onclick={() => app.addOverTheVideo(asset.id)}
+                  ><Icon name="pip" size={14} /></button
+                >
+              {/if}
               {#if asset.kind === 'image' && status?.size}
                 {@const size = status.size}
                 <button
@@ -240,9 +259,13 @@
   }
   .actions {
     position: absolute;
+    left: 4px;
     right: 4px;
     bottom: 4px;
     display: flex;
+    /* A narrow card puts the buttons on two rows rather than past its edge. */
+    flex-wrap: wrap-reverse;
+    justify-content: flex-end;
     gap: 4px;
     opacity: 0;
     transition: opacity 0.12s;

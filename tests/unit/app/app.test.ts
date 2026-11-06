@@ -211,6 +211,45 @@ describe('M4 app use cases', () => {
       expect(project().timeline.main.map((m) => m.type)).toEqual(['video', 'image']);
     });
 
+    it('V3: "Insert at the playhead" puts a clip or picture first, between items, or last', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      const clip = idOf(state(), '/m/clip.mp4');
+      const photo = idOf(state(), '/m/photo.jpg');
+      app.addToTimeline(clip); // 0–10 s
+      app.addToTimeline(photo); // 10–15 s
+      const kinds = () => project().timeline.main.map((m) => m.type);
+      // At the start of the video: first.
+      app.setPlayhead(0);
+      app.addToTimeline(photo, 'playhead');
+      expect(kinds()).toEqual(['image', 'video', 'image']);
+      // The playhead moves to the end of the new item, so the next one goes after it.
+      expect(state().playhead).toBe(5);
+      app.addToTimeline(clip, 'playhead');
+      expect(kinds()).toEqual(['image', 'video', 'video', 'image']);
+      expect(state().playhead).toBe(15);
+      // Inside an item: after it. Past the end: at the end.
+      app.setPlayhead(17);
+      app.addToTimeline(photo, 'playhead');
+      expect(kinds()).toEqual(['image', 'video', 'video', 'image', 'image']);
+      app.setPlayhead(99);
+      app.addToTimeline(photo, 'playhead');
+      expect(kinds()).toHaveLength(6);
+    });
+
+    it('V3: inserting at the playhead is one undo step; "Add" still puts the item at the end', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      app.addToTimeline(idOf(state(), '/m/clip.mp4'));
+      app.setPlayhead(0);
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'), 'playhead');
+      app.undo();
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['video']);
+      app.setPlayhead(0);
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['video', 'image']);
+    });
+
     it('V13: a sound file goes on the music track at the playhead, and is selected', async () => {
       const { app, state, project, importFiles } = setup();
       await importFiles('/m/music.mp3');

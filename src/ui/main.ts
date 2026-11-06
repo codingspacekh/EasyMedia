@@ -71,6 +71,7 @@ if (!window.mve) {
     updates: createElectronUpdates(api),
     paths: await getAppPaths(api),
     audioOutput: createWebAudioOutput(),
+    animationAudioOutput: createWebAudioOutput(),
     audioUndoStore: createIndexedDbUndoStore(),
     audioRecorder: createMediaStreamRecorder({
       mediaDevices: navigator.mediaDevices,

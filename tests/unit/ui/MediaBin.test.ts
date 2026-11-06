@@ -36,6 +36,35 @@ describe('media bin', () => {
     expect(app.store.get().history.present.timeline.main).toHaveLength(1);
   });
 
+  it('V3: "Insert at the playhead" puts a clip or picture where the playhead is', async () => {
+    const { app, importFiles } = testApp();
+    render(MediaBin, { props: { app } });
+    await importFiles('/m/clip.mp4', '/m/photo.jpg');
+    await fireEvent.click(screen.getByRole('button', { name: /add clip\.mp4 to the timeline/i }));
+    app.setPlayhead(0);
+    const insert = screen.getByRole('button', { name: 'Insert photo.jpg at the playhead' });
+    expect(insert.title).toMatch(/at the playhead/i);
+    await fireEvent.click(insert);
+    const main = app.store.get().history.present.timeline.main;
+    expect(main.map((m) => m.type)).toEqual(['image', 'video']);
+  });
+
+  it('V3: a sound has no "Insert at the playhead": Add already puts it there', async () => {
+    const { app, importFiles } = testApp({
+      '/m/music.mp3': {
+        kind: 'audio',
+        container: 'mp3',
+        duration: 30,
+        sizeBytes: 1,
+        audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+      },
+    });
+    render(MediaBin, { props: { app } });
+    await importFiles('/m/music.mp3');
+    expect(screen.getByRole('button', { name: /add music\.mp3/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /insert music\.mp3/i })).toBeNull();
+  });
+
   it('P6 offers Locate… for a file that cannot be found', async () => {
     const { app } = testApp({ '/new/photo.jpg': IMAGE });
     app.store.update((st) => ({

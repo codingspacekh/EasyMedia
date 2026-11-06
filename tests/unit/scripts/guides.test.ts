@@ -12,7 +12,7 @@ describe('teacher notes', () => {
     const notes = teacherNotes(SYLLABUS);
     for (const p of SYLLABUS) expect(notes).toContain(p.point);
     expect(notes).toMatch(
-      /\| fading in and fading out \| Audio ▸ Effect ▸ Fade in \/ Fade out \| Fade in, Fade out \|/,
+      /\| fading in and fading out \| Audio ▸ Effect ▸ Fade in \/ Fade out, Volume change \(from one volume to another\) \| Fade in, Fade out, Volume change \|/,
     );
     expect(notes).toMatch(/## 11\.1 Video editing[\s\S]*## 11\.2 Audio editing/);
   });

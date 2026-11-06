@@ -9,7 +9,8 @@
   import { TRANSPARENT } from '../../core/animation/rules.ts';
   import {
     angleOf,
-    centreOf,
+    pivotOf,
+    pivotOnStage,
     snapAngle,
     type Handle,
     type Point,
@@ -39,6 +40,8 @@
     objectCorners,
     objectsInBox,
     pickObject,
+    boxPivotNear,
+    pivotFrom,
     previewDoc,
     roundStage as round,
     simplifyStroke,
@@ -404,18 +407,59 @@
     e.stopPropagation();
     if (!single) return;
     const id = single.id;
-    const centre = centreOf(single);
+    // AN27: it turns about its point (the centre unless another is chosen), by as much as the
+    // pointer goes round that point.
+    const centre = pivotOnStage(single);
+    const from = single.rotation - angleOf(centre, at(e));
     drag = { kind: 'rotate', id, centre, degrees: single.rotation };
     track(
       (m) => {
         if (drag?.kind !== 'rotate') return;
-        const deg = angleOf(centre, at(m));
+        const deg = from + angleOf(centre, at(m));
         drag = { ...drag, degrees: m.shiftKey ? snapAngle(deg, 15) : Math.round(deg) };
       },
       () => {
         if (drag?.kind === 'rotate') anim.rotateSelected(id, drag.degrees);
       },
     );
+  }
+
+  /**
+   * AN27: the point the object turns about, dragged: it snaps to the box's centre, corners and
+   * edge middles, and to the grid, guides and other objects when snapping is on (Alt: not at all).
+   */
+  function startPivot(e: PointerEvent): void {
+    e.stopPropagation();
+    if (!single) return;
+    const object = single;
+    const id = object.id;
+    const start = pivotOf(object);
+    drag = { kind: 'pivot', id, pivot: start };
+    track(
+      (m) => {
+        if (drag?.kind !== 'pivot') return;
+        const p = at(m);
+        const pivot =
+          (m.altKey ? null : boxPivotNear(object, p, threshold())) ??
+          pivotFrom(object, snapPoint(p, m.altKey));
+        drag = { ...drag, pivot };
+      },
+      () => {
+        if (drag?.kind !== 'pivot') return;
+        const { pivot } = drag;
+        if (pivot.x !== start.x || pivot.y !== start.y) anim.setPivot(pivot, [id]);
+      },
+    );
+  }
+
+  /**
+   * AN27: a double-click on the point puts it back in the centre of the box. Already there, the
+   * double-click is the stage's own (text's words are edited).
+   */
+  function centrePivot(e: MouseEvent): void {
+    if (!single?.pivot) return;
+    e.stopPropagation();
+    anim.setPivot(null, [single.id]);
   }
 
   /** AN2: a guide dragged out of a ruler, or an existing one moved (off the stage removes it). */
@@ -578,6 +622,8 @@
             size={hs}
             onrotate={startRotate}
             onresize={startResize}
+            onpivot={startPivot}
+            oncentre={centrePivot}
           />
         {/if}
         {#if editablePath && drag?.kind !== 'move'}

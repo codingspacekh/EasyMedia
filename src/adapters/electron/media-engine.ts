@@ -71,6 +71,7 @@ export function createElectronMediaEngine(
       unwrap(api.invoke('media:resizeCrop', input, plan, name)),
     combineImages: (base, top, plan, name) =>
       unwrap(api.invoke('media:combine', base, top, plan, name)),
+    colourKeyImage: (input, key, name) => unwrap(api.invoke('media:colourKey', input, key, name)),
     renderFrame: (project, time, output, options) =>
       unwrap(api.invoke('media:snapshot', project, time, output, options)),
     renderVideo: (project, output, options) =>

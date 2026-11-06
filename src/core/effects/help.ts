@@ -12,6 +12,7 @@ export const WHY = {
     'A still image, title or caption has no length of its own: its duration decides how long the audience sees it. Long enough to read, short enough to keep their attention.',
   speed:
     'Speeding a clip up shows a long event in a short time (time-lapse); slowing it down shows detail in fast movement (slow motion). The clip becomes shorter or longer.',
+  turn: 'Turning puts a clip or picture the right way up: phone footage filmed sideways or upside down is turned 90° or 180°, so the audience does not have to tilt their head. Flipping mirrors the picture, for example so a person faces into the frame. A clip turned on its side has black bars unless the project has its shape.',
   clipSound:
     'Removing a clip’s own sound takes away wind, traffic or talking the audience should not hear, so music or a voiceover can be heard clearly. Lowering its volume keeps a little background sound.',
   separateSound:
@@ -28,6 +29,8 @@ export const WHY = {
     'Resizing and cropping a still image makes it match the video’s aspect ratio, so it fills the frame without black bars or looking stretched. Cropping also removes unwanted parts of the picture.',
   placePicture:
     'Placing a picture on another makes one still from both: a still from the video or a logo on a background, for a title slide or the credits. It is saved as a new picture, so both originals are kept.',
+  overlay:
+    'Putting a picture or a video over the video shows two things at once. A logo or watermark in a corner shows who made the video, often for the whole video. Picture-in-picture shows a small video in a corner, for example a presenter talking while the screen they explain fills the frame. Keep it small and near an edge, so it does not hide what matters.',
   fade: 'Fading from black gently opens a scene; fading to black closes it and shows that time has passed or that the video is ending. Fading to white feels bright, like a memory.',
   panZoom:
     'Pan and zoom moves across or into a picture so a still image does not look frozen. It also removes unwanted parts at the edges and draws attention to an important detail.',
@@ -78,13 +81,13 @@ export const WHY = {
   vectorShapes:
     'Vector objects are stored as points and equations, so they can be moved, resized, turned and recoloured without losing quality, and the computer can work out the frames in between (tweening). A bitmap picture cannot be tweened the same way.',
   animText:
-    'Text is an object like any other: it has a font, size, colour and position, and it can be moved, faded and tweened. Splitting a word into letters lets each letter arrive or leave on its own.',
+    'Text is an object like any other: it has a font, size, colour and position, and it can be moved, faded and tweened. Splitting a word into letters lets each letter arrive or leave on its own. Curving the words bends them along an arch, as in many logos, so each letter does not have to be placed and turned by hand.',
   animTrace:
     'Trace bitmap turns a picture into vector shapes, one for each area of colour, so its parts can be recoloured, moved and animated separately and it can be resized without blurring. Some detail is lost: fewer colours and less detail give fewer, simpler shapes.',
   animPicture:
-    'A picture (bitmap) can be placed, moved, resized and faded in an animation. To change its parts separately, trace it into vector shapes first; some detail is lost in the trace.',
+    'A picture (bitmap) can be placed, moved, resized and faded in an animation. To change its parts separately, trace it into vector shapes first; some detail is lost in the trace. Cropping keeps only the part needed; making a plain background see-through cuts the subject out (a transparent background), so no mask is needed to hide it.',
   objectProperties:
-    'An object’s properties — its position (x, y), size, rotation, opacity, fill and stroke — decide how it looks in a frame. Tasks give exact values, so they are typed here: the fill is the colour inside, the stroke is the outline, and opacity is how see-through it is (0 % invisible, 100 % solid).',
+    'An object’s properties — its position (x, y), size, rotation, opacity, fill and stroke — decide how it looks in a frame. Tasks give exact values, so they are typed here: the fill is the colour inside (a gradient blends two or more colours, across or out from a centre), the stroke is the outline, and opacity is how see-through it is (0 % invisible, 100 % solid). Skew slants it in its box: ↔ leans it as italic letters lean, ↕ drops one side (a shield turned sideways). Turn about sets the point it turns about, in % of its box from the top left (or drag the dot with a cross on the stage): a meter’s needle or a clock’s hand turns about its end, a pendulum about its top, a door about its hinge.',
   animLayers:
     'Each layer has its own timeline, so the objects on it are animated independently of the others. The top layer is in front. Locking a layer stops accidental changes; hiding it keeps it out of the way while working. Objects that must move separately — each leg of a stick person — go on separate layers.',
   animGroup:
@@ -108,7 +111,9 @@ export const WHY = {
   animEffects:
     'An effect adds the keyframes of a common motion in one click: a fade or a fly-in brings an object on, a fade or a fly-out takes it away, and a pulse, shake or spin draws the eye to it. The computer works out the frames in between (tweening), and the keyframes can still be changed on the timeline.',
   animExport:
-    'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site; an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing.',
+    'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site (an AVI for older Windows software, a MOV for Apple’s); an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing. A part (a range of frames) or a smaller size can be exported when a task asks for one.',
+  animSound:
+    'Sound is a secondary component of an animation: an alarm ringing, a door slamming or music under the action tells the audience what is happening and when. Each sound starts at a frame, so it is heard in time with the movement; a fade in or out stops it starting or ending suddenly. An MP4, AVI, MOV or web page carries the sounds; a GIF and pictures cannot.',
 } as const;
 
 export type ToolId = keyof typeof WHY;
@@ -136,6 +141,7 @@ export const TOOLS: Tool[] = [
   tool('remove', 'Delete', '11.1 trimming a video clip'),
   tool('duration', 'Duration', '11.1 inserting a still image'),
   tool('speed', 'Speed', '11.1 altering the speed of a video clip'),
+  tool('turn', 'Turn & flip', '11.1 setting an aspect ratio'),
   tool('clipSound', 'Clip sound', '11.1 removing audio from a video clip'),
   tool('separateSound', 'Separate sound', '11.1 editing audio within a video clip'),
   tool('title', 'Title', '11.1 creating text-based slides'),
@@ -144,6 +150,7 @@ export const TOOLS: Tool[] = [
   tool('credits', 'Credits', '11.1 creating credits'),
   tool('resizeCrop', 'Resize & crop', '11.1 resizing and cropping a still image'),
   tool('placePicture', 'Place a picture', '11.1 inserting a still image'),
+  tool('overlay', 'Over the video', '11.1 inserting a still image'),
   tool('fade', 'Fade', '11.1 adding fading effects'),
   tool('panZoom', 'Pan & zoom', '11.1 adding pan and zoom effects'),
   tool('filters', 'Filters & colour', '11.1 using filters and colour correction'),
@@ -185,6 +192,7 @@ export const TOOLS: Tool[] = [
   tool('animLibrary', 'Library', '20.1 creating vector objects'),
   tool('animEffects', 'Effects', '20.1 frames, key frames and tweening'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
+  tool('animSound', 'Sound', '20.1 components of an animation'),
 ];
 
 export function toolById(id: ToolId): Tool {

@@ -8,7 +8,13 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { bundledFfmpeg, run } from '../integration/helpers/ffmpeg.ts';
-import { createAnimation, createEllipse, createGroup } from '../../src/core/animation/factory.ts';
+import {
+  createAnimation,
+  createEllipse,
+  createGroup,
+  createRect,
+  createText,
+} from '../../src/core/animation/factory.ts';
 import { serializeAnimation } from '../../src/core/animation/serialize.ts';
 import { answerDialogs, launchApp, menu } from './app.ts';
 
@@ -251,5 +257,109 @@ test('Gas: a cloud grouped at 50 % is no darker where its parts overlap, on the 
     [svgUrl, points] as const,
   );
   inSvg.forEach(halfBlue);
+  await app.close();
+});
+
+/** The share of pixels that differ clearly between two pictures, drawn by the app's browser. */
+async function pixelsOff(page: Page, a: string, b: string): Promise<number> {
+  return page.evaluate(
+    async ([one, two]) => {
+      const load = async (src: string) => {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        return img;
+      };
+      const [p, q] = await Promise.all([load(one!), load(two!)]);
+      const pixels = (img: HTMLImageElement) => {
+        const c = document.createElement('canvas');
+        c.width = p.naturalWidth;
+        c.height = p.naturalHeight;
+        const g = c.getContext('2d')!;
+        g.drawImage(img, 0, 0, c.width, c.height);
+        return g.getImageData(0, 0, c.width, c.height).data;
+      };
+      const [x, y] = [pixels(p), pixels(q)];
+      let off = 0;
+      for (let i = 0; i < x.length; i += 4) {
+        const d = Math.max(
+          Math.abs(x[i]! - y[i]!),
+          Math.abs(x[i + 1]! - y[i + 1]!),
+          Math.abs(x[i + 2]! - y[i + 2]!),
+        );
+        if (d > 64) off++;
+      }
+      return off / (x.length / 4);
+    },
+    [a, b],
+  );
+}
+
+test('AN26, AN6 HUNGRY: curved logo words and gradients of three colours look the same in the SVG as in the PNG', async () => {
+  test.setTimeout(180_000);
+  // 9626/04 M/J/17: the HUNGRY logo's words in an arch; M/J/20: a red–yellow–green meter scale;
+  // M/J/18: a bloom lit from one side. On a white 480 × 320 stage.
+  const meter = {
+    kind: 'linear' as const,
+    from: '#ff0000',
+    to: '#00a000',
+    angle: 0,
+    stops: [{ at: 50, colour: '#ffee00' }],
+  };
+  const words = {
+    ...createText('HUNGRY', { x: 60, y: 20, size: 64 }),
+    bold: true,
+    curve: 60,
+    width: 360,
+    height: 150,
+    fill: meter,
+  };
+  const scale = { ...createRect({ x: 40, y: 200, width: 220, height: 60 }), fill: meter };
+  const bloom = {
+    ...createEllipse({ x: 300, y: 180, width: 140, height: 120 }),
+    fill: {
+      kind: 'radial' as const,
+      from: '#ffffff',
+      to: '#c000c0',
+      stops: [{ at: 40, colour: '#ffa0ff' }],
+      cx: 30,
+      cy: 35,
+    },
+    stroke: undefined,
+  };
+  const doc = createAnimation({ name: 'Hungry' });
+  const file = join(dir, 'Hungry.mvea');
+  await writeFile(
+    file,
+    serializeAnimation({
+      ...doc,
+      stage: { ...doc.stage, width: 480, height: 320, background: '#ffffff' },
+      layers: [{ ...doc.layers[0]!, objects: [words, scale, bloom] }],
+    }),
+  );
+  const { app, window: page } = await launchApp();
+  await page
+    .getByRole('navigation', { name: 'Mode' })
+    .getByRole('button', { name: 'Animation' })
+    .click();
+  await answerDialogs(app, { open: [file] });
+  await menu(app, 'File', 'Open Animation…');
+  await expect(page.getByText('HUNGRY').first()).toBeVisible();
+
+  const png = join(dir, 'Hungry.png');
+  await answerDialogs(app, { exportTo: png });
+  await exportAs(page, /PNG picture of this frame/);
+  await expect.poll(() => exists(png), { timeout: 30_000 }).toBe(true);
+  const svg = join(dir, 'Hungry_ZZ999_9999.svg');
+  await answerDialogs(app, { exportTo: svg });
+  await exportAs(page, /SVG picture of this frame/);
+  await expect.poll(() => exists(svg), { timeout: 30_000 }).toBe(true);
+  const text = await readFile(svg, 'utf8');
+  expect([...text.matchAll(/<text [^>]*>(.)<\/text>/g)].map((m) => m[1])).toEqual([...'HUNGRY']);
+
+  const pngUrl = `data:image/png;base64,${(await readFile(png)).toString('base64')}`;
+  const svgUrl = `data:image/svg+xml;base64,${Buffer.from(text).toString('base64')}`;
+  // Only the edges' smoothing may differ: well under 1 % of the pixels.
+  expect(await pixelsOff(page, pngUrl, svgUrl)).toBeLessThan(0.01);
   await app.close();
 });

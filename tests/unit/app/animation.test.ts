@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { animationTitle } from '../../../src/app/animation.ts';
 import { createAnimation, createRect } from '../../../src/core/animation/factory.ts';
 import { serializeAnimation } from '../../../src/core/animation/serialize.ts';
+import { objectAt } from '../../../src/core/animation/tween.ts';
 import type { AnimObject, StarObject } from '../../../src/core/animation/types.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -96,6 +97,46 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     ]);
   });
 
+  it('AN4 AN6 a font size typed on the first frame keeps x and y as typed; on a later frame the text grows from its centre, keyed with x and y', () => {
+    const s = setup();
+    s.anim.addText({ x: 100, y: 100 }, 'OPEN DAY', () => ({ width: 200, height: 48 }));
+    const t = s.objects()[0]!;
+    const size = t.kind === 'text' ? t.size : 0;
+    const centre = (o: AnimObject) => [o.x + o.width / 2, o.y + o.height / 2];
+    // Workbook Task 1 types X, Y and then Size: the numbers stay exactly as typed (as in Animate).
+    expect(s.anim.setProperties({ size: size * 2, width: 400, height: 96 } as never)).toBeNull();
+    expect(s.objects()[0]).toMatchObject({
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 96,
+      size: size * 2,
+    });
+    s.anim.undo();
+    // At a later frame the size, box and position are keyed together: the text grows in place.
+    s.anim.setFrame(10);
+    s.anim.setProperties({ size: size * 2, width: 400, height: 96 } as never);
+    const keyed = s.objects()[0]!;
+    const props = (keyed.tracks ?? []).map((k) => k.property);
+    expect(props).toEqual(expect.arrayContaining(['size', 'x', 'y', 'width', 'height']));
+    expect(objectAt(keyed, 10)).toMatchObject({ x: 0, y: 76, width: 400, size: size * 2 });
+    expect(objectAt(keyed, 0)).toMatchObject({ x: 100, y: 100, width: 200, size });
+    const [mx, my] = centre(objectAt(keyed, 5));
+    expect(mx).toBeCloseTo(200, 6);
+    expect(my).toBeCloseTo(124, 6);
+  });
+
+  it("AN18: a button's label size typed in Properties is kept (it is not a font-size keyframe)", () => {
+    const s = setup();
+    s.anim.addButton({ x: 100, y: 100 });
+    expect(s.anim.setProperties({ size: 30 } as never)).toBeNull();
+    expect(s.objects()[0]).toMatchObject({ kind: 'button', size: 30 });
+    s.anim.setFrame(10);
+    expect(s.anim.setProperties({ size: 24 } as never)).toBeNull();
+    expect(s.objects()[0]).toMatchObject({ size: 24 });
+    expect(s.objects()[0]!.tracks?.some((t) => t.property === 'size')).toBeFalsy();
+  });
+
   it('AN23 Flip horizontal / vertical mirrors the selection; one undo step each', () => {
     const s = setup();
     s.star();
@@ -121,6 +162,51 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     s.anim.selectAll();
     expect(s.anim.combine('union')).toMatch(/Only shapes/);
     expect(s.objects()).toHaveLength(3);
+  });
+
+  it('AN5 Select same fill / outline colour: the parts of one colour on the layer, at the playhead', () => {
+    const s = setup();
+    const box = { x: 0, y: 0, width: 50, height: 50 };
+    s.anim.addShape('rect', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#3A7DC9' } });
+    const sea = s.state().selection[0]!;
+    s.anim.addShape('ellipse', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#D9C27A' } });
+    s.anim.addShape('star', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#3a7dc9' } });
+    const sea2 = s.state().selection[0]!;
+    // On another layer: not chosen.
+    s.anim.addLayer();
+    s.anim.addShape('rect', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#3A7DC9' } });
+    s.anim.select([sea]);
+    s.anim.selectSameColour('fill');
+    expect(s.state().selection).toEqual([sea, sea2]);
+    expect(s.state().message?.text).toBe('Selected 2 objects with this fill.');
+    // A colour keyed later counts as it is at the playhead.
+    s.anim.select([sea2]);
+    s.anim.setFrame(10);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#FF0000' } });
+    s.anim.select([sea]);
+    s.anim.selectSameColour('fill');
+    expect(s.state().selection).toEqual([sea]);
+    // Outlines: the three on the layer have the same (the default) outline; then it has none.
+    s.anim.selectSameColour('outline');
+    expect(s.state().selection).toHaveLength(3);
+    expect(s.state().message?.text).toBe('Selected 3 objects with this outline.');
+    s.anim.select([sea]);
+    s.anim.setProperties({ stroke: undefined });
+    s.anim.selectSameColour('outline');
+    expect(s.state().message).toEqual({
+      kind: 'error',
+      text: 'The selected object has no outline.',
+    });
+    // A group has no colour of its own.
+    s.anim.setFrame(0);
+    s.anim.selectAll();
+    s.anim.group();
+    s.anim.selectSameColour('fill');
+    expect(s.state().message?.text).toMatch(/Ungroup it, then select one of its parts/);
   });
 
   it('deleteSelection, cut / copy / paste, duplicate, group and ungroup', () => {

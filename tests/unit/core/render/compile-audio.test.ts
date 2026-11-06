@@ -7,6 +7,7 @@ import {
 } from '../../../../src/core/model/factory.ts';
 import type { MainItem, MediaAsset, Project } from '../../../../src/core/model/types.ts';
 import { compileProject, type RenderOptions } from '../../../../src/core/render/compile.ts';
+import { volumeExpression } from '../../../../src/core/model/volume-changes.ts';
 
 const lake = createMediaAsset({
   id: 'lake',
@@ -113,6 +114,31 @@ describe('V13 music and voiceover tracks in the export', () => {
     const m = chain(compileProject(p, options).args, '[m0]');
     expect(m).toContain("volume=-6dB:enable='between(t,6,10)+between(t,12,16)'");
     expect(m.indexOf('adelay')).toBeLessThan(m.indexOf('volume=-6dB')); // in timeline time
+  });
+
+  it('V13 volume change: the music at 30 % between 10 s and 15 s, gliding, in timeline time', () => {
+    const changes = [{ from: 10, to: 15, volume: 0.3 }];
+    const item = { ...createAudioItem(music, 2, { id: 'm' }), volume: 0.8, volumeChanges: changes };
+    const m = chain(compileProject(project([clip()], [[item], []]), options).args, '[m0]');
+    const expression = volumeExpression(0.8, changes);
+    // The level is worked out every 5 ms (240 samples), so a glide is smooth and exact.
+    expect(m).toContain(`asetnsamples=n=240:p=0,volume=eval=frame:volume='${expression}'`);
+    expect(m.indexOf('adelay')).toBeLessThan(m.indexOf('volume=eval=frame'));
+    expect(m).not.toContain('volume=0.8'); // the line starts and ends at the sound's own volume
+  });
+
+  it('V13 a volume change and the music lowered under the voiceover both apply', () => {
+    const changes = [{ from: 5, to: 8, volume: 0.5 }];
+    const p = project(
+      [clip()],
+      [
+        [{ ...createAudioItem(music, 0, { id: 'm' }), duck: true, volumeChanges: changes }],
+        [createAudioItem(voice, 6, { id: 'v1' })],
+      ],
+    );
+    const m = chain(compileProject(p, options).args, '[m0]');
+    expect(m).toContain(`volume=eval=frame:volume='${volumeExpression(1, changes)}'`);
+    expect(m).toContain("volume=-6dB:enable='between(t,6,10)'");
   });
 
   it('speed: music at 2× from 5 s reads 30 s of the file for the 15 s it is heard, pitch kept', () => {

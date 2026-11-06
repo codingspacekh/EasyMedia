@@ -8,9 +8,10 @@
   import { DEFAULT_STROKE } from '../../core/animation/factory.ts';
   import { isClosed, isShape } from '../../core/animation/geometry.ts';
   import type { CombineHow } from '../../core/animation/combine.ts';
+  import { addStop, changeStop, removeStop } from '../../core/animation/gradient.ts';
   import { findObject } from '../../core/animation/layers.ts';
   import { stateAt } from '../../core/animation/state.ts';
-  import { aspectOf } from '../../core/animation/rules.ts';
+  import { aspectOf, MAX_CURVE } from '../../core/animation/rules.ts';
   import { EASINGS } from '../../core/animation/tween.ts';
   import type {
     AnimObject,
@@ -113,16 +114,24 @@
           ? current.from
           : '#9aa4b2';
     const to = current.kind === 'linear' || current.kind === 'radial' ? current.to : '#ffffff';
+    // AN6: the colours between stay when a gradient changes kind.
+    const stops =
+      (current.kind === 'linear' || current.kind === 'radial') && current.stops
+        ? { stops: current.stops }
+        : {};
     const fill: Paint =
       kind === 'none'
         ? { kind: 'none' }
         : kind === 'solid'
           ? { kind: 'solid', colour: base }
           : kind === 'linear'
-            ? { kind: 'linear', from: base, to, angle: 0 }
-            : { kind: 'radial', from: base, to };
+            ? { kind: 'linear', from: base, to, angle: 0, ...stops }
+            : { kind: 'radial', from: base, to, ...stops };
     set({ fill });
   }
+  /** AN6: a gradient changed as a whole (a colour between added, changed or taken off). */
+  const setFill = (fill: Paint): string | null => set({ fill });
+
   const fillPatch = (change: Partial<Extract<Paint, { kind: 'linear' }>>) => {
     if (!first || first.fill.kind === 'none') return null;
     return set({ fill: { ...first.fill, ...change } as Paint });
@@ -132,6 +141,22 @@
     if (!first || first.kind !== 'text') return null;
     const next = { ...first, ...change } as TextObject;
     return set({ ...change, ...textBox(next) } as Partial<AnimObject>);
+  };
+  /**
+   * AN26: a new curve bends the words; their box follows the bent words and stays centred where
+   * it was (one undo step). 0 makes them straight again (and nothing is saved).
+   */
+  const curvePatch = (curve: number): string | null => {
+    if (!first || first.kind !== 'text') return null;
+    const next = { ...first, curve: curve === 0 ? undefined : curve } as TextObject;
+    const box = textBox(next);
+    const hundredths = (n: number) => Math.round(n * 100) / 100;
+    return set({
+      curve: next.curve,
+      ...box,
+      x: hundredths(first.x + (first.width - box.width) / 2),
+      y: hundredths(first.y + (first.height - box.height) / 2),
+    } as Partial<AnimObject>);
   };
   const strokePatch = (change: Partial<NonNullable<AnimObject['stroke']>>) => {
     if (!first) return null;
@@ -210,6 +235,43 @@
             unit="%"
             commit={(v) => set({ opacity: v })}
           />
+          <!-- AN25: slanted in its box (a shield turned sideways), keyed like the turn. -->
+          <NumField
+            label="Skew ↔"
+            value={first.skewX ?? 0}
+            unit="°"
+            commit={(v) => set({ skewX: v })}
+          />
+          <NumField
+            label="Skew ↕"
+            value={first.skewY ?? 0}
+            unit="°"
+            commit={(v) => set({ skewY: v })}
+          />
+          <!-- AN27: the point it turns about, in % of its box from the top left (a needle's end). -->
+          <NumField
+            label="Turn about X"
+            value={(first.pivot?.x ?? 0.5) * 100}
+            unit="%"
+            decimals={1}
+            commit={(v) => anim.setPivot({ x: v / 100 })}
+          />
+          <NumField
+            label="Turn about Y"
+            value={(first.pivot?.y ?? 0.5) * 100}
+            unit="%"
+            decimals={1}
+            commit={(v) => anim.setPivot({ y: v / 100 })}
+          />
+        </div>
+        <div class="cells" role="group" aria-label="Turn about">
+          <button
+            class="sm"
+            aria-label="Turn about the centre"
+            title="Turn about the centre of the box again (or double-click the dot on the stage)"
+            disabled={!found.some((f) => f.object.pivot)}
+            onclick={() => anim.setPivot(null)}>Centre</button
+          >
         </div>
         <Why tool="objectProperties" />
       </div>
@@ -217,7 +279,20 @@
       {#if first.kind === 'picture' && !many}
         <div class="sec">
           <h4>Picture <span class="syl">20.1 tracing bitmaps</span></h4>
-          <button class="sm" onclick={() => (animUi.dialog = 'trace')}>Trace bitmap…</button>
+          <div class="cells" role="group" aria-label="Picture">
+            <!-- AN5: a new picture beside this one (O/N/19: the pearl cut from its photo). -->
+            <button
+              class="sm"
+              title="Keep only part of the picture"
+              onclick={() => (animUi.dialog = 'cropPicture')}>Crop…</button
+            >
+            <button
+              class="sm"
+              title="A plain background (or any colour) becomes see-through"
+              onclick={() => (animUi.dialog = 'seeThrough')}>Make a colour see-through…</button
+            >
+            <button class="sm" onclick={() => (animUi.dialog = 'trace')}>Trace bitmap…</button>
+          </div>
           <Why tool="animTrace" />
         </div>
       {/if}
@@ -246,19 +321,66 @@
               commit={(c) => set({ fill: { kind: 'solid', colour: c } })}
             />
           {:else if first.fill.kind === 'linear' || first.fill.kind === 'radial'}
-            <ColourField
-              label="From"
-              value={first.fill.from}
-              commit={(c) => fillPatch({ from: c })}
-            />
-            <ColourField label="To" value={first.fill.to} commit={(c) => fillPatch({ to: c })} />
-            {#if first.fill.kind === 'linear'}
+            {@const fill = first.fill}
+            <ColourField label="From" value={fill.from} commit={(c) => fillPatch({ from: c })} />
+            <!-- AN6: the colours between From and To (M/J/20: a red, yellow and green meter). -->
+            {#each fill.stops ?? [] as stop, i (i)}
+              <div class="stop" role="group" aria-label="Colour {i + 2}">
+                <ColourField
+                  label="Colour {i + 2}"
+                  value={stop.colour}
+                  commit={(c) => setFill(changeStop(fill, i, { colour: c }))}
+                />
+                <div class="stop-at">
+                  <NumField
+                    label="At"
+                    value={stop.at}
+                    unit="%"
+                    decimals={1}
+                    commit={(v) => setFill(changeStop(fill, i, { at: v }))}
+                  />
+                  <button
+                    class="sm"
+                    aria-label="Remove colour {i + 2}"
+                    title="Take this colour off the gradient"
+                    onclick={() => setFill(removeStop(fill, i))}>Remove</button
+                  >
+                </div>
+              </div>
+            {/each}
+            <ColourField label="To" value={fill.to} commit={(c) => fillPatch({ to: c })} />
+            <div class="row">
+              <button
+                class="sm"
+                title="Another colour between From and To, in the middle of the widest gap"
+                onclick={() => setFill(addStop(fill))}>Add a colour</button
+              >
+            </div>
+            {#if fill.kind === 'linear'}
               <NumField
                 label="Angle"
-                value={first.fill.angle}
+                value={fill.angle}
                 unit="°"
                 commit={(v) => fillPatch({ angle: v })}
               />
+            {:else}
+              <!-- AN6: where the gradient starts, in % of the box (M/J/18: the bloom's light). -->
+              <div class="two">
+                <NumField
+                  label="Centre X"
+                  value={fill.cx ?? 50}
+                  unit="%"
+                  decimals={1}
+                  commit={(v) => setFill({ ...fill, cx: v })}
+                />
+                <NumField
+                  label="Centre Y"
+                  value={fill.cy ?? 50}
+                  unit="%"
+                  decimals={1}
+                  commit={(v) => setFill({ ...fill, cy: v })}
+                />
+              </div>
             {/if}
           {/if}
         </div>
@@ -436,6 +558,29 @@
               </select>
             </div>
           </div>
+          <!-- AN26: the words bent along an arch, for a logo (M/J/17 HUNGRY, O/N/17 Rock ICT);
+               one text at a time, as each box follows its own words. -->
+          {#if !many}
+            <NumField label="Curve" value={first.curve ?? 0} commit={curvePatch} />
+            <div class="curve">
+              <span aria-hidden="true">⌣</span>
+              <input
+                type="range"
+                aria-label="Curve slider"
+                title="Bend the words: up like a rainbow, or down like a smile"
+                min={-MAX_CURVE}
+                max={MAX_CURVE}
+                step="1"
+                value={first.curve ?? 0}
+                onchange={(e) => curvePatch(Number((e.currentTarget as HTMLInputElement).value))}
+              />
+              <span aria-hidden="true">⌢</span>
+            </div>
+            <p class="hint">
+              0 is straight, 50 a half circle (a rainbow), 100 a whole circle; below 0 the words
+              bend down like a smile.
+            </p>
+          {/if}
           <div class="row">
             <button
               class="sm"
@@ -624,6 +769,26 @@
               title="Take the group apart (Ctrl/Cmd + Shift + G)"
               disabled={!found.some((f) => f.object.kind === 'group')}
               onclick={() => anim.ungroup()}>Ungroup</button
+            >
+          </div>
+        </div>
+        <!-- AN5: after Trace bitmap, all the parts of one colour at once. -->
+        <div class="line">
+          <span class="cap">Select</span>
+          <div class="cells two-up" role="group" aria-label="Select same colour">
+            <button
+              class="sm"
+              aria-label="Select same fill colour"
+              title="Select every object on this layer with the same fill (after Trace bitmap: all the parts of one colour)"
+              disabled={first.kind === 'group' || first.kind === 'picture'}
+              onclick={() => anim.selectSameColour('fill')}>Same fill</button
+            >
+            <button
+              class="sm"
+              aria-label="Select same outline colour"
+              title="Select every object on this layer with the same outline colour"
+              disabled={!first.stroke || first.kind === 'group' || first.kind === 'picture'}
+              onclick={() => anim.selectSameColour('outline')}>Same outline</button
             >
           </div>
         </div>
@@ -824,6 +989,31 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* AN26: the curve's slider, between a smile and a rainbow. */
+  .curve {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 2px;
+    color: var(--tx-2);
+  }
+  .curve input {
+    width: 100%;
+    min-width: 0;
+  }
+  /* AN6: a colour between From and To, with where it is and a way to take it off. */
+  .stop {
+    padding-left: 8px;
+    border-left: 2px solid var(--line);
+    margin-bottom: 6px;
+  }
+  .stop-at {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    align-items: start;
   }
   .row {
     display: flex;

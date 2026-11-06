@@ -15,7 +15,9 @@ import {
   moved,
   resizeFrom,
   rotated,
+  toLocal,
   toStage,
+  withPivot,
   type Bounds,
   type Handle,
   type Point,
@@ -34,6 +36,8 @@ export type StageDrag =
   | { kind: 'brush'; points: Point[] }
   | { kind: 'resize'; id: Id; handle: Handle; now: Point; lock: boolean }
   | { kind: 'rotate'; id: Id; centre: Point; degrees: number }
+  /** AN27: the point the object turns about, dragged (fractions of its box). */
+  | { kind: 'pivot'; id: Id; pivot: Point }
   | { kind: 'guide'; axis: 'x' | 'y'; index: number | null; value: number }
   /** AN3: a pen path's point moved, or its curve handles pulled out (Alt). */
   | { kind: 'anchor'; id: Id; index: number; now: Point; pull: boolean; moved: boolean }
@@ -100,6 +104,8 @@ export function previewDoc(doc: AnimationDoc, drag: StageDrag | null, layerId: I
       return tryUpdate(doc, d.id, (o) => resizeFrom(o, d.handle, d.now, { lockRatio: d.lock }));
     case 'rotate':
       return tryUpdate(doc, d.id, (o) => rotated(o, d.degrees));
+    case 'pivot':
+      return tryUpdate(doc, d.id, (o) => withPivot(o, d.pivot));
     case 'anchor':
       if (!d.moved) return doc;
       return updateObject(doc, d.id, (o) =>
@@ -206,6 +212,26 @@ export const handlePoints = (o: AnimObject): [Handle, Point][] => [
   ['sw', toStage(o, { x: 0, y: o.height })],
   ['w', toStage(o, { x: 0, y: o.height / 2 })],
 ];
+
+/** AN27: the box's centre, corners and edge middles, where the point it turns about snaps. */
+const BOX_POINTS: readonly Point[] = [0, 0.5, 1].flatMap((y) => [0, 0.5, 1].map((x) => ({ x, y })));
+
+/** AN27: the box's centre, corner or edge middle within `threshold` stage pixels of p, or null. */
+export function boxPivotNear(o: AnimObject, p: Point, threshold: number): Point | null {
+  const near = BOX_POINTS.find((f) => {
+    const q = toStage(o, { x: f.x * o.width, y: f.y * o.height });
+    return Math.hypot(q.x - p.x, q.y - p.y) <= threshold;
+  });
+  return near ? { ...near } : null;
+}
+
+/** AN27: a stage point as the point an object turns about: fractions of its box (to 0.01 %). */
+export function pivotFrom(o: AnimObject, p: Point): Point {
+  const local = toLocal(o, p);
+  const fraction = (v: number, size: number) =>
+    size === 0 ? 0.5 : Math.round((v / size) * 10000) / 10000;
+  return { x: fraction(local.x, o.width), y: fraction(local.y, o.height) };
+}
 
 /**
  * N1: gives the stage's canvas the size of the stage at this zoom on this screen (at least

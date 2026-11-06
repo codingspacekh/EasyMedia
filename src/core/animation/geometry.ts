@@ -1,7 +1,7 @@
 // AN3, AN6: the shapes as points — outlines, bounds, centres, hit-testing, moving, resizing from
-// handles and turning. Every object is a box (x, y, width, height) turned about its centre;
-// "local" coordinates are inside the box before the turn, with (0, 0) at its top-left corner.
-import type { AnimObject, MotionPath, PathPoint } from './types.ts';
+// handles and turning. Every object is a box (x, y, width, height) turned about its centre, or
+// about the point chosen for it (AN27, its pivot); "local" coordinates are inside the box before the turn, with (0, 0) at its top-left corner.
+import type { AnimObject, MotionPath, PathPoint, Track, TweenProperty } from './types.ts';
 
 export interface Point {
   x: number;
@@ -38,21 +38,98 @@ export const centreOf = (o: AnimObject): Point => ({
   y: o.y + o.height / 2,
 });
 
-/** A local point (inside the unturned box) on the stage. */
-export function toStage(o: AnimObject, local: Point): Point {
-  const c = centreOf(o);
-  // AN23: a flipped object is mirrored in its own box, after its turn.
-  const fx = o.flipX ? -1 : 1;
-  const fy = o.flipY ? -1 : 1;
-  const v = turn({ x: (local.x - o.width / 2) * fx, y: (local.y - o.height / 2) * fy }, o.rotation);
-  return { x: c.x + v.x, y: c.y + v.y };
+/** AN25: the tangents of an object's skews ({ x: 0, y: 0 } when it is not skewed). */
+export const skewOf = (o: AnimObject): Point => ({
+  x: Math.tan(rad(o.skewX ?? 0)),
+  y: Math.tan(rad(o.skewY ?? 0)),
+});
+
+/**
+ * A step from the centre of the box to where it is drawn on the stage: skewed in the box (AN25:
+ * x' = x − tan(skewX)·y, y' = y + tan(skewY)·x), mirrored (AN23), then turned, as the stage
+ * drawing does it.
+ */
+function boxToStage(o: AnimObject, v: Point): Point {
+  const k = skewOf(o);
+  const s = { x: v.x - k.x * v.y, y: v.y + k.y * v.x };
+  return turn({ x: s.x * (o.flipX ? -1 : 1), y: s.y * (o.flipY ? -1 : 1) }, o.rotation);
 }
 
-/** A stage point inside the unturned (and unflipped) box. */
+/** The step back: from the stage into the unturned, unflipped and unskewed box. */
+function stageToBox(o: AnimObject, v: Point): Point {
+  const u = turn(v, -o.rotation);
+  const s = { x: u.x * (o.flipX ? -1 : 1), y: u.y * (o.flipY ? -1 : 1) };
+  const k = skewOf(o);
+  // Skewed as far as a line (45° one way and −45° the other) there is no way back: never ÷ 0.
+  const det = 1 + k.x * k.y || 1e-9;
+  return { x: (s.x + k.x * s.y) / det, y: (s.y - k.y * s.x) / det };
+}
+
+/** AN27: the centre of the box, where an object turns about unless another point is chosen. */
+export const CENTRE_PIVOT: Readonly<Point> = { x: 0.5, y: 0.5 };
+
+/** AN27: the point it turns about, as fractions of its box (absent: the centre). */
+export const pivotOf = (o: AnimObject): Point => o.pivot ?? CENTRE_PIVOT;
+
+/** AN27: the point it turns about in its own box, in px from its top-left corner. */
+export function pivotInBox(o: AnimObject): Point {
+  const f = pivotOf(o);
+  return { x: f.x * o.width, y: f.y * o.height };
+}
+
+/** AN27: where the point it turns about is on the stage (a turn, flip or skew leaves it there). */
+export function pivotOnStage(o: AnimObject): Point {
+  const l = pivotInBox(o);
+  return { x: o.x + l.x, y: o.y + l.y };
+}
+
+/** A local point (inside the unturned box) on the stage. */
+export function toStage(o: AnimObject, local: Point): Point {
+  const l = pivotInBox(o);
+  const v = boxToStage(o, { x: local.x - l.x, y: local.y - l.y });
+  return { x: o.x + l.x + v.x, y: o.y + l.y + v.y };
+}
+
+/** A stage point inside the unturned (and unflipped, unskewed) box. */
 export function toLocal(o: AnimObject, p: Point): Point {
-  const c = centreOf(o);
-  const v = turn({ x: p.x - c.x, y: p.y - c.y }, -o.rotation);
-  return { x: v.x * (o.flipX ? -1 : 1) + o.width / 2, y: v.y * (o.flipY ? -1 : 1) + o.height / 2 };
+  const l = pivotInBox(o);
+  const v = stageToBox(o, { x: p.x - o.x - l.x, y: p.y - o.y - l.y });
+  return { x: v.x + l.x, y: v.y + l.y };
+}
+
+/**
+ * The x and y that put the local point `local` of the box on the stage point `at`, with the
+ * object's size, turn, flip, skew and pivot as they are.
+ */
+export function placedAt(o: AnimObject, local: Point, at: Point): Point {
+  const l = pivotInBox(o);
+  const v = boxToStage(o, { x: local.x - l.x, y: local.y - l.y });
+  return { x: at.x - v.x - l.x, y: at.y - v.y - l.y };
+}
+
+const sameAs = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+/**
+ * AN27: the object turning about another point of its box (fractions; the centre is not saved).
+ * It stays where it is on the stage as shown in `now` (the object at the playhead): its x and y,
+ * and all its motion with them, move by as much as needed. On a motion path, it is the new point
+ * that follows the path, so the path moves with it instead. A turn animated after the point is
+ * moved swings round it.
+ */
+export function withPivot<T extends AnimObject>(o: T, pivot: Point, now: AnimObject = o): T {
+  const next = { ...now, pivot };
+  let result: T;
+  if (o.paths?.length) {
+    const from = pivotOnStage(now);
+    const to = toStage(now, pivotInBox(next));
+    result = { ...o, paths: o.paths.map((p) => shiftedMotion(p, to.x - from.x, to.y - from.y)) };
+  } else {
+    const at = placedAt(next, { x: 0, y: 0 }, toStage(now, { x: 0, y: 0 }));
+    result = moved(o, at.x - now.x, at.y - now.y);
+  }
+  if (sameAs(pivot, CENTRE_PIVOT)) delete result.pivot;
+  else result.pivot = { x: pivot.x, y: pivot.y };
+  return result;
 }
 
 /** Points around an ellipse that fills a box, from the right, clockwise. */
@@ -294,18 +371,29 @@ function scaledPoints(
   }));
 }
 
-/**
- * Text in a group that is resized: its letters scale with it (O/N/22: OPEN DAY on the smaller
- * plane), by the smaller of the two scales when it is stretched, and so do its size keyframes.
- */
-function scaledText<T extends AnimObject>(o: T, k: number): T {
-  if (o.kind !== 'text' || k === 1) return o;
-  const tracks = o.tracks?.map((t) =>
-    t.property === 'size'
+/** The keyframes of one numeric property multiplied by k. */
+const scaledTrack = (tracks: Track[], property: TweenProperty, k: number): Track[] =>
+  tracks.map((t) =>
+    t.property === property
       ? { ...t, keyframes: t.keyframes.map((f) => ({ ...f, value: Number(f.value) * k })) }
       : t,
   );
-  return { ...o, size: o.size * k, ...(tracks ? { tracks } : {}) };
+
+/**
+ * A part of a group that is resized, by the smaller of the two scales when it is stretched: text's
+ * letters scale with it (O/N/22: OPEN DAY on the smaller plane) and so does every outline's width
+ * (M/J/20: the meter redrawn smaller keeps thin lines), keyframes too.
+ */
+function scaledWithGroup<T extends AnimObject>(o: T, k: number): T {
+  if (k === 1) return o;
+  let tracks = o.tracks && scaledTrack(o.tracks, 'strokeWidth', k);
+  if (o.kind === 'text' && tracks) tracks = scaledTrack(tracks, 'size', k);
+  return {
+    ...o,
+    ...(o.stroke ? { stroke: { ...o.stroke, width: o.stroke.width * k } } : {}),
+    ...(o.kind === 'text' ? { size: o.size * k } : {}),
+    ...(tracks ? { tracks } : {}),
+  };
 }
 
 /** A new size with the top-left corner kept; a path's points scale with its box. */
@@ -325,7 +413,7 @@ export function setSize<T extends AnimObject>(o: T, width: number, height: numbe
       ...sized,
       children: o.children.map((c) =>
         setSize(
-          scaledText({ ...c, x: c.x * sx, y: c.y * sy }, Math.min(sx, sy)),
+          scaledWithGroup({ ...c, x: c.x * sx, y: c.y * sy }, Math.min(sx, sy)),
           c.width * sx,
           c.height * sy,
         ),
@@ -337,7 +425,7 @@ export function setSize<T extends AnimObject>(o: T, width: number, height: numbe
 
 /**
  * Resizes by dragging a handle to a stage point: the opposite edge (or corner) stays where it
- * is, even when the object is turned. With the ratio locked, the larger change wins. Text keeps
+ * is, even when the object is turned, flipped or skewed. With the ratio locked, the larger change wins. Text keeps
  * its ratio always and its letters scale with the box (letters cannot be stretched out of shape).
  */
 export function resizeFrom<T extends AnimObject>(
@@ -364,17 +452,16 @@ export function resizeFrom<T extends AnimObject>(
   // The fixed point, in the old box and in the new one, must land on the same stage point.
   const fixedOld = { x: west ? o.width : 0, y: north ? o.height : 0 };
   const fixedNew = { x: west ? width : 0, y: north ? height : 0 };
-  const anchor = toStage(o, fixedOld);
-  const v = turn({ x: width / 2 - fixedNew.x, y: height / 2 - fixedNew.y }, o.rotation);
-  const centre = { x: anchor.x + v.x, y: anchor.y + v.y };
-  const sized = setSize({ ...o, x: centre.x - width / 2, y: centre.y - height / 2 }, width, height);
+  const at = placedAt({ ...o, width, height }, fixedNew, toStage(o, fixedOld));
+  const sized = setSize({ ...o, x: at.x, y: at.y }, width, height);
   return o.kind === 'text' ? { ...sized, size: o.size * scale } : sized;
 }
 
 /**
  * AN23 Flip: mirrored in its own box, left to right ('horizontal') or top to bottom. A turned
  * object mirrors across the stage, as Animate's Flip does: its turn and turn keyframes change sign.
- * Flipping twice gives the object back as it was.
+ * Flipping twice gives the object back as it was. AN27: it is mirrored about the point it turns
+ * about, which stays where it is (a door flipped on its hinge opens the other way).
  */
 export function flipObject<T extends AnimObject>(o: T, axis: 'horizontal' | 'vertical'): T {
   const key = axis === 'horizontal' ? 'flipX' : 'flipY';

@@ -8,6 +8,7 @@
   import type { App } from '../../app/app.ts';
   import {
     AUDIO_FORMATS,
+    BIT_DEPTHS,
     SAMPLE_RATES,
     audioFormatNotes,
     bitDepthsFor,
@@ -39,6 +40,11 @@
   const rates = $derived(sampleRatesFor(settings.format));
   const bitRates = $derived(bitRatesFor(settings.format, settings.sampleRate));
   const depths = $derived(bitDepthsFor(settings.format));
+  const depthHint = $derived(
+    depths.length
+      ? BIT_DEPTHS.find((d) => d.bits === settings.bitDepth)!.hint
+      : 'WAV and FLAC only',
+  );
   const summary = $derived(audio.exportSummary(settings));
   const notes = $derived(audioFormatNotes(settings.format));
   const mb = (bytes: number) => `${(bytes / 1e6).toFixed(2)} MB`;
@@ -145,15 +151,20 @@
     <span class="lbl">Resolution</span>
     <div class="row">
       <div class="seg small" role="group" aria-label="Resolution">
-        {#each [16, 24, 32] as const as bits (bits)}
+        {#each BIT_DEPTHS as d (d.bits)}
           <button
-            aria-pressed={depths.length > 0 && settings.bitDepth === bits}
-            disabled={!depths.includes(bits)}
-            onclick={() => change({ bitDepth: bits })}>{bits}-bit</button
+            aria-pressed={depths.length > 0 && settings.bitDepth === d.bits}
+            disabled={!depths.includes(d.bits)}
+            title={depths.includes(d.bits)
+              ? d.hint
+              : d.bits === 8
+                ? '8-bit: WAV only'
+                : `${info.label} cannot be ${d.bits}-bit`}
+            onclick={() => change({ bitDepth: d.bits })}>{d.bits}-bit</button
           >
         {/each}
       </div>
-      <span class="hint">WAV and FLAC only</span>
+      <span class="hint">{depthHint}</span>
     </div>
   </div>
 

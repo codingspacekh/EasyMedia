@@ -14,6 +14,7 @@ import type { AudioExportSettings, AudioFormat } from '../core/render/audio-form
 import type { WireError } from '../core/wire.ts';
 import type { CombinePlan } from '../core/image/combine.ts';
 import type { ResizeCrop } from '../core/image/crop.ts';
+import type { ColourKey } from '../core/image/colour-key.ts';
 import type { Container } from '../core/render/formats.ts';
 import type { UpdateState } from '../core/updates.ts';
 import type { PlaybackSample } from '../core/animation/paint-meter.ts';
@@ -40,6 +41,7 @@ export interface Channels {
     args: [base: string, top: string, plan: CombinePlan, name?: string];
     result: string;
   };
+  'media:colourKey': { args: [input: string, key: ColourKey, name?: string]; result: string };
   'media:snapshot': {
     args: [project: Project, time: number, output: string, options: RenderVideoOptions];
     result: string;
@@ -85,6 +87,8 @@ export interface Channels {
   'dialog:saveTaskCheck': { args: [suggestedName: string]; result: string | null };
   'dialog:openAnimation': { args: []; result: string | null };
   'dialog:openPicture': { args: []; result: string | null };
+  /** AN28: a sound for the animation. */
+  'dialog:openSound': { args: []; result: string | null };
   'dialog:openFrames': { args: []; result: string[] };
   'dialog:openExport': { args: []; result: string[] };
   'dialog:saveAnimation': { args: [suggestedName: string]; result: string | null };
@@ -105,6 +109,8 @@ export interface Channels {
   'page:player': { args: []; result: string };
   /** AN15: a picture the app opened, as a data: URL. */
   'page:picture': { args: [path: string]; result: string };
+  /** AN28: a sound the app opened or made, as a data: URL. */
+  'page:sound': { args: [path: string]; result: string };
   /** AN15: a bundled font file of the built pages (its file name in assets/), as a data: URL. */
   'page:font': { args: [assetName: string]; result: string };
   /** AN18: Test — shows a web page in a window of its own. */
@@ -139,6 +145,7 @@ export const CHANNELS: readonly Channel[] = [
   'media:frame',
   'media:resizeCrop',
   'media:combine',
+  'media:colourKey',
   'media:snapshot',
   'media:render',
   'media:decodeAudio',
@@ -160,6 +167,7 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:saveTaskCheck',
   'dialog:openAnimation',
   'dialog:openPicture',
+  'dialog:openSound',
   'dialog:openFrames',
   'dialog:openExport',
   'dialog:saveAnimation',
@@ -174,6 +182,7 @@ export const CHANNELS: readonly Channel[] = [
   'project:writeBytes',
   'page:player',
   'page:picture',
+  'page:sound',
   'page:font',
   'page:test',
   'updates:get',

@@ -6,6 +6,9 @@
   import type { App } from '../app/app.ts';
   import { setProjectSettings } from '../app/commands.ts';
   import type { ProjectSettings } from '../core/model/types.ts';
+  import { sizeFromClip } from '../core/model/settings.ts';
+  import { turnedSize } from '../core/effects/turn.ts';
+  import { fileNameOf } from '../core/project/relocate.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
 
@@ -37,6 +40,45 @@
   let fps = $state(current.fps);
   let fit = $state(current.fit ?? 'letterbox');
   let error: string | null = $state(null);
+
+  /**
+   * V1 "Match a clip": every video file with its size — turned as its first clip on the
+   * timeline is turned (V19). The first clip on the timeline is chosen to start with.
+   */
+  const clips = untrack(() => {
+    const { history, assets } = app.store.get();
+    const { media, timeline } = history.present;
+    return media.flatMap((asset) => {
+      const size = assets[asset.id]?.size;
+      if (asset.kind !== 'video' || !size) return [];
+      const clip = timeline.main.find((m) => m.type === 'video' && m.assetId === asset.id);
+      const shown = clip && clip.type === 'video' ? turnedSize(size, clip) : size;
+      return [{ id: asset.id, name: fileNameOf(asset.path), ...shown }];
+    });
+  });
+  const firstOnTimeline = untrack(() =>
+    app.store.get().history.present.timeline.main.find((m) => m.type === 'video'),
+  );
+  let clipId = $state(
+    clips.find((c) => firstOnTimeline?.type === 'video' && c.id === firstOnTimeline.assetId)?.id ??
+      clips[0]?.id,
+  );
+
+  /** Takes the size and shape from the chosen clip; nothing changes until Apply. */
+  function useClip(): void {
+    const clip = clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    ({ aspect, width, height } = sizeFromClip(clip));
+  }
+
+  /** The sizes offered; a size of this shape that is not in the list (from a clip) comes first. */
+  const sizes = $derived.by(() => {
+    if (aspect === 'custom') return [];
+    const listed = SIZES[aspect];
+    return listed.some(([w, h]) => w === width && h === height)
+      ? listed
+      : [[width, height] as [number, number], ...listed];
+  });
 
   function chooseAspect(next: ProjectSettings['aspect']): void {
     aspect = next;
@@ -83,7 +125,7 @@
         >Height <input type="number" bind:value={height} min="16" max="7680" step="2" /></label
       >
     {:else}
-      {#each SIZES[aspect] as [w, h] (`${w}x${h}`)}
+      {#each sizes as [w, h] (`${w}x${h}`)}
         <label class="choice">
           <input
             type="radio"
@@ -96,6 +138,24 @@
       {/each}
     {/if}
   </fieldset>
+
+  {#if clips.length}
+    <fieldset>
+      <legend>Match a clip</legend>
+      <label class="size"
+        >Clip
+        <select bind:value={clipId}>
+          {#each clips as clip (clip.id)}
+            <option value={clip.id}>{clip.name} · {clip.width} × {clip.height}</option>
+          {/each}
+        </select></label
+      >
+      <button onclick={useClip}>Use this clip’s size</button>
+      <p class="hint">
+        Sets the size and shape from the clip, so it fills the frame. Press Apply to keep it.
+      </p>
+    </fieldset>
+  {/if}
 
   <fieldset>
     <legend>Frame rate</legend>
@@ -158,6 +218,13 @@
   }
   .size input {
     width: 90px;
+  }
+  .size select {
+    max-width: 260px;
+  }
+  fieldset > .hint {
+    width: 100%;
+    margin: 0;
   }
   .hint {
     color: var(--tx-3);

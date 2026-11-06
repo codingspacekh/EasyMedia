@@ -33,6 +33,13 @@ export function numberedPath(path: string, n: number): string {
   return `${base}${n}${ext}`;
 }
 
+/** The same path with another ending: pearl.jpg, ".png" → pearl.png (AN5: a see-through copy). */
+export function withExtension(path: string, ext: string): string {
+  const dot = path.lastIndexOf('.');
+  const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return `${dot > slash ? path.slice(0, dot) : path}${ext}`;
+}
+
 /** A file name typed by the student: characters no file name may have (Windows, macOS) become "-". */
 export function cleanFileName(name: string): string {
   return name.trim().replace(/[\\/:*?"<>|]/g, '-');

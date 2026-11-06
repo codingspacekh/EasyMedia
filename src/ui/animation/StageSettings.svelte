@@ -41,7 +41,8 @@
 
   function apply(): void {
     const background = transparent ? TRANSPARENT : colour;
-    error = app.animation.setStage({ width, height, background, fps, length });
+    // The rest of the stage (AN8: play once) is kept as it is.
+    error = app.animation.setStage({ ...current, width, height, background, fps, length });
     if (!error) onclose();
   }
 </script>

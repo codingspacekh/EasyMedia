@@ -5,7 +5,7 @@ import { EditError } from '../model/errors.ts';
 import type { Seconds } from '../model/time.ts';
 
 export type AudioFormat = 'mp3' | 'm4a' | 'aac' | 'ogg' | 'wav' | 'flac';
-export type BitDepth = 16 | 24 | 32;
+export type BitDepth = 8 | 16 | 24 | 32;
 export type BitRateMode = 'cbr' | 'vbr';
 
 /** A17: details of the originators and the track (Book B 11.2.9: "title, year and so on"). */
@@ -91,6 +91,14 @@ export const SAMPLE_RATES: { rate: number; hint: string }[] = [
   { rate: 96000, hint: 'Blu-ray, studio' },
 ];
 
+/** A16: the sample resolutions on offer, with where each is used (8-bit: WAV only). */
+export const BIT_DEPTHS: { bits: BitDepth; hint: string }[] = [
+  { bits: 8, hint: 'Telephone quality: a hiss can be heard in quiet parts' },
+  { bits: 16, hint: 'Music CD · default' },
+  { bits: 24, hint: 'Studio recording' },
+  { bits: 32, hint: 'Editing: every sample kept exactly' },
+];
+
 const LOSSY_BIT_RATES = [32, 64, 96, 128, 160, 192, 256, 320];
 /** LAME's quality levels for a variable bit rate, and the average kbps they give for music. */
 const VBR: Record<number, { q: number; kbps: number }> = {
@@ -114,7 +122,7 @@ export function sampleRatesFor(format: AudioFormat): number[] {
 }
 
 export function bitDepthsFor(format: AudioFormat): BitDepth[] {
-  if (format === 'wav') return [16, 24, 32];
+  if (format === 'wav') return [8, 16, 24, 32];
   return format === 'flac' ? [16, 24] : [];
 }
 
@@ -214,7 +222,8 @@ export function audioCodecArgs(e: AudioExportSettings): string[] {
         ...['-f', 'ogg'],
       ];
     case 'wav': {
-      const codec = { 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
+      // An 8-bit WAV stores each sample as 0 to 255 (unsigned); the others are signed.
+      const codec = { 8: 'pcm_u8', 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
       return ['-c:a', codec, ...common, ...tags, '-f', 'wav'];
     }
     case 'flac': {

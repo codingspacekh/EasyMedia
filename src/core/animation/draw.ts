@@ -1,7 +1,10 @@
 // AN1–AN7, AN13: draws the stage onto any 2D canvas. The preview, the PNG export, the video
 // and GIF exports (M14) and the HTML player (M16) all use this one function, so what the
 // student sees is what is exported (ARCHITECTURE §7.3, as the text drawing).
-import { centreOf, flattenPath, localOutline, outlineOf } from './geometry.ts';
+import { curvedText, curveOf, type PlacedLetter } from './curve.ts';
+import { roughTextWidth } from './factory.ts';
+import { flattenPath, localOutline, outlineOf, pivotInBox, skewOf } from './geometry.ts';
+import { colourStops, radialCentre } from './gradient.ts';
 import { TRANSPARENT } from './rules.ts';
 import { stateAt } from './state.ts';
 import type {
@@ -32,6 +35,8 @@ export interface StageCanvas {
   rotate(radians: number): void;
   /** AN23: a flip is a scale of −1. */
   scale(x: number, y: number): void;
+  /** AN25: a skew (and taking it off again for an outline). */
+  transform(a: number, b: number, c: number, d: number, e: number, f: number): void;
   setLineDash(segments: number[]): void;
   beginPath(): void;
   closePath(): void;
@@ -57,6 +62,8 @@ export interface StageCanvas {
   strokeRect(x: number, y: number, w: number, h: number): void;
   fillText(text: string, x: number, y: number): void;
   strokeText(text: string, x: number, y: number): void;
+  /** AN26: how wide words are in the current font (a canvas without it: roughly). */
+  measureText?(text: string): { width: number };
   drawImage(image: unknown, x: number, y: number, w: number, h: number): void;
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradientLike;
   createRadialGradient(
@@ -132,8 +139,27 @@ export function fontsUsed(objects: readonly AnimObject[]): string[] {
   return [...new Set(walk(objects))];
 }
 
-/** The paint as a canvas style, inside a box centred on (0, 0). */
-function styleOf(ctx: StageCanvas, paint: Paint, w: number, h: number): string | object | null {
+/** Where a letter is drawn from (AN26): a place in the box centred on (0, 0), and a turn. */
+type Spot = { x: number; y: number; angle: number };
+
+/**
+ * The paint as a canvas style, inside a box centred on (0, 0). Given a letter's spot (AN26), the
+ * gradient is made where the letter is drawn from, so it still runs across the whole words.
+ */
+function styleOf(
+  ctx: StageCanvas,
+  paint: Paint,
+  w: number,
+  h: number,
+  spot?: Spot,
+): string | object | null {
+  const at = (x: number, y: number) => {
+    if (!spot) return { x, y };
+    const a = (-spot.angle * Math.PI) / 180;
+    const [dx, dy] = [x - spot.x, y - spot.y];
+    return { x: dx * Math.cos(a) - dy * Math.sin(a), y: dx * Math.sin(a) + dy * Math.cos(a) };
+  };
+  let g: CanvasGradientLike;
   switch (paint.kind) {
     case 'none':
       return null;
@@ -144,18 +170,20 @@ function styleOf(ctx: StageCanvas, paint: Paint, w: number, h: number): string |
       const dx = Math.cos(a);
       const dy = Math.sin(a);
       const half = (Math.abs(w * dx) + Math.abs(h * dy)) / 2;
-      const g = ctx.createLinearGradient(-dx * half, -dy * half, dx * half, dy * half);
-      g.addColorStop(0, paint.from);
-      g.addColorStop(1, paint.to);
-      return g;
+      const [p, q] = [at(-dx * half, -dy * half), at(dx * half, dy * half)];
+      g = ctx.createLinearGradient(p.x, p.y, q.x, q.y);
+      break;
     }
     case 'radial': {
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(w, h) / 2);
-      g.addColorStop(0, paint.from);
-      g.addColorStop(1, paint.to);
-      return g;
+      // AN6: from its centre (the middle of the box unless moved), as far as half the box.
+      const centre = radialCentre(paint);
+      const c = at(((centre.x - 50) / 100) * w, ((centre.y - 50) / 100) * h);
+      g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, Math.max(w, h) / 2);
+      break;
     }
   }
+  for (const stop of colourStops(paint)) g.addColorStop(stop.offset, stop.colour);
+  return g;
 }
 
 function applyStroke(ctx: StageCanvas, stroke: Stroke): void {
@@ -240,7 +268,40 @@ function traceHoles(ctx: StageCanvas, o: PathObject): void {
   }
 }
 
-function drawText(ctx: StageCanvas, t: TextObject, fill: string | object | null): void {
+/**
+ * AN26: curved text, letter by letter: each from the middle of its line-high cell on the arc,
+ * turned to follow it; the bent words in the middle of the box (their bounds are the box).
+ */
+function drawCurvedText(ctx: StageCanvas, t: TextObject): void {
+  ctx.font = fontOf(t);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const widthOf = (s: string) =>
+    ctx.measureText ? ctx.measureText(s).width : roughTextWidth(s, t.size);
+  const bent = curvedText(t, widthOf);
+  const half = (t.size * LINE_HEIGHT) / 2;
+  const letter = (l: PlacedLetter) => {
+    const spot = { x: l.x - bent.width / 2, y: l.y - bent.height / 2, angle: l.angle };
+    ctx.save();
+    ctx.translate(spot.x, spot.y);
+    if (spot.angle !== 0) ctx.rotate((spot.angle * Math.PI) / 180);
+    if (t.stroke && t.stroke.width > 0) {
+      applyStroke(ctx, t.stroke);
+      ctx.strokeText(l.char, 0, -half);
+    }
+    const fill = styleOf(ctx, t.fill, t.width, t.height, spot);
+    if (fill !== null) {
+      ctx.fillStyle = fill;
+      ctx.fillText(l.char, 0, -half);
+    }
+    ctx.restore();
+  };
+  for (const l of bent.letters) if (l.char.trim() !== '') letter(l);
+}
+
+function drawText(ctx: StageCanvas, t: TextObject): void {
+  if (curveOf(t) !== 0) return drawCurvedText(ctx, t);
+  const fill = styleOf(ctx, t.fill, t.width, t.height);
   ctx.font = fontOf(t);
   ctx.textAlign = t.align === 'centre' ? 'center' : t.align;
   ctx.textBaseline = 'top';
@@ -267,11 +328,19 @@ export function drawObject(
   options: DrawOptions = {},
   alpha = 1,
 ): void {
-  const c = centreOf(o);
+  // AN27: turned, mirrored and skewed about the point it turns about (its centre unless chosen).
+  const pivot = pivotInBox(o);
   ctx.save();
-  ctx.translate(c.x, c.y);
+  ctx.translate(o.x + pivot.x, o.y + pivot.y);
   if (o.rotation !== 0) ctx.rotate((o.rotation * Math.PI) / 180);
   if (o.flipX || o.flipY) ctx.scale(o.flipX ? -1 : 1, o.flipY ? -1 : 1);
+  // AN25: skewed in its own box, as geometry's toStage: x' = x − tan(skewX)·y, y' = y + tan(skewY)·x.
+  const k = skewOf(o);
+  const skewed = k.x !== 0 || k.y !== 0;
+  if (skewed) ctx.transform(1, k.y, -k.x, 1, 0, 0);
+  // The rest is drawn about the box's centre: placed from the pivot, in the turned box.
+  const fromPivot = { x: o.width / 2 - pivot.x, y: o.height / 2 - pivot.y };
+  if (fromPivot.x !== 0 || fromPivot.y !== 0) ctx.translate(fromPivot.x, fromPivot.y);
   const shown = alpha * (o.opacity / 100);
   if (shown !== 1) ctx.globalAlpha = shown;
   const ox = -o.width / 2;
@@ -287,7 +356,7 @@ export function drawObject(
       else for (const child of o.children) drawObject(ctx, child, options, shown);
       break;
     case 'text':
-      drawText(ctx, o, styleOf(ctx, o.fill, o.width, o.height));
+      drawText(ctx, o);
       break;
     case 'picture': {
       const image = options.image?.(o.pictureId) ?? null;
@@ -309,8 +378,14 @@ export function drawObject(
         else ctx.fill();
       }
       if (o.stroke && o.stroke.width > 0) {
+        // AN25: the outline follows the skewed shape but its lines stay as wide as set (as in
+        // the SVG): the skew is taken off while it is drawn, then put back for a button's label.
+        const det = 1 + k.x * k.y;
+        const unskew = skewed && Math.abs(det) > 1e-9;
+        if (unskew) ctx.transform(1 / det, -k.y / det, k.x / det, 1 / det, 0, 0);
         applyStroke(ctx, o.stroke);
         ctx.stroke();
+        if (unskew) ctx.transform(1, k.y, -k.x, 1, 0, 0);
       }
       if (o.kind === 'button') {
         // AN18: the label in the middle of the box.

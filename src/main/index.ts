@@ -92,7 +92,13 @@ async function showTestPage(html: string, title: string, width: number, height: 
     useContentSize: true,
     autoHideMenuBar: true,
     backgroundColor: '#1d2026',
-    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      // AN28: Test plays the animation's sounds at once (a browser waits for a click first).
+      autoplayPolicy: 'no-user-gesture-required',
+    },
   });
   win.on('page-title-updated', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

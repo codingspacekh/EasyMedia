@@ -80,6 +80,30 @@ describe('audio export dialog', () => {
     expect(screen.getByText('Lossless')).toBeTruthy();
   });
 
+  it('A16 8 kHz, 8-bit, mono WAV for a telephone: its size, and a hint that it hisses; 8-bit is WAV only', async () => {
+    const { dialog } = await withSound();
+    expect((screen.getByRole('button', { name: '8-bit' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    await fireEvent.click(screen.getByRole('button', { name: 'WAV' }));
+    await fireEvent.click(
+      within(screen.getByRole('group', { name: 'Sample rate' })).getByRole('button', {
+        name: /^8 000 Hz/,
+      }),
+    );
+    await fireEvent.click(screen.getByRole('button', { name: 'Mono' }));
+    await fireEvent.click(screen.getByRole('button', { name: '8-bit' }));
+    expect(pressed('Resolution', '8-bit')).toBe('true');
+    expect(size()).toBe('≈ 0.36 MB'); // 8 000 × 8 × 1 × 45 ÷ 8
+    expect(within(dialog).getByText(/telephone quality.*hiss/i)).toBeTruthy();
+    // FLAC cannot be 8-bit: it becomes 16-bit.
+    await fireEvent.click(screen.getByRole('button', { name: 'FLAC' }));
+    expect(pressed('Resolution', '16-bit')).toBe('true');
+    expect((screen.getByRole('button', { name: '8-bit' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
   it('a rate the new format cannot have is lowered; FLAC shows "up to"', async () => {
     await withSound();
     await fireEvent.click(screen.getByRole('button', { name: 'WAV' }));

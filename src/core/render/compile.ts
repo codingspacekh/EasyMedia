@@ -10,17 +10,23 @@ import {
 } from '../model/timeline.ts';
 import { filtersFor, transitionById } from '../effects/registry.ts';
 import { xfadeStep } from '../effects/transitions/transitions.ts';
+import { turnFilter } from '../effects/turn.ts';
 import type {
   AudioItem,
   AudioTrackIndex,
+  ClipTurn,
   MainItem,
   MediaAsset,
+  OverlayItem,
   Project,
   ProjectSettings,
   TextEffects,
 } from '../model/types.ts';
 import { motionExpressions } from '../text/motion.ts';
+import { volumeExpression } from '../model/volume-changes.ts';
 import { atempoChain, fitFilter, num } from './filters.ts';
+import { overlayDuration } from '../model/overlay.ts';
+import { overlayPicture, overlayPosition, overlaySound } from './overlay.ts';
 import {
   codecArgs,
   defaultExport,
@@ -104,7 +110,10 @@ export function compileProject(project: Project, options: RenderOptions): Render
   // V13: music and voiceover heard before the video ends (a snapshot has no sound).
   const tracks = frameAt === undefined ? heardAudio(project.timeline.audio, total) : [];
   const hasAudio = frameAt === undefined && projectHasSound(project);
-  const mainAudio = tracks.length ? '[amain]' : '[aout]';
+  // V20: pictures and videos over the video, and the sound of those that have it on.
+  const overlays = shownOverlays(project, total);
+  const overlaySounds = hasAudio ? overlays.filter((o) => overlayHasSound(project, o.item)) : [];
+  const mainAudio = tracks.length || overlaySounds.length ? '[amain]' : '[aout]';
 
   const inputs: string[] = [];
   const filters: string[] = [];
@@ -141,7 +150,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
       // length (a file's stated length can run a frame or two past its last picture: 9626/02
       // M/J/18 186MCP.wmv), so the clip is never shorter than planned and its last frame exists.
       filters.push(
-        `[${k}:v]${setpts},${fitFilter(settings)},tpad=stop_mode=clone:stop_duration=${HOLD},trim=duration=${d}${vOut}`,
+        `[${k}:v]${setpts},${turned(item)}${fitFilter(settings)},tpad=stop_mode=clone:stop_duration=${HOLD},trim=duration=${d}${vOut}`,
       );
       if (hasAudio) {
         if (soundOf(item)) {
@@ -159,7 +168,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
     } else {
       if (item.type === 'image') {
         const k = loopImage(d, options.mediaPath(assetOf(item.assetId)));
-        filters.push(`[${k}:v]${fitFilter(settings)},trim=duration=${d}${vOut}`);
+        filters.push(`[${k}:v]${turned(item)}${fitFilter(settings)},trim=duration=${d}${vOut}`);
       } else {
         // Title slide: background (colour, picture or video), then its words on top.
         const words = item.text.trim() !== '';
@@ -194,7 +203,8 @@ export function compileProject(project: Project, options: RenderOptions): Render
   const n = main.length;
   // Text shown after the video has ended is left out; it must never make the video longer.
   const texts = project.timeline.text.filter((t) => t.start < total - 1e-6);
-  const videoEnd = texts.length ? '[vbase]' : '[vout]';
+  const textBase = texts.length ? '[vbase]' : '[vout]';
+  const videoEnd = overlays.length ? '[vjoin]' : textBase;
   if (main.every((_, i) => transitionOverlap(main, i) === 0)) {
     const segments = main.map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`).join('');
     filters.push(
@@ -250,20 +260,50 @@ export function compileProject(project: Project, options: RenderOptions): Render
     const tempo = atempoChain(speed)
       .map((t) => `,atempo=${num(t)}`)
       .join('');
-    const volume = item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
+    // V13: with volume changes the volume follows their line, in timeline time (after adelay),
+    // worked out every 5 ms so a glide is smooth; it starts and ends at the sound's own volume.
+    const changes = item.volumeChanges?.length ? item.volumeChanges : null;
+    const volume = changes || item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
+    const changing = changes
+      ? `,asetnsamples=n=${SAMPLE_RATE / 200}:p=0,volume=eval=frame:volume='${volumeExpression(item.volume, changes)}'`
+      : '';
     const fadeIn = item.fadeIn > 0 ? `,afade=t=in:st=0:d=${num(item.fadeIn)}` : '';
     const fadeOut =
       item.fadeOut > 0 ? `,afade=t=out:st=${num(heard - item.fadeOut)}:d=${num(item.fadeOut)}` : '';
     const ducking = track === 0 && item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
     filters.push(
-      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${tempo}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${ducking}[m${j}]`,
+      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${tempo}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${changing}${ducking}[m${j}]`,
     );
   });
-  if (tracks.length) {
-    const mixed = tracks.map((_, j) => `[m${j}]`).join('');
+  // V20: each picture or video over the video is laid over the joined video between its start
+  // and end, before the text, so text stays on top; a video's sound (when on) is mixed in.
+  const overlaySoundLabels: string[] = [];
+  overlays.forEach(({ item, shown }, j) => {
+    const path = options.mediaPath(assetOf(item.assetId));
+    let k: number;
+    if (item.type === 'image') k = loopImage(num(shown), path);
+    else {
+      k = inputIndex++;
+      inputs.push('-ss', num(item.in), '-t', num(shown), '-i', path);
+    }
+    filters.push(`[${k}:v]${overlayPicture(item, settings)}[ov${j}]`);
+    const from = j === 0 ? '[vjoin]' : `[ol${j - 1}]`;
+    const to = j === overlays.length - 1 ? textBase : `[ol${j}]`;
+    const end = item.start + overlayDuration(item);
     filters.push(
-      `[amain]${mixed}amix=inputs=${tracks.length + 1}:duration=first:normalize=0[aout]`,
+      `${from}[ov${j}]overlay=${overlayPosition(item)}:eof_action=pass:enable='between(t,${num(item.start)},${num(end)})'${to}`,
     );
+    if (overlaySounds.some((o) => o.item.id === item.id)) {
+      const label = `[os${overlaySoundLabels.length}]`;
+      filters.push(`[${k}:a]${overlaySound(item, SAMPLE_RATE, AUDIO_FORMAT)}${label}`);
+      overlaySoundLabels.push(label);
+    }
+  });
+
+  if (tracks.length || overlaySoundLabels.length) {
+    const mixed = tracks.map((_, j) => `[m${j}]`).join('') + overlaySoundLabels.join('');
+    const count = tracks.length + overlaySoundLabels.length;
+    filters.push(`[amain]${mixed}amix=inputs=${count + 1}:duration=first:normalize=0[aout]`);
   }
 
   // Captions, subtitles and credits are laid over the joined video at their own times.
@@ -355,7 +395,28 @@ export function projectHasSound(project: Project): boolean {
       !item.muted &&
       project.media.find((m) => m.id === item.assetId)?.hasAudio === true,
   );
-  return clipSound || heardAudio(audio, mainTrackDuration(main)).length > 0;
+  const total = mainTrackDuration(main);
+  return (
+    clipSound ||
+    heardAudio(audio, total).length > 0 ||
+    shownOverlays(project, total).some((o) => overlayHasSound(project, o.item))
+  );
+}
+
+/** V20: the pictures and videos over the video that start before it ends, and how long each is fed. */
+function shownOverlays(project: Project, total: Seconds): { item: OverlayItem; shown: Seconds }[] {
+  return (project.timeline.overlay ?? [])
+    .map((item) => ({ item, shown: Math.min(overlayDuration(item), total - item.start) }))
+    .filter((o) => o.shown > 1e-6);
+}
+
+/** V20: a video over the video is heard only when its sound is turned on and it has some. */
+function overlayHasSound(project: Project, item: OverlayItem): boolean {
+  return (
+    item.type === 'video' &&
+    !item.muted &&
+    project.media.find((m) => m.id === item.assetId)?.hasAudio === true
+  );
 }
 
 function assertExportable(project: Project): void {
@@ -406,6 +467,12 @@ function lookChain(item: MainItem, s: ProjectSettings): string {
       parts.push(`fade=t=out:st=${num(length - fade.out)}:d=${num(fade.out)}:${colour}`);
   }
   return parts.join(',');
+}
+
+/** V19: the turn and flips of a clip or picture, before it is fitted to the frame ('' for none). */
+function turned(item: ClipTurn): string {
+  const filter = turnFilter(item);
+  return filter ? `${filter},` : '';
 }
 
 /** The sound fades with the picture (V7). */

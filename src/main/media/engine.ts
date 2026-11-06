@@ -3,14 +3,20 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { access, mkdir, open, readdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Seconds } from '../../core/model/time.ts';
 import { deinterleave, interleave } from '../../core/audio/pcm.ts';
 import { MediaError } from '../../core/model/errors.ts';
 import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
 import { audioCodecArgs, validateAudioExport } from '../../core/render/audio-formats.ts';
-import { fromProjectPath, madePicturePath, numberedPath } from '../../core/project/paths.ts';
+import {
+  fromProjectPath,
+  madePicturePath,
+  numberedPath,
+  withExtension,
+} from '../../core/project/paths.ts';
+import { colourKeyFilter } from '../../core/image/colour-key.ts';
 import { combineFilter } from '../../core/image/combine.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
@@ -169,6 +175,21 @@ export function createNodeMediaEngine(
       return path;
     },
 
+    async colourKeyImage(input, key, name) {
+      const filter = colourKeyFilter(key);
+      // A see-through picture is always a PNG (a JPG cannot be see-through).
+      const png = withExtension(input, '.png');
+      let n = 0;
+      while (await exists(madePicturePath(png, name, n))) n++;
+      const path = madePicturePath(png, name, n);
+      await queue.run({
+        label: 'Make a colour see-through',
+        args: ['-i', input, '-vf', filter, '-frames:v', '1', '-update', '1'],
+        output: path,
+      }).done;
+      return path;
+    },
+
     async renderFrame(project, time, wanted, { projectDir, textImages }) {
       const plan = compileProject(project, {
         mediaPath: (asset) => fromProjectPath(projectDir, asset.path),
@@ -265,6 +286,12 @@ export function createNodeMediaEngine(
         prepare: async () => {
           if (!(await exists(folder)))
             throw new MediaError('The animation frames could not be found. Export again.');
+          // AN28: a sound that has gone is named, rather than FFmpeg's own words.
+          for (const sound of options.format === 'gif' ? [] : (options.sounds ?? []))
+            if (!(await exists(sound.path)))
+              throw new MediaError(
+                `The sound ${basename(sound.path)} could not be found. Put it back beside the animation file, or delete it from the timeline.`,
+              );
         },
         cleanUp: () => removeFrames(folder),
       });

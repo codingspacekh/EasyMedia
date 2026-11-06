@@ -1,16 +1,20 @@
 <script lang="ts">
   // X8 the Sound effects box: the built-in sounds by group, each one to hear (Play) and to add.
   // Video mode puts it at the playhead on an effects track (V13); Audio mode adds a new track at
-  // the cursor. The box stays open, so several sounds can be added one after another. With 66
-  // sounds the groups are listed down the left (as the Library's categories) and a search looks
-  // through every name and use.
+  // the cursor; Animation mode (AN28) puts it at the playhead on the animation's timeline. The
+  // box stays open, so several sounds can be added one after another. With 66 sounds the groups
+  // are listed down the left (as the Library's categories) and a search looks through every name
+  // and use.
   import type { App } from '../app/app.ts';
   import { SOUND_EFFECTS, SOUND_GROUPS, type SoundGroup } from '../core/audio/sound-effects.ts';
   import Dialog from './Dialog.svelte';
   import Icon from './Icon.svelte';
 
-  let { app, editor, onclose }: { app: App; editor: 'Video' | 'Audio'; onclose: () => void } =
-    $props();
+  let {
+    app,
+    editor,
+    onclose,
+  }: { app: App; editor: 'Video' | 'Audio' | 'Animation'; onclose: () => void } = $props();
 
   type Shown = SoundGroup | 'all';
   let shown: Shown = $state('all');
@@ -33,6 +37,7 @@
 
   function add(id: string): void {
     if (editor === 'Video') void app.addSoundEffect(id);
+    else if (editor === 'Animation') void app.animation.addSoundEffect(id);
     else app.audio.addSoundEffect(id);
   }
 
@@ -47,6 +52,9 @@
     {#if editor === 'Video'}
       <b>Add</b> puts the sound at the playhead on an effects track, where it can be moved, trimmed and
       made louder or quieter like music.
+    {:else if editor === 'Animation'}
+      <b>Add</b> puts the sound at the playhead on the animation’s timeline, where it can be moved, trimmed,
+      faded and made louder or quieter.
     {:else}
       <b>Add</b> puts the sound on a new track, starting at the cursor.
     {/if}

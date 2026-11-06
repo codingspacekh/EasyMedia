@@ -151,6 +151,64 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
     });
   });
 
+  describe('A21 Change tempo', () => {
+    const tempo = fx('audio.tempo');
+
+    it('sits beside Change speed and Change pitch, with a multiplier and a percent change', () => {
+      expect(tempo.label).toBe('Change tempo…');
+      expect(tempo.group).toBe('Time & pitch');
+      expect(defaultParams(tempo)).toEqual({ tempo: 1, percent: 0 });
+      const ids = AUDIO_EFFECTS.map((e) => e.id);
+      expect(ids.indexOf('audio.tempo')).toBe(ids.indexOf('audio.speed') + 1);
+    });
+
+    it('multiplier and percent change stay in step', () => {
+      expect(tempo.link!({ tempo: 1.25, percent: 0 }, 'tempo').percent).toBeCloseTo(25);
+      expect(tempo.link!({ tempo: 1, percent: -20 }, 'percent').tempo).toBeCloseTo(0.8);
+    });
+
+    it('shows the new length, and that the pitch stays the same', () => {
+      const note = tempo.note!([new Float32Array(45 * 100)], 100, { tempo: 1.4, percent: 40 });
+      expect(note).toMatch(/45\.00 s → 32\.14 s/);
+      expect(note).toMatch(/pitch stays the same/i);
+    });
+
+    it('changes the length of the selection, not the pitch', () => {
+      const [out] = tempo.process([sine(0.5, 0.2)], RATE, { tempo: 2, percent: 100 });
+      expect(out!.length).toBe(Math.round(0.1 * RATE));
+    });
+
+    it('says why: faster speech that does not sound squeaky', () => {
+      expect(tempo.why).toMatch(/speech|voice/i);
+      expect(tempo.why).toMatch(/squeaky/i);
+      expect(tempo.why).toMatch(/pitch/i);
+    });
+  });
+
+  describe('A22 Reverse', () => {
+    const rev = fx('audio.reverse');
+
+    it('needs no settings, so it applies at once from the Effect menu', () => {
+      expect(rev.label).toBe('Reverse');
+      expect(rev.params).toEqual({});
+      expect(rev.group).toBe('Time & pitch');
+    });
+
+    it('plays the selection backwards, every channel, the same length', () => {
+      const out = rev.process(
+        [Float32Array.from([1, 2, 3]), Float32Array.from([4, 5, 6])],
+        RATE,
+        {},
+      );
+      expect(out).toEqual([Float32Array.from([3, 2, 1]), Float32Array.from([6, 5, 4])]);
+    });
+
+    it('says why: a strange sound effect, or hidden words', () => {
+      expect(rev.why).toMatch(/backwards/i);
+      expect(rev.why).toMatch(/effect/i);
+    });
+  });
+
   describe('A9 Change pitch', () => {
     const pitch = fx('audio.pitch');
     const start = defaultParams(pitch);
@@ -489,5 +547,108 @@ describe('audio effects in the registry (P6, P7, T5)', () => {
   it('A7 fades have no settings', () => {
     expect(Object.keys(fx('audio.fadein').params)).toEqual([]);
     expect(Object.keys(fx('audio.fadeout').params)).toEqual([]);
+  });
+});
+
+describe('A23 Volume change: from one volume to another across the selection', () => {
+  const change = fx('audio.volumechange');
+
+  it('sits under Fade out in the Volume group, with a start and an end volume in %', () => {
+    expect(change.label).toBe('Volume change…');
+    expect(change.group).toBe('Volume');
+    expect(defaultParams(change)).toEqual({ from: 100, to: 30 });
+    expect(change.params.from!.unit).toBe('%');
+    const ids = AUDIO_EFFECTS.map((e) => e.id);
+    expect(ids.indexOf('audio.volumechange')).toBe(ids.indexOf('audio.fadeout') + 1);
+  });
+
+  it('goes in a straight line from the start volume to the end volume (100 % → 30 %)', () => {
+    const ones = new Float32Array(101).fill(0.5);
+    const [out] = change.process([ones, ones], RATE, { from: 100, to: 30 });
+    expect(out![0]).toBeCloseTo(0.5, 6);
+    expect(out![50]).toBeCloseTo(0.5 * 0.65, 6);
+    expect(out![100]).toBeCloseTo(0.5 * 0.3, 6);
+  });
+
+  it('can make a part louder too, and the note warns when that clips', () => {
+    const [out] = change.process([new Float32Array(3).fill(0.5)], RATE, { from: 100, to: 300 });
+    expect(out![2]).toBeCloseTo(1.5, 6);
+    expect(change.note!([new Float32Array(3).fill(0.5)], RATE, { from: 100, to: 300 })).toMatch(
+      /clip/i,
+    );
+  });
+
+  it('the note says how the volume goes: a straight line in %, over how long', () => {
+    const note = change.note!([new Float32Array(400)], 100, { from: 100, to: 30 });
+    expect(note).toBe(
+      'The volume goes in a straight line from 100 % at the start of the selection to 30 % at its end (4.00 s).',
+    );
+  });
+
+  it('says why: lowering music gradually, unlike a fade that goes to silence', () => {
+    expect(change.why).toMatch(/fade/i);
+    expect(change.why).toMatch(/voice/i);
+  });
+});
+
+describe('A24 Remove silences: quiet parts shortened, so the sound gets shorter', () => {
+  const remove = fx('audio.silences');
+  /** 1 s of loud sound, `gap` s of near silence, 1 s of sound, at a rate of 1000 for easy sums. */
+  const R = 1000;
+  const loudAt = (i: number) => (i % 2 ? 0.5 : -0.5);
+  const voice = (gap: number) => {
+    const tone = (n: number) => Array.from({ length: n }, (_, i) => loudAt(i));
+    return Float32Array.from([
+      ...tone(R),
+      ...new Array(Math.round(gap * R)).fill(0.001),
+      ...tone(R),
+    ]);
+  };
+
+  it('is in Repair & channels, with a threshold, how long a quiet part lasts and its new length', () => {
+    expect(remove.label).toBe('Remove silences…');
+    expect(remove.group).toBe('Repair & channels');
+    expect(defaultParams(remove)).toEqual({ threshold: -40, minimum: 0.5, keep: 0.5 });
+    expect(remove.params.threshold!.unit).toBe('dB');
+    expect(remove.params.keep!.unit).toBe('s');
+  });
+
+  it('shortens a 2 s pause to 0.5 s: the sound is 1.5 s shorter, the speech is kept', () => {
+    const params = defaultParams(remove);
+    const [out] = remove.process([voice(2)], R, params);
+    expect(out!.length).toBe(2.5 * R);
+    expect(out![101]).toBe(loudAt(101)); // the first words as they were
+    expect(out![out!.length - 1]).toBe(loudAt(R - 1)); // and the last
+  });
+
+  it('leaves pauses shorter than the length typed, and every channel loses the same part', () => {
+    const params = defaultParams(remove);
+    const left = voice(0.3);
+    expect(remove.process([left], R, params)[0]!.length).toBe(left.length);
+    const loud = voice(2).map((v, i) => (i === 1500 ? 0.9 : v)); // a click in the pause
+    const out = remove.process([voice(2), loud], R, params);
+    // Quiet only where every channel is quiet: the click splits the pause in two parts of ~0.5 s.
+    expect(out[0]!.length).toBe(out[1]!.length);
+  });
+
+  it('the note shows how much time it saves before Apply', () => {
+    const params = defaultParams(remove);
+    expect(remove.note!([voice(2)], R, params)).toBe(
+      '1 quiet part found: the selection gets 1.50 s shorter (4.00 s → 2.50 s).',
+    );
+    const two = Float32Array.from([...voice(2), ...new Array(3 * R).fill(0)]);
+    expect(remove.note!([two], R, params)).toMatch(/^2 quiet parts found: .* 4\.00 s shorter/);
+    expect(remove.note!([voice(0.2)], R, params)).toMatch(/no quiet part/i);
+  });
+
+  it('refuses to "shorten" a pause to more than the length that counts as one', () => {
+    expect(() => remove.check!([voice(2)], { threshold: -40, minimum: 0.5, keep: 1 })).toThrow(
+      EditError,
+    );
+  });
+
+  it('says why: a recorded voiceover with long pauses is tightened', () => {
+    expect(remove.why).toMatch(/voiceover/i);
+    expect(remove.why).toMatch(/pause/i);
   });
 });

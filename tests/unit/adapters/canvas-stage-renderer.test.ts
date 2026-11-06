@@ -82,6 +82,27 @@ describe('createCanvasStageRenderer', () => {
     expect(fonts).toContain('italic 400 100px "Pacifico"');
   });
 
+  it('AN26 measures how wide words are in each font, as the stage draws them (curved text in an SVG)', async () => {
+    const loaded: string[][] = [];
+    const ctx = {
+      font: '',
+      measureText(text: string) {
+        return { width: (this.font.includes('700') ? 12 : 10) * text.length };
+      },
+    };
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: () => ({
+        getContext: () => ctx as unknown as StageCanvas,
+        convertToBlob: async () => new Blob(),
+      }),
+      loadFonts: async (f) => void loaded.push(f),
+    });
+    const widthOf = await renderer.textWidths(['700 20px "Inter"']);
+    expect(loaded).toEqual([['700 20px "Inter"']]);
+    expect(widthOf('700 20px "Inter"', 'HUNGRY')).toBe(72);
+    expect(widthOf('400 20px "Inter"', 'HUN')).toBe(30);
+  });
+
   it('draws the stage at its size with the loaded pictures and fonts, and returns PNG bytes', async () => {
     const calls: string[] = [];
     const canvas = fakeCanvas(calls);
@@ -97,6 +118,20 @@ describe('createCanvasStageRenderer', () => {
     expect(calls).toContain('fillRect(0,0,600,400)');
     expect(calls.some((c) => c.startsWith('drawImage(image'))).toBe(true);
     expect(loadFonts).toHaveBeenCalledWith(['400 20px "Inter"']);
+  });
+
+  it('AN15 another size: a canvas of that size, the stage drawn scaled onto it (sharp vectors)', async () => {
+    const calls: string[] = [];
+    const canvas = fakeCanvas(calls);
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage: async (path) => ({ path }),
+      loadFonts: async () => {},
+    });
+    await renderer.renderPng(doc(), 0, { width: 300, height: 200 });
+    expect(canvas.sizes).toEqual([[300, 200]]);
+    expect(calls.indexOf('scale(0.5,0.5)')).toBeGreaterThanOrEqual(0);
+    expect(calls.indexOf('scale(0.5,0.5)')).toBeLessThan(calls.indexOf('fillRect(0,0,600,400)'));
   });
 
   it('a picture that cannot be loaded is drawn as a placeholder; no context is an error', async () => {

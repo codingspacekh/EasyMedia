@@ -9,6 +9,7 @@ import { drawingActions } from './animation/drawing.ts';
 import { exportActions } from './animation/exporting.ts';
 import { fileActions } from './animation/files.ts';
 import { pictureActions } from './animation/pictures.ts';
+import { soundActions } from './animation/sounds.ts';
 import type { AnimationDeps } from './animation/state.ts';
 import { timelineActions } from './animation/timeline.ts';
 
@@ -32,6 +33,7 @@ export function createAnimationApp(deps: AnimationDeps) {
     ...files,
     ...exportActions(ctx),
     ...pictureActions(ctx),
+    ...soundActions(ctx),
     ...drawingActions(ctx),
     ...timelineActions(ctx),
     ...documentActions(ctx),

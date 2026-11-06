@@ -39,7 +39,7 @@ test('import → timeline → preview → export', async () => {
       ((document.querySelector('[data-preview="video"] video') as HTMLVideoElement | null)
         ?.readyState ?? 0) >= 2,
   );
-  await window.getByRole('button', { name: 'Play' }).click();
+  await window.getByRole('button', { name: 'Play', exact: true }).click();
   await expect(window.locator('.transport .tc')).not.toHaveText(/^00:00\.00/, { timeout: 5_000 });
   await window.getByRole('button', { name: 'Pause' }).click();
 

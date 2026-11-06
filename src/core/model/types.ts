@@ -74,8 +74,22 @@ export interface ClipLook {
   transitionIn?: Transition;
 }
 
+/**
+ * V19: a video clip or picture turned and flipped, e.g. phone footage filmed sideways. The turn
+ * comes first, then the flips (across the screen as it is seen). Absent = as filmed, so a
+ * project without turns still opens in versions before 1.5.
+ */
+export interface ClipTurn {
+  /** Degrees clockwise. */
+  turn?: 90 | 180 | 270;
+  /** Mirrored left to right. */
+  flipH?: boolean;
+  /** Mirrored top to bottom. */
+  flipV?: boolean;
+}
+
 /** A video clip plays the source from `in` to `out` at `speed`. */
-export interface VideoClip extends ClipLook {
+export interface VideoClip extends ClipLook, ClipTurn {
   type: 'video';
   id: Id;
   assetId: Id;
@@ -86,7 +100,7 @@ export interface VideoClip extends ClipLook {
   volume: number;
 }
 
-export interface ImageClip extends ClipLook {
+export interface ImageClip extends ClipLook, ClipTurn {
   type: 'image';
   id: Id;
   assetId: Id;
@@ -211,7 +225,62 @@ export interface AudioItem {
   duck?: boolean;
   /** 0.25–4, pitch kept; missing = 1 (V13 like V14). */
   speed?: number;
+  /** V13: quieter or louder between two times; absent (not saved) when there are none. */
+  volumeChanges?: VolumeChange[];
 }
+
+/**
+ * V13: the sound plays at `volume` from `from` to `to`, timeline time (the times a task gives).
+ * It glides there over `ramp` seconds before `from` and back over `ramp` after `to`, so it never
+ * clicks. The volume replaces the item's own volume meanwhile (0.3 = 30 %).
+ */
+export interface VolumeChange {
+  from: Seconds;
+  to: Seconds;
+  volume: number;
+  /** Absent: 0.25 s. */
+  ramp?: Seconds;
+}
+
+/** V20: where a picture or video over the video goes and how big it is (as V18 and text). */
+export interface OverlayPlacement {
+  /** One of the nine places, as for text. */
+  position: TextPosition;
+  /** Its width as a part of the frame's width, 1–100 %; it keeps its shape. */
+  widthPercent: number;
+  /** Pixels (of the project's frame) between it and the edges it is placed against. */
+  margin: number;
+}
+
+interface OverlayBase extends OverlayPlacement {
+  id: Id;
+  assetId: Id;
+  /** When it appears (timeline time). */
+  start: Seconds;
+  /** 1 = solid, 0.5 = half see-through. */
+  opacity: number;
+  /** Absent: no fade. */
+  fadeIn?: Seconds;
+  fadeOut?: Seconds;
+}
+
+/** V20: a picture over the video, e.g. a logo in a corner. */
+export interface OverlayPicture extends OverlayBase {
+  type: 'image';
+  duration: Seconds;
+}
+
+/** V20: a video over the video (picture-in-picture), playing the source from `in` to `out`. */
+export interface OverlayVideo extends OverlayBase {
+  type: 'video';
+  in: Seconds;
+  out: Seconds;
+  /** Its own sound: off unless the student turns it on. */
+  muted: boolean;
+  volume: number;
+}
+
+export type OverlayItem = OverlayPicture | OverlayVideo;
 
 /** Video mode's audio tracks: music, voiceover and, when used, two sound effects tracks. */
 export type AudioTracks = [AudioItem[], AudioItem[], ...AudioItem[][]];
@@ -231,6 +300,11 @@ export interface Project {
      * out while empty, so a project without effects opens in versions before 1.5.
      */
     audio: AudioTracks;
+    /**
+     * V20: pictures and videos over the video, one after another. Left out while empty, so a
+     * project without them opens in versions before 1.5.
+     */
+    overlay?: OverlayItem[];
   };
   /** Audio mode's work, saved with the project (P1); absent when there is none. */
   audioMode?: AudioModeSession;

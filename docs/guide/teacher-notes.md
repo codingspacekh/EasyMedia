@@ -10,7 +10,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 | Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
-| setting an aspect ratio | Video ▸ the project settings chip (16:9 · 1920 × 1080 · 30 fps) at the top | Aspect ratio |
+| setting an aspect ratio | Video ▸ the project settings chip (16:9 · 1920 × 1080 · 30 fps) at the top | Aspect ratio, Turn & flip |
 | trimming a video clip to remove unwanted footage | Video ▸ drag a clip’s edges on the timeline, or its Clip tab ▸ Trim (Start point, End point) | Trim, Delete |
 | splicing/joining together video clips | Video ▸ timeline: add clips one after another; Split and Join | Split and join |
 | adding titles, subtitles and captions | Video ▸ Title, Caption, Subtitle on the toolbar; the Text tab (font, looks, position, effects) | Title, Caption, Subtitles |
@@ -22,7 +22,7 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | adding transitions | Video ▸ the next clip’s Effects tab ▸ Transition into this clip (43 kinds in five groups) | Transition, Dissolve, Fade through black, Fade through white, Fade through grey, Pixel dissolve, Blur, Wipe left, Wipe right, Wipe up, Wipe down, Soft wipe left, Soft wipe right, Soft wipe up, Clock wipe, Corner wipe, Diagonal from bottom right, Diagonal from top left, Push left, Push right, Push up, Push down, Slide in from the right, Slide in from the left, Slide away to the left, Slide away to the right, Slide in from the bottom, Slide away to the top, Circle open, Circle close, Iris, Box, Doors open, Letterbox open, Doors close, Zoom, Pixelate, Squeeze, Slices, Wind, Blown upwards, Slices up, Squeeze sideways, Melt |
 | extracting a still image from a video clip | Video ▸ Snapshot on the toolbar (frame by frame, named, PNG / JPG / BMP / TIFF) | Snapshot |
 | resizing and cropping a still image to match a video’s aspect ratio | Video ▸ media bin ▸ Resize & crop… on a picture | Resize & crop |
-| inserting a still image | Video ▸ Import a picture and add it to the timeline; its Duration | Duration, Place a picture |
+| inserting a still image | Video ▸ Import a picture and add it to the timeline; its Duration; or put it over the video from the media bin (a logo in a corner) | Duration, Place a picture, Over the video |
 | adding audio to a video clip | Video ▸ Add music (music and voiceover tracks) | Music & voiceover |
 | editing audio within a video clip | Video ▸ a clip’s Audio tab ▸ Clip sound (volume) and Separate sound; a music or voiceover clip: volume, fades, speed | Separate sound |
 | removing audio from a video clip | Video ▸ a clip’s Audio tab ▸ Clip sound ▸ Remove sound | Clip sound |
@@ -67,10 +67,10 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | importing new tracks | Audio ▸ Import audio, or Tracks ▸ Import audio as new track | New track |
 | adding a track to an existing audio clip | Audio ▸ Tracks ▸ Add new mono / stereo track; Align; Mix and render | Move track, Mix and render, Remove track |
 | normalising an audio clip, including removing any DC offset | Audio ▸ Effect ▸ Normalise (and Amplify) | Normalise, Amplify |
-| trimming an audio clip to remove unwanted material | Audio ▸ drag a clip’s edges, Delete, or select a part and Trim to selection | Move and trim a clip, Delete a clip, Trim to selection, Insert silence |
+| trimming an audio clip to remove unwanted material | Audio ▸ drag a clip’s edges, Delete, or select a part and Trim to selection; Effect ▸ Remove silences (long pauses shortened) | Remove silences, Move and trim a clip, Delete a clip, Trim to selection, Insert silence |
 | splicing/joining together two audio clips | Audio ▸ Split, Join, move clips, Cut / Copy / Paste, Align end to end | Split and join audio, Cut, copy & paste, Align |
-| fading in and fading out | Audio ▸ Effect ▸ Fade in / Fade out | Fade in, Fade out |
-| altering the clip speed | Audio ▸ Effect ▸ Change speed | Change speed |
+| fading in and fading out | Audio ▸ Effect ▸ Fade in / Fade out, Volume change (from one volume to another) | Fade in, Fade out, Volume change |
+| altering the clip speed | Audio ▸ Effect ▸ Change speed (and pitch), Change tempo (same pitch), Reverse (backwards) | Change speed, Change tempo, Reverse |
 | changing the pitch | Audio ▸ Effect ▸ Change pitch | Change pitch |
 | adding or adjusting delay/echo | Audio ▸ Effect ▸ Echo, Delay | Echo, Delay |
 | adding or adjusting reverberation | Audio ▸ Effect ▸ Reverb | Reverb |
@@ -132,8 +132,8 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | setting paths | Animation ▸ Properties ▸ Motion path (Follow path, Orient to path); a pen path’s points and curves are edited on the stage | Motion path |
 | using layers | Animation ▸ the Layers panel (add, rename, order, lock, hide, folders) | Layers |
 | applying masks | Animation ▸ the Mask button on a layer (lock the layer to see it work) | Mask |
-| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, and Button (Pause, Continue, Restart, Go to frame) tried with Test | Button |
-| exporting an animation for its application | Animation ▸ Export on the toolbar | Export animation |
+| controlling animations by adjusting frame rates, looping or stopping animations | Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, Export ▸ When it ends (loop, or play once and stop) for a GIF or web page, and Button (Pause, Continue, Restart, Go to frame) tried with Test | Button |
+| exporting an animation for its application | Animation ▸ Export on the toolbar (MP4, AVI, MOV, animated GIF, web page, PNG sequence, PNG or SVG; a range of frames or another width) | Export animation |
 
 ### The basic principles of animation
 
@@ -152,5 +152,5 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 
 | Syllabus point | Where in OneEditor | Tools |
 |---|---|---|
-| the primary (main focus, such as main characters), the secondary (sound, background), other components | Learn ▸ Animation (components and animation variables) | — |
+| the primary (main focus, such as main characters), the secondary (sound, background), other components | Learn ▸ Animation (components and animation variables); Animation ▸ the timeline’s Sounds row (Add sound…, Add a sound effect…) for the sound | Sound |
 | the use of animation variables to control the position of an animated object or parts of an animated object | Animation ▸ Group (a car with turning wheels; a face whose parts move); Learn ▸ Animation (components and animation variables) | Group |

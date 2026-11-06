@@ -23,21 +23,67 @@ export const fontKey = (font: string): string => font.replace(/ [\d.]+px /, ' ')
 const escape = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/** a × b: b's step first, then a's (as an SVG transform list "a b"). */
+function times(a: Matrix, b: Matrix): Matrix {
+  return [
+    a[0] * b[0] + a[2] * b[1],
+    a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3],
+    a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4],
+    a[1] * b[4] + a[3] * b[5] + a[5],
+  ];
+}
+
+/** The step back of a matrix; null when there is none (squashed flat). */
+function inverse([a, b, c, d, e, f]: Matrix): Matrix | null {
+  const det = a * d - b * c;
+  if (Math.abs(det) < 1e-12) return null;
+  return [d / det, -b / det, -c / det, a / det, (c * f - d * e) / det, (b * e - a * f) / det];
+}
+
+const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
+const sameMatrix = (a: Matrix, b: Matrix) => a.every((v, i) => Math.abs(v - b[i]!) < 1e-9);
+
 class Gradient implements CanvasGradientLike {
   readonly stops: string[] = [];
   readonly id: string;
-  private readonly open: string;
-  private readonly close: string;
-  constructor(id: string, open: string, close: string) {
+  private readonly tag: string;
+  private readonly attrs: string;
+  /** From the gradient's own coordinates to the stage (AN25: a skewed box); null: the same. */
+  private readonly base: Matrix | null;
+  /** AN6: the transform of the text it fills, whose own space it is read in. */
+  private element: Matrix | null = null;
+  constructor(id: string, tag: string, attrs: string, base: Matrix | null) {
     this.id = id;
-    this.open = open;
-    this.close = close;
+    this.tag = tag;
+    this.attrs = attrs;
+    this.base = base;
   }
   addColorStop(offset: number, colour: string): void {
     this.stops.push(`<stop offset="${n(offset)}" stop-color="${escape(colour)}"/>`);
   }
+  /**
+   * AN6: the gradient for an element placed by the transform `m` (text): an SVG reads its
+   * gradient in the element's own space, so it takes the way back from the stage first. Used
+   * by an element with another transform, it is copied under `id`.
+   */
+  forElement(m: Matrix, id: () => string): Gradient {
+    if (this.element === null) {
+      this.element = m;
+      return this;
+    }
+    if (sameMatrix(this.element, m)) return this;
+    const copy = new Gradient(id(), this.tag, this.attrs, this.base);
+    copy.stops.push(...this.stops);
+    copy.element = m;
+    return copy;
+  }
   toString(): string {
-    return `${this.open}${this.stops.join('')}${this.close}`;
+    const back = this.element ? inverse(this.element) : null;
+    const m = back ? times(back, this.base ?? IDENTITY) : this.base;
+    const transform = m ? ` gradientTransform="matrix(${m.map(n).join(' ')})"` : '';
+    return `<${this.tag} id="${this.id}" gradientUnits="userSpaceOnUse"${transform}${this.attrs}>${this.stops.join('')}</${this.tag}>`;
   }
 }
 
@@ -59,8 +105,14 @@ class SvgCanvas implements StageCanvas {
   textBaseline = 'alphabetic';
 
   private readonly textTops: Readonly<Record<string, number>>;
-  constructor(textTops: Readonly<Record<string, number>> = {}) {
+  /** AN26: how wide words are in a font, as the stage measures them (curved text). */
+  measureText?: (text: string) => { width: number };
+  constructor(
+    textTops: Readonly<Record<string, number>> = {},
+    measure?: (font: string, text: string) => number,
+  ) {
     this.textTops = textTops;
+    if (measure) this.measureText = (text) => ({ width: measure(this.font, text) });
   }
 
   private m: Matrix = [1, 0, 0, 1, 0, 0];
@@ -121,6 +173,31 @@ class SvgCanvas implements StageCanvas {
     this.m = [a * x, b * x, c * y, d * y, e, f];
   }
 
+  /** AN25: a skew (or any matrix), after what is set already, as a canvas does. */
+  transform(a2: number, b2: number, c2: number, d2: number, e2: number, f2: number): void {
+    const [a, b, c, d, e, f] = this.m;
+    this.m = [
+      a * a2 + c * b2,
+      b * a2 + d * b2,
+      a * c2 + c * d2,
+      b * c2 + d * d2,
+      a * e2 + c * f2 + e,
+      b * e2 + d * f2 + f,
+    ];
+  }
+
+  /** Only turned (and moved): a circle stays a circle and an arc is an SVG arc. */
+  private isTurnOnly(): boolean {
+    const [a, b, c, d] = this.m;
+    return Math.abs(a - d) < 1e-9 && Math.abs(b + c) < 1e-9;
+  }
+
+  /** Turned, mirrored or moved, not skewed: a gradient made on the stage looks the same. */
+  private isUnskewed(): boolean {
+    const [a, b, c, d] = this.m;
+    return Math.abs(a * c + b * d) < 1e-9 && Math.abs(a * a + b * b - (c * c + d * d)) < 1e-9;
+  }
+
   rotate(r: number): void {
     const [a, b, c, d, e, f] = this.m;
     const cos = Math.cos(r);
@@ -178,6 +255,7 @@ class SvgCanvas implements StageCanvas {
     const first = this.point(begin.x, begin.y);
     this.path.push(`${this.at ? 'L' : 'M'}${n(first.x)} ${n(first.y)}`);
     const sweep = Math.min(end - start, TAU);
+    if (!this.isTurnOnly()) return this.curvedArc(local, start, sweep, rx, ry, rot);
     // A whole turn is two halves: one SVG arc cannot end where it starts.
     const pieces = Math.abs(sweep) >= TAU - 1e-9 ? 2 : 1;
     const turn = (Math.atan2(this.m[1], this.m[0]) + rot) * (180 / Math.PI);
@@ -190,6 +268,41 @@ class SvgCanvas implements StageCanvas {
         `A${n(rx)} ${n(ry)} ${n(turn)} ${large} ${piece > 0 ? 1 : 0} ${n(q.x)} ${n(q.y)}`,
       );
       this.at = q;
+    }
+  }
+
+  /**
+   * An arc drawn skewed (AN25) or mirrored (AN23), which an SVG arc cannot be: Bézier curves, a
+   * quarter turn or less each, through the arc's own points (exact enough to see no difference).
+   */
+  private curvedArc(
+    local: (t: number) => { x: number; y: number },
+    start: number,
+    sweep: number,
+    rx: number,
+    ry: number,
+    rot: number,
+  ): void {
+    const pieces = Math.max(1, Math.ceil(Math.abs(sweep) / (Math.PI / 2) - 1e-9));
+    const piece = sweep / pieces;
+    const handle = (4 / 3) * Math.tan(piece / 4);
+    // The arc's direction at t, in the box (before the matrix).
+    const along = (t: number) => ({
+      x: -rx * Math.sin(t) * Math.cos(rot) - ry * Math.cos(t) * Math.sin(rot),
+      y: -rx * Math.sin(t) * Math.sin(rot) + ry * Math.cos(t) * Math.cos(rot),
+    });
+    for (let i = 0; i < pieces; i++) {
+      const t0 = start + piece * i;
+      const t1 = t0 + piece;
+      const [p0, p1, d0, d1] = [local(t0), local(t1), along(t0), along(t1)];
+      this.bezierCurveTo(
+        p0.x + handle * d0.x,
+        p0.y + handle * d0.y,
+        p1.x - handle * d1.x,
+        p1.y - handle * d1.y,
+        p1.x,
+        p1.y,
+      );
     }
   }
 
@@ -292,7 +405,7 @@ class SvgCanvas implements StageCanvas {
     this.stroke();
   }
 
-  private transform(): string {
+  private matrixAttr(): string {
     return ` transform="matrix(${this.m.map(n).join(' ')})"`;
   }
 
@@ -318,12 +431,18 @@ class SvgCanvas implements StageCanvas {
       ? ` font-family="'${escape(family!)}', ${genericFamily(family!)}" font-size="${size}" font-weight="${weight}"${italic ? ' font-style="italic"' : ''}`
       : '';
     this.body.push(
-      `<text x="${n(x)}" y="${n(y)}"${fontAttrs} text-anchor="${anchor[this.textAlign as keyof typeof anchor] ?? 'start'}" dominant-baseline="${baseline}" xml:space="preserve"${paint}${this.opacity()}${this.transform()}>${escape(text)}</text>`,
+      `<text x="${n(x)}" y="${n(y)}"${fontAttrs} text-anchor="${anchor[this.textAlign as keyof typeof anchor] ?? 'start'}" dominant-baseline="${baseline}" xml:space="preserve"${paint}${this.opacity()}${this.matrixAttr()}>${escape(text)}</text>`,
     );
   }
 
   fillText(text: string, x: number, y: number): void {
-    this.text(text, x, y, ` fill="${this.paint(this.fillStyle)}"`);
+    // AN6: a gradient is read in the text's own space, where its transform puts it.
+    const style =
+      this.fillStyle instanceof Gradient
+        ? this.fillStyle.forElement([...this.m], () => this.newGradientId())
+        : this.fillStyle;
+    if (style instanceof Gradient && !this.gradients.includes(style)) this.gradients.push(style);
+    this.text(text, x, y, ` fill="${this.paint(style)}"`);
   }
 
   strokeText(text: string, x: number, y: number): void {
@@ -334,39 +453,52 @@ class SvgCanvas implements StageCanvas {
     this.flush();
     const { href } = image as Href;
     this.body.push(
-      `<image href="${escape(href)}" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" preserveAspectRatio="none"${this.opacity()}${this.transform()}/>`,
+      `<image href="${escape(href)}" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" preserveAspectRatio="none"${this.opacity()}${this.matrixAttr()}/>`,
     );
   }
 
   // ---- gradients, in stage coordinates where they are made ----
 
+  private newGradientId(): string {
+    return `g${this.gradients.length + 1}`;
+  }
+
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradientLike {
-    const a = this.point(x0, y0);
-    const b = this.point(x1, y1);
-    const id = `g${this.gradients.length + 1}`;
+    // AN25: a skewed gradient is made in the box and leans with it (a gradientTransform).
+    const skewed = !this.isUnskewed();
+    const a = skewed ? { x: x0, y: y0 } : this.point(x0, y0);
+    const b = skewed ? { x: x1, y: y1 } : this.point(x1, y1);
     const g = new Gradient(
-      id,
-      `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${n(a.x)}" y1="${n(a.y)}" x2="${n(b.x)}" y2="${n(b.y)}">`,
-      '</linearGradient>',
+      this.newGradientId(),
+      'linearGradient',
+      ` x1="${n(a.x)}" y1="${n(a.y)}" x2="${n(b.x)}" y2="${n(b.y)}"`,
+      skewed ? [...this.m] : null,
     );
     this.gradients.push(g);
     return g;
   }
 
   createRadialGradient(
-    _x0: number,
-    _y0: number,
+    x0: number,
+    y0: number,
     _r0: number,
     x1: number,
     y1: number,
     r1: number,
   ): CanvasGradientLike {
-    const c = this.point(x1, y1);
-    const id = `g${this.gradients.length + 1}`;
+    const skewed = !this.isUnskewed();
+    const c = skewed ? { x: x1, y: y1 } : this.point(x1, y1);
+    // AN6: it starts from its centre (fx, fy), unless a canvas was asked otherwise.
+    const f = skewed ? { x: x0, y: y0 } : this.point(x0, y0);
+    const focus =
+      Math.abs(f.x - c.x) > 1e-9 || Math.abs(f.y - c.y) > 1e-9
+        ? ` fx="${n(f.x)}" fy="${n(f.y)}"`
+        : '';
     const g = new Gradient(
-      id,
-      `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${n(c.x)}" cy="${n(c.y)}" r="${n(r1)}">`,
-      '</radialGradient>',
+      this.newGradientId(),
+      'radialGradient',
+      ` cx="${n(c.x)}" cy="${n(c.y)}"${focus} r="${n(r1)}"`,
+      skewed ? [...this.m] : null,
     );
     this.gradients.push(g);
     return g;
@@ -392,7 +524,9 @@ class SvgCanvas implements StageCanvas {
  * (one the app could not read is drawn as the stage draws a missing picture: a dashed box);
  * `fonts` the bundled fonts its text uses, put inside so it looks the same on any computer
  * (9626/04 M/J/18 TTS10 in a script font, M/J/21 GlobalLogo in a sans-serif); `textTops` where
- * each font's baseline sits below the top the stage draws text from (StageRenderer.textTops).
+ * each font's baseline sits below the top the stage draws text from (StageRenderer.textTops);
+ * `measure` how wide words are in a font, as the stage measures them (StageRenderer.textWidths),
+ * so curved text (AN26) has its letters where the stage puts them.
  */
 export function stageSvg(
   doc: AnimationDoc,
@@ -400,8 +534,9 @@ export function stageSvg(
   pictures: Readonly<Record<Id, string>> = {},
   fonts: readonly { face: FontFile; url: string }[] = [],
   textTops: Readonly<Record<string, number>> = {},
+  measure?: (font: string, text: string) => number,
 ): string {
-  const canvas = new SvgCanvas(textTops);
+  const canvas = new SvgCanvas(textTops, measure);
   drawStage(canvas, doc, {
     frame,
     image: (id) => (pictures[id] ? ({ href: pictures[id] } satisfies Href) : null),

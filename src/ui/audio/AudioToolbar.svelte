@@ -274,7 +274,14 @@
           {#if effects.length || group === 'Repair & channels'}
             <div class="mh">{group}</div>
             {#each effects as e (e.id)}
-              <button role="menuitem" onclick={() => effect(e.id)}>{e.label}</button>
+              <!-- No settings means no dialog to show "Why use this?", so the tooltip says it. -->
+              <button
+                role="menuitem"
+                title={Object.keys(e.params).length
+                  ? undefined
+                  : `${e.label}: applied to the selection at once\n\nWhy? ${e.why}`}
+                onclick={() => effect(e.id)}>{e.label}</button
+              >
             {/each}
             {#if group === 'Repair & channels'}
               <button role="menuitem" onclick={() => choose(() => audio.stereoToMono())}

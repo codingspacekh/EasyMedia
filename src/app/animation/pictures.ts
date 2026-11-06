@@ -7,10 +7,15 @@ import { sortByName, stopMotion, stopMotionTiming } from '../../core/animation/f
 import {
   traceBitmap,
   tracedGroup,
+  type Pixels,
   type TraceOptions,
   type TracedRegion,
 } from '../../core/animation/trace.ts';
 import type { Point } from '../../core/animation/geometry.ts';
+import { checkPictureEditable, croppedPicture } from '../../core/animation/picture-edit.ts';
+import { colourKeyFilter, type ColourKey } from '../../core/image/colour-key.ts';
+import { planFreeCrop, type CropRegion } from '../../core/image/crop.ts';
+import { fileNameOf } from '../../core/project/relocate.ts';
 import type { Id, Picture, PictureObject } from '../../core/animation/types.ts';
 import { EditError } from '../../core/model/errors.ts';
 import { newId } from '../../core/model/factory.ts';
@@ -26,13 +31,46 @@ export function pictureActions(ctx: AnimationContext) {
   const { dialogs, engine, renderer } = services;
 
   /** AN5: the one selected object if it is a picture, with its file. */
-  function selectedPicture(): { object: PictureObject; path: string } | null {
+  function selectedPicture(): { object: PictureObject; path: string; file: Picture } | null {
     const ids = ctx.liveSelection();
     const found = ids.length === 1 ? findObject(present(), ids[0]!) : null;
     if (found?.object.kind !== 'picture') return null;
     const { pictureId } = found.object;
     const file = present().pictures.find((p) => p.id === pictureId);
-    return file ? { object: found.object, path: file.path } : null;
+    return file ? { object: found.object, path: file.path, file } : null;
+  }
+
+  /**
+   * AN5 Crop… / Make a colour see-through…: `make` saves the new picture file beside the old one
+   * and says how the object changes to show it; that is one undo step, and the student is told
+   * where the file is. `how` words the messages.
+   */
+  async function remakePicture(
+    how: { label: string; busy: string; done: string; none: string },
+    make: (file: Picture) => Promise<{ to: Picture; change: (o: PictureObject) => PictureObject }>,
+  ): Promise<void> {
+    const picture = selectedPicture();
+    if (!picture) {
+      patch({ message: { kind: 'error', text: how.none } });
+      return;
+    }
+    const { object, file } = picture;
+    patch({ busy: how.busy });
+    try {
+      checkPictureEditable(object, file, how.done);
+      const { to, change } = await make(file);
+      if (run(cmd.changePicture(object.id, to, change, how.label)))
+        patch({
+          message: {
+            kind: 'info',
+            text: `Saved ${fileNameOf(to.path)} beside ${fileNameOf(file.path)}.`,
+          },
+        });
+    } catch (error) {
+      showError(error);
+    } finally {
+      patch({ busy: null });
+    }
   }
 
   async function tracePicture(
@@ -45,6 +83,56 @@ export function pictureActions(ctx: AnimationContext) {
   }
 
   return {
+    /** AN5: the selected picture's file (path and size), for Crop… and See-through…; or null. */
+    selectedPictureFile: (): Picture | null => selectedPicture()?.file ?? null,
+
+    /** AN5: the selected picture's pixels, at most `maxSide` px, for the see-through preview. */
+    async picturePixels(maxSide: number): Promise<Pixels | null> {
+      const picture = selectedPicture();
+      return picture ? renderer.pixels(picture.path, maxSide) : null;
+    },
+
+    /**
+     * AN5 *Crop…*: the part of the selected picture kept (in its own pixels) is saved as a new
+     * picture beside it, at its own size (named `name` if typed, else photo1.jpg), and the object
+     * shows only that part, where it was on the stage.
+     */
+    cropPicture: (region: CropRegion, name?: string): Promise<void> =>
+      remakePicture(
+        {
+          label: 'Crop picture',
+          busy: 'Cropping…',
+          done: 'cropped',
+          none: 'Select a picture to crop it.',
+        },
+        async (file) => {
+          const plan = planFreeCrop(file, region);
+          const path = await engine.resizeCropImage(file.path, plan, name);
+          const to = { id: newId(), path, width: plan.crop.width, height: plan.crop.height };
+          return { to, change: (o) => croppedPicture(o, file, plan.crop, to) };
+        },
+      ),
+
+    /**
+     * AN5 *Make a colour see-through…*: the picked colour (and the colours near it) made
+     * see-through in a new PNG beside the picture (photo.jpg → photo1.png), which the object shows.
+     */
+    seeThroughPicture: (key: ColourKey, name?: string): Promise<void> =>
+      remakePicture(
+        {
+          label: 'Make a colour see-through',
+          busy: 'Making a colour see-through…',
+          done: 'made see-through',
+          none: 'Select a picture to make a colour in it see-through.',
+        },
+        async (file) => {
+          colourKeyFilter(key); // a colour not picked is explained before anything is made
+          const path = await engine.colourKeyImage(file.path, key, name);
+          const to = { id: newId(), path, width: file.width, height: file.height };
+          return { to, change: (o) => ({ ...o, pictureId: to.id }) };
+        },
+      ),
+
     /** AN5: a picture file chosen by the student, placed at its own size. */
     async addPicture(at: Point): Promise<void> {
       const path = await dialogs.openPicture();

@@ -1,7 +1,8 @@
 // AN15, AN18: the HTML web animation's player. The frame shown is worked out from the page's
-// clock (ms) at the stage's frame rate and loops at the end; Pause keeps the frame, Continue goes
-// on from it, Restart plays from frame 0 and Go to frame jumps. Pure: the page passes the time in,
-// so a test can ask for the frame at any moment. Drawing stays in draw.ts (the same as the app).
+// clock (ms) at the stage's frame rate and loops at the end, or (AN8, the stage's playOnce) stops
+// on the last frame; Pause keeps the frame, Continue goes on from it, Restart plays from frame 0
+// and Go to frame jumps. Pure: the page passes the time in, so a test can ask for the frame at
+// any moment. Drawing stays in draw.ts (the same as the app).
 import type { AnimationDoc, ButtonObject } from './types.ts';
 
 export interface PlayerState {
@@ -11,25 +12,39 @@ export interface PlayerState {
 
 export type Player = ReturnType<typeof createPlayer>;
 
-/** A player of the document, playing from frame 0 at `now` (ms on the page's clock). */
-export function createPlayer(doc: AnimationDoc, now: number) {
+/**
+ * A player of the document, playing from frame 0 at `now` (ms on the page's clock); AN15: of a
+ * part, the frames `range.first` to `range.last` (both shown), from its first.
+ */
+export function createPlayer(
+  doc: AnimationDoc,
+  now: number,
+  range: { first: number; last: number } = { first: 0, last: doc.stage.length - 1 },
+) {
   const { fps } = doc.stage;
-  const length = Math.max(1, doc.stage.length);
-  const clamp = (frame: number) => Math.min(length - 1, Math.max(0, Math.round(frame)));
+  const { first } = range;
+  const length = Math.max(1, range.last - first + 1);
+  const once = doc.stage.playOnce === true;
+  const clamp = (frame: number) => Math.min(first + length - 1, Math.max(first, Math.round(frame)));
   let playing = true;
-  /** While playing: the clock time at which frame 0 was (or would have been) shown. */
+  /** While playing: the clock time at which the first frame was (or would have been) shown. */
   let origin = now;
-  let frame = 0;
+  let frame = first;
 
   const startFrom = (f: number, time: number) => {
     frame = f;
-    origin = time - (f * 1000) / fps;
+    origin = time - ((f - first) * 1000) / fps;
   };
 
   function frameAt(time: number): number {
     if (playing) {
       const elapsed = Math.max(0, time - origin);
-      frame = Math.floor((elapsed * fps) / 1000 + 1e-9) % length;
+      const reached = Math.floor((elapsed * fps) / 1000 + 1e-9);
+      // AN8: played once, it stops on the last frame (Continue stays there; Restart plays again).
+      if (once && reached >= length - 1) {
+        frame = first + length - 1;
+        playing = false;
+      } else frame = first + (reached % length);
     }
     return frame;
   }
@@ -45,7 +60,7 @@ export function createPlayer(doc: AnimationDoc, now: number) {
     playing = true;
   }
   function restart(time: number): void {
-    startFrom(0, time);
+    startFrom(first, time);
     playing = true;
   }
   function goTo(target: number, time: number): void {

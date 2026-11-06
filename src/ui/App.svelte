@@ -218,7 +218,7 @@
   {#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
   {#if $updatesView.dialog}<UpdatesDialog {app} />{/if}
   {#if $candidateView.dialog}<CandidateDialog {app} />{/if}
-  {#if ui.soundEffects && (ui.mode === 'Video' || ui.mode === 'Audio')}
+  {#if ui.soundEffects && (ui.mode === 'Video' || ui.mode === 'Audio' || ui.mode === 'Animation')}
     <SoundEffectsDialog {app} editor={ui.mode} onclose={() => (ui.soundEffects = false)} />
   {/if}
   {#if $store.licences !== null}

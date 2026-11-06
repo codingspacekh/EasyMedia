@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
 import { createMockRecorder } from '../../src/adapters/mock/recorder.ts';
+import type { AudioOutput } from '../../src/app/audio.ts';
 import type {
   PageAssets,
   ProbeInfo,
@@ -46,6 +47,11 @@ export function testApp(
     textTops: vi.fn<StageRenderer['textTops']>(async (fonts) =>
       Object.fromEntries(fonts.map((f) => [f.replace(/ [\d.]+px /, ' '), 0.9])),
     ),
+    /** AN26: half the font size a letter. */
+    textWidths: vi.fn<StageRenderer['textWidths']>(
+      async () => (font, text) =>
+        [...text].length * Number(/([\d.]+)px/.exec(font)?.[1] ?? 10) * 0.5,
+    ),
     pixels: vi.fn<StageRenderer['pixels']>(async () => ({
       width: 1,
       height: 1,
@@ -61,7 +67,18 @@ export function testApp(
     fontDataUrl: vi.fn<PageAssets['fontDataUrl']>(
       async (file) => `data:font/ttf;base64,${btoa(file)}`,
     ),
+    soundDataUrl: vi.fn<PageAssets['soundDataUrl']>(
+      async (path) => `data:audio/mpeg;base64,${btoa(path)}`,
+    ),
     openTest: vi.fn<PageAssets['openTest']>(async () => {}),
+  };
+  /** AN28: the speakers Animation mode plays its sounds on: what was played, and stops. */
+  const animationAudio = {
+    played: [] as { sampleRate: number; channels: readonly Float32Array[] }[],
+    stops: 0,
+    play: vi.fn<AudioOutput['play']>((audio) => void animationAudio.played.push(audio)),
+    stop: vi.fn<AudioOutput['stop']>(() => void animationAudio.stops++),
+    elapsed: () => 0,
   };
   const app = createApp({
     engine,
@@ -80,6 +97,7 @@ export function testApp(
     },
     stageRenderer,
     pageAssets,
+    animationAudioOutput: animationAudio,
     text: {
       draw: async (_text, _style, frame) => ({ png: new Uint8Array(1), ...frame }),
     },
@@ -109,5 +127,6 @@ export function testApp(
     saveSound,
     stageRenderer,
     pageAssets,
+    animationAudio,
   };
 }

@@ -58,6 +58,8 @@
     mask: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
     loop: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     cursor: '<path d="M9 4h6M9 20h6M12 4v16"/>',
+    insertAt: '<path d="M4 3h7l-3.5 4z"/><path d="M7.5 7v14"/><path d="M14 12h7M17.5 8.5v7"/>',
+    pip: '<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1"/>',
     shift: '<path d="M5 12h14"/><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/>',
     copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
     paste:

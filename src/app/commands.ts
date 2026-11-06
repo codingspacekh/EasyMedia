@@ -49,8 +49,11 @@ import type {
   TextStyle,
   TitleBackground,
   TitleSlide,
+  VolumeChange,
 } from '../core/model/types.ts';
+import { validateVolumeChanges } from '../core/model/volume-changes.ts';
 import type { Command } from './history.ts';
+import { withOverlay } from './overlay-commands.ts';
 
 type AudioTrack = AudioTrackIndex;
 
@@ -80,6 +83,9 @@ export function relinkMedia(assetId: Id, replacement: MediaAsset): Command {
           m.type === 'video' && m.assetId === assetId ? [m.out] : [],
         ),
         ...p.timeline.audio.flat().flatMap((a) => (a.assetId === assetId ? [a.out] : [])),
+        ...(p.timeline.overlay ?? []).flatMap((o) =>
+          o.type === 'video' && o.assetId === assetId ? [o.out] : [],
+        ),
       );
       if ((replacement.duration ?? Infinity) + 1e-9 < usedUpTo) {
         throw new EditError(
@@ -111,21 +117,26 @@ export function removeItem(id: Id): Command {
   return {
     label: 'Delete',
     apply: (p) => {
-      const { main, text, audio } = p.timeline;
+      const { main, text, audio, overlay = [] } = p.timeline;
       const found =
         main.some((m) => m.id === id) ||
         text.some((t) => t.id === id) ||
-        audio.flat().some((a) => a.id === id);
+        audio.flat().some((a) => a.id === id) ||
+        overlay.some((o) => o.id === id);
       if (!found)
         throw new EditError('This item could not be found. It may already have been deleted.');
-      return {
-        ...p,
-        timeline: {
-          main: main.filter((m) => m.id !== id),
-          text: text.filter((t) => t.id !== id),
-          audio: tidyTracks(audio.map((items) => items?.filter((a) => a.id !== id))),
+      return withOverlay(
+        {
+          ...p,
+          timeline: {
+            ...p.timeline,
+            main: main.filter((m) => m.id !== id),
+            text: text.filter((t) => t.id !== id),
+            audio: tidyTracks(audio.map((items) => items?.filter((a) => a.id !== id))),
+          },
         },
-      };
+        overlay.filter((o) => o.id !== id),
+      );
     },
   };
 }
@@ -164,6 +175,39 @@ export function setClipMuted(id: Id, muted: boolean): Command {
       updateMain(p, id, (item) => {
         if (item.type !== 'video') throw new EditError('Only video clips have sound to remove.');
         return { ...item, muted };
+      }),
+  };
+}
+
+/**
+ * V19: turns and flips a video clip or picture (e.g. phone footage filmed sideways); no turn
+ * and no flips removes the fields, so the clip is saved as before.
+ */
+export function setClipTurn(
+  id: Id,
+  change: { turn?: 0 | 90 | 180 | 270; flipH?: boolean; flipV?: boolean },
+): Command {
+  return {
+    label: 'Turn or flip',
+    apply: (p) =>
+      updateMain(p, id, (item) => {
+        if (item.type === 'title') {
+          throw new EditError('Only video clips and pictures can be turned or flipped.');
+        }
+        const { turn = 0, flipH = false, flipV = false } = change;
+        if (![0, 90, 180, 270].includes(turn)) {
+          throw new EditError('A clip can be turned by 90°, 180° or 270° only.');
+        }
+        const next = { ...item };
+        delete next.turn;
+        delete next.flipH;
+        delete next.flipV;
+        return {
+          ...next,
+          ...(turn ? { turn } : {}),
+          ...(flipH ? { flipH } : {}),
+          ...(flipV ? { flipV } : {}),
+        };
       }),
   };
 }
@@ -266,6 +310,59 @@ export function setAudioFades(id: Id, fades: { in: Seconds; out: Seconds }): Com
         return { ...item, fadeIn: fades.in, fadeOut: fades.out };
       }),
   };
+}
+
+/** V13: a sound plays quieter or louder between two timeline times (one undo step). */
+export function addVolumeChange(id: Id, change: VolumeChange): Command {
+  return {
+    label: 'Add volume change',
+    apply: (p) =>
+      updateAudio(p, id, (item) => withChanges(item, [...(item.volumeChanges ?? []), change])),
+  };
+}
+
+/** V13: the times, volume or glide of the change at `index` (in time order). */
+export function setVolumeChange(id: Id, index: number, change: VolumeChange): Command {
+  return {
+    label: 'Change volume change',
+    apply: (p) =>
+      updateAudio(p, id, (item) =>
+        withChanges(
+          item,
+          changeAt(item, index).map((c, i) => (i === index ? change : c)),
+        ),
+      ),
+  };
+}
+
+export function removeVolumeChange(id: Id, index: number): Command {
+  return {
+    label: 'Remove volume change',
+    apply: (p) =>
+      updateAudio(p, id, (item) =>
+        withChanges(
+          item,
+          changeAt(item, index).filter((_, i) => i !== index),
+        ),
+      ),
+  };
+}
+
+/** The item's changes, after checking there is one at `index`. */
+function changeAt(item: AudioItem, index: number): VolumeChange[] {
+  const changes = item.volumeChanges ?? [];
+  if (!changes[index])
+    throw new EditError('This volume change could not be found. It may already have been removed.');
+  return changes;
+}
+
+/** Checked and in time order; none at all is not saved (so 1.4 opens the project as before). */
+function withChanges(item: AudioItem, changes: VolumeChange[]): AudioItem {
+  validateVolumeChanges(changes);
+  const copy = { ...item };
+  delete copy.volumeChanges;
+  if (!changes.length) return copy;
+  return { ...copy, volumeChanges: [...changes].sort((a, b) => a.from - b.from) };
 }
 
 /** V13: the music is 6 dB quieter while the voiceover plays. */
@@ -435,12 +532,23 @@ export function moveTimedItem(id: Id, start: Seconds): Command {
         throw new EditError('This item could not be found. It may already have been deleted.');
       const items = itemsOn(p, track as AudioTrack);
       const moved = { ...items.find((a) => a.id === id)!, start };
-      assertFitsInTrack(items, moved);
-      return withAudio(
+      if (track < 2 || fits(items, moved)) {
+        assertFitsInTrack(items, moved);
+        return withAudio(
+          p,
+          track as AudioTrack,
+          items.map((a) => (a.id === id ? moved : a)),
+        );
+      }
+      // V13: a sound effect dragged onto a busy place goes on the other effects track.
+      const other = (track === 2 ? 3 : 2) as AudioTrack;
+      if (!fits(itemsOn(p, other), moved)) throw new EditError(effectsBusy(p, moved));
+      const removed = withAudio(
         p,
         track as AudioTrack,
-        items.map((a) => (a.id === id ? moved : a)),
+        items.filter((a) => a.id !== id),
       );
+      return withAudio(removed, other, [...itemsOn(removed, other), moved]);
     },
   };
 }
@@ -461,9 +569,14 @@ export function addAudioItem(item: AudioItem, track: AudioTrack): Command {
     apply: (p) => {
       requireAsset(p, item.assetId);
       assertStart(item.start);
-      const items = itemsOn(p, track);
+      // V13: a sound effect goes on effects track 1, or 2 when 1 already has a sound then.
+      const tracks: AudioTrack[] = track < 2 ? [track] : [track, track === 2 ? 3 : 2];
+      const free = tracks.find((t) => fits(itemsOn(p, t), item));
+      if (free === undefined && track >= 2) throw new EditError(effectsBusy(p, item));
+      const on = free ?? track;
+      const items = itemsOn(p, on);
       assertFitsInTrack(items, item);
-      return withAudio(p, track, [...items, item]);
+      return withAudio(p, on, [...items, item]);
     },
   };
 }
@@ -704,6 +817,18 @@ function fits(track: readonly AudioItem[], item: AudioItem): boolean {
   } catch {
     return false;
   }
+}
+
+/** V13: why a sound effect fits on neither effects track, with the time it needs. */
+function effectsBusy(p: Project, item: AudioItem): string {
+  const end = item.start + audioDuration(item);
+  const playing = (a: AudioItem) =>
+    a.id !== item.id && a.start <= item.start + 1e-9 && item.start < a.start + audioDuration(a);
+  const atStart = ([2, 3] as const).every((t) => itemsOn(p, t).some(playing));
+  const when = atStart
+    ? `at ${item.start.toFixed(2)} s`
+    : `between ${item.start.toFixed(2)} s and ${end.toFixed(2)} s`;
+  return `Both sound effects tracks already have a sound ${when}. Move one, or choose another time.`;
 }
 
 function audioTrackOf(p: Project, id: Id): AudioTrack {

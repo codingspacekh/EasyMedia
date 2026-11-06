@@ -3,8 +3,9 @@
 import { EditError } from '../model/errors.ts';
 import { newId } from '../model/factory.ts';
 import { createGroup, createLayer } from './factory.ts';
-import { flipObject, moved, shiftTracks, toStage } from './geometry.ts';
+import { flipObject, moved, pivotInBox, shiftTracks, toStage } from './geometry.ts';
 import { splitIntoLetters, type MeasureText } from './letters.ts';
+import { MAX_SKEW } from './rules.ts';
 import type {
   AnimObject,
   AnimationDoc,
@@ -267,6 +268,24 @@ export function groupObjects(
   return { doc: replaceLayer(doc, { ...layer, objects }), group };
 }
 
+const tanOf = (deg: number | undefined): number => Math.tan(((deg ?? 0) * Math.PI) / 180);
+
+/**
+ * AN25: a part of a skewed group, ungrouped, is skewed as much again: exactly as the group showed
+ * it when the part is not turned (a skew one way on a skew the other way can only be near it).
+ */
+function skewedBy(part: AnimObject, group: AnimObject): AnimObject {
+  const add = (own: number | undefined, by: number): number => {
+    const deg = (Math.atan(tanOf(own) + tanOf(by)) * 180) / Math.PI;
+    return Math.round(Math.max(-MAX_SKEW, Math.min(MAX_SKEW, deg)) * 100) / 100;
+  };
+  return {
+    ...part,
+    ...(group.skewX ? { skewX: add(part.skewX, group.skewX) } : {}),
+    ...(group.skewY ? { skewY: add(part.skewY, group.skewY) } : {}),
+  };
+}
+
 /**
  * The children back on the stage, where the group showed them (its move and turn applied). Their
  * own keyframes move with them; the group's own keyframes go with the group.
@@ -276,18 +295,18 @@ export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
   editable(layer);
   if (object.kind !== 'group') throw new EditError('That is not a group.');
   const children = object.children.map((child) => {
-    const centre = toStage(object, {
-      x: child.x + child.width / 2,
-      y: child.y + child.height / 2,
-    });
-    const x = centre.x - child.width / 2;
-    const y = centre.y - child.height / 2;
+    // AN27: the point the part turns about goes where the group shows it (its centre unless chosen).
+    const pivot = pivotInBox(child);
+    const shown = toStage(object, { x: child.x + pivot.x, y: child.y + pivot.y });
+    const x = shown.x - pivot.x;
+    const y = shown.y - pivot.y;
     // AN23: in a group flipped one way a part is mirrored too (its turn changes sign); flipped
     // both ways the group is only turned half round.
     const flips = (object.flipX ? 1 : 0) + (object.flipY ? 1 : 0);
     let part: AnimObject = child;
     if (flips === 1) part = flipObject(child, object.flipX ? 'horizontal' : 'vertical');
     const turn = object.rotation + (flips === 2 ? 180 : 0);
+    part = skewedBy(part, object);
     return {
       ...shiftTracks(part, { x: x - child.x, y: y - child.y, rotation: turn }),
       x,

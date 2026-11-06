@@ -60,6 +60,14 @@ describe('changing the frame rate (AN8)', () => {
     expect(secondsFor(72, doc.stage.fps)).toBe(2.4);
   });
 
+  it('AN28 by time a sound keeps its seconds too; by frame it stays on its frame', () => {
+    const sound = { id: 's', name: 'a.mp3', path: '/a.mp3', duration: 1, start: 72, volume: 100 };
+    const doc = { ...at3s(), sounds: [sound] };
+    expect(changeFps(doc, 30, 'times').sounds![0]!.start).toBe(90);
+    expect(changeFps(doc, 30, 'frames').sounds![0]!.start).toBe(72);
+    expect('sounds' in changeFps(at3s(), 30, 'times')).toBe(false);
+  });
+
   it('refuses a frame rate outside 1–60', () => {
     expect(() => changeFps(at3s(), 0, 'times')).toThrow(/between 1 and 60/);
   });

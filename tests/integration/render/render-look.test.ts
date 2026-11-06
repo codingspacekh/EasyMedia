@@ -15,7 +15,7 @@ import { setItemDuration, trimVideo } from '../../../src/core/model/timeline.ts'
 import type { MainItem, MediaAsset, Project, TitleSlide } from '../../../src/core/model/types.ts';
 import { createNodeMediaEngine } from '../../../src/main/media/engine.ts';
 import { bundledFfmpeg, run } from '../helpers/ffmpeg.ts';
-import { brightness, measure, tinyFrame } from '../helpers/measure.ts';
+import { brightness, grayFrame, measure, tinyFrame } from '../helpers/measure.ts';
 
 const FRAME = 1 / 30;
 const engine = createNodeMediaEngine(bundledFfmpeg());
@@ -199,6 +199,39 @@ describe('looks in the exported video', () => {
     expect(Math.abs((await measure(file)).videoDuration - 11.07)).toBeLessThanOrEqual(
       FRAME + 0.001,
     );
+  });
+
+  it('V19 a picture turned a quarter is fitted on its side; flipped, its halves swap', async () => {
+    // The black half (left) goes to the top when turned clockwise; the 1080 × 1920 picture is
+    // fitted in the 1920 × 1080 frame with bars at the sides: 608 × 1080 in the middle.
+    const file = await render(
+      [
+        { ...still('cw', 1), turn: 90 },
+        { ...still('acw', 1), turn: 270 },
+        { ...still('flip', 1), flipH: true },
+      ],
+      'turn.mp4',
+    );
+    const near = (a: number, b: number) => Math.abs(a - b) <= 4;
+    const cw = (await grayFrame(file, 0.5)).brightBox()!;
+    expect([cw.x0, cw.y0, cw.x1, cw.y1].map((v, i) => near(v, [656, 540, 1263, 1079][i]!))).toEqual(
+      [true, true, true, true],
+    );
+    const acw = (await grayFrame(file, 1.5)).brightBox()!;
+    expect(
+      [acw.x0, acw.y0, acw.x1, acw.y1].map((v, i) => near(v, [656, 0, 1263, 539][i]!)),
+    ).toEqual([true, true, true, true]);
+    const flipped = (await grayFrame(file, 2.5)).brightBox()!;
+    expect([flipped.x0, flipped.x1].map((v, i) => near(v, [0, 959][i]!))).toEqual([true, true]);
+  });
+
+  it('V19 a video clip turned a quarter has bars at the sides, as filmed on a phone', async () => {
+    const file = await render([{ ...clip('v', 0, 1), turn: 270 }], 'turn-video.mp4');
+    const frame = await tinyFrame(file, 0.5);
+    expect(frame.columnBrightness(0)).toBeLessThan(8);
+    expect(frame.columnBrightness(15)).toBeLessThan(8);
+    expect(frame.columnBrightness(8)).toBeGreaterThan(30);
+    expect(await measure(file)).toMatchObject({ width: 1920, height: 1080 });
   });
 });
 

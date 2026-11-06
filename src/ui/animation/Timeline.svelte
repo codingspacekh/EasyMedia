@@ -3,12 +3,19 @@
   // the seconds under them; one row per layer, its objects under it, and the selected (or opened)
   // object's animated properties under that, with keyframe dots, tween bars (a dash for a hold)
   // and the repeat mark. The playhead is dragged on the ruler or typed; a dot is clicked to edit
-  // its easing, hold and repeat, dragged to move it, Alt-dragged to copy it.
+  // its easing, hold and repeat, dragged to move it, Alt-dragged to copy it. AN28: under the
+  // layers, the Sounds row (Add sound…, Add a sound effect…) and one row per sound: a bar from its
+  // start for as long as it is heard, with its name, dragged to move it and clicked for its bar
+  // (volume, fades, trim, Mute, Delete).
   import type { App } from '../../app/app.ts';
   import { timeLabel } from '../../core/animation/time.ts';
   import type { Id, TweenProperty } from '../../core/animation/types.ts';
   import Icon from '../Icon.svelte';
   import KeyframeBar from './KeyframeBar.svelte';
+  import SoundBar from './SoundBar.svelte';
+  import { endFrame } from '../../core/animation/sound.ts';
+  import { ui } from '../ui-state.svelte.ts';
+  import { withWhy } from '../../core/effects/help.ts';
   import TimelineBar from './TimelineBar.svelte';
   import {
     frameLabels as labelsAt,
@@ -97,6 +104,7 @@
     if (e.button !== 0) return;
     e.stopPropagation();
     picked = { id, property, frame: at };
+    pickedSound = null;
     const startX = e.clientX;
     const copy = e.altKey;
     dragging = { id, property, frame: at, to: at };
@@ -123,6 +131,37 @@
     window.addEventListener('pointerup', up);
   }
 
+  // ---- AN28: sounds ----
+  const sounds = $derived(doc.sounds ?? []);
+  let pickedSound: Id | null = $state(null);
+  const pickedSoundOf = $derived(sounds.find((x) => x.id === pickedSound) ?? null);
+  /** The sound being dragged and the frame it would start at. */
+  let soundDrag: { id: Id; to: number } | null = $state(null);
+
+  function onSoundDown(e: PointerEvent, id: Id, start: number): void {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    pickedSound = id;
+    picked = null;
+    const startX = e.clientX;
+    const at = (ev: PointerEvent) => Math.max(0, start + Math.round((ev.clientX - startX) / px));
+    soundDrag = { id, to: start };
+    const move = (ev: PointerEvent) => (soundDrag = { id, to: at(ev) });
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      soundDrag = null;
+      const to = at(ev);
+      if (to !== start) anim.moveSound(id, to);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Where a sound's bar starts: where it is dragged to, or its start. */
+  const soundStart = (id: Id, start: number): number =>
+    soundDrag && soundDrag.id === id ? soundDrag.to : start;
+
   const shownFrame = (id: Id, property: TweenProperty, at: number): number =>
     dragging && dragging.id === id && dragging.property === property && dragging.frame === at
       ? dragging.to
@@ -138,6 +177,8 @@
 
   {#if pickedTrack}
     <KeyframeBar {app} bind:picked track={pickedTrack.track} key={pickedTrack.key} />
+  {:else if pickedSoundOf}
+    <SoundBar {app} bind:error sound={pickedSoundOf} />
   {/if}
 
   <div class="grid">
@@ -267,6 +308,65 @@
             <span class="dot" style:left="{xOf(f)}px" aria-hidden="true"></span>
           {/each}
         {/if}
+      </div>
+    {/each}
+
+    <div class="label sounds-head">
+      <span class="name">Sounds</span>
+      <button
+        class="ghost sm icon-only"
+        aria-label="Add sound…"
+        title={withWhy(
+          'Add sound…: a sound file (MP3, WAV, M4A, AAC, OGG or FLAC) at the playhead',
+          'animSound',
+        )}
+        onclick={() => void anim.addSound()}><Icon name="music" size={14} /></button
+      >
+      <button
+        class="ghost sm icon-only"
+        aria-label="Add a sound effect…"
+        title={withWhy('Add a sound effect…: a built-in sound at the playhead', 'animSound')}
+        onclick={() => (ui.soundEffects = true)}><Icon name="sfx" size={14} /></button
+      >
+    </div>
+    <div class="lane sounds-head" style:width="{span}px">
+      {#if sounds.length === 0}
+        <span class="empty">No sounds yet: add one at the playhead (an alarm, a door, music…)</span>
+      {/if}
+    </div>
+    {#each sounds as sound (sound.id)}
+      {@const start = soundStart(sound.id, sound.start)}
+      <div class="label sound">
+        <button
+          class="ghost sm name"
+          class:selected={pickedSound === sound.id}
+          title="{sound.name}: its volume, fades and trim"
+          onclick={() => {
+            pickedSound = sound.id;
+            picked = null;
+          }}
+          ><Icon name={sound.muted ? 'mute' : sound.effect ? 'sfx' : 'music'} size={12} />
+          {sound.name}</button
+        >
+      </div>
+      <div class="lane sound" style:width="{span}px">
+        <button
+          class="sound-bar"
+          class:muted={sound.muted}
+          class:picked={pickedSound === sound.id}
+          style:left="{xOf(start)}px"
+          style:width="{Math.max(4, (endFrame(sound, stage.fps) - sound.start) * px)}px"
+          aria-label="{sound.name} from frame {start}"
+          title="{sound.name} from frame {start} ({timeLabel(
+            start,
+            stage.fps,
+          )}). Drag to move; click for its volume, fades and trim."
+          onpointerdown={(e) => onSoundDown(e, sound.id, sound.start)}
+          onclick={() => {
+            pickedSound = sound.id;
+            picked = null;
+          }}>{sound.name}</button
+        >
       </div>
     {/each}
     <span class="line" style:left="calc(var(--label-w) + {xOf(frame)}px)" aria-hidden="true"></span>
@@ -477,6 +577,48 @@
     top: 50%;
     height: 0;
     border-top: 2px dotted var(--accent);
+  }
+  /* AN28: the sounds, under the layers. */
+  .label.sounds-head .name {
+    flex: 1;
+    font-weight: 600;
+  }
+  .lane.sounds-head {
+    background: var(--bg-2);
+  }
+  .empty {
+    position: sticky;
+    left: 8px;
+    line-height: 21px;
+    color: var(--tx-3);
+    white-space: nowrap;
+  }
+  .label.sound {
+    padding-left: 14px;
+  }
+  .sound-bar {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    padding: 0 4px;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    background: var(--accent-soft);
+    color: var(--tx-1);
+    font-size: 11px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: grab;
+    z-index: 1;
+  }
+  .sound-bar.muted {
+    opacity: 0.45;
+    border-style: dashed;
+  }
+  .sound-bar.picked {
+    outline: 2px solid var(--tx-1);
   }
   .line {
     position: absolute;

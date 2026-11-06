@@ -6,6 +6,7 @@ import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { PICTURE_EXTENSIONS, picturesIn } from './media/pictures.ts';
+import { SOUND_EXTENSIONS } from '../core/animation/sound.ts';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -35,6 +36,8 @@ const MEDIA_EXTENSIONS = [
 const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
   png: { label: 'PNG picture', extension: 'png' },
   mp4: { label: 'MP4 video', extension: 'mp4' },
+  avi: { label: 'AVI video', extension: 'avi' },
+  mov: { label: 'MOV video', extension: 'mov' },
   gif: { label: 'Animated GIF', extension: 'gif' },
   // The frames are saved beside the chosen name: Task1_0001.png, Task1_0002.png…
   'png-sequence': { label: 'PNG sequence (one picture per frame)', extension: 'png' },
@@ -137,6 +140,14 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         title: 'Add a picture',
         properties: ['openFile'],
         filters: [{ name: 'Pictures', extensions: PICTURE_EXTENSIONS }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async openSound() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Add a sound',
+        properties: ['openFile'],
+        filters: [{ name: 'Sounds', extensions: [...SOUND_EXTENSIONS] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },

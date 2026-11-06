@@ -17,6 +17,7 @@ export function createElectronPageAssets(
   return {
     playerScript: () => unwrap(api.invoke('page:player')),
     pictureDataUrl: (path) => unwrap(api.invoke('page:picture', path)),
+    soundDataUrl: (path) => unwrap(api.invoke('page:sound', path)),
     openTest: async (html, title, width, height) =>
       void (await unwrap(api.invoke('page:test', html, title, width, height))),
     async fontDataUrl(file) {

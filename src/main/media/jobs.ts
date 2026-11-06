@@ -63,12 +63,43 @@ export function rawInputArgs(path: string, rate: number, channels: number): stri
   return ['-f', 'f32le', '-ar', String(rate), '-ac', String(channels), '-i', path];
 }
 
+/** Seconds and volumes in FFmpeg's arguments: no long tails of digits. */
+const num = (n: number): string => String(Number(n.toFixed(4)));
+
+/** AN28: every sound in an animation's video is read at one rate and layout, then mixed. */
+const SOUND_RATE = 48000;
+const SOUND_FORMAT = `aformat=sample_rates=${SOUND_RATE}:channel_layouts=stereo`;
+
+/** AN15: the codecs of each video, as Video mode makes them (V16): MP4 and MOV H.264 + AAC, AVI MPEG-4 Part 2 + MP3. */
+function videoCodecs(format: 'mp4' | 'avi' | 'mov', fps: number, sound: boolean): string[] {
+  const rate = ['-pix_fmt', 'yuv420p', '-r', String(fps)];
+  if (format === 'avi')
+    return [
+      ...['-c:v', 'mpeg4', '-vtag', 'xvid', '-q:v', '3', ...rate],
+      ...(sound ? ['-c:a', 'libmp3lame', '-b:a', '192k'] : []),
+    ];
+  return [
+    ...['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', ...rate],
+    ...(sound ? ['-c:a', 'aac', '-b:a', '160k'] : []),
+    ...['-movflags', '+faststart'],
+  ];
+}
+
 /**
- * AN15: an animation's PNG frames as an MP4 (H.264, yuv420p, an odd side padded to even) or an
- * animated GIF that loops, made in two passes in one run: palettegen finds the best 256 colours,
- * paletteuse draws every frame with them.
+ * AN15: an animation's PNG frames as an MP4, MOV (H.264, yuv420p) or AVI (MPEG-4 Part 2), an odd
+ * side padded to even, or an animated GIF, made in two passes in one run: palettegen finds the
+ * best 256 colours, paletteuse draws every frame with them. The GIF loops for ever (-loop 0) or,
+ * AN8, plays once and stops on its last frame (-loop -1: no looping block in the file).
+ *
+ * AN28: a video's sounds: each file is read from its trim start for the seconds heard, set to its
+ * volume and faded as in the app, cut where the export starts after it did, moved to its time
+ * (exact to the sample) and mixed without lowering the others; the mix is padded with silence
+ * or cut to the video's length.
  */
-export function animationArgs(folder: string, { format, fps }: EncodeFramesOptions): string[] {
+export function animationArgs(
+  folder: string,
+  { format, fps, frames, once, sounds = [] }: EncodeFramesOptions,
+): string[] {
   const input = ['-framerate', String(fps), '-i', join(folder, FRAME_PATTERN)];
   if (format === 'gif')
     return [
@@ -76,12 +107,32 @@ export function animationArgs(folder: string, { format, fps }: EncodeFramesOptio
       '-vf',
       'split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3',
       '-loop',
-      '0',
+      once ? '-1' : '0',
     ];
+  const pad = 'pad=ceil(iw/2)*2:ceil(ih/2)*2';
+  if (sounds.length === 0) return [...input, '-vf', pad, ...videoCodecs(format, fps, false)];
+  const reads = sounds.flatMap((s) => ['-ss', num(s.offset), '-t', num(s.heard), '-i', s.path]);
+  const shaped = sounds.map((s, i) => {
+    const volume = s.volume === 1 ? '' : `,volume=${num(s.volume)}`;
+    const fadeIn = s.fadeIn > 0 ? `,afade=t=in:st=0:d=${num(s.fadeIn)}` : '';
+    const fadeOut =
+      s.fadeOut > 0 ? `,afade=t=out:st=${num(s.heard - s.fadeOut)}:d=${num(s.fadeOut)}` : '';
+    const delay = Math.round(s.at * SOUND_RATE);
+    return `[${i + 1}:a]asetpts=PTS-STARTPTS,${SOUND_FORMAT}${volume}${fadeIn}${fadeOut},atrim=start=${num(s.cut)}:duration=${num(s.duration)},asetpts=PTS-STARTPTS,adelay=${delay}S:all=1[s${i}]`;
+  });
+  const labels = sounds.map((_, i) => `[s${i}]`).join('');
+  const mixed =
+    sounds.length > 1 ? `amix=inputs=${sounds.length}:duration=longest:normalize=0,` : '';
+  const graph = [
+    `[0:v]${pad}[v]`,
+    ...shaped,
+    `${labels}${mixed}apad,atrim=duration=${num(frames / fps)}[a]`,
+  ].join(';');
   return [
     ...input,
-    ...['-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', '-c:v', 'libx264', '-preset', 'medium'],
-    ...['-crf', '18', '-pix_fmt', 'yuv420p', '-r', String(fps), '-movflags', '+faststart'],
+    ...reads,
+    ...['-filter_complex', graph, '-map', '[v]', '-map', '[a]'],
+    ...videoCodecs(format, fps, true),
   ];
 }
 

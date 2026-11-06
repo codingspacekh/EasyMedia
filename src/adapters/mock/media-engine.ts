@@ -2,7 +2,13 @@
 // the shared contract tests — but finishes instantly and needs no FFmpeg or real files.
 import { FILE_NOT_FOUND, JobCancelledError, MediaError } from '../../core/model/errors.ts';
 import type { JobEvent, JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
-import { fromProjectPath, madePicturePath, numberedPath } from '../../core/project/paths.ts';
+import {
+  fromProjectPath,
+  madePicturePath,
+  numberedPath,
+  withExtension,
+} from '../../core/project/paths.ts';
+import { colourKeyFilter } from '../../core/image/colour-key.ts';
 import { combineFilter } from '../../core/image/combine.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { interleave } from '../../core/audio/pcm.ts';
@@ -133,6 +139,22 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       while (files.has(madePicturePath(base, name, n))) n++;
       const path = madePicturePath(base, name, n);
       files.set(path, { ...src, sizeBytes: src.sizeBytes });
+      return path;
+    },
+
+    async colourKeyImage(input, key, name) {
+      colourKeyFilter(key);
+      const src = find(input);
+      const png = withExtension(input, '.png');
+      let n = 0;
+      while (files.has(madePicturePath(png, name, n))) n++;
+      const path = madePicturePath(png, name, n);
+      files.set(path, {
+        kind: 'image',
+        container: 'png',
+        sizeBytes: src.sizeBytes * 2,
+        video: { codec: 'png', width: src.video?.width ?? 0, height: src.video?.height ?? 0 },
+      });
       return path;
     },
 
@@ -270,17 +292,23 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       }));
     },
 
-    encodeFrames(_folder, output, { format, fps, frames, width, height }) {
-      const size =
-        format === 'mp4' ? { width: even2(width), height: even2(height) } : { width, height };
+    encodeFrames(_folder, output, { format, fps, frames, width, height, once, sounds = [] }) {
+      const video = format !== 'gif';
+      const size = video ? { width: even2(width), height: even2(height) } : { width, height };
+      // AN28: a video carries the sounds (MP3 in an AVI, AAC in MP4 and MOV); a GIF has none.
+      const sound = video && sounds.length > 0;
+      const codec = { mp4: 'h264', mov: 'h264', avi: 'mpeg4', gif: 'gif' }[format];
       return job('Export animation', output, () => ({
         kind: 'video',
         container: format,
         duration: frames / fps,
         sizeBytes: Math.round(width * height * frames * (format === 'gif' ? 0.12 : 0.006)),
-        video: { codec: format === 'mp4' ? 'h264' : 'gif', ...size, fps },
-        // AN15: the GIF is made with -loop 0 (for ever).
-        ...(format === 'gif' ? { loop: true } : {}),
+        video: { codec, ...size, fps },
+        ...(sound
+          ? { audio: { codec: format === 'avi' ? 'mp3' : 'aac', sampleRate: 48000, channels: 2 } }
+          : {}),
+        // AN15: the GIF is made with -loop 0 (for ever); AN8: -loop -1 plays it once.
+        ...(format === 'gif' ? { loop: !once } : {}),
       }));
     },
 
@@ -294,7 +322,8 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
 
 /** The audio codec ffprobe reports for each audio export (A17). */
 function audioCodecOf(e: AudioExportSettings): string {
-  if (e.format === 'wav') return { 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
+  if (e.format === 'wav')
+    return { 8: 'pcm_u8', 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
   return { mp3: 'mp3', m4a: 'aac', aac: 'aac', ogg: 'vorbis', flac: 'flac' }[e.format];
 }
 

@@ -178,3 +178,86 @@ describe('play and loop (AN8)', () => {
     s.anim.dispose();
   });
 });
+
+describe('sounds on the timeline (AN28)', () => {
+  async function withAlarm() {
+    const s = await withCircle();
+    s.engine.addFile('/m/alarm.mp3', {
+      kind: 'audio',
+      container: 'mp3',
+      duration: 2,
+      sizeBytes: 32_000,
+      audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+    });
+    s.anim.setFrame(24);
+    s.dialogs.openSound.mockResolvedValueOnce('/m/alarm.mp3');
+    await fireEvent.click(within(s.timeline()).getByRole('button', { name: 'Add sound…' }));
+    await vi.waitFor(() =>
+      expect(
+        within(s.timeline()).getByRole('button', { name: /alarm\.mp3 from frame 24/ }),
+      ).toBeTruthy(),
+    );
+    const sound = () => s.anim.store.get().history.present.sounds![0]!;
+    return { ...s, sound };
+  }
+
+  it('AN28 the Sounds row adds a sound at the playhead: a bar from its frame for its length', async () => {
+    const s = await withAlarm();
+    const bar = within(s.timeline()).getByRole('button', { name: /alarm\.mp3 from frame 24/ });
+    expect(bar.style.left).toBe(`${PAD + 24 * PX}px`);
+    // 2 s at 24 fps: 48 frames.
+    expect(bar.style.width).toBe(`${48 * PX}px`);
+  });
+
+  it('AN28 dragging the bar moves the sound by whole frames', async () => {
+    const s = await withAlarm();
+    const bar = within(s.timeline()).getByRole('button', { name: /alarm\.mp3 from frame 24/ });
+    await fireEvent.pointerDown(bar, { button: 0, clientX: 300 });
+    await fireEvent.pointerMove(window, { clientX: 300 + 12 * PX });
+    await fireEvent.pointerUp(window, { clientX: 300 + 12 * PX });
+    expect(s.sound().start).toBe(36);
+  });
+
+  it('AN28 clicking it shows its bar: a start typed in seconds, volume, fades, trim, Mute, Delete', async () => {
+    const s = await withAlarm();
+    await fireEvent.click(
+      within(s.timeline()).getByRole('button', { name: /alarm\.mp3 from frame 24/ }),
+    );
+    const bar = within(s.timeline()).getByLabelText('Sound', { selector: 'div' });
+    await fireEvent.change(within(bar).getByLabelText('Starts at frame'), {
+      target: { value: '2 s' },
+    });
+    expect(s.sound().start).toBe(48);
+    await fireEvent.change(within(bar).getByLabelText('Volume'), { target: { value: '150' } });
+    await fireEvent.change(within(bar).getByLabelText('Fade in'), { target: { value: '0.5' } });
+    await fireEvent.change(within(bar).getByLabelText('Start in the file'), {
+      target: { value: '0.25' },
+    });
+    await fireEvent.change(within(bar).getByLabelText('Length heard'), { target: { value: '1' } });
+    expect(s.sound()).toMatchObject({ volume: 150, fadeIn: 0.5, offset: 0.25, length: 1 });
+    // A value that cannot be used is explained.
+    await fireEvent.change(within(bar).getByLabelText('Fade out'), { target: { value: '0.75' } });
+    expect(within(s.timeline()).getByRole('alert').textContent).toMatch(/fades together/);
+    await fireEvent.click(within(bar).getByLabelText('Mute'));
+    expect(s.sound().muted).toBe(true);
+    await fireEvent.click(within(bar).getByRole('button', { name: 'Delete sound' }));
+    expect(s.anim.store.get().history.present.sounds).toBeUndefined();
+    expect(within(s.timeline()).getByText(/No sounds yet/)).toBeTruthy();
+  });
+
+  it('AN28 X8 Add a sound effect… opens the sound effects box; Add puts it at the playhead', async () => {
+    const s = await withCircle();
+    await fireEvent.click(
+      within(s.timeline()).getByRole('button', { name: 'Add a sound effect…' }),
+    );
+    const box = screen.getByRole('dialog', { name: 'Sound effects' });
+    expect(within(box).getByText(/on the animation’s timeline/)).toBeTruthy();
+    await fireEvent.click(within(box).getByRole('button', { name: 'Add Ding' }));
+    await vi.waitFor(() =>
+      expect(s.anim.store.get().history.present.sounds?.[0]).toMatchObject({
+        name: 'Ding',
+        effect: 'ding',
+      }),
+    );
+  });
+});

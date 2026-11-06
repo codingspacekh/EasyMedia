@@ -184,7 +184,10 @@ interface Project {
   timeline: {
     main: VisualItem[];             // V1 — magnetic, items play one after another
     text: TextItem[];               // T — overlays with absolute start times
-    audio: [AudioItem[], AudioItem[]]; // A1 music, A2 voiceover
+    overlay?: OverlayItem[];        // V20 — pictures / videos over the video (logo, picture-in-picture);
+                                    //   absolute start times, never overlapping; absent when unused
+    audio: [AudioItem[], AudioItem[], ...AudioItem[][]]; // music, voiceover, effects 1 and 2 (V13);
+                                    //   an AudioItem may carry volumeChanges (timeline time)
   };
 }
 
@@ -471,6 +474,23 @@ playhead. Progress has two phases (drawing, then FFmpeg) and Cancel stops either
 leaves nothing behind. *Send to Video mode* exports the MP4 beside the `.mvea` file and puts it
 on the video timeline as a clip.
 
+**More export choices and sound (M17a, AN15, AN28).** AVI (MPEG-4 Part 2 + MP3) and MOV (H.264
++ AAC) are made like the MP4 (`main/media/jobs.ts` `animationArgs`). Another width draws the
+frames at that size (`StageRenderer.renderPng(doc, frame, size)` scales the canvas, so vectors
+stay sharp; a video's sides are even, `export.ts` `exportSize`); a range of frames draws only
+those, numbered from 0 for FFmpeg and from 0001 for a PNG sequence. Sounds are
+`AnimationDoc.sounds` (absent when none, so older versions open the file; paths relative, X1): a
+file or a built-in effect (X8, its WAV in the app's folder, made again when missing), a start
+frame, an optional trim, volume, fades and mute. `core/animation/sound.ts` works out everything
+heard: `mixSounds` (the app plays the mix from the playhead on its own Web Audio output while the
+animation plays; a pause stops it, each loop starts it again), `soundPieces` (each sound placed in
+the export's time; FFmpeg reads `-ss -t` of the file, `volume`, `afade`, `atrim`, `adelay`, `amix
+normalize=0`, `apad,atrim` to the video's length; the IPC channel refuses a sound not on the
+allow-list) and `pageSounds` (the web page carries each file as a `data:` URL, `page:sound`; its
+player schedules them with Web Audio from the frame shown, again after Continue, Restart, Go to
+frame and each loop; a browser that blocks sound until a click gets a "Click to play with sound"
+button over the page, while Test's window is allowed to play at once).
+
 **HTML web animation (M16, AN15).** No frames are drawn: the drawing itself goes into one
 self-contained `.html` file (`core/animation/html.ts` `webPage`). It holds the document as JSON
 (every `<` written as `<`, so a student's `</script>` cannot end it; picture paths cut to
@@ -582,6 +602,8 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:snapshot` | invoke | V10: one frame of the project through the compiler, saved as PNG/JPG/BMP/TIFF without a dialog (a `Snapshots` folder next to the project, or the app's own folder before the first save); never overwrites; returns the path, which is then allowed for `media://` |
 | `media:decodeAudio` / `media:release` | invoke | A1: decode to a temp f32 file the page may read once through `media://`; then delete it |
 | `media:encodeAudio` | invoke | A16, A17: start an audio export job (samples written to a temp file just before FFmpeg starts) |
+| `media:encodeFrames` | invoke | AN15: an animation's frames (only from the app's frames folder) as MP4, AVI, MOV or GIF; AN28 its sounds (only files on the allow-list) |
+| `page:sound` / `dialog:openSound` | invoke | AN28: a sound the app opened or made, as a `data:` URL for the web page; *Add sound…*'s file dialog |
 | `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |

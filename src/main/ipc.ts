@@ -8,6 +8,7 @@ import { isPlaybackSample, type PlaybackSample } from '../core/animation/paint-m
 import { combineFilter } from '../core/image/combine.ts';
 import type { Updates } from './updates.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
+import { colourKeyFilter } from '../core/image/colour-key.ts';
 import { cleanFileName } from '../core/project/paths.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
@@ -53,6 +54,16 @@ const PICTURE_TYPES: Record<string, string> = {
   gif: 'image/gif',
   bmp: 'image/bmp',
   svg: 'image/svg+xml',
+};
+
+/** AN28: the sound types an animation carries into its web page, by extension. */
+const SOUND_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
 };
 
 /** A typed file name from the page: a string with no folder in it (cleanFileName turns "/" to "-"). */
@@ -140,6 +151,14 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(path);
       return path;
     },
+    'media:colourKey': async (input, key, name) => {
+      colourKeyFilter(key); // explains a colour not picked before anything else
+      if (!s.allow.has(input))
+        throw new Error('Only pictures opened in OneEditor can be made see-through.');
+      const path = await s.engine.colourKeyImage(input, key, fileNameOnly(name));
+      s.allow.add(path);
+      return path;
+    },
     'media:snapshot': async (project, time, output, options) => {
       const path = await s.engine.renderFrame(project, time, output, options);
       s.allow.add(path);
@@ -170,6 +189,9 @@ export function registerIpc(s: MainServices): void {
       const inside = base ? relative(base, folder) : '';
       if (!base || inside === '' || inside.startsWith('..') || isAbsolute(inside))
         throw new Error('Only frames drawn by OneEditor can be exported.');
+      // AN28: and only sounds the app opened or made go into the video.
+      if ((options?.sounds ?? []).some((sound) => !s.allow.has(sound.path)))
+        throw new Error('Only sounds opened in OneEditor can be used.');
       return track(key, 'Export animation', s.engine.encodeFrames(folder, output, options), () =>
         s.allow.add(output),
       );
@@ -190,6 +212,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:saveTaskCheck': (name) => s.dialogs.saveTaskCheck(name),
     'dialog:openAnimation': () => s.dialogs.openAnimation(),
     'dialog:openPicture': () => s.dialogs.openPicture(),
+    'dialog:openSound': () => s.dialogs.openSound(),
     'dialog:openFrames': () => s.dialogs.openFrames(),
     'dialog:openExport': () => s.dialogs.openExport(),
     'dialog:saveAnimation': (name) => s.dialogs.saveAnimation(name),
@@ -224,6 +247,13 @@ export function registerIpc(s: MainServices): void {
       const type = PICTURE_TYPES[/\.(\w+)$/.exec(path)?.[1]?.toLowerCase() ?? ''];
       if (!type)
         throw new EditError('Only a picture (PNG, JPG, GIF, BMP or SVG) can go in a web page.');
+      return dataUrl(type, await s.pageFiles.read(path));
+    },
+    'page:sound': async (path) => {
+      if (!s.allow.has(path)) throw new EditError('Only sounds opened in OneEditor can be used.');
+      const type = SOUND_TYPES[/\.(\w+)$/.exec(path)?.[1]?.toLowerCase() ?? ''];
+      if (!type)
+        throw new EditError('Only a sound (MP3, WAV, M4A, AAC, OGG or FLAC) can go in a web page.');
       return dataUrl(type, await s.pageFiles.read(path));
     },
     'page:font': async (name) => {

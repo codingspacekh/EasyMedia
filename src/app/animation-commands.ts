@@ -2,9 +2,14 @@
 // document from the old one without changing it; the rules live in core/animation.
 import { EditError } from '../core/model/errors.ts';
 import {
+  CENTRE_PIVOT,
+  pivotOf,
+  placedAt,
   resizeFrom,
   rotated,
   setSize,
+  toStage,
+  withPivot,
   type Handle,
   type Point,
 } from '../core/animation/geometry.ts';
@@ -16,9 +21,11 @@ import { changeFps as changeFpsIn } from '../core/animation/time.ts';
 import { motionFrom, withPaths } from '../core/animation/motion.ts';
 import * as frames from '../core/animation/frames.ts';
 import { applyEffect as withEffect, effectOf } from '../core/animation/effects.ts';
+import { validateSound } from '../core/animation/sound.ts';
 import * as tween from '../core/animation/tween.ts';
 import { BUTTON_LABELS } from '../core/animation/factory.ts';
 import type {
+  AnimSound,
   AnimObject,
   AnimationDoc,
   ButtonAction,
@@ -27,7 +34,9 @@ import type {
   Layer,
   MotionPath,
   Picture,
+  PictureObject,
   Stage,
+  TextObject,
   Track,
   TweenProperty,
 } from '../core/animation/types.ts';
@@ -131,8 +140,33 @@ export function setProperties(
       patch.width !== undefined || patch.height !== undefined
         ? setSize(o, patch.width ?? o.width, patch.height ?? o.height)
         : o;
-    return { ...sized, ...patch, width: sized.width, height: sized.height } as AnimObject;
+    const next = { ...sized, ...patch, width: sized.width, height: sized.height } as AnimObject;
+    // On the first frame the numbers typed stay exact (papers give x, y and size; as Animate).
+    return o.kind === 'text' && frame > 0 ? aboutCentre(o, patch, next) : next;
   });
+}
+
+const hundredths = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * AN4, AN6: a new font size typed in Properties on a later frame grows or shrinks the text about
+ * its centre, so it grows in place: x and y are keyed with the size. On the first frame x and y
+ * stay as typed. A size keyframe still plays from the top-left corner, so files play the same.
+ */
+function aboutCentre(o: TextObject, patch: Partial<AnimObject>, next: AnimObject): AnimObject {
+  const { size } = patch as Partial<TextObject>;
+  if (size === undefined || size === o.size || patch.x !== undefined || patch.y !== undefined)
+    return next;
+  // Without a measured box the letters scale it, as a size keyframe does.
+  const box =
+    patch.width !== undefined || patch.height !== undefined
+      ? next
+      : tween.withProperty(o, 'size', size);
+  // The centre stays where it is shown, turned about the point chosen too (AN27).
+  const centre = toStage(o, { x: o.width / 2, y: o.height / 2 });
+  const sized = { ...next, width: box.width, height: box.height };
+  const at = placedAt(sized, { x: box.width / 2, y: box.height / 2 }, centre);
+  return { ...next, x: hundredths(at.x), y: hundredths(at.y) };
 }
 
 export function moveObjects(ids: readonly Id[], dx: number, dy: number, frame = 0): AnimCommand {
@@ -151,6 +185,28 @@ export function resizeObject(
 
 export function rotateObject(id: Id, degrees: number, frame = 0): AnimCommand {
   return changeAt([id], frame, 'Rotate', (o) => rotated(o, degrees));
+}
+
+/**
+ * AN27: the point the objects turn about, as fractions of each one's box (only x or only y: the
+ * other is kept; null: the centre again). Each stays where it is shown at the playhead; the point
+ * is the same at every frame (it is not keyframed).
+ */
+export function setPivot(ids: readonly Id[], pivot: Partial<Point> | null, frame = 0): AnimCommand {
+  return command(pivot === null ? 'Turn about the centre' : 'Turn about', (doc) =>
+    ids.reduce(
+      (d, id) =>
+        layers.updateObject(d, id, (o) => {
+          const was = pivotOf(o);
+          const to = pivot === null ? CENTRE_PIVOT : { x: pivot.x ?? was.x, y: pivot.y ?? was.y };
+          const next = withPivot(o, to, tween.objectAt(o, frame));
+          validateObject(next);
+          validateObject(tween.objectAt(next, frame));
+          return next;
+        }),
+      doc,
+    ),
+  );
 }
 
 /** AN4: the text becomes one object per letter; the letters' ids are known once it has run. */
@@ -436,6 +492,18 @@ export function setStage(stage: Stage): AnimCommand {
   });
 }
 
+/**
+ * AN8, AN15: a GIF and the web page play once and stop on the last frame, or loop. Loop leaves
+ * the field out, so the file is as one made before the choice existed.
+ */
+export function setPlayOnce(once: boolean): AnimCommand {
+  return command(once ? 'Play once' : 'Loop', (doc) => {
+    const stage = { ...doc.stage, playOnce: true };
+    if (!once) delete (stage as Partial<Stage>).playOnce;
+    return { ...doc, stage };
+  });
+}
+
 export function addLayer(made: (layer: Layer) => void, aboveId?: Id): AnimCommand {
   return command('New layer', (doc) => {
     const { doc: next, layer } = layers.addLayer(doc, undefined, aboveId);
@@ -533,6 +601,26 @@ export function addPicture(layerId: Id, picture: Picture, object: AnimObject): A
   });
 }
 
+/**
+ * AN5 Crop… / Make a colour see-through…: a new picture file and the picture object changed to show
+ * it (`change`), one undo step. The old file stays in the list (undo shows it again).
+ */
+export function changePicture(
+  id: Id,
+  picture: Picture,
+  change: (o: PictureObject) => PictureObject,
+  label: string,
+): AnimCommand {
+  return command(label, (doc) =>
+    layers.updateObject({ ...doc, pictures: [...doc.pictures, picture] }, id, (o) => {
+      if (o.kind !== 'picture') throw new EditError('Select a picture.');
+      const next = change(o);
+      validateObject(next);
+      return next;
+    }),
+  );
+}
+
 // ---- stop motion and frame-by-frame (AN14) ----
 
 /**
@@ -618,3 +706,39 @@ export function applyEffect(
     return end > next.stage.length ? { ...next, stage: { ...next.stage, length: end } } : next;
   });
 }
+
+// ---- AN28: sounds ----
+
+const SOUND_GONE = 'That sound is no longer in the animation.';
+
+/** AN28: a sound added to the animation (several may overlap). */
+export const addSound = (sound: AnimSound): AnimCommand =>
+  command(`Add ${sound.name}`, (doc) => {
+    validateSound(sound);
+    return { ...doc, sounds: [...(doc.sounds ?? []), sound] };
+  });
+
+/** AN28: a sound moved, trimmed, made louder or quieter, faded or muted; checked before it is kept. */
+export const changeSound = (
+  id: Id,
+  label: string,
+  change: (sound: AnimSound) => AnimSound,
+): AnimCommand =>
+  command(label, (doc) => {
+    const sounds = doc.sounds ?? [];
+    const at = sounds.findIndex((s) => s.id === id);
+    if (at < 0) throw new EditError(SOUND_GONE);
+    const next = change(sounds[at]!);
+    validateSound(next);
+    return { ...doc, sounds: sounds.map((s, i) => (i === at ? next : s)) };
+  });
+
+/** AN28: a sound deleted; with none left the animation has no `sounds` (older versions open it). */
+export const removeSound = (id: Id): AnimCommand =>
+  command('Delete sound', (doc) => {
+    const sounds = (doc.sounds ?? []).filter((s) => s.id !== id);
+    if (sounds.length === (doc.sounds ?? []).length) throw new EditError(SOUND_GONE);
+    const next: AnimationDoc = { ...doc, sounds };
+    if (!sounds.length) delete next.sounds;
+    return next;
+  });

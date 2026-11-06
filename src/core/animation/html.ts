@@ -1,7 +1,8 @@
 // AN15: the HTML web animation. One self-contained .html file: the animation as JSON, its pictures
 // and fonts as data: URLs, and the player (core/animation/player.ts with draw.ts, bundled into one
-// script at build time), so it plays at the stage's size, looping, in any browser without the
-// internet — and with the Pause / Continue buttons of AN18.
+// script at build time), so it plays at the stage's size, looping or (AN8) once, in any browser
+// without the internet — and with the Pause / Continue buttons of AN18. AN15: a page may be of a
+// part of the animation (a range of frames) or at another width; AN28: its sounds go inside it.
 import { faceFor, fontFaceRule, type FontFile } from '../text/fonts.ts';
 import { BUTTON_FONT } from './draw.ts';
 import { pictureIdsOf } from './layers.ts';
@@ -20,13 +21,29 @@ export interface WebPageAssets {
   pictures: Record<Id, string>;
   /** The font files the text needs, as data: URLs. */
   fonts: { face: FontFile; url: string }[];
+  /** AN28: each sound's file as a data: URL, by sound id. */
+  sounds?: Record<Id, string>;
+}
+
+/** AN15: a page of a part of the animation, at another size. Absent: all of it, the stage's size. */
+export interface WebPageView {
+  size?: { width: number; height: number };
+  /** The frames played, both shown. */
+  range?: { first: number; last: number };
 }
 
 /** What the player reads from the page. */
-export interface PageData {
+export interface PageData extends WebPageView {
   doc: AnimationDoc;
   pictures: Record<Id, string>;
+  sounds?: Record<Id, string>;
 }
+
+/**
+ * AN28: a browser plays sound only after the page is clicked, so a page with sounds that is not
+ * allowed to play them yet waits under this button; a click starts it, with its sounds.
+ */
+const SOUND_START_STYLE = `#sound-start { position: fixed; inset: 0; border: 0; background: rgba(0, 0, 0, 0.45); color: #fff; font: 600 20px system-ui, sans-serif; cursor: pointer; }`;
 
 /** The font, weight and style of each text and button label, inside groups too. */
 const lettering = (
@@ -69,12 +86,23 @@ const scriptCode = (code: string): string => code.replace(/<\/script/gi, '<\\/sc
 
 const fontFace = ({ face, url }: WebPageAssets['fonts'][number]): string => fontFaceRule(face, url);
 
-export function webPage(doc: AnimationDoc, assets: WebPageAssets): string {
-  const { width, height } = doc.stage;
-  // Only the file name of each picture: the page must not show where the student keeps files.
+export function webPage(doc: AnimationDoc, assets: WebPageAssets, view: WebPageView = {}): string {
+  const { width, height } = view.size ?? doc.stage;
+  const sounds = assets.sounds && Object.keys(assets.sounds).length > 0 ? assets.sounds : null;
+  // Only the file name of each picture (and sound): the page must not show where the student
+  // keeps files.
   const data: PageData = {
-    doc: { ...doc, pictures: doc.pictures.map((p) => ({ ...p, path: fileNameOf(p.path) })) },
+    doc: {
+      ...doc,
+      pictures: doc.pictures.map((p) => ({ ...p, path: fileNameOf(p.path) })),
+      ...(doc.sounds
+        ? { sounds: doc.sounds.map((s) => ({ ...s, path: fileNameOf(s.path) })) }
+        : {}),
+    },
     pictures: assets.pictures,
+    ...(sounds ? { sounds } : {}),
+    ...(view.size ? { size: view.size } : {}),
+    ...(view.range ? { range: view.range } : {}),
   };
   return `<!DOCTYPE html>
 <html lang="en">
@@ -88,7 +116,7 @@ ${assets.fonts.map(fontFace).join('\n')}
 html, body { margin: 0; height: 100%; background: #1d2026; }
 body { display: flex; align-items: center; justify-content: center; }
 /* The stage's size, or smaller to fit the window, never stretched. */
-#stage { display: block; width: min(${width}px, 100vw, calc(100vh * ${width} / ${height})); height: auto; }
+#stage { display: block; width: min(${width}px, 100vw, calc(100vh * ${width} / ${height})); height: auto; }${sounds ? `\n${SOUND_START_STYLE}` : ''}
 </style>
 </head>
 <body>
@@ -102,7 +130,8 @@ body { display: flex; align-items: center; justify-content: center; }
 
 /**
  * AN17: what the task checker reads from an exported web page: its stage size, frame rate and
- * length, and that it loops (the player always does). Null when it is not a OneEditor page.
+ * length, and whether it loops (unless it was set to play once and stop). Null when it is not a
+ * OneEditor page.
  */
 export function webPageInfo(html: string, sizeBytes = html.length): ProbeInfo | null {
   const start = html.indexOf(`id="${PAGE_DATA_ID}">`);
@@ -117,12 +146,15 @@ export function webPageInfo(html: string, sizeBytes = html.length): ProbeInfo | 
   }
   const stage = data?.doc?.stage;
   if (!stage || !(stage.fps > 0) || !(stage.length > 0)) return null;
+  // AN15: a page of a part plays only its frames, at the size it was exported at.
+  const frames = data.range ? data.range.last - data.range.first + 1 : stage.length;
+  const { width, height } = data.size ?? stage;
   return {
     kind: 'video',
     container: 'html',
-    duration: stage.length / stage.fps,
+    duration: frames / stage.fps,
     sizeBytes,
-    video: { codec: 'canvas', width: stage.width, height: stage.height, fps: stage.fps },
-    loop: true,
+    video: { codec: 'canvas', width, height, fps: stage.fps },
+    loop: stage.playOnce !== true,
   };
 }

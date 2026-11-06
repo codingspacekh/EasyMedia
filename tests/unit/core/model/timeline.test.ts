@@ -10,6 +10,7 @@ import {
   assertFitsInTrack,
   audioDuration,
   findMainItemAt,
+  insertIndexAt,
   itemDuration,
   joinAudioItems,
   joinMainItems,
@@ -23,6 +24,7 @@ import {
   transitionOverlap,
   trimVideo,
 } from '../../../../src/core/model/timeline.ts';
+import type { ImageClip, VideoClip } from '../../../../src/core/model/types.ts';
 
 const lake = createMediaAsset({
   id: 'lake',
@@ -69,6 +71,49 @@ describe('timeline rules', () => {
       expect(findMainItemAt(items, 0)).toEqual({ index: 0, offset: 0 });
       expect(findMainItemAt(items, 10.5)).toEqual({ index: 1, offset: 2.5 });
       expect(findMainItemAt(items, 28)).toBeNull();
+    });
+  });
+
+  describe('V3 where "Insert at the playhead" puts a new item', () => {
+    const FRAME = 1 / 30;
+    // A 8 s title, then a 10 s clip (8–18 s), then a 5 s still (18–23 s).
+    const items = [
+      setItemDuration(createTitleSlide('T', { id: 't' }), 8),
+      trimVideo(clip('v'), { in: 0, out: 10 }, lake),
+      createImageClip(photo, { id: 'p' }),
+    ];
+
+    it('V3: at the start of an item, before it (the start of the video puts it first)', () => {
+      expect(insertIndexAt(items, 0, FRAME)).toBe(0);
+      expect(insertIndexAt(items, 8, FRAME)).toBe(1);
+      expect(insertIndexAt(items, 18, FRAME)).toBe(2);
+    });
+
+    it('V3: within one frame of an item’s start counts as its start', () => {
+      expect(insertIndexAt(items, 8 + FRAME * 0.9, FRAME)).toBe(1);
+      expect(insertIndexAt(items, 8 - FRAME * 0.9, FRAME)).toBe(1);
+      expect(insertIndexAt(items, 8 + FRAME * 2, FRAME)).toBe(2);
+    });
+
+    it('V3: inside an item, after it', () => {
+      expect(insertIndexAt(items, 3, FRAME)).toBe(1);
+      expect(insertIndexAt(items, 12.5, FRAME)).toBe(2);
+      expect(insertIndexAt(items, 20, FRAME)).toBe(3);
+    });
+
+    it('V3: at or past the end, and on an empty track, at the end', () => {
+      expect(insertIndexAt(items, 23, FRAME)).toBe(3);
+      expect(insertIndexAt(items, 40, FRAME)).toBe(3);
+      expect(insertIndexAt([], 5, FRAME)).toBe(0);
+    });
+
+    it('V3: in a transition, at the start of the clip coming in', () => {
+      const withTransition = [
+        items[0]!,
+        { ...clip('v'), transitionIn: { effectId: 'transition.dissolve', duration: 1 } },
+      ]; // the clip starts at 7 s
+      expect(insertIndexAt(withTransition, 7, FRAME)).toBe(1);
+      expect(insertIndexAt(withTransition, 7.5, FRAME)).toBe(1);
     });
   });
 
@@ -143,6 +188,19 @@ describe('timeline rules', () => {
     it('joins two parts of a split still or title', () => {
       const [a, b] = splitMainItem(setItemDuration(createTitleSlide('T'), 8), 3, ['a', 'b']);
       expect(itemDuration(joinMainItems(a, b))).toBe(8);
+    });
+
+    it('V19: a split part keeps its turn; parts turned differently are not joined', () => {
+      const [a, b] = splitMainItem({ ...clip('orig'), turn: 90, flipH: true }, 7, ['a', 'b']);
+      expect(b).toMatchObject({ turn: 90, flipH: true });
+      expect(joinMainItems(a, b)).toMatchObject({ turn: 90, flipH: true, out: 20 });
+      expect(() => joinMainItems(a, { ...(b as VideoClip), turn: 180 })).toThrow(
+        /only parts of the same clip/i,
+      );
+      const [p, q] = splitMainItem(createImageClip(photo), 2, ['p', 'q']);
+      expect(() => joinMainItems(p, { ...(q as ImageClip), flipV: true })).toThrow(
+        /only parts of the same clip/i,
+      );
     });
 
     it('refuses clips that were not split from the same piece', () => {

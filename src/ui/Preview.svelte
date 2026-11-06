@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { App } from '../app/app.ts';
-  import { previewAt, soundsAt, textLayersAt } from '../app/preview.ts';
+  import { overlaysAt, previewAt, soundsAt, textLayersAt } from '../app/preview.ts';
   import { transitionLook, type LayerLook } from '../core/effects/transitions/transitions.ts';
   import { formatTime } from '../core/model/time.ts';
   import { mainTrackDuration } from '../core/model/timeline.ts';
@@ -9,6 +9,7 @@
   import Icon from './Icon.svelte';
   import { shortcutAllowed } from './keys.ts';
   import PreviewLayer from './PreviewLayer.svelte';
+  import PreviewOverlay from './PreviewOverlay.svelte';
   import PreviewSound from './PreviewSound.svelte';
   import { ui } from './ui-state.svelte.ts';
 
@@ -35,6 +36,8 @@
   const out = $derived(css(look?.from));
   const into = $derived(css(look?.to));
   const sounds = $derived(soundsAt($store, $store.playhead));
+  /** V20: pictures and videos over the video, under the text (as exported). */
+  const overlays = $derived(overlaysAt($store, $store.playhead));
   const duration = $derived(mainTrackDuration($store.history.present.timeline.main));
   let playing = $state(false);
   /** Captions, subtitles and credits; the title words of this clip and of the next one. */
@@ -195,6 +198,11 @@
           </div>
         {/if}
       {/if}
+      {#if overlays.length}
+        <div class="overlays">
+          {#each overlays as layer (layer.itemId)}<PreviewOverlay {layer} {playing} />{/each}
+        </div>
+      {/if}
       <canvas
         class="text"
         bind:this={textCanvas}
@@ -274,6 +282,16 @@
   .behind {
     position: absolute;
     inset: 0;
+  }
+  /* V20: over the clips (even one drawn above in a transition), with the text above them. */
+  .overlays {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .text {
+    z-index: 1;
   }
   .outgoing.above {
     z-index: 1;

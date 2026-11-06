@@ -70,6 +70,30 @@ describe('T1 parseProbe: what is inside a media file', () => {
     );
   });
 
+  it('V1, V19: a phone video stored sideways with a turn in its data has the size it is shown at', () => {
+    // FFmpeg turns such a video upright when it reads it, so its size is the turned one.
+    const turned = (rotation: number) =>
+      parseProbe({
+        format: fmt('mov,mp4,m4a,3gp,3g2,mj2'),
+        streams: [
+          {
+            ...h264,
+            display_aspect_ratio: '16:9',
+            side_data_list: [{ side_data_type: 'Display Matrix', rotation }],
+          },
+        ],
+      }).video;
+    expect(turned(-90)).toMatchObject({ width: 1080, height: 1920, displayAspect: '9:16' });
+    expect(turned(90)).toMatchObject({ width: 1080, height: 1920 });
+    expect(turned(180)).toMatchObject({ width: 1920, height: 1080, displayAspect: '16:9' });
+    // Older FFmpeg wrote the turn as a "rotate" tag.
+    const tagged = parseProbe({
+      format: fmt('mov,mp4,m4a,3gp,3g2,mj2'),
+      streams: [{ ...h264, tags: { rotate: '270' } }],
+    }).video;
+    expect(tagged).toMatchObject({ width: 1080, height: 1920 });
+  });
+
   it('treats a JPG as a still image, not a 0.04 s video', () => {
     const info = parseProbe({
       format: fmt('image2', { duration: '0.040000' }),

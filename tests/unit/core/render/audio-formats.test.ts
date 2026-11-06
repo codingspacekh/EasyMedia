@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUDIO_FORMATS,
+  BIT_DEPTHS,
   SAMPLE_RATES,
   audioCodecArgs,
   audioFormatNotes,
@@ -46,10 +47,19 @@ describe('A16 / A17 audio export formats', () => {
       expect(sampleRatesFor(f)).toContain(96000);
   });
 
-  it('bit depth 16 / 24 / 32-bit for WAV, 16 / 24 for FLAC, none for lossy formats', () => {
-    expect(bitDepthsFor('wav')).toEqual([16, 24, 32]);
+  it('bit depth 8 / 16 / 24 / 32-bit for WAV, 16 / 24 for FLAC, none for lossy formats', () => {
+    expect(bitDepthsFor('wav')).toEqual([8, 16, 24, 32]);
     expect(bitDepthsFor('flac')).toEqual([16, 24]);
     expect(bitDepthsFor('mp3')).toEqual([]);
+  });
+
+  it('A16: each resolution says where it is used; 8-bit is telephone quality with a hiss', () => {
+    expect(BIT_DEPTHS.map((d) => d.bits)).toEqual([8, 16, 24, 32]);
+    for (const d of BIT_DEPTHS) expect(d.hint.length, `${d.bits}-bit`).toBeGreaterThan(5);
+    const eight = BIT_DEPTHS.find((d) => d.bits === 8)!.hint;
+    expect(eight).toMatch(/telephone/i);
+    expect(eight).toMatch(/hiss/i);
+    expect(BIT_DEPTHS.find((d) => d.bits === 16)!.hint).toMatch(/CD/);
   });
 
   it('MP3 bit rates are limited at low sample rates', () => {
@@ -92,6 +102,17 @@ describe('A16 / A17 audio export formats', () => {
       expect(pair(audioCodecArgs({ ...wav, bitDepth: 16 }), '-c:a')).toBe('pcm_s16le');
       expect(pair(audioCodecArgs({ ...wav, bitDepth: 24 }), '-c:a')).toBe('pcm_s24le');
       expect(pair(audioCodecArgs({ ...wav, bitDepth: 32 }), '-c:a')).toBe('pcm_f32le');
+    });
+
+    it('A16 WAV 8-bit is unsigned 8-bit PCM (pcm_u8), as WAV stores it', () => {
+      const phone = { ...mp3, format: 'wav' as const, bitDepth: 8 as const, sampleRate: 8000 };
+      const args = audioCodecArgs({ ...phone, channels: 1 });
+      expect(pair(args, '-c:a')).toBe('pcm_u8');
+      expect([pair(args, '-ar'), pair(args, '-ac'), pair(args, '-f')]).toEqual([
+        '8000',
+        '1',
+        'wav',
+      ]);
     });
 
     it('FLAC 16 and 24-bit', () => {
@@ -152,6 +173,19 @@ describe('A16 / A17 audio export formats', () => {
       expect(wav).toEqual({ bytes: (44100 * 16 * 2 * 45) / 8 + 44, upTo: false, about: false });
     });
 
+    it('A16 WAV 8 kHz, 8-bit, mono (a telephone): 8 000 bytes a second, 0.48 MB a minute', () => {
+      const phone = { ...mp3, format: 'wav' as const, sampleRate: 8000, channels: 1 as const };
+      expect(estimateAudioSize({ ...phone, bitDepth: 8 }, 60)).toEqual({
+        bytes: (8000 * 8 * 1 * 60) / 8 + 44,
+        upTo: false,
+        about: false,
+      });
+      // Half the size of the same sound at 16-bit.
+      expect(estimateAudioSize({ ...phone, bitDepth: 8 }, 60).bytes - 44).toBe(
+        (estimateAudioSize({ ...phone, bitDepth: 16 }, 60).bytes - 44) / 2,
+      );
+    });
+
     it('MP3 128 kbps for 45 s ≈ 0.72 MB', () => {
       expect(estimateAudioSize(mp3, 45).bytes).toBeCloseTo(720_000, -4);
     });
@@ -181,6 +215,7 @@ describe('A16 / A17 audio export formats', () => {
         /one of the bit rates in the list: 32, 64, 96, 128, 160, 192, 256 or 320 kbps/,
       ],
       [{ ...mp3, format: 'flac' as const, bitDepth: 32 as const }, /16 or 24-bit/],
+      [{ ...mp3, format: 'flac' as const, bitDepth: 8 as const }, /16 or 24-bit/],
       [{ ...mp3, format: 'wav' as const, mode: 'vbr' as const }, /bit rate/i],
       [{ ...mp3, format: 'm4a' as const, mode: 'vbr' as const }, /variable bit rate.*MP3/i],
       [{ ...mp3, channels: 3 as never }, /mono or stereo/i],

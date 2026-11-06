@@ -3,9 +3,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANIMATION_FORMATS,
+  carriesSound,
   estimateAnimationSize,
   evenSize,
   exportedFrames,
+  exportSize,
+  hasRange,
+  hasSize,
   sequenceName,
 } from '../../../../src/core/animation/export.ts';
 import { createAnimation } from '../../../../src/core/animation/factory.ts';
@@ -19,6 +23,8 @@ describe('animation export (AN15)', () => {
   it('offers MP4, animated GIF, a web page, PNG sequence and a picture of the frame (PNG or SVG), each with pros and cons', () => {
     expect(ANIMATION_FORMATS.map((f) => f.id)).toEqual([
       'mp4',
+      'avi',
+      'mov',
       'gif',
       'html',
       'png-sequence',
@@ -75,5 +81,101 @@ describe('animation export (AN15)', () => {
     expect(sequenceName('/work/Task1.png', 0)).toBe('/work/Task1_0001.png');
     expect(sequenceName('C:\\work\\Task1.PNG', 71)).toBe('C:\\work\\Task1_0072.png');
     expect(sequenceName('/work/frames', 9)).toBe('/work/frames_0010.png');
+  });
+
+  it('AN15 AVI and MOV: the codecs Video mode uses, with their pros and cons', () => {
+    const avi = ANIMATION_FORMATS.find((f) => f.id === 'avi')!;
+    const mov = ANIMATION_FORMATS.find((f) => f.id === 'mov')!;
+    expect(avi.label).toBe('AVI video');
+    expect(avi.pros.join(' ')).toMatch(/MPEG-4 Part 2/);
+    expect(avi.cons.join(' ')).toMatch(/twice as big as MP4/i);
+    expect(mov.label).toBe('MOV video');
+    expect(mov.pros.join(' ')).toMatch(/H\.264/);
+    expect(mov.pros.join(' ').concat(mov.cons.join(' '))).toMatch(/Apple|QuickTime/);
+    // A video is bigger as AVI (an older codec) than as MP4 or MOV.
+    const doc = task1();
+    expect(estimateAnimationSize(doc, 'avi')).toBeGreaterThan(estimateAnimationSize(doc, 'mp4'));
+    expect(estimateAnimationSize(doc, 'mov')).toBe(estimateAnimationSize(doc, 'mp4'));
+  });
+
+  it('AN15 another width: the height kept in proportion; even sides for a video', () => {
+    const stage = { ...task1().stage, width: 1024, height: 768 };
+    expect(exportSize(stage, 'png', 600)).toEqual({ width: 600, height: 450, padded: false });
+    expect(exportSize(stage, 'mp4', 600)).toEqual({ width: 600, height: 450, padded: false });
+    // 500 × 375 for a picture; a video keeps even sides: 500 × 376.
+    expect(exportSize(stage, 'gif', 500)).toEqual({ width: 500, height: 375, padded: false });
+    expect(exportSize(stage, 'avi', 500)).toEqual({ width: 500, height: 376, padded: false });
+    // An odd width typed for a video gets one pixel more, as an odd stage does.
+    expect(exportSize(stage, 'mov', 601)).toEqual({ width: 602, height: 452, padded: true });
+    // No width: the stage's own size (an odd stage padded for a video).
+    expect(exportSize({ ...stage, width: 601, height: 401 }, 'mp4')).toEqual({
+      width: 602,
+      height: 402,
+      padded: true,
+    });
+    expect(() => exportSize(stage, 'png', 4)).toThrow(/between 16 and 3840/);
+  });
+
+  it('AN15 a range of frames: from–to, both exported; the whole animation by default', () => {
+    const doc = task1();
+    expect(exportedFrames(doc, { from: 24, to: 47 })).toEqual({
+      count: 24,
+      first: 24,
+      last: 47,
+      seconds: 1,
+    });
+    expect(() => exportedFrames(doc, { from: 50, to: 40 })).toThrow(/first frame .* last/i);
+    expect(() => exportedFrames(doc, { from: 0, to: 72 })).toThrow(/0 to 71/);
+    // Half the frames: about half the size.
+    expect(estimateAnimationSize(doc, 'mp4', { from: 0, to: 35 })).toBeCloseTo(
+      estimateAnimationSize(doc, 'mp4') / 2,
+      0,
+    );
+    // Half the width: a quarter of the pixels.
+    expect(estimateAnimationSize(doc, 'png', { width: 300 })).toBeCloseTo(
+      estimateAnimationSize(doc, 'png') / 4,
+      0,
+    );
+  });
+
+  it('AN15 which formats have a size, a range and sound (AN28)', () => {
+    const ids = ANIMATION_FORMATS.map((f) => f.id);
+    expect(ids.filter(hasSize)).toEqual([
+      'mp4',
+      'avi',
+      'mov',
+      'gif',
+      'html',
+      'png-sequence',
+      'png',
+    ]);
+    expect(ids.filter(hasRange)).toEqual(['mp4', 'avi', 'mov', 'gif', 'html', 'png-sequence']);
+    expect(ids.filter(carriesSound)).toEqual(['mp4', 'avi', 'mov', 'html']);
+  });
+
+  it('T7 AN28 the size includes the sound: in a video for its length, in a page its files', () => {
+    const doc = task1();
+    const alarm = {
+      id: 's',
+      name: 'alarm.mp3',
+      path: '/m/alarm.mp3',
+      duration: 2,
+      start: 0,
+      volume: 100,
+    };
+    const withSound = { ...doc, sounds: [alarm] };
+    // 3 s of AAC at 160 kbit/s is 60 KB.
+    expect(estimateAnimationSize(withSound, 'mp4') - estimateAnimationSize(doc, 'mp4')).toBe(
+      60_000,
+    );
+    // 3 s of MP3 at 192 kbit/s is 72 KB.
+    expect(estimateAnimationSize(withSound, 'avi') - estimateAnimationSize(doc, 'avi')).toBe(
+      72_000,
+    );
+    // The 2 s MP3 file inside the page as text (a third bigger).
+    expect(
+      estimateAnimationSize(withSound, 'html') - estimateAnimationSize(doc, 'html'),
+    ).toBeCloseTo((32_000 * 4) / 3, 3);
+    expect(estimateAnimationSize(withSound, 'gif')).toBe(estimateAnimationSize(doc, 'gif'));
   });
 });

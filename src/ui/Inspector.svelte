@@ -6,6 +6,7 @@
     moveTimedItem,
     setClipMuted,
     setClipSpeed,
+    setClipTurn,
     setClipVolume,
     setDuration,
     trimClip,
@@ -15,8 +16,10 @@
   import { itemDuration, layoutMain } from '../core/model/timeline.ts';
   import { fileNameOf } from '../core/project/relocate.ts';
   import { toMediaUrl } from '../core/media-url.ts';
+  import { turnLabel } from '../core/effects/turn.ts';
   import AudioInspector from './AudioInspector.svelte';
-  import type { AudioTrackIndex } from '../core/model/types.ts';
+  import OverlayInspector from './OverlayInspector.svelte';
+  import type { AudioTrackIndex, ImageClip, VideoClip } from '../core/model/types.ts';
   import ClipLookInspector from './ClipLookInspector.svelte';
   import PercentField from './PercentField.svelte';
   import Icon from './Icon.svelte';
@@ -29,6 +32,13 @@
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const SPEEDS = [0.25, 0.5, 1, 1.5, 2, 4];
+  /** V19: the turns offered, [degrees clockwise, button, name]. */
+  const TURNS = [
+    [0, '0°', 'Not turned'],
+    [90, '↻ 90°', 'Turn 90° clockwise'],
+    [180, '180°', 'Turn 180°'],
+    [270, '↺ 90°', 'Turn 90° anticlockwise'],
+  ] as const;
 
   const project = $derived($store.history.present);
   const laid = $derived(
@@ -36,6 +46,8 @@
   );
   const item = $derived(laid?.item);
   const textItem = $derived(project.timeline.text.find((t) => t.id === $store.selection));
+  /** V20: a selected picture or video over the video. */
+  const overItem = $derived(project.timeline.overlay?.find((o) => o.id === $store.selection));
   /** A selected music, voiceover or sound effect clip, with its track. */
   const sound = $derived.by(() => {
     for (const [track, items] of project.timeline.audio.entries()) {
@@ -113,10 +125,50 @@
   }
 </script>
 
+{#snippet turnAndFlip(clip: VideoClip | ImageClip)}
+  {@const flips = { flipH: clip.flipH === true, flipV: clip.flipV === true }}
+  <section>
+    <h3>Turn & flip <span class="syl">11.1</span></h3>
+    <div class="turns">
+      {#each TURNS as [turn, text, name] (turn)}
+        <button
+          aria-label={name}
+          title={name}
+          aria-pressed={(clip.turn ?? 0) === turn}
+          onclick={() => (actionError = app.edit(setClipTurn(clip.id, { ...flips, turn })))}
+          >{text}</button
+        >
+      {/each}
+    </div>
+    <div class="row">
+      <button
+        aria-label="Flip horizontally"
+        aria-pressed={flips.flipH}
+        onclick={() =>
+          (actionError = app.edit(
+            setClipTurn(clip.id, { turn: clip.turn ?? 0, ...flips, flipH: !flips.flipH }),
+          ))}>⇆ Flip horizontally</button
+      >
+      <button
+        aria-label="Flip vertically"
+        aria-pressed={flips.flipV}
+        onclick={() =>
+          (actionError = app.edit(
+            setClipTurn(clip.id, { turn: clip.turn ?? 0, ...flips, flipV: !flips.flipV }),
+          ))}>⇅ Flip vertically</button
+      >
+    </div>
+    <p class="hint">{turnLabel(clip)}</p>
+    <Why tool="turn" />
+  </section>
+{/snippet}
+
 <aside class="inspector">
   <div class="panel-h">Inspector</div>
   {#if sound}
     {#key sound.item.id}<AudioInspector {app} item={sound.item} track={sound.track} />{/key}
+  {:else if overItem}
+    {#key overItem.id}<OverlayInspector {app} item={overItem} />{/key}
   {:else if textItem}
     <div class="head">
       <div class="thumb text">
@@ -241,6 +293,7 @@
         </p>
         <Why tool="speed" />
       </section>
+      {@render turnAndFlip(item)}
     {:else if item.type === 'video' && tab === 'audio'}
       <section>
         <h3>Clip sound <span class="syl">11.1</span></h3>
@@ -277,6 +330,7 @@
         This picture shows for the duration above. Use the Effects tab for pan & zoom, fades and
         filters.
       </p>
+      {@render turnAndFlip(item)}
     {:else if item.type === 'title' && tab === 'text'}
       {#key item.id}<TextInspector {app} {item} />{/key}
     {:else if tab === 'effects'}
@@ -379,15 +433,24 @@
     gap: 4px;
     margin-bottom: 8px;
   }
+  .turns {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+  }
   .row button,
-  .speeds button {
+  .speeds button,
+  .turns button {
     padding: 4px 6px;
     font-size: 12px;
     justify-content: center;
     min-width: 0;
     white-space: nowrap;
   }
-  .speeds button[aria-pressed='true'] {
+  .speeds button[aria-pressed='true'],
+  .turns button[aria-pressed='true'],
+  .row button[aria-pressed='true'] {
     background: var(--accent-soft);
     border-color: var(--accent);
   }

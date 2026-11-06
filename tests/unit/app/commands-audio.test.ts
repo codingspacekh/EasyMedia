@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   addAudioItem,
+  addVolumeChange,
   moveAudioToTrack,
   moveTimedItem,
   removeItem,
+  removeVolumeChange,
   setAudioFades,
   setAudioVolume,
   setClipVolume,
   joinSoundWithNext,
   setDucking,
   setSoundSpeed,
+  setVolumeChange,
   splitSound,
   trimAudio,
   unlinkClipSound,
@@ -265,9 +268,51 @@ describe('V13 sound effects: two more audio tracks (music, voiceover, effects 1,
     expect(both.timeline.audio[0].map((a) => a.id)).toEqual(['m']);
   });
 
-  it('two effects cannot overlap on the same effects track', () => {
-    const p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 11, { id: 'w' }), 2));
-    refuses(addAudioItem(createAudioItem(whoosh, 11.5, { id: 'w2' }), 2), /overlap|space/i, p);
+  it('V13 a second sound effect over the first goes on effects track 2; never two on one track', () => {
+    let p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 11, { id: 'w' }), 2));
+    p = run(p, addAudioItem(createAudioItem(whoosh, 11.5, { id: 'w2' }), 2));
+    expect(p.timeline.audio[2]?.map((a) => a.id)).toEqual(['w']);
+    expect(p.timeline.audio[3]?.map((a) => a.id)).toEqual(['w2']);
+    // Effects 2 asked for but busy: effects 1 when it is free there.
+    p = run(p, addAudioItem(createAudioItem(whoosh, 12.2, { id: 'w3' }), 3));
+    expect(p.timeline.audio[2]?.map((a) => a.id)).toEqual(['w', 'w3']);
+  });
+
+  it('V13 when both effects tracks are busy it says so, with the time', () => {
+    let p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 12, { id: 'w' }), 2));
+    p = run(p, addAudioItem(createAudioItem(whoosh, 12.2, { id: 'w2' }), 2));
+    refuses(
+      addAudioItem(createAudioItem(whoosh, 12.4, { id: 'w3' }), 2),
+      /^Both sound effects tracks already have a sound at 12\.40 s\. Move one, or choose another time\.$/,
+      p,
+    );
+    // Free at its start, but not for its whole length: the time it needs is given.
+    refuses(
+      addAudioItem(createAudioItem(whoosh, 11.5, { id: 'w3' }), 2),
+      /^Both sound effects tracks already have a sound between 11\.50 s and 12\.50 s\. Move one, or choose another time\.$/,
+      p,
+    );
+  });
+
+  it('V13 a sound effect dragged onto a busy place moves to the other effects track', () => {
+    let p = run(withWhoosh(), addAudioItem(createAudioItem(whoosh, 2, { id: 'w' }), 2));
+    p = run(p, addAudioItem(createAudioItem(whoosh, 6, { id: 'w2' }), 2));
+    p = run(p, moveTimedItem('w2', 2.5));
+    expect(p.timeline.audio[2]?.map((a) => a.id)).toEqual(['w']);
+    expect(p.timeline.audio[3]?.map((a) => a.id)).toEqual(['w2']);
+    expect(audio(p, 'w2').start).toBe(2.5);
+    p = run(p, addAudioItem(createAudioItem(whoosh, 8, { id: 'w3' }), 2));
+    refuses(
+      moveTimedItem('w3', 2.6),
+      /^Both sound effects tracks already have a sound at 2\.60 s/,
+      p,
+    );
+    // Music and voiceover are not moved to another track.
+    refuses(
+      moveTimedItem('vo', 5),
+      /overlap/i,
+      run(sample(), addAudioItem(createAudioItem(voice, 4, { id: 'v2' }), 1)),
+    );
   });
 
   it('moves between any of the four tracks; only music is lowered under the voiceover', () => {
@@ -301,5 +346,64 @@ describe('V13 sound effects: two more audio tracks (music, voiceover, effects 1,
     expect(added.timeline.audio[2]).toEqual([]);
     const removed = run(added, removeItem('w'));
     expect(removed.timeline.audio).toHaveLength(2);
+  });
+});
+
+describe('V13 volume changes inside one sound ("the music at 30 % between 10 s and 15 s")', () => {
+  /** The sample's music made 30 s long: 5–35 s. */
+  const longMusic = () => run(sample(), trimAudio('m', { in: 0, out: 30 }));
+  const lower = { from: 10, to: 15, volume: 0.3 };
+
+  it('adds a change (timeline times, 0.01 s), one undo step; the project is otherwise unchanged', () => {
+    const base = deepFreeze(longMusic());
+    const h = execute(createHistory(base), addVolumeChange('m', lower));
+    expect(audio(h.present, 'm').volumeChanges).toEqual([lower]);
+    expect(h.past.at(-1)!.label).toBe('Add volume change');
+    expect(undo(h).present).toBe(base);
+    expect(audio(base, 'm')).not.toHaveProperty('volumeChanges');
+  });
+
+  it('changes are kept in time order; a change is edited by its place in the list', () => {
+    let p = run(longMusic(), addVolumeChange('m', { from: 20, to: 22, volume: 1.5 }));
+    p = run(p, addVolumeChange('m', lower));
+    expect(audio(p, 'm').volumeChanges!.map((c) => c.from)).toEqual([10, 20]);
+    p = run(p, setVolumeChange('m', 0, { ...lower, to: 16.25, ramp: 0.5 }));
+    expect(audio(p, 'm').volumeChanges![0]).toEqual({ ...lower, to: 16.25, ramp: 0.5 });
+    expect(setVolumeChange('m', 0, lower).label).toBe('Change volume change');
+  });
+
+  it('refuses what cannot be played, saying why', () => {
+    const p = run(longMusic(), addVolumeChange('m', lower));
+    refuses(addVolumeChange('m', { from: 12, to: 18, volume: 0.5 }), /overlap/, p);
+    refuses(addVolumeChange('m', { from: 15, to: 12, volume: 0.5 }), /ends after it starts/i, p);
+    refuses(addVolumeChange('m', { from: 1, to: 2, volume: 3 }), /0 % and 200 %/, p);
+    refuses(setVolumeChange('m', 4, lower), /could not be found/i, p);
+  });
+
+  it('removing the last change leaves the sound as it was saved before', () => {
+    let p = run(longMusic(), addVolumeChange('m', lower));
+    p = run(p, removeVolumeChange('m', 0));
+    expect(audio(p, 'm')).toEqual(audio(longMusic(), 'm'));
+    expect(removeVolumeChange('m', 0).label).toBe('Remove volume change');
+  });
+
+  it('a split keeps each change on the part where it is heard; join puts them together again', () => {
+    let p = run(longMusic(), addVolumeChange('m', lower));
+    p = run(p, addVolumeChange('m', { from: 25, to: 30, volume: 0.5 }));
+    p = run(p, splitSound(20, 'm', ['m1', 'm2']));
+    expect(audio(p, 'm1').volumeChanges).toEqual([lower]);
+    expect(audio(p, 'm2').volumeChanges).toEqual([{ from: 25, to: 30, volume: 0.5 }]);
+    p = run(p, splitSound(28, 'm2', ['m3', 'm4']));
+    expect(audio(p, 'm4').volumeChanges).toEqual([{ from: 25, to: 30, volume: 0.5 }]);
+    const joined = run(run(p, joinSoundWithNext('m3')), joinSoundWithNext('m1'));
+    expect(audio(joined, 'm1').volumeChanges).toEqual([lower, { from: 25, to: 30, volume: 0.5 }]);
+    const none = run(longMusic(), splitSound(20, 'm', ['m1', 'm2']));
+    expect(audio(none, 'm1')).not.toHaveProperty('volumeChanges');
+  });
+
+  it('works on every audio track, including under the voiceover with the music lowered', () => {
+    const p = run(run(longMusic(), setDucking('m', true)), addVolumeChange('m', lower));
+    expect(audio(p, 'm')).toMatchObject({ duck: true, volumeChanges: [lower] });
+    expect(audio(run(sample(), addVolumeChange('vo', lower)), 'vo').volumeChanges).toEqual([lower]);
   });
 });

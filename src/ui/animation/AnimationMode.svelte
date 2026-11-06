@@ -17,6 +17,8 @@
   import TraceDialog from './TraceDialog.svelte';
   import ImportFramesDialog from './ImportFramesDialog.svelte';
   import LibraryDialog from './LibraryDialog.svelte';
+  import PictureCropDialog from './PictureCropDialog.svelte';
+  import SeeThroughDialog from './SeeThroughDialog.svelte';
   import StageSettings from './StageSettings.svelte';
   import Timeline from './Timeline.svelte';
   import ToolStrip from './ToolStrip.svelte';
@@ -146,6 +148,10 @@
   <ImportFramesDialog {app} onclose={() => (animUi.dialog = null)} />
 {:else if animUi.dialog === 'library'}
   <LibraryDialog {app} onclose={() => (animUi.dialog = null)} />
+{:else if animUi.dialog === 'cropPicture'}
+  <PictureCropDialog {app} onclose={() => (animUi.dialog = null)} />
+{:else if animUi.dialog === 'seeThrough'}
+  <SeeThroughDialog {app} onclose={() => (animUi.dialog = null)} />
 {/if}
 
 <style>

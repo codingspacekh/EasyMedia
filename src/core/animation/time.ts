@@ -64,5 +64,9 @@ export function changeFps(doc: AnimationDoc, fps: number, keep: 'times' | 'frame
         ? { drawings: [...new Set(l.drawings.map((f) => Math.round(f * scale)))] }
         : {}),
     })),
+    // AN28: and the sounds start at the same seconds.
+    ...(doc.sounds
+      ? { sounds: doc.sounds.map((s) => ({ ...s, start: Math.round(s.start * scale) })) }
+      : {}),
   };
 }
