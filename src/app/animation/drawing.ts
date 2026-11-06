@@ -2,6 +2,7 @@
 // properties, moving, resizing and turning, paths and morphs, arranging, grouping, the clipboard,
 // the library and one-click effects. Each change is one undo step.
 import * as cmd from '../animation-commands.ts';
+import type { CombineHow } from '../../core/animation/combine.ts';
 import {
   createButton,
   createEllipse,
@@ -249,6 +250,20 @@ export function drawingActions(ctx: AnimationContext) {
       let groupId: Id | null = null;
       if (ids.length >= 2 && run(cmd.groupObjects(ids, (id) => (groupId = id))) && groupId)
         patch({ selection: [groupId] });
+    },
+
+    /** AN23 Flip the selected objects left to right or top to bottom. */
+    flip(axis: 'horizontal' | 'vertical'): void {
+      const ids = liveSelection();
+      if (ids.length) run(cmd.flipObjects(ids, axis));
+    },
+
+    /** AN24 Combine the selected shapes; returns why it cannot be done, or null. */
+    combine(how: CombineHow): string | null {
+      let made: Id[] = [];
+      const error = edit(cmd.combineSelected(liveSelection(), how, (ids) => (made = ids)));
+      if (!error) patch({ selection: made });
+      return error;
     },
 
     ungroup(): void {

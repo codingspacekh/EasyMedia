@@ -101,6 +101,28 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
       expect((await engine.probe(image)).video).toMatchObject(info.video!);
     });
 
+    it('resizeCropImage and combineImages save under a name the student typed, never overwriting (V11, V18)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const dir = image.slice(0, Math.max(image.lastIndexOf('/'), image.lastIndexOf('\\')) + 1);
+      const crop = planResizeCrop(info.video!, { width: 320, height: 180 }, 'stretch');
+      expect(await engine.resizeCropImage(image, crop, 'contract credits')).toBe(
+        `${dir}contract credits.jpg`,
+      );
+      // Taken now: the next one is numbered on, as snapshots are.
+      expect(await engine.resizeCropImage(image, crop, 'contract credits')).toBe(
+        `${dir}contract credits2.jpg`,
+      );
+      const place = planCombine(info.video!, info.video!, {
+        anchor: 'centre',
+        widthPercent: 10,
+        margin: 0,
+      });
+      expect(await engine.combineImages(image, image, place, 'contract bg')).toBe(
+        `${dir}contract bg.jpg`,
+      );
+    });
+
     it('resizeCropImage can stretch a picture to an exact size without cropping (V11, M/J/26 Q1)', async () => {
       const { engine, image } = setup();
       const info = await engine.probe(image);

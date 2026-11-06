@@ -345,6 +345,32 @@ describe('M4 app use cases', () => {
       expect(state().message).toEqual({ kind: 'info', text: 'Saved photo1.jpg (1920 × 1080).' });
     });
 
+    it('F/M/25 Q2: crops any part at its own size, saved under the name typed (grid.jpg)', async () => {
+      const { app, state, project, engine, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      const id = await app.resizeCropImage(
+        idOf(state(), '/m/photo.jpg'),
+        { free: { x: 10, y: 20, width: 60, height: 40 } },
+        'grid',
+      );
+      expect(project().media.find((m) => m.id === id)!.path).toBe('/m/grid.jpg');
+      expect((await engine.probe('/m/grid.jpg')).video).toMatchObject({ width: 60, height: 40 });
+      expect(state().message).toEqual({ kind: 'info', text: 'Saved grid.jpg (60 × 40).' });
+    });
+
+    it('places a picture on a picture under the name typed (F/M/25 Q2 credits.png)', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/photo.jpg', '/m/clip.mp4');
+      const photo = idOf(state(), '/m/photo.jpg');
+      const id = await app.combineImages(
+        photo,
+        photo,
+        { anchor: 'bottom-left', widthPercent: 25, margin: 0 },
+        'credits',
+      );
+      expect(project().media.find((m) => m.id === id)!.path).toBe('/m/credits.jpg');
+    });
+
     it('explains when the picture size is not known yet', async () => {
       const { app, state } = setup();
       expect(await app.resizeCropImage('nope', 'centre')).toBeNull();

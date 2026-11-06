@@ -98,15 +98,16 @@ export interface MediaEngine {
   /** Saves one frame as an image; the format follows the output's extension (V10). */
   extractFrame(input: string, time: Seconds, output: string): Promise<void>;
   /**
-   * V11: saves a resized and cropped copy beside the picture, as the first free numbered name
-   * (Fish_Eagle.jpg → Fish_Eagle1.jpg, then Fish_Eagle2.jpg…). Never overwrites. Resolves with its path.
+   * V11: saves a resized and cropped copy beside the picture, named `name` if given (taken: name2,
+   * name3…), else the first free numbered name (Fish_Eagle.jpg → Fish_Eagle1.jpg, then
+   * Fish_Eagle2.jpg…). Never overwrites. Resolves with its path (core/project/paths madePicturePath).
    */
-  resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
+  resizeCropImage(input: string, plan: ResizeCrop, name?: string): Promise<string>;
   /**
-   * V18: saves `base` with `top` placed on it, beside `base` as the first free numbered name
+   * V18: saves `base` with `top` placed on it, beside `base`, named as resizeCropImage does
    * (credits.png → credits1.png). Never overwrites. Resolves with its path.
    */
-  combineImages(base: string, top: string, plan: CombinePlan): Promise<string>;
+  combineImages(base: string, top: string, plan: CombinePlan, name?: string): Promise<string>;
   /** Exports the project in the chosen format (V16, V17). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   /**

@@ -116,6 +116,11 @@ class SvgCanvas implements StageCanvas {
     this.m = [a, b, c, d, e + a * x + c * y, f + b * x + d * y];
   }
 
+  scale(x: number, y: number): void {
+    const [a, b, c, d, e, f] = this.m;
+    this.m = [a * x, b * x, c * y, d * y, e, f];
+  }
+
   rotate(r: number): void {
     const [a, b, c, d, e, f] = this.m;
     const cos = Math.cos(r);
@@ -214,9 +219,13 @@ class SvgCanvas implements StageCanvas {
     this.pending = null;
   }
 
-  fill(): void {
+  fill(rule?: 'nonzero' | 'evenodd'): void {
     this.flush();
-    this.pending = { d: this.d, attrs: ` fill="${this.paint(this.fillStyle)}"${this.opacity()}` };
+    const evenodd = rule === 'evenodd' ? ' fill-rule="evenodd"' : '';
+    this.pending = {
+      d: this.d,
+      attrs: ` fill="${this.paint(this.fillStyle)}"${evenodd}${this.opacity()}`,
+    };
   }
 
   stroke(): void {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   coverRegion,
+  coversWhole,
+  freeRegionFromCorners,
   moveRegion,
   planFromRegion,
   planResizeCrop,
@@ -148,5 +150,55 @@ describe('V11 choosing the part to keep with the mouse (in original pixels)', ()
     expect(wide.width).toBeCloseTo(3664, 5);
     const tiny = regionFromCorners({ x: 10, y: 10 }, { x: 12, y: 12 }, photo, project);
     expect(tiny.width).toBeCloseTo(3764 / 20, 5);
+  });
+});
+
+describe('V11 crop to any shape (F/M/25 Q2: "only cells A1:E5 are visible")', () => {
+  const frame = { width: 854, height: 480 };
+  const project = { width: 854, height: 480 };
+
+  it('keeps the part at its own size: no resizing, no stretching', () => {
+    const plan = planResizeCrop(frame, project, {
+      free: { x: 0.4, y: 122.6, width: 335.5, height: 317.2 },
+    });
+    expect(plan.resize).toEqual(frame);
+    expect(plan.crop).toEqual({ x: 0, y: 123, width: 336, height: 317 });
+    expect(plan.removed).toEqual({ top: 123, bottom: 40, left: 0, right: 518 });
+    expect(plan.enlarged).toBe(false);
+    expect(plan.filter).toBe('scale=854:480:flags=lanczos,crop=336:317:0:123');
+  });
+
+  it('rounding never takes the part outside the picture', () => {
+    const plan = planResizeCrop(frame, project, {
+      free: { x: 600.6, y: 0, width: 253.6, height: 480 },
+    });
+    expect(plan.crop).toEqual({ x: 601, y: 0, width: 253, height: 480 });
+  });
+
+  it('drawing a free part follows the mouse, whatever its shape', () => {
+    expect(freeRegionFromCorners({ x: 335, y: 440 }, { x: 25, y: 123 }, frame)).toEqual({
+      x: 25,
+      y: 123,
+      width: 310,
+      height: 317,
+    });
+  });
+
+  it('a free part stays inside the picture and is never tiny', () => {
+    expect(freeRegionFromCorners({ x: 800, y: 400 }, { x: 900, y: 401 }, frame)).toEqual({
+      x: 800,
+      y: 400,
+      width: 54,
+      height: 24,
+    });
+  });
+});
+
+describe('V11 a part that is the whole picture', () => {
+  const frame = { width: 854, height: 480 };
+  it('is told apart: pressing on it draws a new part, as there is nothing to move', () => {
+    expect(coversWhole({ x: 0, y: 0, width: 854, height: 480 }, frame)).toBe(true);
+    expect(coversWhole({ x: 0, y: 0, width: 853.6, height: 479.8 }, frame)).toBe(true);
+    expect(coversWhole({ x: 0, y: 40, width: 854, height: 400 }, frame)).toBe(false);
   });
 });

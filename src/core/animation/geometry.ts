@@ -41,15 +41,18 @@ export const centreOf = (o: AnimObject): Point => ({
 /** A local point (inside the unturned box) on the stage. */
 export function toStage(o: AnimObject, local: Point): Point {
   const c = centreOf(o);
-  const v = turn({ x: local.x - o.width / 2, y: local.y - o.height / 2 }, o.rotation);
+  // AN23: a flipped object is mirrored in its own box, after its turn.
+  const fx = o.flipX ? -1 : 1;
+  const fy = o.flipY ? -1 : 1;
+  const v = turn({ x: (local.x - o.width / 2) * fx, y: (local.y - o.height / 2) * fy }, o.rotation);
   return { x: c.x + v.x, y: c.y + v.y };
 }
 
-/** A stage point inside the unturned box. */
+/** A stage point inside the unturned (and unflipped) box. */
 export function toLocal(o: AnimObject, p: Point): Point {
   const c = centreOf(o);
   const v = turn({ x: p.x - c.x, y: p.y - c.y }, -o.rotation);
-  return { x: v.x + o.width / 2, y: v.y + o.height / 2 };
+  return { x: v.x * (o.flipX ? -1 : 1) + o.width / 2, y: v.y * (o.flipY ? -1 : 1) + o.height / 2 };
 }
 
 /** Points around an ellipse that fills a box, from the right, clockwise. */
@@ -201,7 +204,15 @@ export function hitTest(o: AnimObject, p: Point): boolean {
   if (!isShape(o)) return insidePolygon(p, pts);
   const reach = Math.max(TOUCH, (o.stroke?.width ?? 0) / 2);
   if (distanceToPolyline(p, pts, isClosed(o)) <= reach) return true;
-  return o.fill.kind !== 'none' && isClosed(o) && insidePolygon(p, pts);
+  if (o.fill.kind === 'none' || !isClosed(o) || !insidePolygon(p, pts)) return false;
+  // AN24: a click in a hole goes through to what is behind.
+  const holes = o.kind === 'path' ? (o.holes ?? []) : [];
+  return !holes.some((h) =>
+    insidePolygon(
+      p,
+      flattenPath(h, true).map((q) => toStage(o, q)),
+    ),
+  );
 }
 
 /**
@@ -283,10 +294,29 @@ function scaledPoints(
   }));
 }
 
+/**
+ * Text in a group that is resized: its letters scale with it (O/N/22: OPEN DAY on the smaller
+ * plane), by the smaller of the two scales when it is stretched, and so do its size keyframes.
+ */
+function scaledText<T extends AnimObject>(o: T, k: number): T {
+  if (o.kind !== 'text' || k === 1) return o;
+  const tracks = o.tracks?.map((t) =>
+    t.property === 'size'
+      ? { ...t, keyframes: t.keyframes.map((f) => ({ ...f, value: Number(f.value) * k })) }
+      : t,
+  );
+  return { ...o, size: o.size * k, ...(tracks ? { tracks } : {}) };
+}
+
 /** A new size with the top-left corner kept; a path's points scale with its box. */
 export function setSize<T extends AnimObject>(o: T, width: number, height: number): T {
   const sized = { ...o, width, height };
-  if (o.kind === 'path') return { ...sized, points: scaledPoints(o.points, o, { width, height }) };
+  if (o.kind === 'path')
+    return {
+      ...sized,
+      points: scaledPoints(o.points, o, { width, height }),
+      ...(o.holes ? { holes: o.holes.map((h) => scaledPoints(h, o, { width, height })) } : {}),
+    };
   if (o.kind === 'group') {
     // AN13: a group's children scale with it, keeping their places inside it.
     const sx = o.width === 0 ? 1 : width / o.width;
@@ -294,7 +324,11 @@ export function setSize<T extends AnimObject>(o: T, width: number, height: numbe
     return {
       ...sized,
       children: o.children.map((c) =>
-        setSize({ ...c, x: c.x * sx, y: c.y * sy }, c.width * sx, c.height * sy),
+        setSize(
+          scaledText({ ...c, x: c.x * sx, y: c.y * sy }, Math.min(sx, sy)),
+          c.width * sx,
+          c.height * sy,
+        ),
       ),
     };
   }
@@ -303,7 +337,8 @@ export function setSize<T extends AnimObject>(o: T, width: number, height: numbe
 
 /**
  * Resizes by dragging a handle to a stage point: the opposite edge (or corner) stays where it
- * is, even when the object is turned. With the ratio locked, the larger change wins.
+ * is, even when the object is turned. With the ratio locked, the larger change wins. Text keeps
+ * its ratio always and its letters scale with the box (letters cannot be stretched out of shape).
  */
 export function resizeFrom<T extends AnimObject>(
   o: T,
@@ -318,12 +353,13 @@ export function resizeFrom<T extends AnimObject>(
   const south = handle.includes('s');
   let width = Math.max(0, east ? local.x : west ? o.width - local.x : o.width);
   let height = Math.max(0, south ? local.y : north ? o.height - local.y : o.height);
-  if (lockRatio && o.width > 0 && o.height > 0) {
+  let scale = 1;
+  if ((lockRatio || o.kind === 'text') && o.width > 0 && o.height > 0) {
     const sx = east || west ? width / o.width : 0;
     const sy = north || south ? height / o.height : 0;
-    const s = Math.max(sx, sy);
-    width = o.width * s;
-    height = o.height * s;
+    scale = Math.max(sx, sy);
+    width = o.width * scale;
+    height = o.height * scale;
   }
   // The fixed point, in the old box and in the new one, must land on the same stage point.
   const fixedOld = { x: west ? o.width : 0, y: north ? o.height : 0 };
@@ -331,5 +367,25 @@ export function resizeFrom<T extends AnimObject>(
   const anchor = toStage(o, fixedOld);
   const v = turn({ x: width / 2 - fixedNew.x, y: height / 2 - fixedNew.y }, o.rotation);
   const centre = { x: anchor.x + v.x, y: anchor.y + v.y };
-  return setSize({ ...o, x: centre.x - width / 2, y: centre.y - height / 2 }, width, height);
+  const sized = setSize({ ...o, x: centre.x - width / 2, y: centre.y - height / 2 }, width, height);
+  return o.kind === 'text' ? { ...sized, size: o.size * scale } : sized;
+}
+
+/**
+ * AN23 Flip: mirrored in its own box, left to right ('horizontal') or top to bottom. A turned
+ * object mirrors across the stage, as Animate's Flip does: its turn and turn keyframes change sign.
+ * Flipping twice gives the object back as it was.
+ */
+export function flipObject<T extends AnimObject>(o: T, axis: 'horizontal' | 'vertical'): T {
+  const key = axis === 'horizontal' ? 'flipX' : 'flipY';
+  const next: T = { ...o, rotation: -o.rotation || 0 };
+  if (o[key]) delete next[key];
+  else next[key] = true;
+  if (o.tracks)
+    next.tracks = o.tracks.map((t) =>
+      t.property === 'rotation'
+        ? { ...t, keyframes: t.keyframes.map((k) => ({ ...k, value: -Number(k.value) || 0 })) }
+        : t,
+    );
+  return next;
 }

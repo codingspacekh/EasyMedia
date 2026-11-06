@@ -13,7 +13,9 @@ export function validateSettings(s: ProjectSettings): void {
   }
   if (s.aspect !== 'custom') {
     const [w, h] = RATIOS[s.aspect];
-    if (s.width * h !== s.height * w) {
+    // The exact width, or the nearest even one (854 × 480: 480 × 16 ÷ 9 = 853.3, the papers' size).
+    const exact = (s.height * w) / h;
+    if (s.width !== exact && s.width !== 2 * Math.round(exact / 2)) {
       throw new EditError(
         `${s.width} × ${s.height} is not ${s.aspect}. Choose a matching size or "Custom".`,
       );

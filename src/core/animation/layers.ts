@@ -3,7 +3,7 @@
 import { EditError } from '../model/errors.ts';
 import { newId } from '../model/factory.ts';
 import { createGroup, createLayer } from './factory.ts';
-import { moved, shiftTracks, toStage } from './geometry.ts';
+import { flipObject, moved, shiftTracks, toStage } from './geometry.ts';
 import { splitIntoLetters, type MeasureText } from './letters.ts';
 import type {
   AnimObject,
@@ -282,11 +282,17 @@ export function ungroup(doc: AnimationDoc, id: Id): AnimationDoc {
     });
     const x = centre.x - child.width / 2;
     const y = centre.y - child.height / 2;
+    // AN23: in a group flipped one way a part is mirrored too (its turn changes sign); flipped
+    // both ways the group is only turned half round.
+    const flips = (object.flipX ? 1 : 0) + (object.flipY ? 1 : 0);
+    let part: AnimObject = child;
+    if (flips === 1) part = flipObject(child, object.flipX ? 'horizontal' : 'vertical');
+    const turn = object.rotation + (flips === 2 ? 180 : 0);
     return {
-      ...shiftTracks(child, { x: x - child.x, y: y - child.y, rotation: object.rotation }),
+      ...shiftTracks(part, { x: x - child.x, y: y - child.y, rotation: turn }),
       x,
       y,
-      rotation: (((child.rotation + object.rotation) % 360) + 360) % 360,
+      rotation: (((part.rotation + turn) % 360) + 360) % 360,
     };
   });
   return replaceLayer(doc, { ...layer, objects: layer.objects.toSpliced(index, 1, ...children) });
@@ -402,4 +408,32 @@ export function duplicateObjects(
     next = replaceLayer(next, { ...layer, objects: layer.objects.toSpliced(index + 1, 0, copy) });
   }
   return { doc: next, ids: made };
+}
+
+/**
+ * AN24: the objects (on one layer) replaced by what `make` builds from them, given back to front;
+ * the new objects go where the backmost one was.
+ */
+export function replaceObjects(
+  doc: AnimationDoc,
+  ids: readonly Id[],
+  make: (objects: AnimObject[]) => AnimObject[],
+): { doc: AnimationDoc; ids: Id[] } {
+  const found = ids.map((id) => requireObject(doc, id));
+  const layer = editable(found[0]!.layer);
+  if (found.some((f) => f.layerId !== layer.id))
+    throw new EditError('Choose objects on the same layer.');
+  const ordered = found.sort((a, b) => a.index - b.index);
+  const drawing = ordered[0]!.object.drawing;
+  const made = make(ordered.map((f) => f.object)).map((o, i) => ({
+    ...o,
+    name: i === 0 ? o.name : uniqueName(doc, o.name),
+    ...(drawing !== undefined ? { drawing } : {}),
+  }));
+  const kept = layer.objects.filter((o) => !ids.includes(o.id));
+  const at = ordered[0]!.index;
+  return {
+    doc: replaceLayer(doc, { ...layer, objects: kept.toSpliced(at, 0, ...made) }),
+    ids: made.map((o) => o.id),
+  };
 }

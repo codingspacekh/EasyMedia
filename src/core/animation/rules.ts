@@ -111,6 +111,8 @@ export function validateObject(object: AnimObject): void {
   atLeastZero(object.height, 'The height');
   if (!Number.isFinite(object.opacity) || object.opacity < 0 || object.opacity > 100)
     throw new EditError('Opacity must be between 0 and 100 %.');
+  for (const f of [object.flipX, object.flipY])
+    if (f !== undefined && typeof f !== 'boolean') throw new EditError('A flip is on or off.');
   validatePaint(object.fill, 'fill');
   if (object.stroke) {
     atLeastZero(object.stroke.width, 'The outline width');
@@ -138,6 +140,10 @@ export function validateObject(object: AnimObject): void {
       break;
     case 'path':
       if (object.points.length < 2) throw new EditError('A path needs at least two points.');
+      // AN24: a hole is an outline of three or more real points.
+      for (const hole of object.holes ?? [])
+        if (hole.length < 3 || !hole.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
+          throw new EditError('A hole in a shape needs three or more points.');
       break;
     case 'button':
       if (object.label.trim() === '') throw new EditError('A button needs words on it.');

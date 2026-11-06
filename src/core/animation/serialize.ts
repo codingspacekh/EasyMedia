@@ -125,6 +125,11 @@ function isAnimObject(o: Obj): boolean {
   if (o.tracks !== undefined && !listOf(o.tracks, isTrack)) return false;
   if (o.paths !== undefined && !(Array.isArray(o.paths) && o.paths.every(isMotion))) return false;
   if (o.drawing !== undefined && !isNumber(o.drawing)) return false;
+  if (
+    (o.flipX !== undefined && !isBoolean(o.flipX)) ||
+    (o.flipY !== undefined && !isBoolean(o.flipY))
+  )
+    return false;
   switch (o.kind) {
     case 'rect':
       return isNumber(o.radius);
@@ -133,7 +138,11 @@ function isAnimObject(o: Obj): boolean {
     case 'polygon':
       return isNumber(o.sides);
     case 'path':
-      return isBoolean(o.closed) && listOf(o.points, (p) => has(p, ['x', 'y'], isNumber));
+      return (
+        isBoolean(o.closed) &&
+        listOf(o.points, (p) => has(p, ['x', 'y'], isNumber)) &&
+        (o.holes === undefined || (Array.isArray(o.holes) && o.holes.every(isPathPoints)))
+      );
     case 'text':
       return (
         has(o, ['text', 'font', 'align'], isString) &&

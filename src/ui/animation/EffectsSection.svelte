@@ -89,16 +89,19 @@
     font-weight: 500;
     color: var(--tx-3);
   }
+  /* The same label column as the other properties (issues/animate-2.png); boxes fill the row. */
   .field {
     display: grid;
-    grid-template-columns: 70px 1fr;
+    grid-template-columns: 58px 1fr;
     align-items: center;
     gap: 6px;
     font-size: 12px;
     color: var(--tx-2);
   }
-  .field input {
-    width: 80px;
+  .field input,
+  .field select {
+    width: 100%;
+    min-width: 0;
   }
   button {
     align-self: flex-start;

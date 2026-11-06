@@ -477,7 +477,8 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
     (p === 'y' && changed('x')) ||
     (p === 'width' && changed('height')) ||
     (p === 'height' && changed('width'));
-  for (const property of [...NUMBER_KEYS, 'radius', 'size', 'text'] as const)
+  // A text's size goes first, as in objectAt: it scales the box, then the box is keyed exactly.
+  for (const property of ['size', ...NUMBER_KEYS, 'radius', 'text'] as const)
     // (On a still object at frame 0 the partner is set to the value it has: nothing changes.)
     if (path && (property === 'x' || property === 'y')) continue;
     else if (changed(property) || paired(property)) key(property, x[property] as KeyValue);

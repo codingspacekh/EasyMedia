@@ -9,6 +9,7 @@ import {
   type Point,
 } from '../core/animation/geometry.ts';
 import * as layers from '../core/animation/layers.ts';
+import { combineObjects, flipObject, type CombineHow } from '../core/animation/combine.ts';
 import type { MeasureText } from '../core/animation/letters.ts';
 import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
@@ -360,6 +361,30 @@ export function moveObjectsToLayer(ids: readonly Id[], layerId: Id, frame = 0): 
 }
 
 /** The group's id is known once the command has run. */
+/** AN23 Flip the selected objects, each in its own box. */
+export function flipObjects(ids: readonly Id[], axis: 'horizontal' | 'vertical'): AnimCommand {
+  return command(axis === 'horizontal' ? 'Flip horizontal' : 'Flip vertical', (doc) =>
+    ids.reduce((d, id) => {
+      const found = layers.findObject(d, id);
+      return found ? layers.replaceObjects(d, [id], ([o]) => [flipObject(o!, axis)]).doc : d;
+    }, doc),
+  );
+}
+
+/** AN24 Combine the selected shapes into one (or more) new shapes. */
+export function combineSelected(
+  ids: readonly Id[],
+  how: CombineHow,
+  made: (ids: Id[]) => void,
+): AnimCommand {
+  const labels = { union: 'Union', cutOut: 'Cut out', intersect: 'Intersect' };
+  return command(labels[how], (doc) => {
+    const { doc: next, ids: shapes } = combineObjects(doc, ids, how);
+    made(shapes);
+    return next;
+  });
+}
+
 export function groupObjects(ids: readonly Id[], made: (groupId: Id) => void): AnimCommand {
   return command('Group', (doc) => {
     const { doc: next, group } = layers.groupObjects(doc, ids);

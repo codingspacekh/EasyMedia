@@ -25,7 +25,6 @@ function isAbsolute(path: string): boolean {
   return /^([A-Za-z]:)?[\\/]/.test(path);
 }
 
-/** Absolute media path → the path to store in the project file. */
 /** A numbered copy's name beside the original: Fish_Eagle.jpg, 1 → Fish_Eagle1.jpg. */
 export function numberedPath(path: string, n: number): string {
   const dot = path.lastIndexOf('.');
@@ -34,6 +33,38 @@ export function numberedPath(path: string, n: number): string {
   return `${base}${n}${ext}`;
 }
 
+/** A file name typed by the student: characters no file name may have (Windows, macOS) become "-". */
+export function cleanFileName(name: string): string {
+  return name.trim().replace(/[\\/:*?"<>|]/g, '-');
+}
+
+/**
+ * A new file beside `beside`, named `name` (cleaned) with the same extension: the student's name
+ * for a picture made from another (m25credits.png, "credits" → credits.png).
+ */
+export function namedPath(beside: string, name: string): string {
+  const slash = Math.max(beside.lastIndexOf('/'), beside.lastIndexOf('\\'));
+  const dot = beside.lastIndexOf('.');
+  const ext = dot > slash ? beside.slice(dot) : '';
+  let stem = cleanFileName(name);
+  if (ext && stem.toLowerCase().endsWith(ext.toLowerCase())) stem = stem.slice(0, -ext.length);
+  return `${beside.slice(0, slash + 1)}${stem}${ext}`;
+}
+
+/**
+ * Try number `attempt` (0, 1, 2…) for a new picture made from `input` (V11, V18): the name the
+ * student typed, then name2, name3…; with no name, input1, input2…. The caller takes the first that
+ * does not exist, so nothing is ever overwritten.
+ */
+export function madePicturePath(input: string, name: string | undefined, attempt: number): string {
+  if (name !== undefined && cleanFileName(name) !== '') {
+    const named = namedPath(input, name);
+    return attempt === 0 ? named : numberedPath(named, attempt + 1);
+  }
+  return numberedPath(input, attempt + 1);
+}
+
+/** Absolute media path → the path to store in the project file. */
 export function toProjectPath(projectDir: string, filePath: string): string {
   const dir = splitPath(projectDir);
   const file = splitPath(filePath);

@@ -10,7 +10,7 @@ import { deinterleave, interleave } from '../../core/audio/pcm.ts';
 import { MediaError } from '../../core/model/errors.ts';
 import type { JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
 import { audioCodecArgs, validateAudioExport } from '../../core/render/audio-formats.ts';
-import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
+import { fromProjectPath, madePicturePath, numberedPath } from '../../core/project/paths.ts';
 import { combineFilter } from '../../core/image/combine.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { compileProject } from '../../core/render/compile.ts';
@@ -143,11 +143,11 @@ export function createNodeMediaEngine(
       await queue.run({ label: 'Snapshot', args: frameArgs(input, time), output }).done;
     },
 
-    async resizeCropImage(input, plan) {
+    async resizeCropImage(input, plan, name) {
       const filter = resizeCropFilter(plan);
-      let n = 1;
-      while (await exists(numberedPath(input, n))) n++;
-      const path = numberedPath(input, n);
+      let n = 0;
+      while (await exists(madePicturePath(input, name, n))) n++;
+      const path = madePicturePath(input, name, n);
       await queue.run({
         label: 'Resize & crop',
         args: ['-i', input, '-vf', filter, '-frames:v', '1', '-update', '1', '-q:v', '2'],
@@ -156,11 +156,11 @@ export function createNodeMediaEngine(
       return path;
     },
 
-    async combineImages(base, top, plan) {
+    async combineImages(base, top, plan, name) {
       const filter = combineFilter(plan);
-      let n = 1;
-      while (await exists(numberedPath(base, n))) n++;
-      const path = numberedPath(base, n);
+      let n = 0;
+      while (await exists(madePicturePath(base, name, n))) n++;
+      const path = madePicturePath(base, name, n);
       await queue.run({
         label: 'Place a picture',
         args: ['-i', base, '-i', top, '-filter_complex', filter, '-frames:v', '1', '-update', '1'],

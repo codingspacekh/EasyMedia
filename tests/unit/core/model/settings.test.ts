@@ -21,6 +21,11 @@ describe('V1 project settings', () => {
     expect(() => validateSettings({ ...base, ...s })).not.toThrow();
   });
 
+  it("accepts the papers' 854 × 480 as 16:9 (480 × 16 ÷ 9 = 853.3, the nearest even width)", () => {
+    expect(() => validateSettings({ ...base, width: 854, height: 480 })).not.toThrow();
+    expect(() => validateSettings({ ...base, width: 852, height: 480 })).toThrow(/not 16:9/);
+  });
+
   it('rejects a resolution that does not match the aspect ratio', () => {
     expect(() => validateSettings({ ...base, aspect: '16:9', width: 1440, height: 1080 })).toThrow(
       /1440 × 1080 is not 16:9/,

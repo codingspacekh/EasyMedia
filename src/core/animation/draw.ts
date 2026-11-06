@@ -10,6 +10,7 @@ import type {
   ButtonObject,
   Layer,
   Paint,
+  PathObject,
   Stroke,
   TextObject,
 } from './types.ts';
@@ -29,6 +30,8 @@ export interface StageCanvas {
   restore(): void;
   translate(x: number, y: number): void;
   rotate(radians: number): void;
+  /** AN23: a flip is a scale of −1. */
+  scale(x: number, y: number): void;
   setLineDash(segments: number[]): void;
   beginPath(): void;
   closePath(): void;
@@ -45,7 +48,8 @@ export interface StageCanvas {
     start: number,
     end: number,
   ): void;
-  fill(): void;
+  /** AN24: 'evenodd' for a shape with holes. */
+  fill(rule?: 'nonzero' | 'evenodd'): void;
   stroke(): void;
   clip(): void;
   fillRect(x: number, y: number, w: number, h: number): void;
@@ -213,6 +217,7 @@ function tracePath(ctx: StageCanvas, o: AnimObject): void {
       ctx.bezierCurveTo(ox + c1.x, oy + c1.y, ox + c2.x, oy + c2.y, ox + b.x, oy + b.y);
     }
     if (o.closed) ctx.closePath();
+    traceHoles(ctx, o);
     return;
   }
   const points = o.kind === 'path' ? flattenPath(o.points, false) : localOutline(o);
@@ -220,6 +225,19 @@ function tracePath(ctx: StageCanvas, o: AnimObject): void {
     i === 0 ? ctx.moveTo(ox + p.x, oy + p.y) : ctx.lineTo(ox + p.x, oy + p.y),
   );
   if (o.kind !== 'path' || o.closed) ctx.closePath();
+  if (o.kind === 'path') traceHoles(ctx, o);
+}
+
+/** AN24: each hole as its own closed outline in the same path (filled even-odd). */
+function traceHoles(ctx: StageCanvas, o: PathObject): void {
+  const ox = -o.width / 2;
+  const oy = -o.height / 2;
+  for (const hole of o.holes ?? []) {
+    flattenPath(hole, true).forEach((p, i) =>
+      i === 0 ? ctx.moveTo(ox + p.x, oy + p.y) : ctx.lineTo(ox + p.x, oy + p.y),
+    );
+    ctx.closePath();
+  }
 }
 
 function drawText(ctx: StageCanvas, t: TextObject, fill: string | object | null): void {
@@ -253,6 +271,7 @@ export function drawObject(
   ctx.save();
   ctx.translate(c.x, c.y);
   if (o.rotation !== 0) ctx.rotate((o.rotation * Math.PI) / 180);
+  if (o.flipX || o.flipY) ctx.scale(o.flipX ? -1 : 1, o.flipY ? -1 : 1);
   const shown = alpha * (o.opacity / 100);
   if (shown !== 1) ctx.globalAlpha = shown;
   const ox = -o.width / 2;
@@ -286,7 +305,8 @@ export function drawObject(
       const fill = styleOf(ctx, o.fill, o.width, o.height);
       if (fill !== null && (o.kind !== 'path' || o.closed)) {
         ctx.fillStyle = fill;
-        ctx.fill();
+        if (o.kind === 'path' && o.holes?.length) ctx.fill('evenodd');
+        else ctx.fill();
       }
       if (o.stroke && o.stroke.width > 0) {
         applyStroke(ctx, o.stroke);

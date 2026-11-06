@@ -533,6 +533,31 @@ describe('the Properties panel in detail', () => {
     expect((s.objects()[2] as TextObject).font).toBe('Montserrat');
   });
 
+  it('AN23, AN24 Arrange: order, flip and combine in their own rows (issues/animate-2.png)', async () => {
+    const s = await mode();
+    s.anim.addShape('rect', { x: 0, y: 0, width: 100, height: 100 });
+    await tick();
+    s.anim.addShape('ellipse', { x: 60, y: 30, width: 80, height: 40 });
+    await tick();
+    s.anim.select([s.objects()[0]!.id]);
+    await tick();
+    const row = (name: string) => screen.getByRole('group', { name });
+    expect(within(row('Order')).getAllByRole('button')).toHaveLength(4);
+    await fireEvent.click(within(row('Flip')).getByRole('button', { name: 'Flip horizontal' }));
+    expect(s.objects()[0]!.flipX).toBe(true);
+    await fireEvent.click(within(row('Flip')).getByRole('button', { name: 'Flip vertical' }));
+    expect(s.objects()[0]!.flipY).toBe(true);
+    // Combining needs two or more shapes.
+    const cut = within(row('Combine shapes')).getByRole('button', { name: 'Cut out' });
+    expect((cut as HTMLButtonElement).disabled).toBe(true);
+    s.anim.select(s.objects().map((o) => o.id));
+    await tick();
+    await fireEvent.click(within(row('Combine shapes')).getByRole('button', { name: 'Cut out' }));
+    expect(s.objects().map((o) => o.kind)).toEqual(['path']);
+    for (const name of ['Union', 'Intersect'])
+      expect(within(row('Combine shapes')).getByRole('button', { name })).toBeTruthy();
+  });
+
   it('arrange buttons, the layer picker, Group / Ungroup / Duplicate / Delete, several selected', async () => {
     const s = await mode();
     s.anim.addShape('rect', { x: 0, y: 0, width: 10, height: 10 });

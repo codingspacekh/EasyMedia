@@ -367,16 +367,25 @@
     border-radius: 3px;
     padding: 0 4px;
   }
-  .row,
-  .speeds {
-    display: flex;
+  /* issues/video-3.png: the two trim buttons share the row; the speeds are even, with room below. */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 4px;
-    flex-wrap: wrap;
+  }
+  .speeds {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
   }
   .row button,
   .speeds button {
-    padding: 4px 8px;
+    padding: 4px 6px;
     font-size: 12px;
+    justify-content: center;
+    min-width: 0;
+    white-space: nowrap;
   }
   .speeds button[aria-pressed='true'] {
     background: var(--accent-soft);

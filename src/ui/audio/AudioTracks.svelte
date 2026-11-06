@@ -522,7 +522,7 @@
         </div>
       {/each}
       {#if doc.tracks.length === 0}
-        <div class="start">
+        <div class="no-tracks">
           <Icon name="audio" size={36} />
           <h2>Import a sound to start</h2>
           <button class="primary" onclick={() => audio.importAudio()}
@@ -797,7 +797,7 @@
     background: var(--danger);
     pointer-events: none;
   }
-  .start {
+  .no-tracks {
     position: sticky;
     left: 0;
     display: flex;
@@ -814,20 +814,20 @@
     text-align: center;
     line-height: 1.5;
   }
-  .start h2 {
+  .no-tracks h2 {
     margin: 0;
     color: var(--tx-1);
     font-size: 17px;
     font-weight: 600;
   }
-  .start p {
+  .no-tracks p {
     margin: 0;
     font-size: 13px;
   }
-  .start b {
+  .no-tracks b {
     color: var(--tx-2);
   }
-  .start .formats {
+  .no-tracks .formats {
     font-size: 12px;
   }
 </style>

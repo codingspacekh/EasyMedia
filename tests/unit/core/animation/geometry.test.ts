@@ -203,6 +203,34 @@ describe('moving and resizing', () => {
   });
 });
 
+describe('resizing text (AN4)', () => {
+  // A box 200 × 48 for 40 px letters on one line.
+  const words = { ...createText('OPEN DAY', { x: 100, y: 100, size: 40 }), width: 200, height: 48 };
+
+  it('a corner drag scales the letters with the box, keeping its proportions', () => {
+    const r = resizeFrom(words, 'se', { x: 500, y: 130 }, { lockRatio: false });
+    expect(r).toMatchObject({ x: 100, y: 100, width: 400, height: 96, size: 80 });
+  });
+
+  it('a side drag scales the letters too (the box cannot stretch them out of shape)', () => {
+    const r = resizeFrom(words, 'e', { x: 200, y: 999 }, { lockRatio: false });
+    expect(r).toMatchObject({ x: 100, y: 100, width: 100, height: 24, size: 20 });
+    expect(resizeFrom(words, 's', { x: 999, y: 172 }, { lockRatio: false })).toMatchObject({
+      width: 300,
+      height: 72,
+      size: 60,
+    });
+  });
+
+  it('dragged to nothing, the letters are 0 px (as the font size allows), not flipped', () => {
+    expect(resizeFrom(words, 'se', { x: 0, y: 0 }, { lockRatio: false })).toMatchObject({
+      width: 0,
+      height: 0,
+      size: 0,
+    });
+  });
+});
+
 describe('groups (AN13)', () => {
   it('resizing a group scales its children with it', async () => {
     const { createGroup } = await import('../../../../src/core/animation/factory.ts');

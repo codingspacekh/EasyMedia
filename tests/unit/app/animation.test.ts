@@ -71,6 +71,58 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     expect(s.objects()[0]!.rotation).toBe(45);
   });
 
+  it('AN4: resizing a text box scales its letters; on a later frame the size is keyframed too', () => {
+    const s = setup();
+    s.anim.addText({ x: 100, y: 100 }, 'OPEN DAY', () => ({ width: 200, height: 48 }));
+    const t = s.objects()[0]!;
+    const size = t.kind === 'text' ? t.size : 0;
+    s.anim.resizeSelected(t.id, 'se', { x: 500, y: 196 }, false);
+    expect(s.objects()[0]).toMatchObject({
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 96,
+      size: size * 2,
+    });
+    s.anim.undo();
+    expect(s.objects()[0]).toMatchObject({ width: 200, height: 48, size });
+    s.anim.setFrame(10);
+    s.anim.resizeSelected(t.id, 'se', { x: 200, y: 124 }, false);
+    const tracks = s.objects()[0]!.tracks ?? [];
+    const sizeTrack = tracks.find((k) => k.property === 'size');
+    expect(sizeTrack?.keyframes.map((f) => [f.frame, f.value])).toEqual([
+      [0, size],
+      [10, size / 2],
+    ]);
+  });
+
+  it('AN23 Flip horizontal / vertical mirrors the selection; one undo step each', () => {
+    const s = setup();
+    s.star();
+    s.anim.flip('horizontal');
+    expect(s.objects()[0]!.flipX).toBe(true);
+    s.anim.flip('vertical');
+    expect(s.objects()[0]).toMatchObject({ flipX: true, flipY: true });
+    s.anim.undo();
+    expect(s.objects()[0]!.flipY).toBeUndefined();
+  });
+
+  it('AN24 Combine: union, cut out and intersect replace the selected shapes; text is refused', () => {
+    const s = setup();
+    s.anim.addShape('rect', { x: 0, y: 0, width: 100, height: 100 });
+    s.anim.addShape('ellipse', { x: 60, y: 30, width: 80, height: 40 });
+    s.anim.selectAll();
+    expect(s.anim.combine('cutOut')).toBeNull();
+    expect(s.objects().map((o) => [o.kind, o.name])).toEqual([['path', 'Rectangle']]);
+    expect(s.state().selection).toEqual([s.objects()[0]!.id]);
+    s.anim.undo();
+    expect(s.objects()).toHaveLength(2);
+    s.anim.addText({ x: 10, y: 10 }, 'Hi');
+    s.anim.selectAll();
+    expect(s.anim.combine('union')).toMatch(/Only shapes/);
+    expect(s.objects()).toHaveLength(3);
+  });
+
   it('deleteSelection, cut / copy / paste, duplicate, group and ungroup', () => {
     const s = setup();
     s.star();

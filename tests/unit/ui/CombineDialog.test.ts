@@ -56,6 +56,24 @@ describe('V18 place a picture on a picture', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('saves under the file name typed', async () => {
+    const { app, project } = await open('/m/credits.png', '/m/TTT_A1E5.png');
+    const combine = vi.spyOn(app, 'combineImages');
+    await fireEvent.input(screen.getByLabelText('File name'), {
+      target: { value: 'credits_grid' },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Save picture' }));
+    expect(combine).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(Object),
+      'credits_grid',
+    );
+    await vi.waitFor(() =>
+      expect(project().media.map((m) => m.path)).toContain('/m/credits_grid.png'),
+    );
+  });
+
   it('explains a size it cannot use, next to the box', async () => {
     await open('/m/credits.png', '/m/TTT_A1E5.png');
     await fireEvent.change(screen.getByLabelText('Width'), { target: { value: '150' } });

@@ -112,6 +112,12 @@ interface ObjectBase {
   fill: Paint;
   /** Absent: no outline. */
   stroke?: Stroke;
+  /**
+   * AN23: mirrored in its own box, left to right (flipX) or top to bottom (flipY), after its turn.
+   * Absent: not flipped. Text and pictures are mirrored too, as Animate's Flip does.
+   */
+  flipX?: boolean;
+  flipY?: boolean;
   /** AN9: keyframes, one track per animated property. Absent or empty: the object stays still. */
   tracks?: Track[];
   /**
@@ -164,6 +170,11 @@ export interface PathObject extends ObjectBase {
   kind: 'path';
   points: PathPoint[];
   closed: boolean;
+  /**
+   * AN24: holes cut out of a closed shape (Combine ▸ Cut out), each an outline in the same box,
+   * filled even-odd. Absent: no holes.
+   */
+  holes?: PathPoint[][];
 }
 
 export type TextAlign = 'left' | 'centre' | 'right';

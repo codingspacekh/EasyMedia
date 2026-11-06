@@ -195,6 +195,19 @@
     color: var(--tx-3);
     font-size: 11.5px;
   }
+  .foot button {
+    /* "Start recording" on one line (issues/audio-3.png); the hint takes what is left. */
+    flex: none;
+    white-space: nowrap;
+  }
+  .foot .hint {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .foot .spacer {
+    /* The hint takes the free width, so it wraps onto two lines, not six. */
+    flex: 0 0 4px;
+  }
   .danger {
     background: var(--danger);
     border-color: var(--danger);

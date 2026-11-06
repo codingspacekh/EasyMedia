@@ -39,6 +39,13 @@ describe('V1 project settings dialog (screen 11)', () => {
     expect(onclose).toHaveBeenCalled();
   });
 
+  it('M/23, J/25, N/25: 16:9 offers 854 × 480, the size the papers ask for', async () => {
+    const { settings } = open();
+    await fireEvent.click(radio('854 × 480'));
+    await fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(settings()).toMatchObject({ aspect: '16:9', width: 854, height: 480 });
+  });
+
   it('a custom size that cannot be used is explained, and the dialog stays open', async () => {
     const { settings, onclose } = open();
     await fireEvent.click(radio('Custom'));

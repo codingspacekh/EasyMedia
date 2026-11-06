@@ -35,8 +35,11 @@ export interface Channels {
   };
   'media:waveform': { args: [input: string, buckets: number]; result: number[] };
   'media:frame': { args: [input: string, time: number, output: string]; result: null };
-  'media:resizeCrop': { args: [input: string, plan: ResizeCrop]; result: string };
-  'media:combine': { args: [base: string, top: string, plan: CombinePlan]; result: string };
+  'media:resizeCrop': { args: [input: string, plan: ResizeCrop, name?: string]; result: string };
+  'media:combine': {
+    args: [base: string, top: string, plan: CombinePlan, name?: string];
+    result: string;
+  };
   'media:snapshot': {
     args: [project: Project, time: number, output: string, options: RenderVideoOptions];
     result: string;

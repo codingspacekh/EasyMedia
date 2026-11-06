@@ -47,6 +47,9 @@
   const top = $derived(others.find((m) => m.id === topId) ?? others[0]);
   const topSize = $derived(top ? $store.assets[top.id]?.size : undefined);
   let placement: Placement = $state({ anchor: 'bottom-left', widthPercent: 25, margin: 0 });
+  /** The file's name without its extension; empty: the background's name, numbered. */
+  let fileName = $state('');
+  const stem = $derived(fileNameOf(asset.path).replace(/\.[^.]*$/, ''));
   let addToTimeline = $state(false);
   let saving = $state(false);
   const plan = $derived(topSize ? planCombine(size, topSize, placement) : null);
@@ -67,7 +70,10 @@
   async function save(): Promise<void> {
     if (!top) return;
     saving = true;
-    const id = await app.combineImages(asset.id, top.id, { ...placement });
+    const name = fileName.trim();
+    const id = name
+      ? await app.combineImages(asset.id, top.id, { ...placement }, name)
+      : await app.combineImages(asset.id, top.id, { ...placement });
     saving = false;
     if (id === null) return;
     if (addToTimeline) app.addToTimeline(id);
@@ -151,11 +157,24 @@
     </div>
   {/if}
 
+  <label class="file-name">
+    File name
+    <input
+      type="text"
+      aria-label="File name"
+      placeholder="{stem}1"
+      spellcheck="false"
+      bind:value={fileName}
+    />
+  </label>
   <label class="check">
     <input type="checkbox" bind:checked={addToTimeline} />
     Add to the timeline
   </label>
-  <p class="hint">Saved as a new file next to {fileNameOf(asset.path)}; both originals are kept.</p>
+  <p class="hint">
+    Saved as a new file next to {fileNameOf(asset.path)}; both originals are kept. Leave the name
+    empty for {stem}1, {stem}2…
+  </p>
 
   {#snippet buttons()}
     <button onclick={onclose}>Cancel</button>
@@ -164,6 +183,15 @@
 </Dialog>
 
 <style>
+  .file-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .file-name input {
+    width: 260px;
+  }
   .body {
     display: flex;
     gap: 20px;

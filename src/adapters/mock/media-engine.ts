@@ -2,7 +2,7 @@
 // the shared contract tests — but finishes instantly and needs no FFmpeg or real files.
 import { FILE_NOT_FOUND, JobCancelledError, MediaError } from '../../core/model/errors.ts';
 import type { JobEvent, JobHandle, MediaEngine, ProbeInfo } from '../../core/ports.ts';
-import { fromProjectPath, numberedPath } from '../../core/project/paths.ts';
+import { fromProjectPath, madePicturePath, numberedPath } from '../../core/project/paths.ts';
 import { combineFilter } from '../../core/image/combine.ts';
 import { resizeCropFilter } from '../../core/image/crop.ts';
 import { interleave } from '../../core/audio/pcm.ts';
@@ -126,22 +126,22 @@ export function createMockMediaEngine(initialFiles: Record<string, ProbeInfo> = 
       });
     },
 
-    async combineImages(base, _top, plan) {
+    async combineImages(base, _top, plan, name) {
       combineFilter(plan);
       const src = find(base);
-      let n = 1;
-      while (files.has(numberedPath(base, n))) n++;
-      const path = numberedPath(base, n);
+      let n = 0;
+      while (files.has(madePicturePath(base, name, n))) n++;
+      const path = madePicturePath(base, name, n);
       files.set(path, { ...src, sizeBytes: src.sizeBytes });
       return path;
     },
 
-    async resizeCropImage(input, plan) {
+    async resizeCropImage(input, plan, name) {
       resizeCropFilter(plan);
       const src = find(input);
-      let n = 1;
-      while (files.has(numberedPath(input, n))) n++;
-      const path = numberedPath(input, n);
+      let n = 0;
+      while (files.has(madePicturePath(input, name, n))) n++;
+      const path = madePicturePath(input, name, n);
       const ext = path.split('.').pop() ?? 'jpg';
       files.set(path, {
         kind: 'image',

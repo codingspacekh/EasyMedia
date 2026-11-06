@@ -69,6 +69,7 @@ import {
   projectToDisk,
   uniqueFileName,
 } from '../core/project/relocate.ts';
+import { cleanFileName } from '../core/project/paths.ts';
 import { planCombine, type Placement } from '../core/image/combine.ts';
 import { planResizeCrop, type Keep } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
@@ -603,10 +604,11 @@ export function createApp({
 
     /**
      * V11: resizes a picture to cover the project frame, crops it at `keep` (one of 9 places, or
-     * where the student dragged it) and saves it as a
-     * new file beside the original (Fish_Eagle.jpg → Fish_Eagle1.jpg), which is imported.
+     * where the student dragged it), stretches it, or cuts out any part at its own size, and saves
+     * it as a new file beside the original, named `name` if typed (else Fish_Eagle.jpg →
+     * Fish_Eagle1.jpg), which is imported.
      */
-    async resizeCropImage(assetId: Id, keep: Keep): Promise<Id | null> {
+    async resizeCropImage(assetId: Id, keep: Keep, name?: string): Promise<Id | null> {
       const asset = present().media.find((m) => m.id === assetId);
       const size = store.get().assets[assetId]?.size;
       if (!asset || asset.kind !== 'image' || !size) {
@@ -618,14 +620,13 @@ export function createApp({
       const { width, height } = present().settings;
       try {
         const plan = planResizeCrop(size, { width, height }, keep);
-        const path = await engine.resizeCropImage(asset.path, plan);
+        const path = await engine.resizeCropImage(asset.path, plan, name);
         const info = await engine.probe(path);
         const made = assetFromProbe(path, info);
         run(importMediaCommand(made));
         void prepare(made, info);
-        patch({
-          message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
-        });
+        const { width: w, height: h } = plan.crop;
+        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${w} × ${h}).` } });
         return made.id;
       } catch (error) {
         showError(error);
@@ -637,7 +638,12 @@ export function createApp({
      * V18: saves the picture `baseId` with `topId` placed on it as a new picture beside it
      * (credits.png → credits1.png) and imports it. F/M/25 Q2: a cropped still on credits.png.
      */
-    async combineImages(baseId: Id, topId: Id, placement: Placement): Promise<Id | null> {
+    async combineImages(
+      baseId: Id,
+      topId: Id,
+      placement: Placement,
+      name?: string,
+    ): Promise<Id | null> {
       const assets = store.get().assets;
       const base = present().media.find((m) => m.id === baseId);
       const top = present().media.find((m) => m.id === topId);
@@ -651,7 +657,7 @@ export function createApp({
       }
       try {
         const plan = planCombine(baseSize, topSize, placement);
-        const path = await engine.combineImages(base.path, top.path, plan);
+        const path = await engine.combineImages(base.path, top.path, plan, name);
         const info = await engine.probe(path);
         const made = assetFromProbe(path, info);
         run(importMediaCommand(made));
@@ -684,8 +690,7 @@ export function createApp({
       name?: string;
     }): Promise<Id | null> {
       const { time, hideText, addToTimeline, duration, format = 'png' } = options;
-      // Characters no file name may have (on Windows or macOS) become "-".
-      const named = options.name?.trim().replace(/[\\/:*?"<>|]/g, '-');
+      const named = options.name === undefined ? undefined : cleanFileName(options.name);
       const { projectPath } = store.get();
       // Saved straight away: next to a saved project (so it travels with it), else in the app's folder.
       const folder = projectPath ? `${dirOf(projectPath)}/Snapshots` : paths.snapshots;

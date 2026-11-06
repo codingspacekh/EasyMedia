@@ -6,7 +6,8 @@
   import type { App } from '../../app/app.ts';
   import { BUTTON_ACTIONS } from '../../core/animation/buttons.ts';
   import { DEFAULT_STROKE } from '../../core/animation/factory.ts';
-  import { isShape } from '../../core/animation/geometry.ts';
+  import { isClosed, isShape } from '../../core/animation/geometry.ts';
+  import type { CombineHow } from '../../core/animation/combine.ts';
   import { findObject } from '../../core/animation/layers.ts';
   import { stateAt } from '../../core/animation/state.ts';
   import { aspectOf } from '../../core/animation/rules.ts';
@@ -42,6 +43,16 @@
   );
   const first = $derived(found[0]?.object ?? null);
   let pathError: string | null = $state(null);
+  /** AN24: two or more closed shapes can be combined. */
+  const canCombine = $derived(
+    found.length >= 2 && found.every((f) => isShape(f.object) && isClosed(f.object)),
+  );
+  let combineError: string | null = $state(null);
+  const COMBINE: [CombineHow, string, string][] = [
+    ['union', 'Union', 'Make one shape of the selected shapes'],
+    ['cutOut', 'Cut out', 'Cut the shapes in front out of the one at the back (a bite)'],
+    ['intersect', 'Intersect', 'Keep only where the selected shapes overlap'],
+  ];
   /** The other objects a path or a morph can be taken from (shapes only for a morph). */
   const others = (id: string, shapesOnly: boolean): AnimObject[] =>
     doc.layers.flatMap((l) => l.objects).filter((o) => o.id !== id && (!shapesOnly || isShape(o)));
@@ -200,6 +211,7 @@
             commit={(v) => set({ opacity: v })}
           />
         </div>
+        <Why tool="objectProperties" />
       </div>
 
       {#if first.kind === 'picture' && !many}
@@ -567,59 +579,100 @@
       {/if}
 
       <EffectsSection {app} />
-      <div class="sec">
+      <div class="sec arrange">
         <h4>Arrange</h4>
-        <div class="row">
-          <button
-            class="sm icon-only"
-            aria-label="Bring to front"
-            title="Bring to front"
-            onclick={() => anim.reorder('front')}><Icon name="front" size={14} /></button
-          >
-          <button
-            class="sm icon-only"
-            aria-label="Bring forward"
-            title="Bring forward"
-            onclick={() => anim.reorder('forward')}><Icon name="up" size={14} /></button
-          >
-          <button
-            class="sm icon-only"
-            aria-label="Send backward"
-            title="Send backward"
-            onclick={() => anim.reorder('back')}><Icon name="down" size={14} /></button
-          >
-          <button
-            class="sm icon-only"
-            aria-label="Send to back"
-            title="Send to back"
-            onclick={() => anim.reorder('backmost')}><Icon name="back" size={14} /></button
-          >
-          <span class="spacer"></span>
-          <button
-            class="sm"
-            title="Group the selected objects into one (Ctrl/Cmd + G)"
-            disabled={found.length < 2}
-            onclick={() => anim.group()}><Icon name="group" size={14} /> Group</button
-          >
-          <button
-            class="sm"
-            title="Take the group apart (Ctrl/Cmd + Shift + G)"
-            disabled={!found.some((f) => f.object.kind === 'group')}
-            onclick={() => anim.ungroup()}>Ungroup</button
-          >
+        <div class="line">
+          <span class="cap">Order</span>
+          <div class="cells four" role="group" aria-label="Order">
+            <button
+              class="sm"
+              aria-label="Bring to front"
+              title="Bring to front"
+              onclick={() => anim.reorder('front')}><Icon name="front" size={14} /></button
+            >
+            <button
+              class="sm"
+              aria-label="Bring forward"
+              title="Bring forward"
+              onclick={() => anim.reorder('forward')}><Icon name="up" size={14} /></button
+            >
+            <button
+              class="sm"
+              aria-label="Send backward"
+              title="Send backward"
+              onclick={() => anim.reorder('back')}><Icon name="down" size={14} /></button
+            >
+            <button
+              class="sm"
+              aria-label="Send to back"
+              title="Send to back"
+              onclick={() => anim.reorder('backmost')}><Icon name="back" size={14} /></button
+            >
+          </div>
         </div>
-        <div class="row">
-          <button
-            class="sm"
-            title="Make a copy 10 px away (Ctrl/Cmd + D)"
-            onclick={() => anim.duplicate()}><Icon name="copy" size={14} /> Duplicate</button
-          >
-          <button
-            class="sm"
-            title="Delete the selected objects (Delete)"
-            onclick={() => anim.deleteSelection()}><Icon name="delete" size={14} /> Delete</button
-          >
+        <div class="line">
+          <span class="cap">Parts</span>
+          <div class="cells two-up">
+            <button
+              class="sm"
+              title="Group the selected objects into one (Ctrl/Cmd + G)"
+              disabled={found.length < 2}
+              onclick={() => anim.group()}><Icon name="group" size={14} /> Group</button
+            >
+            <button
+              class="sm"
+              title="Take the group apart (Ctrl/Cmd + Shift + G)"
+              disabled={!found.some((f) => f.object.kind === 'group')}
+              onclick={() => anim.ungroup()}>Ungroup</button
+            >
+          </div>
         </div>
+        <div class="line">
+          <span class="cap">Object</span>
+          <div class="cells two-up">
+            <button
+              class="sm"
+              title="Make a copy 10 px away (Ctrl/Cmd + D)"
+              onclick={() => anim.duplicate()}><Icon name="copy" size={14} /> Duplicate</button
+            >
+            <button
+              class="sm"
+              title="Delete the selected objects (Delete)"
+              onclick={() => anim.deleteSelection()}><Icon name="delete" size={14} /> Delete</button
+            >
+          </div>
+        </div>
+        <div class="line">
+          <span class="cap">Flip</span>
+          <div class="cells two-up" role="group" aria-label="Flip">
+            <button
+              class="sm"
+              aria-label="Flip horizontal"
+              title="Mirror left to right (a plane flying back the other way)"
+              onclick={() => anim.flip('horizontal')}>↔ Horizontal</button
+            >
+            <button
+              class="sm"
+              aria-label="Flip vertical"
+              title="Mirror top to bottom"
+              onclick={() => anim.flip('vertical')}>↕ Vertical</button
+            >
+          </div>
+        </div>
+        <div class="line">
+          <span class="cap">Combine</span>
+          <div class="cells three" role="group" aria-label="Combine shapes">
+            {#each COMBINE as [how, label, hint] (how)}
+              <button
+                class="sm"
+                title={hint}
+                disabled={!canCombine}
+                onclick={() => (combineError = anim.combine(how))}>{label}</button
+              >
+            {/each}
+          </div>
+        </div>
+        {#if combineError}<p class="error" role="alert">{combineError}</p>{/if}
         <div class="field">
           <label for="prop-layer">On layer</label>
           <select
@@ -635,7 +688,6 @@
         </div>
         <Why tool="animGroup" />
       </div>
-      <Why tool="objectProperties" />
     {/if}
   </div>
 </aside>
@@ -737,6 +789,41 @@
     border: 1px solid var(--line);
     border-radius: 4px;
     padding: 3px 6px;
+  }
+  /* Arrange (issues/animate-2.png): a caption column as the fields have, then even buttons. */
+  .line {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .cap {
+    color: var(--tx-2);
+    font-size: 12px;
+  }
+  .cells {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .cells.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .cells.two-up {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .cells.three {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .cells button {
+    justify-content: center;
+    min-width: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .row {
     display: flex;

@@ -8,6 +8,7 @@ import { isPlaybackSample, type PlaybackSample } from '../core/animation/paint-m
 import { combineFilter } from '../core/image/combine.ts';
 import type { Updates } from './updates.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
+import { cleanFileName } from '../core/project/paths.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
 import type { AllowList } from './protocol/allowlist.ts';
@@ -53,6 +54,10 @@ const PICTURE_TYPES: Record<string, string> = {
   bmp: 'image/bmp',
   svg: 'image/svg+xml',
 };
+
+/** A typed file name from the page: a string with no folder in it (cleanFileName turns "/" to "-"). */
+const fileNameOnly = (name: unknown): string | undefined =>
+  typeof name === 'string' ? cleanFileName(name) || undefined : undefined;
 
 const dataUrl = (type: string, bytes: Uint8Array) =>
   `data:${type};base64,${Buffer.from(bytes).toString('base64')}`;
@@ -120,18 +125,18 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(output);
       return null;
     },
-    'media:resizeCrop': async (input, plan) => {
+    'media:resizeCrop': async (input, plan, name) => {
       resizeCropFilter(plan); // explains a bad crop before anything else
       if (!s.allow.has(input)) throw new Error('Only pictures opened in OneEditor can be cropped.');
-      const path = await s.engine.resizeCropImage(input, plan);
+      const path = await s.engine.resizeCropImage(input, plan, fileNameOnly(name));
       s.allow.add(path);
       return path;
     },
-    'media:combine': async (base, top, plan) => {
+    'media:combine': async (base, top, plan, name) => {
       combineFilter(plan); // explains a bad place before anything else
       if (!s.allow.has(base) || !s.allow.has(top))
         throw new Error('Only pictures opened in OneEditor can be combined.');
-      const path = await s.engine.combineImages(base, top, plan);
+      const path = await s.engine.combineImages(base, top, plan, fileNameOnly(name));
       s.allow.add(path);
       return path;
     },

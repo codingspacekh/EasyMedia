@@ -15,6 +15,7 @@ export default tseslint.config(
       'spikes/',
       'test-results/',
       'playwright-report/',
+      'documents/', // gitignored: exam papers' own files and the benchmark scripts
     ],
   },
   js.configs.recommended,
