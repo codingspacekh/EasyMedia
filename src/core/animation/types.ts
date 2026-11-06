@@ -14,16 +14,30 @@ export interface Stage {
   background: string;
   fps: number;
   length: number;
+  /**
+   * AN8, AN15: true: a GIF and the web page play once and stop on the last frame. Absent: they
+   * play again and again (as every animation did before the choice existed).
+   */
+  playOnce?: boolean;
 }
 
-/** AN6: how the inside of a shape (or the letters of text) is coloured. Colours are hex. */
+/** AN6: a colour between a gradient's first and last, `at` % of the way along (0–100). */
+export interface GradientStop {
+  at: number;
+  colour: string;
+}
+
+/**
+ * AN6: how the inside of a shape (or the letters of text) is coloured. Colours are hex. A
+ * gradient runs from `from` to `to`, through its `stops` (absent: none, as in older files).
+ */
 export type Paint =
   | { kind: 'none' }
   | { kind: 'solid'; colour: string }
   /** `angle` in degrees: 0 runs left to right, 90 top to bottom. */
-  | { kind: 'linear'; from: string; to: string; angle: number }
-  /** From the centre outwards. */
-  | { kind: 'radial'; from: string; to: string };
+  | { kind: 'linear'; from: string; to: string; angle: number; stops?: GradientStop[] }
+  /** From its centre outwards: `cx`, `cy` in % of the box (absent: 50, the middle). */
+  | { kind: 'radial'; from: string; to: string; stops?: GradientStop[]; cx?: number; cy?: number };
 
 export type Dash = 'solid' | 'dashed' | 'dotted';
 
@@ -44,6 +58,9 @@ export type TweenProperty =
   | 'width'
   | 'height'
   | 'rotation'
+  /** AN25: the skews, in degrees (absent on an object: 0). */
+  | 'skewX'
+  | 'skewY'
   | 'opacity'
   | 'fillColour'
   | 'strokeColour'
@@ -112,6 +129,25 @@ interface ObjectBase {
   fill: Paint;
   /** Absent: no outline. */
   stroke?: Stroke;
+  /**
+   * AN23: mirrored in its own box, left to right (flipX) or top to bottom (flipY), after its turn.
+   * Absent: not flipped. Text and pictures are mirrored too, as Animate's Flip does.
+   */
+  flipX?: boolean;
+  flipY?: boolean;
+  /**
+   * AN25: slanted in its own box, in degrees (−80 to 80), before its flip and turn: skewX leans
+   * it as italic letters lean (its top to the right), skewY drops its right side. Absent: 0.
+   */
+  skewX?: number;
+  skewY?: number;
+  /**
+   * AN27: the point it turns about (Animate's transformation point), as fractions of its box from
+   * its top-left corner: { x: 0.5, y: 1 } is the middle of its bottom edge (a meter's needle, a
+   * pendulum). It may lie outside the box (a moon going round the Earth). Its flip and skew are
+   * about it too, and on a motion path it is this point that follows the path. Absent: the centre.
+   */
+  pivot?: { x: number; y: number };
   /** AN9: keyframes, one track per animated property. Absent or empty: the object stays still. */
   tracks?: Track[];
   /**
@@ -164,6 +200,11 @@ export interface PathObject extends ObjectBase {
   kind: 'path';
   points: PathPoint[];
   closed: boolean;
+  /**
+   * AN24: holes cut out of a closed shape (Combine ▸ Cut out), each an outline in the same box,
+   * filled even-odd. Absent: no holes.
+   */
+  holes?: PathPoint[][];
 }
 
 export type TextAlign = 'left' | 'centre' | 'right';
@@ -178,6 +219,11 @@ export interface TextObject extends ObjectBase {
   bold: boolean;
   italic: boolean;
   align: TextAlign;
+  /**
+   * AN26: the words bent along an arc, −100 to 100: up like a rainbow when more than 0, down like
+   * a smile when less; at ±100 the widest line closes into a circle. Absent: 0, straight.
+   */
+  curve?: number;
 }
 
 /** AN5: an imported picture, kept in `AnimationDoc.pictures`. */
@@ -257,6 +303,35 @@ export interface Picture {
   height: number;
 }
 
+/**
+ * AN28: a sound in the animation (a secondary component, syllabus 20.1): a sound file (its path
+ * relative to the animation file, X1) or a built-in sound effect (X8), heard from the frame
+ * `start`. Several sounds may overlap: they are mixed.
+ */
+export interface AnimSound {
+  id: Id;
+  /** What the timeline shows: the file's name or the sound effect's. */
+  name: string;
+  path: string;
+  /** X8: the built-in sound effect it was made from; made again if its file has gone. */
+  effect?: string;
+  /** The whole file's length in seconds. */
+  duration: number;
+  /** The frame it starts at. */
+  start: number;
+  /** Trim: the seconds of the file skipped at its start. Absent: 0. */
+  offset?: number;
+  /** Trim: the seconds heard. Absent: to the end of the file. */
+  length?: number;
+  /** 0–200 %; 100 is the file as it is. */
+  volume: number;
+  /** Seconds of fading in and out. Absent: none. */
+  fadeIn?: number;
+  fadeOut?: number;
+  /** Not heard (kept for later). Absent: heard. */
+  muted?: boolean;
+}
+
 /** AN2: guides are dragged out of the rulers; stage pixels. */
 export interface Guides {
   /** Vertical guides, by their x. */
@@ -283,6 +358,8 @@ export interface AnimationDoc {
   layers: Layer[];
   folders: LayerFolder[];
   pictures: Picture[];
+  /** AN28: absent when there are none, so older versions of the app still open the file. */
+  sounds?: AnimSound[];
   guides: Guides;
   view: ViewSettings;
 }

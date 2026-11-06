@@ -99,7 +99,7 @@
   class="primary"
   aria-label="Export"
   title={withWhy(
-    'Export the animation as an MP4 video, an animated GIF, an HTML web page, a PNG sequence, or this frame as a PNG',
+    'Export the animation as an MP4, AVI or MOV video (with its sounds), an animated GIF, an HTML web page, a PNG sequence, or this frame as a PNG or SVG',
     'animExport',
   )}
   disabled={$store.busy !== null}

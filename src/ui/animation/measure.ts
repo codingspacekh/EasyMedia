@@ -1,5 +1,6 @@
 // AN4: a text object's box is the size of its words on screen, measured with the bundled font
 // (the drawing uses the same font string). Without a canvas (tests) the rough estimate stays.
+import { curvedText, curveOf } from '../../core/animation/curve.ts';
 import { fontOf, LINE_HEIGHT } from '../../core/animation/draw.ts';
 import { roughTextWidth } from '../../core/animation/factory.ts';
 import type { TextObject } from '../../core/animation/types.ts';
@@ -22,11 +23,19 @@ function sharedMeasurer(): Measurer | null {
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-/** The box that fits the words: the widest line, and a line height of 1.2 per line. */
+/**
+ * The box that fits the words: the widest line, and a line height of 1.2 per line. AN26: curved
+ * words, the bounds of their letters on the arc.
+ */
 export function textBox(
   t: TextObject,
   ctx: Measurer | null = sharedMeasurer(),
 ): { width: number; height: number } {
+  if (curveOf(t) !== 0) {
+    if (ctx) ctx.font = fontOf(t);
+    const bent = curvedText(t, (s) => (ctx ? ctx.measureText(s).width : roughTextWidth(s, t.size)));
+    return { width: round(Math.max(1, bent.width)), height: round(Math.max(1, bent.height)) };
+  }
   const lines = t.text.split('\n');
   const height = round(Math.max(1, lines.length) * t.size * LINE_HEIGHT);
   if (!ctx) return { width: round(roughTextWidth(t.text, t.size)), height };

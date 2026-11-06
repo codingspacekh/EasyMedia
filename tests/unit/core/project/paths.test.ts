@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { fromProjectPath, toProjectPath } from '../../../../src/core/project/paths.ts';
+import {
+  cleanFileName,
+  fromProjectPath,
+  madePicturePath,
+  namedPath,
+  toProjectPath,
+  withExtension,
+} from '../../../../src/core/project/paths.ts';
 
 describe('X1 media paths are stored relative to the project file', () => {
   describe('toProjectPath', () => {
@@ -37,6 +44,36 @@ describe('X1 media paths are stored relative to the project file', () => {
     );
     expect(fromProjectPath('/Users/teacher/Marking/Task11d', stored)).toBe(
       '/Users/teacher/Marking/Task11d/media/Lake.mp4',
+    );
+  });
+});
+
+describe('V11, V18 a new picture named by the student, beside the original', () => {
+  it("takes the original's folder and kind of file (m25credits.png → credits.png)", () => {
+    expect(namedPath('/m/m25credits.png', 'credits')).toBe('/m/credits.png');
+    expect(namedPath('C:\\m\\j26bg.png', 'bg')).toBe('C:\\m\\bg.png');
+  });
+
+  it('a name typed with its own extension keeps only one', () => {
+    expect(namedPath('/m/j26bg.png', 'bg.png')).toBe('/m/bg.png');
+  });
+
+  it('characters no file name may have become "-"; spaces round it go', () => {
+    expect(cleanFileName('  a/b:c*d?  ')).toBe('a-b-c-d-');
+    expect(cleanFileName('   ')).toBe('');
+  });
+});
+
+describe('AN5 a picture made see-through is a PNG beside the original', () => {
+  it('takes the .png ending (pearl.jpg → pearl.png), numbered or named as the other new pictures', () => {
+    expect(withExtension('/m/pearl.jpg', '.png')).toBe('/m/pearl.png');
+    expect(withExtension('C:\\m\\shell.photo.JPG', '.png')).toBe('C:\\m\\shell.photo.png');
+    expect(withExtension('/m.d/noext', '.png')).toBe('/m.d/noext.png');
+    expect(madePicturePath(withExtension('/m/pearl.jpg', '.png'), undefined, 0)).toBe(
+      '/m/pearl1.png',
+    );
+    expect(madePicturePath(withExtension('/m/pearl.jpg', '.png'), 'cut out', 1)).toBe(
+      '/m/cut out2.png',
     );
   });
 });

@@ -1,10 +1,14 @@
 <script lang="ts">
   import Why from './Why.svelte';
+  import Dialog from './Dialog.svelte';
   // Project settings (V1, screen 11): aspect ratio, resolution, frame rate, fit.
   import { untrack } from 'svelte';
   import type { App } from '../app/app.ts';
   import { setProjectSettings } from '../app/commands.ts';
   import type { ProjectSettings } from '../core/model/types.ts';
+  import { sizeFromClip } from '../core/model/settings.ts';
+  import { turnedSize } from '../core/effects/turn.ts';
+  import { fileNameOf } from '../core/project/relocate.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
 
@@ -13,6 +17,7 @@
       [3840, 2160],
       [1920, 1080],
       [1280, 720],
+      [854, 480],
       [640, 360],
     ],
     '4:3': [
@@ -36,6 +41,45 @@
   let fit = $state(current.fit ?? 'letterbox');
   let error: string | null = $state(null);
 
+  /**
+   * V1 "Match a clip": every video file with its size — turned as its first clip on the
+   * timeline is turned (V19). The first clip on the timeline is chosen to start with.
+   */
+  const clips = untrack(() => {
+    const { history, assets } = app.store.get();
+    const { media, timeline } = history.present;
+    return media.flatMap((asset) => {
+      const size = assets[asset.id]?.size;
+      if (asset.kind !== 'video' || !size) return [];
+      const clip = timeline.main.find((m) => m.type === 'video' && m.assetId === asset.id);
+      const shown = clip && clip.type === 'video' ? turnedSize(size, clip) : size;
+      return [{ id: asset.id, name: fileNameOf(asset.path), ...shown }];
+    });
+  });
+  const firstOnTimeline = untrack(() =>
+    app.store.get().history.present.timeline.main.find((m) => m.type === 'video'),
+  );
+  let clipId = $state(
+    clips.find((c) => firstOnTimeline?.type === 'video' && c.id === firstOnTimeline.assetId)?.id ??
+      clips[0]?.id,
+  );
+
+  /** Takes the size and shape from the chosen clip; nothing changes until Apply. */
+  function useClip(): void {
+    const clip = clips.find((c) => c.id === clipId);
+    if (!clip) return;
+    ({ aspect, width, height } = sizeFromClip(clip));
+  }
+
+  /** The sizes offered; a size of this shape that is not in the list (from a clip) comes first. */
+  const sizes = $derived.by(() => {
+    if (aspect === 'custom') return [];
+    const listed = SIZES[aspect];
+    return listed.some(([w, h]) => w === width && h === height)
+      ? listed
+      : [[width, height] as [number, number], ...listed];
+  });
+
   function chooseAspect(next: ProjectSettings['aspect']): void {
     aspect = next;
     if (next !== 'custom' && !SIZES[next].some(([w, h]) => w === width && h === height)) {
@@ -54,127 +98,105 @@
   }
 </script>
 
-<!-- Escape closes it, as every dialog (not while it is working). -->
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
+<Dialog label="Project settings" syllabus="11.1 aspect ratio" width={560} {onclose}>
+  <fieldset>
+    <legend>Aspect ratio</legend>
+    {#each ['16:9', '4:3', 'Custom'] as label (label)}
+      {@const value = label === 'Custom' ? 'custom' : label}
+      <label class="choice">
+        <input
+          type="radio"
+          name="aspect"
+          checked={aspect === value}
+          onchange={() => chooseAspect(value as ProjectSettings['aspect'])}
+        />
+        {label}
+      </label>
+    {/each}
+  </fieldset>
 
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Project settings">
-    <h2>Project settings <span class="syl">11.1 aspect ratio</span></h2>
-
-    <fieldset>
-      <legend>Aspect ratio</legend>
-      {#each ['16:9', '4:3', 'Custom'] as label (label)}
-        {@const value = label === 'Custom' ? 'custom' : label}
+  <fieldset>
+    <legend>Resolution</legend>
+    {#if aspect === 'custom'}
+      <label class="size"
+        >Width <input type="number" bind:value={width} min="16" max="7680" step="2" /></label
+      >
+      <label class="size"
+        >Height <input type="number" bind:value={height} min="16" max="7680" step="2" /></label
+      >
+    {:else}
+      {#each sizes as [w, h] (`${w}x${h}`)}
         <label class="choice">
           <input
             type="radio"
-            name="aspect"
-            checked={aspect === value}
-            onchange={() => chooseAspect(value as ProjectSettings['aspect'])}
+            name="size"
+            checked={width === w && height === h}
+            onchange={() => ([width, height] = [w, h])}
           />
-          {label}
+          {w} × {h}
         </label>
       {/each}
-    </fieldset>
+    {/if}
+  </fieldset>
 
+  {#if clips.length}
     <fieldset>
-      <legend>Resolution</legend>
-      {#if aspect === 'custom'}
-        <label class="size"
-          >Width <input type="number" bind:value={width} min="16" max="7680" step="2" /></label
-        >
-        <label class="size"
-          >Height <input type="number" bind:value={height} min="16" max="7680" step="2" /></label
-        >
-      {:else}
-        {#each SIZES[aspect] as [w, h] (`${w}x${h}`)}
-          <label class="choice">
-            <input
-              type="radio"
-              name="size"
-              checked={width === w && height === h}
-              onchange={() => ([width, height] = [w, h])}
-            />
-            {w} × {h}
-          </label>
-        {/each}
-      {/if}
+      <legend>Match a clip</legend>
+      <label class="size"
+        >Clip
+        <select bind:value={clipId}>
+          {#each clips as clip (clip.id)}
+            <option value={clip.id}>{clip.name} · {clip.width} × {clip.height}</option>
+          {/each}
+        </select></label
+      >
+      <button onclick={useClip}>Use this clip’s size</button>
+      <p class="hint">
+        Sets the size and shape from the clip, so it fills the frame. Press Apply to keep it.
+      </p>
     </fieldset>
+  {/if}
 
-    <fieldset>
-      <legend>Frame rate</legend>
-      {#each [24, 25, 30] as const as rate (rate)}
-        <label class="choice">
-          <input type="radio" name="fps" checked={fps === rate} onchange={() => (fps = rate)} />
-          {rate} fps
-        </label>
-      {/each}
-    </fieldset>
+  <fieldset>
+    <legend>Frame rate</legend>
+    {#each [24, 25, 30] as const as rate (rate)}
+      <label class="choice">
+        <input type="radio" name="fps" checked={fps === rate} onchange={() => (fps = rate)} />
+        {rate} fps
+      </label>
+    {/each}
+  </fieldset>
 
-    <fieldset>
-      <legend>If a clip has a different shape</legend>
-      {#each FITS as [value, label, hint] (value)}
-        <label class="choice">
-          <input
-            type="radio"
-            name="fit"
-            aria-label={label}
-            checked={fit === value}
-            onchange={() => (fit = value)}
-          />
-          {label} <span class="hint">{hint}</span>
-        </label>
-      {/each}
-    </fieldset>
+  <fieldset>
+    <legend>If a clip has a different shape</legend>
+    {#each FITS as [value, label, hint] (value)}
+      <label class="choice">
+        <input
+          type="radio"
+          name="fit"
+          aria-label={label}
+          checked={fit === value}
+          onchange={() => (fit = value)}
+        />
+        {label} <span class="hint">{hint}</span>
+      </label>
+    {/each}
+  </fieldset>
 
-    <Why tool="aspectRatio" title="Why does aspect ratio matter?" />
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
+  <Why tool="aspectRatio" title="Why does aspect ratio matter?" />
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
 
-    <div class="actions">
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" onclick={apply}>Apply</button>
-    </div>
-  </div>
-</div>
+  {#snippet buttons()}
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" onclick={apply}>Apply</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(6, 7, 9, 0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-  }
-  .dialog {
-    width: 560px;
-    max-height: 90vh;
-    overflow: auto;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 18px;
-  }
-  h2 {
-    font-size: 15px;
-    margin: 0 0 12px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .syl {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--tx-3);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 0 4px;
-  }
   fieldset {
     border: 0;
     padding: 0;
-    margin: 0 0 12px;
+    margin: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 6px 14px;
@@ -197,16 +219,18 @@
   .size input {
     width: 90px;
   }
+  .size select {
+    max-width: 260px;
+  }
+  fieldset > .hint {
+    width: 100%;
+    margin: 0;
+  }
   .hint {
     color: var(--tx-3);
     font-size: 11.5px;
   }
   .error {
     color: var(--danger);
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
   }
 </style>

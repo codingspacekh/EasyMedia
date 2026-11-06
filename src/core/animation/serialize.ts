@@ -3,11 +3,11 @@
 import { ProjectFileError } from '../model/errors.ts';
 import { migrate, type Migration, type ProjectDocument } from '../project/migrate.ts';
 import { fromProjectPath, toProjectPath } from '../project/paths.ts';
-import { isColour } from './rules.ts';
+import { isColour, isStageBackground } from './rules.ts';
 import type { AnimationDoc, ObjectKind } from './types.ts';
 
 export const ANIMATION_SCHEMA = 4;
-export const ANIMATION_DAMAGED = 'This file is not an EasyMedia animation, or it is damaged.';
+export const ANIMATION_DAMAGED = 'This file is not a OneEditor animation, or it is damaged.';
 
 /** Add an entry whenever the animation format changes (see core/project/migrate.ts). */
 export const ANIMATION_MIGRATIONS: Record<number, Migration> = {
@@ -40,6 +40,8 @@ export function deserializeAnimation(text: string): AnimationDoc {
 const relocate = (doc: AnimationDoc, map: (path: string) => string): AnimationDoc => ({
   ...doc,
   pictures: doc.pictures.map((p) => ({ ...p, path: map(p.path) })),
+  // AN28: sounds too (absent when there are none, so older versions still open the file).
+  ...(doc.sounds ? { sounds: doc.sounds.map((s) => ({ ...s, path: map(s.path) })) } : {}),
 });
 
 export const animationToDisk = (doc: AnimationDoc, dir: string): AnimationDoc =>
@@ -74,6 +76,10 @@ const KINDS: ObjectKind[] = [
 
 const ACTIONS = ['pause', 'continue', 'restart', 'goto'];
 
+/** AN6: a gradient's colours between from and to, each at a % of the way. */
+const isStops = (v: unknown) =>
+  v === undefined || listOf(v, (s) => isNumber(s.at) && isColour(s.colour));
+
 function isPaint(p: unknown): boolean {
   if (!isObject(p)) return false;
   switch (p.kind) {
@@ -82,9 +88,15 @@ function isPaint(p: unknown): boolean {
     case 'solid':
       return isColour(p.colour);
     case 'linear':
-      return isColour(p.from) && isColour(p.to) && isNumber(p.angle);
+      return isColour(p.from) && isColour(p.to) && isNumber(p.angle) && isStops(p.stops);
     case 'radial':
-      return isColour(p.from) && isColour(p.to);
+      return (
+        isColour(p.from) &&
+        isColour(p.to) &&
+        isStops(p.stops) &&
+        // AN6: its centre, in % of the box.
+        ['cx', 'cy'].every((k) => p[k] === undefined || isNumber(p[k]))
+      );
     default:
       return false;
   }
@@ -125,6 +137,19 @@ function isAnimObject(o: Obj): boolean {
   if (o.tracks !== undefined && !listOf(o.tracks, isTrack)) return false;
   if (o.paths !== undefined && !(Array.isArray(o.paths) && o.paths.every(isMotion))) return false;
   if (o.drawing !== undefined && !isNumber(o.drawing)) return false;
+  if (
+    (o.flipX !== undefined && !isBoolean(o.flipX)) ||
+    (o.flipY !== undefined && !isBoolean(o.flipY))
+  )
+    return false;
+  if (
+    (o.skewX !== undefined && !isNumber(o.skewX)) ||
+    (o.skewY !== undefined && !isNumber(o.skewY))
+  )
+    return false;
+  // AN27: the point it turns about, as fractions of its box.
+  if (o.pivot !== undefined && !(isObject(o.pivot) && has(o.pivot, ['x', 'y'], isNumber)))
+    return false;
   switch (o.kind) {
     case 'rect':
       return isNumber(o.radius);
@@ -133,12 +158,18 @@ function isAnimObject(o: Obj): boolean {
     case 'polygon':
       return isNumber(o.sides);
     case 'path':
-      return isBoolean(o.closed) && listOf(o.points, (p) => has(p, ['x', 'y'], isNumber));
+      return (
+        isBoolean(o.closed) &&
+        listOf(o.points, (p) => has(p, ['x', 'y'], isNumber)) &&
+        (o.holes === undefined || (Array.isArray(o.holes) && o.holes.every(isPathPoints)))
+      );
     case 'text':
       return (
         has(o, ['text', 'font', 'align'], isString) &&
         isNumber(o.size) &&
-        has(o, ['bold', 'italic'], isBoolean)
+        has(o, ['bold', 'italic'], isBoolean) &&
+        // AN26: the bend along an arc.
+        (o.curve === undefined || isNumber(o.curve))
       );
     case 'picture':
       return isString(o.pictureId);
@@ -157,6 +188,14 @@ function isAnimObject(o: Obj): boolean {
   }
 }
 
+/** AN28: a sound: its file, length, start, volume, and the optional trim, fades and mute. */
+const isSound = (s: Obj): boolean =>
+  has(s, ['id', 'name', 'path'], isString) &&
+  has(s, ['duration', 'start', 'volume'], isNumber) &&
+  (s.effect === undefined || isString(s.effect)) &&
+  ['offset', 'length', 'fadeIn', 'fadeOut'].every((k) => s[k] === undefined || isNumber(s[k])) &&
+  (s.muted === undefined || isBoolean(s.muted));
+
 function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDoc {
   const { stage, guides, view } = doc;
   return (
@@ -164,7 +203,8 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
     isString(doc.name) &&
     isObject(stage) &&
     has(stage, ['width', 'height', 'fps', 'length'], isNumber) &&
-    isColour(stage.background) &&
+    isStageBackground(stage.background) &&
+    (stage.playOnce === undefined || isBoolean(stage.playOnce)) &&
     listOf(
       doc.layers,
       (l) =>
@@ -180,6 +220,7 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
       doc.pictures,
       (p) => has(p, ['id', 'path'], isString) && has(p, ['width', 'height'], isNumber),
     ) &&
+    (doc.sounds === undefined || listOf(doc.sounds, isSound)) &&
     isObject(guides) &&
     Array.isArray(guides.x) &&
     Array.isArray(guides.y) &&

@@ -165,6 +165,75 @@ describe('M6 text in the export (V4–V7)', () => {
     expect(g).toContain(`overlay=x=${m.x}:y=${m.y}:enable='between(t,2,${2 + caption.duration})'`);
   });
 
+  it('V7 title presets: spinning words are cut out, turned into a square, then scaled', () => {
+    const caption = {
+      ...createTextItem('caption', 'Hi', 2, { id: 'c1' }),
+      entrance: 'spin' as const,
+    };
+    const anchor = { x: 960, y: 950 };
+    const box = { x: 860, y: 920, width: 200, height: 60 };
+    const m = motionExpressions(
+      caption,
+      2,
+      caption.duration,
+      { width: 1920, height: 1080 },
+      anchor,
+      box,
+    );
+    const w = m.window!;
+    const g = graph(
+      compileProject(
+        project([{ ...clip, out: 10 }], [caption]),
+        options({ c1: { ...full('/c1.png'), anchor, box } }),
+      ).args,
+    );
+    expect(g).toContain(
+      `[1:v]format=rgba,crop=w=${w.width}:h=${w.height}:x=${w.x}:y=${w.y},` +
+        `rotate=a='${m.angle}':ow=${m.size}:oh=${m.size}:c=none,` +
+        `scale=w='max(1,iw*(${m.scale}))':h='max(1,ih*(${m.scale}))':eval=frame[t0]`,
+    );
+    expect(g).toContain(`overlay=x=${m.x}:y=${m.y}:enable='between(t,2,${2 + caption.duration})'`);
+  });
+
+  it('V7 title presets: typing on keeps only what is left of the moving edge', () => {
+    const caption = {
+      ...createTextItem('caption', 'Hi', 2, { id: 'c1' }),
+      entrance: 'type-on' as const,
+    };
+    const anchor = { x: 960, y: 950 };
+    const box = { x: 860, y: 920, width: 200, height: 60 };
+    const m = motionExpressions(
+      caption,
+      2,
+      caption.duration,
+      { width: 1920, height: 1080 },
+      anchor,
+      box,
+    );
+    const g = graph(
+      compileProject(
+        project([{ ...clip, out: 10 }], [caption]),
+        options({ c1: { ...full('/c1.png'), anchor, box } }),
+      ).args,
+    );
+    expect(g).toContain(
+      `[1:v]format=rgba,pad=w=3840:h=1080:x=1920:y=0:color=black@0,crop=w=1920:h=1080:x='${m.edge}':y=0[t0]`,
+    );
+    expect(g).toContain(`overlay=x=${m.x}:y=${m.y}:`);
+  });
+
+  it('V7 title presets: slam fades the words in over its first half second', () => {
+    const caption = {
+      ...createTextItem('caption', 'Hi', 2, { id: 'c1' }),
+      entrance: 'slam' as const,
+    };
+    const g = graph(
+      compileProject(project([{ ...clip, out: 10 }], [caption]), options({ c1: full('/c1.png') }))
+        .args,
+    );
+    expect(g).toContain('[1:v]format=rgba,fade=t=in:st=2:d=0.5:alpha=1,scale=');
+  });
+
   it('rise and sink fade the words over their second (as well as any fade set)', () => {
     const caption = {
       ...createTextItem('caption', 'Hi', 2, { id: 'c1' }),

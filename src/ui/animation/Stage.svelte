@@ -4,32 +4,19 @@
   // applied as one undo step when the pointer is let go.
   import type { App } from '../../app/app.ts';
   import { drawStage, type StageCanvas } from '../../core/animation/draw.ts';
+  import { withLayers } from '../../adapters/canvas/layers.ts';
   import { onionSkin } from '../../core/animation/frames.ts';
-  import {
-    createEllipse,
-    createLine,
-    createPath,
-    createPolygon,
-    createRect,
-    createStar,
-  } from '../../core/animation/factory.ts';
+  import { TRANSPARENT } from '../../core/animation/rules.ts';
   import {
     angleOf,
-    boundsOf,
-    centreOf,
-    hitTest,
-    moved,
-    resizeFrom,
-    rotated,
+    pivotOf,
+    pivotOnStage,
     snapAngle,
-    toStage,
-    type Bounds,
     type Handle,
     type Point,
   } from '../../core/animation/geometry.ts';
-  import { drawOrder, findObject, updateObject } from '../../core/animation/layers.ts';
+  import { findObject } from '../../core/animation/layers.ts';
   import {
-    anchorsOnStage,
     cornerPoint,
     insertPoint,
     moveAnchor,
@@ -39,10 +26,29 @@
   } from '../../core/animation/pen.ts';
   import { snapBox } from '../../core/animation/snap.ts';
   import { stateAt } from '../../core/animation/state.ts';
-  import type { AnimObject, AnimationDoc, Id, PathObject } from '../../core/animation/types.ts';
+  import type { PathObject } from '../../core/animation/types.ts';
   import { toMediaUrl } from '../../core/media-url.ts';
   import { animUi, SNAP_PX } from './animation-ui.svelte.ts';
   import { textBox } from './measure.ts';
+  import PathPoints from './PathPoints.svelte';
+  import SelectionHandles from './SelectionHandles.svelte';
+  import StageGuides from './StageGuides.svelte';
+  import StageRulers from './StageRulers.svelte';
+  import {
+    drawnShape,
+    marqueeBox,
+    objectCorners,
+    objectsInBox,
+    pickObject,
+    boxPivotNear,
+    pivotFrom,
+    previewDoc,
+    roundStage as round,
+    simplifyStroke,
+    sizeCanvas,
+    unionBounds,
+    type StageDrag,
+  } from './stage-geometry.ts';
 
   let { app }: { app: App } = $props();
   const anim = $derived(app.animation);
@@ -76,24 +82,7 @@
     Math.max(MARGIN, Math.floor((areaH - rulerSize - stage.height * zoom) / 2)),
   );
 
-  type Drag =
-    | { kind: 'move'; start: Point; ids: Id[]; union: Bounds; dx: number; dy: number }
-    | { kind: 'marquee'; start: Point; now: Point }
-    | {
-        kind: 'draw';
-        tool: 'rect' | 'ellipse' | 'star' | 'polygon' | 'line';
-        start: Point;
-        now: Point;
-        square: boolean;
-      }
-    | { kind: 'brush'; points: Point[] }
-    | { kind: 'resize'; id: Id; handle: Handle; now: Point; lock: boolean }
-    | { kind: 'rotate'; id: Id; centre: Point; degrees: number }
-    | { kind: 'guide'; axis: 'x' | 'y'; index: number | null; value: number }
-    /** AN3: a pen path's point moved, or its curve handles pulled out (Alt). */
-    | { kind: 'anchor'; id: Id; index: number; now: Point; pull: boolean; moved: boolean }
-    | { kind: 'curve'; id: Id; index: number; which: 'in' | 'out'; now: Point; alone: boolean };
-  let drag: Drag | null = $state(null);
+  let drag: StageDrag | null = $state(null);
   /** The pen's points so far (AN3). */
   let pen: Point[] = $state([]);
   let penNow: Point | null = $state(null);
@@ -108,90 +97,8 @@
   );
   const single = $derived(selected.length === 1 ? selected[0]! : null);
 
-  /** The temporary shape of a draw drag, in stage coordinates. */
-  function drawn(d: Extract<Drag, { kind: 'draw' }>): AnimObject {
-    let { x: x2, y: y2 } = d.now;
-    if (d.tool === 'line') return { ...createLine(d.start, d.now), id: 'temp' };
-    let w = x2 - d.start.x;
-    let h = y2 - d.start.y;
-    if (d.square) {
-      const s = Math.max(Math.abs(w), Math.abs(h));
-      w = Math.sign(w || 1) * s;
-      h = Math.sign(h || 1) * s;
-      x2 = d.start.x + w;
-      y2 = d.start.y + h;
-    }
-    const box = {
-      x: Math.min(d.start.x, x2),
-      y: Math.min(d.start.y, y2),
-      width: Math.abs(w),
-      height: Math.abs(h),
-    };
-    const make = {
-      rect: createRect,
-      ellipse: createEllipse,
-      star: createStar,
-      polygon: createPolygon,
-    };
-    return { ...make[d.tool](box), id: 'temp' };
-  }
-
   /** The document as it looks during the drag. */
-  const shown = $derived.by((): AnimationDoc => {
-    const d = drag;
-    if (!d) return doc;
-    const withTemp = (o: AnimObject) => ({
-      ...doc,
-      layers: doc.layers.map((l) =>
-        l.id === $store.layerId ? { ...l, objects: [...l.objects, o] } : l,
-      ),
-    });
-    switch (d.kind) {
-      case 'move':
-        return d.ids.reduce((acc, id) => {
-          try {
-            return updateObject(acc, id, (o) => moved(o, d.dx, d.dy));
-          } catch {
-            return acc;
-          }
-        }, doc);
-      case 'draw':
-        return withTemp(drawn(d));
-      case 'brush':
-        return d.points.length >= 2
-          ? withTemp({ ...createPath(d.points, false), id: 'temp' })
-          : doc;
-      case 'resize':
-        try {
-          return updateObject(doc, d.id, (o) =>
-            resizeFrom(o, d.handle, d.now, { lockRatio: d.lock }),
-          );
-        } catch {
-          return doc;
-        }
-      case 'rotate':
-        try {
-          return updateObject(doc, d.id, (o) => rotated(o, d.degrees));
-        } catch {
-          return doc;
-        }
-      case 'anchor':
-        if (!d.moved) return doc;
-        return updateObject(doc, d.id, (o) =>
-          o.kind !== 'path'
-            ? o
-            : d.pull
-              ? pullHandles(o, d.index, d.now)
-              : moveAnchor(o, d.index, d.now),
-        );
-      case 'curve':
-        return updateObject(doc, d.id, (o) =>
-          o.kind === 'path' ? moveHandle(o, d.index, d.which, d.now, !d.alone) : o,
-        );
-      default:
-        return doc;
-    }
-  });
+  const shown = $derived(previewDoc(doc, drag, $store.layerId));
 
   // ---- pictures (AN5): loaded once each; the stage is drawn again when one arrives ----
   // A plain cache, not state: the stage is drawn again through `loaded` when a picture arrives.
@@ -236,13 +143,15 @@
 
   $effect(() => {
     void loaded;
-    const ctx = canvas?.getContext('2d');
+    // N4: drawn in ordinary memory: on the graphics card, Chromium keeps the shapes of every
+    // frame played in its caches (over 300 MB for 100 moving objects), for no faster a stage.
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
     if (!canvas || !ctx) return;
     const dpr = globalThis.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(stage.width * zoom * dpr));
-    canvas.height = Math.max(1, Math.round(stage.height * zoom * dpr));
+    // N1: the same canvas from frame to frame, cleared and its settings reset as a resize would.
+    if (!sizeCanvas(canvas, stage, zoom, dpr)) ctx.reset();
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, 0, 0);
-    drawStage(ctx as unknown as StageCanvas, shown, {
+    drawStage(withLayers(ctx) as unknown as StageCanvas, shown, {
       image,
       // AN12: a mask works on the stage while its layer is locked, as in the coursebook.
       editing: true,
@@ -272,30 +181,6 @@
     animUi.snapped = r.to;
     return { x: p.x + r.dx, y: p.y + r.dy };
   }
-  const round = (n: number) => Math.round(n * 100) / 100;
-
-  /** The front-most object under the point that can be picked (its layer shown and unlocked). */
-  function pick(p: Point): AnimObject | null {
-    const order = drawOrder(doc);
-    for (let i = order.length - 1; i >= 0; i--) {
-      const { layer, object } = order[i]!;
-      if (!layer.locked && hitTest(object, p)) return object;
-    }
-    return null;
-  }
-
-  function union(objects: readonly AnimObject[]): Bounds {
-    const bs = objects.map(boundsOf);
-    const x = Math.min(...bs.map((b) => b.x));
-    const y = Math.min(...bs.map((b) => b.y));
-    return {
-      x,
-      y,
-      width: Math.max(...bs.map((b) => b.x + b.width)) - x,
-      height: Math.max(...bs.map((b) => b.y + b.height)) - y,
-    };
-  }
-
   // ---- the drag ----
   function track(move: (e: PointerEvent) => void, up: (e: PointerEvent) => void): void {
     const onMove = (e: PointerEvent) => move(e);
@@ -315,7 +200,7 @@
     const tool = $store.tool;
     const raw = at(e);
     if (tool === 'select') {
-      const hit = pick(raw);
+      const hit = pickObject(doc, raw);
       if (!hit) {
         drag = { kind: 'marquee', start: raw, now: raw };
         track(
@@ -323,29 +208,12 @@
             if (drag?.kind === 'marquee') drag = { ...drag, now: at(m) };
           },
           (u) => {
-            const end = at(u);
-            const box = {
-              x: Math.min(raw.x, end.x),
-              y: Math.min(raw.y, end.y),
-              width: Math.abs(end.x - raw.x),
-              height: Math.abs(end.y - raw.y),
-            };
+            const box = marqueeBox(raw, at(u));
             if (box.width < 3 && box.height < 3) {
               anim.select([]);
               return;
             }
-            const inside = drawOrder(doc)
-              .filter(({ layer, object }) => {
-                if (layer.locked) return false;
-                const b = boundsOf(object);
-                return (
-                  b.x < box.x + box.width &&
-                  b.x + b.width > box.x &&
-                  b.y < box.y + box.height &&
-                  b.y + b.height > box.y
-                );
-              })
-              .map(({ object }) => object.id);
+            const inside = objectsInBox(doc, box);
             anim.select(inside);
           },
         );
@@ -365,7 +233,7 @@
         const f = findObject(doc, id);
         return f ? [f.object] : [];
       });
-      const u = union(objects);
+      const u = unionBounds(objects);
       drag = { kind: 'move', start: raw, ids, union: u, dx: 0, dy: 0 };
       track(
         (m) => {
@@ -426,7 +294,7 @@
         },
         () => {
           if (drag?.kind !== 'brush') return;
-          const simple = simplify(drag.points, 2 / zoom);
+          const simple = simplifyStroke(drag.points, 2 / zoom);
           if (simple.length >= 2) anim.addPath(simple, false);
         },
       );
@@ -442,7 +310,7 @@
       },
       () => {
         if (drag?.kind !== 'draw') return;
-        const o = drawn(drag);
+        const o = drawnShape(drag);
         if (o.width < 2 && o.height < 2) return;
         const box = {
           x: round(o.x),
@@ -458,17 +326,6 @@
         else anim.addShape(drag.tool, box);
       },
     );
-  }
-
-  /** Fewer points for a brush stroke: drop those closer than `min` to the last kept one. */
-  function simplify(points: Point[], min: number): Point[] {
-    const out: Point[] = [];
-    for (const p of points) {
-      const last = out.at(-1);
-      if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= min)
-        out.push({ x: round(p.x), y: round(p.y) });
-    }
-    return out;
   }
 
   function finishPen(closed: boolean): void {
@@ -550,18 +407,59 @@
     e.stopPropagation();
     if (!single) return;
     const id = single.id;
-    const centre = centreOf(single);
+    // AN27: it turns about its point (the centre unless another is chosen), by as much as the
+    // pointer goes round that point.
+    const centre = pivotOnStage(single);
+    const from = single.rotation - angleOf(centre, at(e));
     drag = { kind: 'rotate', id, centre, degrees: single.rotation };
     track(
       (m) => {
         if (drag?.kind !== 'rotate') return;
-        const deg = angleOf(centre, at(m));
+        const deg = from + angleOf(centre, at(m));
         drag = { ...drag, degrees: m.shiftKey ? snapAngle(deg, 15) : Math.round(deg) };
       },
       () => {
         if (drag?.kind === 'rotate') anim.rotateSelected(id, drag.degrees);
       },
     );
+  }
+
+  /**
+   * AN27: the point the object turns about, dragged: it snaps to the box's centre, corners and
+   * edge middles, and to the grid, guides and other objects when snapping is on (Alt: not at all).
+   */
+  function startPivot(e: PointerEvent): void {
+    e.stopPropagation();
+    if (!single) return;
+    const object = single;
+    const id = object.id;
+    const start = pivotOf(object);
+    drag = { kind: 'pivot', id, pivot: start };
+    track(
+      (m) => {
+        if (drag?.kind !== 'pivot') return;
+        const p = at(m);
+        const pivot =
+          (m.altKey ? null : boxPivotNear(object, p, threshold())) ??
+          pivotFrom(object, snapPoint(p, m.altKey));
+        drag = { ...drag, pivot };
+      },
+      () => {
+        if (drag?.kind !== 'pivot') return;
+        const { pivot } = drag;
+        if (pivot.x !== start.x || pivot.y !== start.y) anim.setPivot(pivot, [id]);
+      },
+    );
+  }
+
+  /**
+   * AN27: a double-click on the point puts it back in the centre of the box. Already there, the
+   * double-click is the stage's own (text's words are edited).
+   */
+  function centrePivot(e: MouseEvent): void {
+    if (!single?.pivot) return;
+    e.stopPropagation();
+    anim.setPivot(null, [single.id]);
   }
 
   /** AN2: a guide dragged out of a ruler, or an existing one moved (off the stage removes it). */
@@ -600,7 +498,7 @@
       finishPen(false);
       return;
     }
-    const hit = pick(at(e));
+    const hit = pickObject(doc, at(e));
     // AN3: a double-click on the selected pen path adds a point there.
     if (editablePath && hit?.id === editablePath.id) {
       const p = at(e);
@@ -624,11 +522,6 @@
     }
   }
 
-  // ---- rulers ----
-  const step = $derived([5, 10, 20, 50, 100, 200, 500, 1000].find((s) => s * zoom >= 48) ?? 1000);
-  const ticks = (length: number) =>
-    Array.from({ length: Math.floor(length / step) + 1 }, (_, i) => i * step);
-  const minor = $derived(step / 5);
   const CURSORS: Record<string, string> = {
     select: 'default',
     text: 'text',
@@ -637,24 +530,6 @@
     brush: 'crosshair',
   };
 
-  /** The selection box of an object, on the stage. */
-  const corners = (o: AnimObject) =>
-    [
-      { x: 0, y: 0 },
-      { x: o.width, y: 0 },
-      { x: o.width, y: o.height },
-      { x: 0, y: o.height },
-    ].map((c) => toStage(o, c));
-  const handlePoints = (o: AnimObject): [Handle, Point][] => [
-    ['nw', toStage(o, { x: 0, y: 0 })],
-    ['n', toStage(o, { x: o.width / 2, y: 0 })],
-    ['ne', toStage(o, { x: o.width, y: 0 })],
-    ['e', toStage(o, { x: o.width, y: o.height / 2 })],
-    ['se', toStage(o, { x: o.width, y: o.height })],
-    ['s', toStage(o, { x: o.width / 2, y: o.height })],
-    ['sw', toStage(o, { x: 0, y: o.height })],
-    ['w', toStage(o, { x: 0, y: o.height / 2 })],
-  ];
   const shownSingle = $derived(single ? (findObject(shown, single.id)?.object ?? single) : null);
   const hs = $derived(HANDLE / zoom);
 </script>
@@ -668,74 +543,14 @@
     style:height="{rulerSize + stage.height * zoom + 2 * padY}px"
   >
     {#if view.rulers}
-      <div class="corner" style:width="{RULER}px" style:height="{RULER}px"></div>
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <svg
-        class="ruler top"
-        style:left="{RULER}px"
-        width={stage.width * zoom + 2 * padX}
-        height={RULER}
-        aria-label="Horizontal ruler"
-        onpointerdown={(e) => startGuide(e, 'y', null)}
-      >
-        {#each ticks(stage.width) as t (t)}
-          <line x1={padX + t * zoom} y1={RULER - 8} x2={padX + t * zoom} y2={RULER} />
-          <text x={padX + t * zoom + 2} y={9}>{t}</text>
-          {#if minor * zoom >= 5}
-            {#each [1, 2, 3, 4] as m (m)}
-              <line
-                x1={padX + (t + m * minor) * zoom}
-                y1={RULER - 4}
-                x2={padX + (t + m * minor) * zoom}
-                y2={RULER}
-              />
-            {/each}
-          {/if}
-        {/each}
-        {#if animUi.pointer}
-          <line
-            class="mark"
-            x1={padX + animUi.pointer.x * zoom}
-            y1={0}
-            x2={padX + animUi.pointer.x * zoom}
-            y2={RULER}
-          />
-        {/if}
-      </svg>
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <svg
-        class="ruler left"
-        style:top="{RULER}px"
-        width={RULER}
-        height={stage.height * zoom + 2 * padY}
-        aria-label="Vertical ruler"
-        onpointerdown={(e) => startGuide(e, 'x', null)}
-      >
-        {#each ticks(stage.height) as t (t)}
-          <line x1={RULER - 8} y1={padY + t * zoom} x2={RULER} y2={padY + t * zoom} />
-          <text x={-(padY + t * zoom) - 2} y={9} transform="rotate(-90)" text-anchor="end">{t}</text
-          >
-          {#if minor * zoom >= 5}
-            {#each [1, 2, 3, 4] as m (m)}
-              <line
-                x1={RULER - 4}
-                y1={padY + (t + m * minor) * zoom}
-                x2={RULER}
-                y2={padY + (t + m * minor) * zoom}
-              />
-            {/each}
-          {/if}
-        {/each}
-        {#if animUi.pointer}
-          <line
-            class="mark"
-            x1={0}
-            y1={padY + animUi.pointer.y * zoom}
-            x2={RULER}
-            y2={padY + animUi.pointer.y * zoom}
-          />
-        {/if}
-      </svg>
+      <StageRulers
+        {stage}
+        {zoom}
+        {padX}
+        {padY}
+        size={RULER}
+        onguide={(e, axis) => startGuide(e, axis, null)}
+      />
     {/if}
     <div
       class="paper"
@@ -745,7 +560,12 @@
       style:width="{stage.width * zoom}px"
       style:height="{stage.height * zoom}px"
     >
-      <canvas bind:this={canvas} style:width="100%" style:height="100%"></canvas>
+      <canvas
+        bind:this={canvas}
+        class:transparent={stage.background === TRANSPARENT}
+        style:width="100%"
+        style:height="100%"
+      ></canvas>
       <svg
         class="overlay"
         role="application"
@@ -776,57 +596,18 @@
           </defs>
           <rect width={stage.width} height={stage.height} fill="url(#grid)" />
         {/if}
-        {#each doc.guides.x as gx, i (i)}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <line
-            class="guide"
-            x1={drag?.kind === 'guide' && drag.axis === 'x' && drag.index === i ? drag.value : gx}
-            y1={0}
-            x2={drag?.kind === 'guide' && drag.axis === 'x' && drag.index === i ? drag.value : gx}
-            y2={stage.height}
-            vector-effect="non-scaling-stroke"
-            onpointerdown={(e) => startGuide(e, 'x', i)}
-          />
-        {/each}
-        {#each doc.guides.y as gy, i (i)}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <line
-            class="guide"
-            x1={0}
-            y1={drag?.kind === 'guide' && drag.axis === 'y' && drag.index === i ? drag.value : gy}
-            x2={stage.width}
-            y2={drag?.kind === 'guide' && drag.axis === 'y' && drag.index === i ? drag.value : gy}
-            vector-effect="non-scaling-stroke"
-            onpointerdown={(e) => startGuide(e, 'y', i)}
-          />
-        {/each}
-        {#if drag?.kind === 'guide' && drag.index === null}
-          {#if drag.axis === 'x'}
-            <line
-              class="guide new"
-              x1={drag.value}
-              y1={0}
-              x2={drag.value}
-              y2={stage.height}
-              vector-effect="non-scaling-stroke"
-            />
-          {:else}
-            <line
-              class="guide new"
-              x1={0}
-              y1={drag.value}
-              x2={stage.width}
-              y2={drag.value}
-              vector-effect="non-scaling-stroke"
-            />
-          {/if}
-        {/if}
+        <StageGuides
+          guides={doc.guides}
+          {stage}
+          dragging={drag?.kind === 'guide' ? drag : null}
+          onguide={startGuide}
+        />
         {#if drag?.kind !== 'draw' && drag?.kind !== 'brush'}
           {#each selected as o (o.id)}
             {@const live = findObject(shown, o.id)?.object ?? o}
             <polygon
               class="sel"
-              points={corners(live)
+              points={objectCorners(live)
                 .map((c) => `${c.x},${c.y}`)
                 .join(' ')}
               vector-effect="non-scaling-stroke"
@@ -835,85 +616,24 @@
         {/if}
         <!-- A pen path shows its points instead of the box's handles (its size and turn are in Properties). -->
         {#if shownSingle && $store.tool === 'select' && drag?.kind !== 'move' && !editablePath}
-          {@const top = toStage(shownSingle, { x: shownSingle.width / 2, y: 0 })}
-          {@const knob = toStage(shownSingle, { x: shownSingle.width / 2, y: -22 / zoom })}
-          <line
-            class="sel"
-            x1={top.x}
-            y1={top.y}
-            x2={knob.x}
-            y2={knob.y}
-            vector-effect="non-scaling-stroke"
+          <SelectionHandles
+            object={shownSingle}
+            {zoom}
+            size={hs}
+            onrotate={startRotate}
+            onresize={startResize}
+            onpivot={startPivot}
+            oncentre={centrePivot}
           />
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <circle
-            class="handle rotate"
-            cx={knob.x}
-            cy={knob.y}
-            r={hs / 2}
-            vector-effect="non-scaling-stroke"
-            aria-label="Rotate"
-            onpointerdown={startRotate}
-          />
-          {#each handlePoints(shownSingle) as [handle, p] (handle)}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <rect
-              class="handle"
-              x={p.x - hs / 2}
-              y={p.y - hs / 2}
-              width={hs}
-              height={hs}
-              vector-effect="non-scaling-stroke"
-              style:cursor="{handle}-resize"
-              aria-label="Resize {handle}"
-              onpointerdown={(e) => startResize(e, handle)}
-            />
-          {/each}
         {/if}
         {#if editablePath && drag?.kind !== 'move'}
-          {@const shownPath = (findObject(shown, editablePath.id)?.object ??
-            editablePath) as PathObject}
-          {#each anchorsOnStage(shownPath) as a, i (i)}
-            {#each [['in', a.in], ['out', a.out]] as const as [which, h] (which)}
-              {#if h}
-                <line
-                  class="curve"
-                  x1={a.x}
-                  y1={a.y}
-                  x2={h.x}
-                  y2={h.y}
-                  vector-effect="non-scaling-stroke"
-                />
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <circle
-                  class="handle curve-handle"
-                  cx={h.x}
-                  cy={h.y}
-                  r={hs / 2.5}
-                  vector-effect="non-scaling-stroke"
-                  aria-label="Curve handle"
-                  onpointerdown={(e) => startCurve(e, i, which)}
-                />
-              {/if}
-            {/each}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <rect
-              class="handle anchor"
-              x={a.x - hs / 2.5}
-              y={a.y - hs / 2.5}
-              width={(2 * hs) / 2.5}
-              height={(2 * hs) / 2.5}
-              vector-effect="non-scaling-stroke"
-              aria-label="Point {i + 1}"
-              onpointerdown={(e) => startAnchor(e, i)}
-              ondblclick={(e) => removeAnchor(e, i)}
-            >
-              <title
-                >Drag to move · Alt-drag for a curve · Alt-click for a corner · double-click to
-                remove</title
-              >
-            </rect>
-          {/each}
+          <PathPoints
+            path={(findObject(shown, editablePath.id)?.object ?? editablePath) as PathObject}
+            size={hs}
+            onanchor={startAnchor}
+            oncurve={startCurve}
+            onremove={removeAnchor}
+          />
         {/if}
         {#if drag?.kind === 'marquee'}
           <rect
@@ -960,42 +680,6 @@
     min-width: 100%;
     min-height: 100%;
   }
-  .corner {
-    position: absolute;
-    left: 0;
-    top: 0;
-    background: var(--bg-1);
-    border-right: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    z-index: 2;
-  }
-  .ruler {
-    position: absolute;
-    background: var(--bg-1);
-    z-index: 1;
-    cursor: crosshair;
-    user-select: none;
-  }
-  .ruler.top {
-    top: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .ruler.left {
-    left: 0;
-    border-right: 1px solid var(--line);
-  }
-  .ruler line {
-    stroke: var(--tx-3);
-    stroke-width: 1;
-  }
-  .ruler line.mark {
-    stroke: var(--accent);
-  }
-  .ruler text {
-    fill: var(--tx-3);
-    font-size: 9px;
-    font-family: var(--mono);
-  }
   .paper {
     position: absolute;
     box-shadow:
@@ -1004,6 +688,10 @@
   }
   canvas {
     display: block;
+  }
+  /* AN21: a stage with no background shows a checkerboard, as image editors do. */
+  canvas.transparent {
+    background: repeating-conic-gradient(#d9d9d9 0% 25%, #ffffff 0% 50%) 0 0 / 16px 16px;
   }
   .overlay {
     position: absolute;
@@ -1016,14 +704,6 @@
     stroke: rgba(0, 0, 0, 0.14);
     stroke-width: 1;
   }
-  .guide {
-    stroke: #28c2d1;
-    stroke-width: 1;
-    cursor: move;
-  }
-  .guide.new {
-    stroke-dasharray: 4 3;
-  }
   .sel {
     fill: none;
     stroke: var(--accent);
@@ -1033,22 +713,6 @@
     fill: #fff;
     stroke: var(--accent);
     stroke-width: 1;
-  }
-  .handle.rotate {
-    cursor: grab;
-  }
-  .handle.anchor {
-    fill: var(--accent);
-    stroke: #fff;
-    cursor: move;
-  }
-  .handle.curve-handle {
-    cursor: crosshair;
-  }
-  .curve {
-    stroke: var(--accent);
-    stroke-width: 1;
-    stroke-dasharray: 3 2;
   }
   .marquee {
     fill: rgba(79, 140, 255, 0.12);

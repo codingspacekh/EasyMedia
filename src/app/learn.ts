@@ -20,6 +20,7 @@ import {
 } from '../core/teaching/task-check.ts';
 import { createStore, type Store } from './store.ts';
 import { webPageInfo } from '../core/animation/html.ts';
+import { unexpected } from './problems.ts';
 
 export interface ComparisonItem {
   label: string;
@@ -62,7 +63,6 @@ export interface LearnDeps {
 /** T3: how much of a file the comparison exports (README: 5–10 s). */
 export const AUDIO_SECONDS = 10;
 export const VIDEO_SECONDS = 5;
-const UNEXPECTED = 'Something went wrong. Please try again.';
 const FIRST = 'Inspect a file first (Choose a file, or drop one on the inspector).';
 const DEFAULT_TASK: TaskSpec = {
   name: 'My task',
@@ -110,7 +110,9 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
       message: {
         kind: 'error',
         text:
-          error instanceof MediaError || error instanceof EditError ? error.message : UNEXPECTED,
+          error instanceof MediaError || error instanceof EditError
+            ? error.message
+            : unexpected(error),
       },
     });
   const out = (n: number, extension: string) => `${paths.learn}/compare-${n}.${extension}`;
@@ -333,7 +335,7 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
 
     /**
      * T6: checks an exported file against the task, row by row: a video, sound or GIF (probed),
-     * an EasyMedia web page (AN17: read from the animation it carries), or every picture of a PNG
+     * a OneEditor web page (AN17: read from the animation it carries), or every picture of a PNG
      * sequence chosen together (checked as one sequence).
      */
     async checkExport(path?: string): Promise<void> {
@@ -345,7 +347,7 @@ export function createLearnApp({ engine, dialogs, files, paths }: LearnDeps) {
         let info: CheckedFile;
         if (/\.html?$/i.test(first)) {
           const page = webPageInfo(await files.read(first));
-          if (!page) throw new EditError('This page is not a web animation exported by EasyMedia.');
+          if (!page) throw new EditError('This page is not a web animation exported by OneEditor.');
           info = page;
         } else {
           const probed = await engine.probe(first);

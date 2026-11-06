@@ -62,6 +62,8 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
     resetLayout: () => app.layout.reset(),
     welcome: app.showWelcome,
     licences: app.showLicences,
+    updates: () => app.updates.openDialog(),
+    candidate: () => app.candidate.openDialog(),
     selectAll: () => {
       const box = inTextBox();
       if (box) box.select();

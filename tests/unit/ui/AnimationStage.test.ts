@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { tick } from 'svelte';
+import { pickColour } from '../../helpers/colour.ts';
 import App from '../../../src/ui/App.svelte';
 import { animUi } from '../../../src/ui/animation/animation-ui.svelte.ts';
 import type {
@@ -68,11 +69,13 @@ describe('the drawing tools', () => {
     expect(s.objects().map((o) => o.kind)).toEqual(['ellipse', 'star', 'polygon', 'path']);
     expect(s.objects()[1]).toMatchObject({ width: 60, height: 60 });
     expect(s.objects()[3]).toMatchObject({ x: 0, y: 500, width: 600, height: 0 });
-    // A drag too small to be a shape adds nothing.
+  });
+
+  it('a drag too small to be a shape adds nothing; dragged up and to the left works too', async () => {
+    const s = await mode();
     await s.tool('Rectangle');
     await drag(s.stage(), [10, 10], [11, 11]);
-    expect(s.objects()).toHaveLength(4);
-    // Dragged up and to the left works too.
+    expect(s.objects()).toHaveLength(0);
     await s.tool('Rectangle');
     await drag(s.stage(), [100, 100], [60, 70]);
     expect(s.objects().at(-1)).toMatchObject({ x: 60, y: 70, width: 40, height: 30 });
@@ -387,9 +390,7 @@ describe('toolbar, status bar and stage settings', () => {
     await fireEvent.change(within(dialog).getByLabelText('Length', { exact: true }), {
       target: { value: '72' },
     });
-    await fireEvent.change(within(dialog).getByLabelText('Colour swatch'), {
-      target: { value: '#123456' },
-    });
+    await pickColour('Colour swatch', '#123456', { inside: dialog });
     await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
     expect(s.doc().stage).toMatchObject({
       width: 600,
@@ -490,9 +491,7 @@ describe('the Properties panel in detail', () => {
     expect(s.objects()[0]!.fill).toEqual({ kind: 'solid', colour: '#FF1CC8' });
     await fillColour('red');
     expect(screen.getByRole('alert').textContent).toMatch(/colour such as/);
-    await fireEvent.change(screen.getAllByLabelText(/Colour swatch/)[1]!, {
-      target: { value: '#00ff00' },
-    });
+    await pickColour('Colour swatch', '#00ff00', { index: 1 });
     expect(s.objects()[0]!.stroke!.colour).toBe('#00ff00');
     await typeIn('Width', '3.5');
     await fireEvent.change(screen.getByLabelText('Style'), { target: { value: 'dotted' } });
@@ -532,6 +531,51 @@ describe('the Properties panel in detail', () => {
     await fireEvent.click(screen.getByRole('button', { name: /^Font:/ }));
     await fireEvent.click(screen.getByRole('radio', { name: /Montserrat/ }));
     expect((s.objects()[2] as TextObject).font).toBe('Montserrat');
+  });
+
+  it('AN23, AN24 Arrange: order, flip and combine in their own rows (issues/animate-2.png)', async () => {
+    const s = await mode();
+    s.anim.addShape('rect', { x: 0, y: 0, width: 100, height: 100 });
+    await tick();
+    s.anim.addShape('ellipse', { x: 60, y: 30, width: 80, height: 40 });
+    await tick();
+    s.anim.select([s.objects()[0]!.id]);
+    await tick();
+    const row = (name: string) => screen.getByRole('group', { name });
+    expect(within(row('Order')).getAllByRole('button')).toHaveLength(4);
+    await fireEvent.click(within(row('Flip')).getByRole('button', { name: 'Flip horizontal' }));
+    expect(s.objects()[0]!.flipX).toBe(true);
+    await fireEvent.click(within(row('Flip')).getByRole('button', { name: 'Flip vertical' }));
+    expect(s.objects()[0]!.flipY).toBe(true);
+    // Combining needs two or more shapes.
+    const cut = within(row('Combine shapes')).getByRole('button', { name: 'Cut out' });
+    expect((cut as HTMLButtonElement).disabled).toBe(true);
+    s.anim.select(s.objects().map((o) => o.id));
+    await tick();
+    await fireEvent.click(within(row('Combine shapes')).getByRole('button', { name: 'Cut out' }));
+    expect(s.objects().map((o) => o.kind)).toEqual(['path']);
+    for (const name of ['Union', 'Intersect'])
+      expect(within(row('Combine shapes')).getByRole('button', { name })).toBeTruthy();
+  });
+
+  it('AN5 Arrange ▸ Select ▸ Same fill picks every part of that colour (a traced map, M/J/21)', async () => {
+    const s = await mode();
+    for (const x of [0, 20, 40]) {
+      s.anim.addShape('rect', { x, y: 0, width: 10, height: 10 });
+      if (x !== 20) s.anim.setProperties({ fill: { kind: 'solid', colour: '#3A7DC9' } });
+    }
+    s.anim.select([s.objects()[0]!.id]);
+    await tick();
+    const row = within(screen.getByRole('group', { name: 'Select same colour' }));
+    await fireEvent.click(row.getByRole('button', { name: 'Select same fill colour' }));
+    expect(s.state().selection).toEqual([s.objects()[0]!.id, s.objects()[2]!.id]);
+    expect(screen.getByText('Selected 2 objects with this fill.')).toBeTruthy();
+    await fireEvent.click(
+      within(screen.getByRole('group', { name: 'Select same colour' })).getByRole('button', {
+        name: 'Select same outline colour',
+      }),
+    );
+    expect(s.state().selection).toHaveLength(3);
   });
 
   it('arrange buttons, the layer picker, Group / Ungroup / Duplicate / Delete, several selected', async () => {

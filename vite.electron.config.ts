@@ -21,7 +21,7 @@ export const playerBuild: UserConfig = {
     lib: {
       entry: 'src/player/main.ts',
       formats: ['iife'],
-      name: 'EasyMediaPlayer',
+      name: 'OneEditorPlayer',
       fileName: () => 'player.js',
     },
   },
@@ -41,7 +41,14 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       lib: { entry, formats: ['cjs'], fileName: () => `${name}.cjs` },
       rollupOptions: {
-        external: ['electron', ...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
+        // electron-updater (M17a U1) is a runtime package of the installed app, loaded only when
+        // updates are on, so it is left out of the bundle.
+        external: [
+          'electron',
+          'electron-updater',
+          ...builtinModules,
+          ...builtinModules.map((m) => `node:${m}`),
+        ],
       },
     },
   };

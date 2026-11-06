@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { animationTitle } from '../../../src/app/animation.ts';
 import { createAnimation, createRect } from '../../../src/core/animation/factory.ts';
 import { serializeAnimation } from '../../../src/core/animation/serialize.ts';
+import { objectAt } from '../../../src/core/animation/tween.ts';
 import type { AnimObject, StarObject } from '../../../src/core/animation/types.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -71,6 +72,129 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     expect(s.objects()[0]!.rotation).toBe(45);
   });
 
+  it('AN4: resizing a text box scales its letters; on a later frame the size is keyframed too', () => {
+    const s = setup();
+    s.anim.addText({ x: 100, y: 100 }, 'OPEN DAY', () => ({ width: 200, height: 48 }));
+    const t = s.objects()[0]!;
+    const size = t.kind === 'text' ? t.size : 0;
+    s.anim.resizeSelected(t.id, 'se', { x: 500, y: 196 }, false);
+    expect(s.objects()[0]).toMatchObject({
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 96,
+      size: size * 2,
+    });
+    s.anim.undo();
+    expect(s.objects()[0]).toMatchObject({ width: 200, height: 48, size });
+    s.anim.setFrame(10);
+    s.anim.resizeSelected(t.id, 'se', { x: 200, y: 124 }, false);
+    const tracks = s.objects()[0]!.tracks ?? [];
+    const sizeTrack = tracks.find((k) => k.property === 'size');
+    expect(sizeTrack?.keyframes.map((f) => [f.frame, f.value])).toEqual([
+      [0, size],
+      [10, size / 2],
+    ]);
+  });
+
+  it('AN4 AN6 a font size typed in Properties keeps the top-left corner as typed, on every frame (WB Task 1.1: the text stays at 193, 73)', () => {
+    const s = setup();
+    s.anim.addText({ x: 100, y: 100 }, 'OPEN DAY', () => ({ width: 200, height: 48 }));
+    const t = s.objects()[0]!;
+    const size = t.kind === 'text' ? t.size : 0;
+    expect(s.anim.setProperties({ size: size * 2, width: 400, height: 96 } as never)).toBeNull();
+    expect(s.objects()[0]).toMatchObject({ x: 100, y: 100, width: 400, height: 96 });
+    s.anim.undo();
+    s.anim.setFrame(10);
+    s.anim.setProperties({ size: size * 2, width: 400, height: 96 } as never);
+    const keyed = s.objects()[0]!;
+    expect(objectAt(keyed, 10)).toMatchObject({ x: 100, y: 100, width: 400, size: size * 2 });
+    expect(objectAt(keyed, 5)).toMatchObject({ x: 100, y: 100 });
+  });
+
+  it("AN18: a button's label size typed in Properties is kept (it is not a font-size keyframe)", () => {
+    const s = setup();
+    s.anim.addButton({ x: 100, y: 100 });
+    expect(s.anim.setProperties({ size: 30 } as never)).toBeNull();
+    expect(s.objects()[0]).toMatchObject({ kind: 'button', size: 30 });
+    s.anim.setFrame(10);
+    expect(s.anim.setProperties({ size: 24 } as never)).toBeNull();
+    expect(s.objects()[0]).toMatchObject({ size: 24 });
+    expect(s.objects()[0]!.tracks?.some((t) => t.property === 'size')).toBeFalsy();
+  });
+
+  it('AN23 Flip horizontal / vertical mirrors the selection; one undo step each', () => {
+    const s = setup();
+    s.star();
+    s.anim.flip('horizontal');
+    expect(s.objects()[0]!.flipX).toBe(true);
+    s.anim.flip('vertical');
+    expect(s.objects()[0]).toMatchObject({ flipX: true, flipY: true });
+    s.anim.undo();
+    expect(s.objects()[0]!.flipY).toBeUndefined();
+  });
+
+  it('AN24 Combine: union, cut out and intersect replace the selected shapes; text is refused', () => {
+    const s = setup();
+    s.anim.addShape('rect', { x: 0, y: 0, width: 100, height: 100 });
+    s.anim.addShape('ellipse', { x: 60, y: 30, width: 80, height: 40 });
+    s.anim.selectAll();
+    expect(s.anim.combine('cutOut')).toBeNull();
+    expect(s.objects().map((o) => [o.kind, o.name])).toEqual([['path', 'Rectangle']]);
+    expect(s.state().selection).toEqual([s.objects()[0]!.id]);
+    s.anim.undo();
+    expect(s.objects()).toHaveLength(2);
+    s.anim.addText({ x: 10, y: 10 }, 'Hi');
+    s.anim.selectAll();
+    expect(s.anim.combine('union')).toMatch(/Only shapes/);
+    expect(s.objects()).toHaveLength(3);
+  });
+
+  it('AN5 Select same fill / outline colour: the parts of one colour on the layer, at the playhead', () => {
+    const s = setup();
+    const box = { x: 0, y: 0, width: 50, height: 50 };
+    s.anim.addShape('rect', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#3A7DC9' } });
+    const sea = s.state().selection[0]!;
+    s.anim.addShape('ellipse', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#D9C27A' } });
+    s.anim.addShape('star', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#3a7dc9' } });
+    const sea2 = s.state().selection[0]!;
+    // On another layer: not chosen.
+    s.anim.addLayer();
+    s.anim.addShape('rect', box);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#3A7DC9' } });
+    s.anim.select([sea]);
+    s.anim.selectSameColour('fill');
+    expect(s.state().selection).toEqual([sea, sea2]);
+    expect(s.state().message?.text).toBe('Selected 2 objects with this fill.');
+    // A colour keyed later counts as it is at the playhead.
+    s.anim.select([sea2]);
+    s.anim.setFrame(10);
+    s.anim.setProperties({ fill: { kind: 'solid', colour: '#FF0000' } });
+    s.anim.select([sea]);
+    s.anim.selectSameColour('fill');
+    expect(s.state().selection).toEqual([sea]);
+    // Outlines: the three on the layer have the same (the default) outline; then it has none.
+    s.anim.selectSameColour('outline');
+    expect(s.state().selection).toHaveLength(3);
+    expect(s.state().message?.text).toBe('Selected 3 objects with this outline.');
+    s.anim.select([sea]);
+    s.anim.setProperties({ stroke: undefined });
+    s.anim.selectSameColour('outline');
+    expect(s.state().message).toEqual({
+      kind: 'error',
+      text: 'The selected object has no outline.',
+    });
+    // A group has no colour of its own.
+    s.anim.setFrame(0);
+    s.anim.selectAll();
+    s.anim.group();
+    s.anim.selectSameColour('fill');
+    expect(s.state().message?.text).toMatch(/Ungroup it, then select one of its parts/);
+  });
+
   it('deleteSelection, cut / copy / paste, duplicate, group and ungroup', () => {
     const s = setup();
     s.star();
@@ -93,6 +217,18 @@ describe('drawing and editing (AN3, AN4, AN6)', () => {
     s.anim.selectAll();
     s.anim.deleteSelection();
     expect(s.objects()).toEqual([]);
+  });
+
+  it('AN6 a pasted copy is named once: Star 2, then Star 3 (not "Star 2 2"); in another animation it keeps its name', async () => {
+    const s = setup();
+    s.star();
+    s.anim.copy();
+    s.anim.paste();
+    s.anim.paste();
+    expect(s.objects().map((o) => o.name)).toEqual(['Star', 'Star 2', 'Star 3']);
+    await s.anim.newAnimation();
+    s.anim.paste();
+    expect(s.objects().map((o) => o.name)).toEqual(['Star']);
   });
 
   it('reorder brings the selection forward or back', () => {
@@ -215,7 +351,7 @@ describe('files (AN16)', () => {
     s.disk.set('/a/bad.mvea', '{"hello":1}');
     s.dialogs.openAnimation.mockResolvedValueOnce('/a/bad.mvea');
     await s.anim.open();
-    expect(s.state().message?.text).toMatch(/not an EasyMedia animation/);
+    expect(s.state().message?.text).toMatch(/not a OneEditor animation/);
   });
 
   it('new and open ask before discarding unsaved work; the window may not close with unsaved work', async () => {

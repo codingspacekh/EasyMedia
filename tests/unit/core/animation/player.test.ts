@@ -29,6 +29,25 @@ describe('the HTML player (AN15)', () => {
     expect(p.frameAt(at(72 + 36))).toBe(36);
   });
 
+  it('AN8 AN15 play once: stops on the last frame (71) and stays there; Restart plays it again', () => {
+    const p = createPlayer({ ...task1(), stage: { ...task1().stage, playOnce: true } }, 1000);
+    expect(p.frameAt(at(36))).toBe(36);
+    expect(p.frameAt(at(71))).toBe(71);
+    expect(p.frameAt(at(72))).toBe(71);
+    expect(p.frameAt(at(500))).toBe(71);
+    expect(p.state()).toEqual({ frame: 71, playing: false });
+    // Continue on the last frame has nowhere to go: it stays there.
+    p.resume(at(510));
+    expect(p.frameAt(at(520))).toBe(71);
+    p.restart(at(600));
+    expect(p.frameAt(at(610))).toBe(10);
+    expect(p.state().playing).toBe(true);
+    // Paused part-way and continued, it still stops at the end.
+    p.pause(at(620));
+    p.resume(at(700));
+    expect(p.frameAt(at(700 + 100))).toBe(71);
+  });
+
   it('pause keeps the frame; continue goes on from it, not from where the clock is', () => {
     const p = createPlayer(task1(), 1000);
     p.pause(at(10));
@@ -68,5 +87,23 @@ describe('the HTML player (AN15)', () => {
   it('a clock running backwards (a changed computer clock) still gives a frame in range', () => {
     const p = createPlayer(task1(), 1000);
     expect(p.frameAt(0)).toBe(0);
+  });
+
+  it('AN15 a range (frames 24–47): starts at 24, loops back to 24, Restart goes to 24', () => {
+    const p = createPlayer(task1(), 1000, { first: 24, last: 47 });
+    expect(p.frameAt(1000)).toBe(24);
+    expect(p.frameAt(at(23))).toBe(47);
+    expect(p.frameAt(at(24))).toBe(24);
+    p.restart(at(30));
+    expect(p.frameAt(at(30))).toBe(24);
+    // Go to frame keeps inside the range.
+    p.goTo(70, at(31));
+    expect(p.state().frame).toBe(47);
+    const once = createPlayer({ ...task1(), stage: { ...task1().stage, playOnce: true } }, 1000, {
+      first: 24,
+      last: 47,
+    });
+    expect(once.frameAt(at(30))).toBe(47);
+    expect(once.state().playing).toBe(false);
   });
 });

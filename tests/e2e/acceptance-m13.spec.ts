@@ -128,7 +128,7 @@ test('Workbook Task 1 set-up: stage, star, circle and text with exact numbers; s
   await answerDialogs(app, { open: [file] });
   await menu(app, 'File', 'Open Animation…');
   await expect(layerRow(page, 'Layer 1')).toContainText('3 objects');
-  await expect(page).toHaveTitle('Chapter07_Task1_1 — EasyMedia');
+  await expect(page).toHaveTitle('Chapter07_Task1_1 — OneEditor');
   await menu(app, 'Edit', 'Select All');
   await expect(page.getByText('3 selected')).toBeVisible();
   await app.close();

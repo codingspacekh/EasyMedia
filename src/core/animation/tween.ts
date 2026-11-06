@@ -2,7 +2,7 @@
 // tracks and objects; the app's commands wrap them so each change is one undo step.
 import { EditError } from '../model/errors.ts';
 import { LINE_HEIGHT, roughTextWidth } from './factory.ts';
-import { setSize, shiftedMotion } from './geometry.ts';
+import { pivotInBox, setSize, shiftedMotion } from './geometry.ts';
 import { isShapeValue, morphShapes, shapeOf } from './morph.ts';
 import { flattenCurves, pointAtFraction, polylineOf, type Polyline } from './path.ts';
 import { isColour } from './rules.ts';
@@ -32,6 +32,8 @@ export const TWEEN_PROPERTIES: readonly { id: TweenProperty; label: string }[] =
   { id: 'width', label: 'W' },
   { id: 'height', label: 'H' },
   { id: 'rotation', label: 'Rotation' },
+  { id: 'skewX', label: 'Skew horizontal' },
+  { id: 'skewY', label: 'Skew vertical' },
   { id: 'opacity', label: 'Opacity' },
   { id: 'fillColour', label: 'Fill colour' },
   { id: 'strokeColour', label: 'Outline colour' },
@@ -214,6 +216,9 @@ export function propertyOf(object: AnimObject, property: TweenProperty): KeyValu
     case 'picture':
       if (object.kind !== 'picture') throw new EditError('Only a picture shows a picture.');
       return object.pictureId;
+    case 'skewX':
+    case 'skewY':
+      return object[property] ?? 0;
     default:
       return object[property];
   }
@@ -227,6 +232,8 @@ function asShape(o: AnimObject, v: ShapeValue): PathObject {
   if (o.kind === 'text' || o.kind === 'picture' || o.kind === 'button' || o.kind === 'group')
     throw new EditError('Only shapes can morph: not text, pictures, buttons or groups.');
   const { id, name, x, y, width, height, rotation, opacity, fill, stroke, tracks, paths } = o;
+  // Its mirror, skew and pivot (AN23, AN25, AN27) stay as they were: only the outline changes.
+  const { flipX, flipY, skewX, skewY, pivot } = o;
   return {
     kind: 'path',
     id,
@@ -241,6 +248,11 @@ function asShape(o: AnimObject, v: ShapeValue): PathObject {
     ...(stroke ? { stroke } : {}),
     ...(tracks ? { tracks } : {}),
     ...(paths ? { paths } : {}),
+    ...(flipX ? { flipX } : {}),
+    ...(flipY ? { flipY } : {}),
+    ...(skewX !== undefined ? { skewX } : {}),
+    ...(skewY !== undefined ? { skewY } : {}),
+    ...(pivot ? { pivot } : {}),
     points: v.points.map((p) => ({ x: p.x * width, y: p.y * height })),
     closed: v.closed,
   };
@@ -287,7 +299,12 @@ function setOne(object: AnimObject, property: TweenProperty, value: KeyValue): A
       const size = num(value);
       const perPx = object.size > 0 ? object.width / object.size : roughTextWidth(object.text, 1);
       const lines = object.text.split('\n').length;
-      return { ...object, size, width: perPx * size, height: lines * size * LINE_HEIGHT };
+      // AN26: bent words keep their shape, so their box scales as a whole.
+      const height =
+        object.curve && object.size > 0
+          ? (object.height / object.size) * size
+          : lines * size * LINE_HEIGHT;
+      return { ...object, size, width: perPx * size, height };
     }
     case 'text':
       if (object.kind !== 'text') throw new EditError('Only text has words.');
@@ -382,14 +399,18 @@ function pathAt(paths: readonly MotionPath[], frame: number): MotionPath {
   return current;
 }
 
-/** AN11: the object's centre on its path at a frame; turned with it when oriented. */
+/**
+ * AN11: the object on its path at a frame, turned with it when oriented. It is the point it
+ * turns about (AN27; its centre unless another is chosen) that follows the path.
+ */
 function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
   const t = (Math.max(m.from, Math.min(m.to, frame)) - m.from) / (m.to - m.from);
   const p = pointAtFraction(polylineFor(m), ease(m.easing, t), m.even);
+  const pivot = pivotInBox(o);
   return {
     ...o,
-    x: p.x - o.width / 2,
-    y: p.y - o.height / 2,
+    x: p.x - pivot.x,
+    y: p.y - pivot.y,
     ...(m.orient ? { rotation: o.rotation + p.angle } : {}),
   };
 }
@@ -400,10 +421,14 @@ function onPath<T extends AnimObject>(o: T, m: MotionPath, frame: number): T {
  */
 export function objectAt<T extends AnimObject>(object: T, frame: number): T {
   let o: T = object;
+  // A text's font size goes first: it scales the box, and width or height keyframes (Properties
+  // keys the measured box with the size) then give the box exactly, not scaled a second time.
   // The shape goes last, so it is drawn in the box the size keyframes give (AN10).
   const tracks = object.tracks ?? [];
+  const middle = (p: TweenProperty) => p !== 'shape' && p !== 'size';
   for (const track of [
-    ...tracks.filter((t) => t.property !== 'shape'),
+    ...tracks.filter((t) => t.property === 'size'),
+    ...tracks.filter((t) => middle(t.property)),
     ...tracks.filter((t) => t.property === 'shape'),
   ]) {
     if (track.keyframes.length === 0) continue;
@@ -420,9 +445,11 @@ export const isAnimated = (object: AnimObject): boolean =>
   (object.kind === 'group' && object.children.some(isAnimated));
 
 const NUMBER_KEYS = ['x', 'y', 'width', 'height', 'rotation', 'opacity'] as const;
+/** AN25: tweened like the turn; absent (0) on most objects, so only keyed when they are used. */
+const SKEW_KEYS = ['skewX', 'skewY'] as const;
 /** Never copied as plain changes: they are the object's identity, its motion, or follow its size. */
 const DERIVED = new Set(['id', 'tracks', 'children', 'fill', 'stroke']);
-const TWEENED = new Set<string>([...NUMBER_KEYS, 'radius', 'size', 'text']);
+const TWEENED = new Set<string>([...NUMBER_KEYS, ...SKEW_KEYS, 'radius', 'size', 'text']);
 
 const dropTracks = <T extends AnimObject>(o: T, gone: TweenProperty[]): T => {
   if (!o.tracks) return o;
@@ -445,10 +472,12 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
   const n = now as unknown as Record<string, unknown>;
   const x = next as unknown as Record<string, unknown>;
   const plain: Record<string, unknown> = {};
+  // Only text has a font size keyframe; a button's label size (AN18) is a plain change.
+  const tweened = (key: string) => TWEENED.has(key) && !(key === 'size' && next.kind !== 'text');
   for (const key of Object.keys(x))
     if (
       !DERIVED.has(key) &&
-      !TWEENED.has(key) &&
+      !tweened(key) &&
       // A path's points follow its size; a star's number of points is a plain change.
       !(key === 'points' && next.kind === 'path') &&
       x[key] !== n[key]
@@ -473,10 +502,12 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
     (p === 'y' && changed('x')) ||
     (p === 'width' && changed('height')) ||
     (p === 'height' && changed('width'));
-  for (const property of [...NUMBER_KEYS, 'radius', 'size', 'text'] as const)
+  // A text's size goes first, as in objectAt: it scales the box, then the box is keyed exactly.
+  for (const property of ['size', ...NUMBER_KEYS, ...SKEW_KEYS, 'radius', 'text'] as const)
     // (On a still object at frame 0 the partner is set to the value it has: nothing changes.)
     if (path && (property === 'x' || property === 'y')) continue;
-    else if (changed(property) || paired(property)) key(property, x[property] as KeyValue);
+    else if (!tweened(property)) continue;
+    else if (changed(property) || paired(property)) key(property, (x[property] ?? 0) as KeyValue);
   // The fill: a new colour is a keyframe; a change of kind (to a gradient, or none) is plain.
   if (next.fill !== now.fill) {
     if (next.fill.kind === 'solid' && now.fill.kind === 'solid') {
@@ -505,6 +536,9 @@ export function editAt<T extends AnimObject>(object: T, frame: number, change: (
 export function keyableProperties(object: AnimObject): TweenProperty[] {
   return [
     ...NUMBER_KEYS,
+    ...(object.skewX || object.skewY || trackOf(object, 'skewX') || trackOf(object, 'skewY')
+      ? SKEW_KEYS
+      : []),
     ...(object.fill.kind === 'solid' ? (['fillColour'] as const) : []),
     ...(object.stroke ? (['strokeColour', 'strokeWidth'] as const) : []),
     ...(object.kind === 'rect' ? (['radius'] as const) : []),

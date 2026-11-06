@@ -39,7 +39,7 @@ test('import → timeline → preview → export', async () => {
       ((document.querySelector('[data-preview="video"] video') as HTMLVideoElement | null)
         ?.readyState ?? 0) >= 2,
   );
-  await window.getByRole('button', { name: 'Play' }).click();
+  await window.getByRole('button', { name: 'Play', exact: true }).click();
   await expect(window.locator('.transport .tc')).not.toHaveText(/^00:00\.00/, { timeout: 5_000 });
   await window.getByRole('button', { name: 'Pause' }).click();
 
@@ -57,10 +57,10 @@ test('File ▸ Save writes a project with relative media paths; the title shows 
   await answerDialogs(app, { open: [join(dir, CLIP)], save: project });
   await window.getByRole('button', { name: 'Import' }).click();
   await expect(window.getByText(CLIP)).toBeVisible();
-  await expect(window).toHaveTitle('Untitled • — EasyMedia');
+  await expect(window).toHaveTitle('Untitled • — OneEditor');
 
   await menu(app, 'File', 'Save');
-  await expect(window).toHaveTitle('Task_11b.mve — EasyMedia');
+  await expect(window).toHaveTitle('Task_11b.mve — OneEditor');
   expect(JSON.parse(await readFile(project, 'utf8')).media[0].path).toBe(CLIP);
   await app.close();
 });

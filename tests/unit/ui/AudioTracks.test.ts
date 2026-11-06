@@ -81,6 +81,14 @@ describe('V13 split, join and speed of a sound (like a video clip)', () => {
     expect(sound().speed).toBe(2);
     expect(screen.getByText(/30\.00 s ÷ 2 = 15\.00 s on the timeline/)).toBeTruthy();
   });
+
+  it('V14 the sound speed can be typed too, e.g. 1.25×', async () => {
+    const { app, sound } = await withMusic();
+    render(Inspector, { props: { app } });
+    await type('Speed', '1.25');
+    expect(sound().speed).toBe(1.25);
+    expect(screen.getByText(/30\.00 s ÷ 1\.25 = 24\.00 s on the timeline/)).toBeTruthy();
+  });
 });
 
 describe('V13 audio inspector (screen 08)', () => {
@@ -113,6 +121,29 @@ describe('V13 audio inspector (screen 08)', () => {
       fadeIn: 1,
       fadeOut: 3,
     });
+  });
+
+  it('V13 volume changes: added at the playhead, typed to 0.01 s, removed; one undo step each', async () => {
+    const { app, sound } = await withMusic(); // music from 5 s; the video ends at 10 s
+    app.setPlayhead(6);
+    render(Inspector, { props: { app } });
+    expect(screen.queryByRole('group', { name: 'Volume change 1' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Add a volume change' }));
+    expect(sound().volumeChanges).toEqual([{ from: 6, to: 10, volume: 0.5 }]);
+    const change = within(screen.getByRole('group', { name: 'Volume change 1' }));
+    const box = (label: string) => change.getByLabelText(label) as HTMLInputElement;
+    await fireEvent.change(box('From'), { target: { value: '7.25' } });
+    await fireEvent.change(box('To'), { target: { value: '8.5' } });
+    await fireEvent.change(box('New volume'), { target: { value: '30' } });
+    await fireEvent.change(box('Glide'), { target: { value: '0.5' } });
+    expect(sound().volumeChanges).toEqual([{ from: 7.25, to: 8.5, volume: 0.3, ramp: 0.5 }]);
+    expect(screen.getByText(/30 % from 7\.25 s to 8\.50 s/)).toBeTruthy();
+    await fireEvent.change(box('To'), { target: { value: '7' } });
+    expect(change.getByRole('alert').textContent).toMatch(/ends after it starts/i);
+    await fireEvent.click(change.getByRole('button', { name: 'Remove volume change 1' }));
+    expect(sound()).not.toHaveProperty('volumeChanges');
+    app.undo();
+    expect(sound().volumeChanges).toHaveLength(1);
   });
 
   it('starts at the playhead with one click', async () => {

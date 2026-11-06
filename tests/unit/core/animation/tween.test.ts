@@ -85,6 +85,16 @@ describe('tweens with Task 1 numbers (AN9)', () => {
     expect(objectAt(fromZero, 72).width).toBeGreaterThan(100);
   });
 
+  it('a size typed at a later frame with its measured box keeps that box (not scaled twice)', () => {
+    // M17 exam trial: Properties keys the measured W and H with the size; the size keyframe
+    // must not scale them again (W came out 1264 instead of 452).
+    const text = { ...createText('Gas', { x: 10, y: 20, size: 40 }), width: 200, height: 48 };
+    const keyed = editAt(text, 30, (now) => ({ ...now, size: 90, width: 452, height: 108 }));
+    expect(objectAt(keyed, 30)).toMatchObject({ size: 90, width: 452, height: 108 });
+    expect(objectAt(keyed, 0)).toMatchObject({ size: 40, width: 200, height: 48 });
+    expect(objectAt(keyed, 15).width).toBeCloseTo(326, 6);
+  });
+
   it("a star's turn 0 → 360° in 72 frames, repeated, is 90° at frame 18 and 90° again at frame 90", () => {
     let star = createStar({ x: 128, y: 102, width: 135, height: 135 });
     star = setPropertyAt(star, 'rotation', 72, 360);

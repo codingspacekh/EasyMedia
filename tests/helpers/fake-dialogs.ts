@@ -17,6 +17,7 @@ export function fakeDialogs() {
     saveTaskCheck: vi.fn<Dialogs['saveTaskCheck']>(async () => null),
     openAnimation: vi.fn<Dialogs['openAnimation']>(async () => null),
     openPicture: vi.fn<Dialogs['openPicture']>(async () => null),
+    openSound: vi.fn<Dialogs['openSound']>(async () => null),
     openFrames: vi.fn<Dialogs['openFrames']>(async () => []),
     openExport: vi.fn<Dialogs['openExport']>(async () => []),
     saveAnimation: vi.fn<Dialogs['saveAnimation']>(async () => null),

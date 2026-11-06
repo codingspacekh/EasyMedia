@@ -1,6 +1,7 @@
 // P1: reading and writing .mve project files (JSON).
 import { ProjectFileError } from '../model/errors.ts';
 import type { Project } from '../model/types.ts';
+import { AUDIO_TRACK_COUNT } from '../model/timeline.ts';
 import { CURRENT_SCHEMA, DAMAGED, migrate, type ProjectDocument } from './migrate.ts';
 
 export function serializeProject(project: Project): string {
@@ -45,8 +46,10 @@ function isProject(doc: ProjectDocument): doc is ProjectDocument & Project {
     listOf(timeline.main, isMainItem) &&
     listOf(timeline.text, isTextItem) &&
     Array.isArray(timeline.audio) &&
-    timeline.audio.length === 2 &&
+    timeline.audio.length >= 2 &&
+    timeline.audio.length <= AUDIO_TRACK_COUNT &&
     timeline.audio.every((track) => listOf(track, isAudioItem)) &&
+    (timeline.overlay === undefined || listOf(timeline.overlay, isOverlayItem)) &&
     (doc.audioMode === undefined || isAudioMode(doc.audioMode))
   );
 }
@@ -77,7 +80,8 @@ function isMediaAsset(m: Obj): boolean {
     has(m, ['id', 'path'], isString) &&
     ['video', 'image', 'audio'].includes(m.kind as string) &&
     (m.duration === undefined || isNumber(m.duration)) &&
-    (m.hasAudio === undefined || typeof m.hasAudio === 'boolean')
+    (m.hasAudio === undefined || typeof m.hasAudio === 'boolean') &&
+    (m.soundEffect === undefined || isString(m.soundEffect))
   );
 }
 
@@ -87,11 +91,12 @@ function isMainItem(m: Obj): boolean {
     case 'video':
       return (
         isString(m.assetId) &&
+        hasValidTurn(m) &&
         has(m, ['in', 'out', 'speed', 'volume'], isNumber) &&
         typeof m.muted === 'boolean'
       );
     case 'image':
-      return isString(m.assetId) && isNumber(m.duration);
+      return isString(m.assetId) && isNumber(m.duration) && hasValidTurn(m);
     case 'title':
       return (
         isString(m.text) && isNumber(m.duration) && isObject(m.background) && isObject(m.style)
@@ -99,6 +104,16 @@ function isMainItem(m: Obj): boolean {
     default:
       return false;
   }
+}
+
+/** V19: an optional turn of a quarter, half or three quarters, and flips (absent in older files). */
+function hasValidTurn(m: Obj): boolean {
+  const flag = (f: unknown) => f === undefined || typeof f === 'boolean';
+  return (
+    (m.turn === undefined || [90, 180, 270].includes(m.turn as number)) &&
+    flag(m.flipH) &&
+    flag(m.flipV)
+  );
 }
 
 /** Optional M7 settings: fade, filters, pan & zoom, transition (absent in older files). */
@@ -140,11 +155,33 @@ function isTextItem(t: Obj): boolean {
   );
 }
 
+/** V20: a picture or video over the video (absent in older files). */
+function isOverlayItem(o: Obj): boolean {
+  const kind =
+    o.type === 'image'
+      ? isNumber(o.duration)
+      : o.type === 'video' &&
+        has(o, ['in', 'out', 'volume'], isNumber) &&
+        typeof o.muted === 'boolean';
+  return (
+    kind &&
+    has(o, ['id', 'assetId', 'position'], isString) &&
+    has(o, ['start', 'widthPercent', 'margin', 'opacity'], isNumber) &&
+    [o.fadeIn, o.fadeOut].every((n) => n === undefined || isNumber(n))
+  );
+}
+
 function isAudioItem(a: Obj): boolean {
   return (
     has(a, ['id', 'assetId'], isString) &&
     has(a, ['start', 'in', 'out', 'volume', 'fadeIn', 'fadeOut'], isNumber) &&
     (a.duck === undefined || typeof a.duck === 'boolean') &&
-    (a.speed === undefined || isNumber(a.speed))
+    (a.speed === undefined || isNumber(a.speed)) &&
+    (a.volumeChanges === undefined || listOf(a.volumeChanges, isVolumeChange))
   );
+}
+
+/** V13: a volume change inside a sound (absent in older files). */
+function isVolumeChange(c: Obj): boolean {
+  return has(c, ['from', 'to', 'volume'], isNumber) && (c.ramp === undefined || isNumber(c.ramp));
 }

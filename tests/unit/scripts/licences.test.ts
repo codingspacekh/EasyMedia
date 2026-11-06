@@ -1,7 +1,10 @@
-// M12 / README §17: THIRD_PARTY_LICENSES lists everything shipped that EasyMedia did not write.
+// M12 / README §17: THIRD_PARTY_LICENSES lists everything shipped that OneEditor did not write.
 import { describe, expect, it } from 'vitest';
 import {
   bundledPackages,
+  licenceTextOf,
+  packageLists,
+  shippedPackages,
   thirdPartyLicences,
   type LicenceInputs,
 } from '../../../scripts/lib/licences.ts';
@@ -70,5 +73,51 @@ describe('THIRD_PARTY_LICENSES', () => {
         '\0vite/preload-helper',
       ]),
     ).toEqual(['@scope/pkg', 'clsx', 'svelte']);
+  });
+
+  it('reads only the package lists from build-info, not the other files kept there (updates.json)', () => {
+    expect(
+      packageLists([[], ['clsx', 'svelte'], { url: null, macSigned: false }, ['svelte']]),
+    ).toEqual(['clsx', 'svelte']);
+  });
+
+  it('M17a the packages the installers carry in node_modules: the dependencies and theirs, nested copies too', () => {
+    const disk: Record<string, { version: string; dependencies?: Record<string, string> }> = {
+      'node_modules/electron-updater': {
+        version: '6.8.11',
+        dependencies: { 'js-yaml': '^4', semver: '^7', lazy: '^1' },
+      },
+      'node_modules/js-yaml': { version: '4.3.2', dependencies: { argparse: '^2' } },
+      'node_modules/argparse': { version: '2.0.1' },
+      // electron-updater's own semver, beside an older one at the top that it does not use.
+      'node_modules/electron-updater/node_modules/semver': { version: '7.7.4' },
+      'node_modules/semver': { version: '6.3.1' },
+      'node_modules/lazy': { version: '1.0.5', dependencies: { argparse: '^2' } },
+    };
+    expect(shippedPackages({ 'electron-updater': '^6.8.11' }, (dir) => disk[dir] ?? null)).toEqual([
+      { name: 'argparse', version: '2.0.1', dir: 'node_modules/argparse' },
+      { name: 'electron-updater', version: '6.8.11', dir: 'node_modules/electron-updater' },
+      { name: 'js-yaml', version: '4.3.2', dir: 'node_modules/js-yaml' },
+      { name: 'lazy', version: '1.0.5', dir: 'node_modules/lazy' },
+      {
+        name: 'semver',
+        version: '7.7.4',
+        dir: 'node_modules/electron-updater/node_modules/semver',
+      },
+    ]);
+  });
+
+  it('a package with no licence file: the standard MIT text with its author when it says MIT; else none', () => {
+    expect(licenceTextOf({ license: 'ISC' }, 'ISC License\n\nCopyright (c) Isaac')).toBe(
+      'ISC License\n\nCopyright (c) Isaac',
+    );
+    const mit = licenceTextOf({ license: 'MIT', author: 'Vladimir Krivosheev' }, '');
+    expect(mit).toContain('Copyright (c) Vladimir Krivosheev');
+    expect(mit).toContain('Permission is hereby granted, free of charge');
+    expect(mit).toMatch(/has no licence file/);
+    expect(licenceTextOf({ license: 'MIT', author: { name: 'Ann' } }, '')).toContain(
+      'Copyright (c) Ann',
+    );
+    expect(licenceTextOf({ license: 'Python-2.0' }, '')).toBe('');
   });
 });

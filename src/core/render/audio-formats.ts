@@ -4,8 +4,8 @@
 import { EditError } from '../model/errors.ts';
 import type { Seconds } from '../model/time.ts';
 
-export type AudioFormat = 'mp3' | 'm4a' | 'aac' | 'wav' | 'flac';
-export type BitDepth = 16 | 24 | 32;
+export type AudioFormat = 'mp3' | 'm4a' | 'aac' | 'ogg' | 'wav' | 'flac';
+export type BitDepth = 8 | 16 | 24 | 32;
 export type BitRateMode = 'cbr' | 'vbr';
 
 /** A17: details of the originators and the track (Book B 11.2.9: "title, year and so on"). */
@@ -57,6 +57,13 @@ export const AUDIO_FORMATS: Record<
     tags: false,
     description: 'AAC sound stream (ADTS)',
   },
+  ogg: {
+    label: 'OGG (Vorbis)',
+    extension: 'ogg',
+    lossless: false,
+    tags: true,
+    description: 'Vorbis sound in an Ogg file (open, free of patents)',
+  },
   wav: {
     label: 'WAV',
     extension: 'wav',
@@ -84,7 +91,15 @@ export const SAMPLE_RATES: { rate: number; hint: string }[] = [
   { rate: 96000, hint: 'Blu-ray, studio' },
 ];
 
-const LOSSY_BIT_RATES = [32, 64, 96, 128, 192, 320];
+/** A16: the sample resolutions on offer, with where each is used (8-bit: WAV only). */
+export const BIT_DEPTHS: { bits: BitDepth; hint: string }[] = [
+  { bits: 8, hint: 'Telephone quality: a hiss can be heard in quiet parts' },
+  { bits: 16, hint: 'Music CD · default' },
+  { bits: 24, hint: 'Studio recording' },
+  { bits: 32, hint: 'Editing: every sample kept exactly' },
+];
+
+const LOSSY_BIT_RATES = [32, 64, 96, 128, 160, 192, 256, 320];
 /** LAME's quality levels for a variable bit rate, and the average kbps they give for music. */
 const VBR: Record<number, { q: number; kbps: number }> = {
   320: { q: 0, kbps: 245 },
@@ -93,6 +108,8 @@ const VBR: Record<number, { q: number; kbps: number }> = {
   64: { q: 8, kbps: 85 },
   32: { q: 9, kbps: 65 },
 };
+/** Vorbis's quality levels (-1 to 10) for the bit rates on offer: about that many kbps in stereo. */
+const VORBIS_QUALITY: Record<number, number> = { 32: -1, 64: 0, 96: 2, 128: 4, 192: 6, 320: 9 };
 const WAV_HEADER = 44;
 
 /** "44 100 Hz" — numbers grouped with a space, as in the coursebooks. */
@@ -101,11 +118,11 @@ export const hz = (rate: number): string =>
 
 export function sampleRatesFor(format: AudioFormat): number[] {
   const all = SAMPLE_RATES.map((r) => r.rate);
-  return format === 'mp3' ? all.filter((r) => r <= 48000) : all;
+  return format === 'mp3' || format === 'ogg' ? all.filter((r) => r <= 48000) : all;
 }
 
 export function bitDepthsFor(format: AudioFormat): BitDepth[] {
-  if (format === 'wav') return [16, 24, 32];
+  if (format === 'wav') return [8, 16, 24, 32];
   return format === 'flac' ? [16, 24] : [];
 }
 
@@ -196,8 +213,17 @@ export function audioCodecArgs(e: AudioExportSettings): string[] {
       return ['-c:a', 'aac', ...kbps, ...common, ...tags, '-movflags', '+faststart', '-f', 'ipod'];
     case 'aac':
       return ['-c:a', 'aac', ...kbps, ...common, '-f', 'adts'];
+    case 'ogg':
+      // A quality level, not a fixed bit rate: Vorbis cannot make every bit rate at every rate.
+      return [
+        ...['-c:a', 'libvorbis', '-q:a', String(VORBIS_QUALITY[e.bitRate] ?? 4)],
+        ...common,
+        ...tags,
+        ...['-f', 'ogg'],
+      ];
     case 'wav': {
-      const codec = { 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
+      // An 8-bit WAV stores each sample as 0 to 255 (unsigned); the others are signed.
+      const codec = { 8: 'pcm_u8', 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_f32le' }[e.bitDepth];
       return ['-c:a', codec, ...common, ...tags, '-f', 'wav'];
     }
     case 'flac': {
@@ -234,9 +260,10 @@ export function estimateAudioSize(
       upTo: e.format === 'flac',
       about: false,
     };
+  // A variable bit rate, and Vorbis's quality levels, depend on the sound too.
   const vbr = e.mode === 'vbr';
   const kbps = vbr ? VBR[e.bitRate]!.kbps : e.bitRate;
-  return { bytes: (kbps * 1000 * duration) / 8, upTo: false, about: vbr };
+  return { bytes: (kbps * 1000 * duration) / 8, upTo: false, about: vbr || e.format === 'ogg' };
 }
 
 // ---- T7 advantages and disadvantages ----
@@ -277,6 +304,18 @@ export function audioFormatNotes(format: AudioFormat): AudioFormatNotes {
         cons: [
           'Cannot hold tags (title, artist): choose M4A to keep them',
           'Lossy, and fewer players open .aac files than .mp3',
+        ],
+      };
+    case 'ogg':
+      return {
+        title: 'OGG · Vorbis sound (lossy)',
+        pros: [
+          'Open and free to use: no licence needed to make or play it',
+          'Better sound than MP3 at the same size; used in games and on the web',
+        ],
+        cons: [
+          'Lossy: removed detail cannot be recovered',
+          'Many phones, car stereos and Apple apps cannot play it',
         ],
       };
     case 'wav':

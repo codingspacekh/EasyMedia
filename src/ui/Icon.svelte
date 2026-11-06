@@ -41,6 +41,7 @@
     volume:
       '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
     mute: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
+    sfx: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m16 7 2-3M18 12h3M16 17l2 3"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/>',
     speed: '<path d="M12 14 16 9"/><path d="M3.3 19a10 10 0 1 1 17.4 0z"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
@@ -57,6 +58,8 @@
     mask: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
     loop: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
     cursor: '<path d="M9 4h6M9 20h6M12 4v16"/>',
+    insertAt: '<path d="M4 3h7l-3.5 4z"/><path d="M7.5 7v14"/><path d="M14 12h7M17.5 8.5v7"/>',
+    pip: '<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1"/>',
     shift: '<path d="M5 12h14"/><path d="m8 8-4 4 4 4M16 8l4 4-4 4"/>',
     copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
     paste:

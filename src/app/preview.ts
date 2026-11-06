@@ -11,12 +11,16 @@ import {
   mainTrackDuration,
   transitionOverlap,
 } from '../core/model/timeline.ts';
-import type { Id, MainItem, PanZoomFrame, TextStyle } from '../core/model/types.ts';
+import type { Id, MainItem, PanZoomFrame, TextEffects, TextStyle } from '../core/model/types.ts';
+import { volumeAt } from '../core/model/volume-changes.ts';
 import { previewFilter, transitionById } from '../core/effects/registry.ts';
 import { panZoomAt } from '../core/effects/panzoom.ts';
+import { turnStyle, type TurnStyle } from '../core/effects/turn.ts';
 import { textImageSize, type TextImageMode } from '../core/text/draw.ts';
 import { layoutText, type Measure } from '../core/text/layout.ts';
-import { textMotion } from '../core/text/motion.ts';
+import { motionWindow, revealEdge, textMotion } from '../core/text/motion.ts';
+import { overlayDuration } from '../core/model/overlay.ts';
+import { overlayBox } from '../core/render/overlay.ts';
 import type { AppState } from './app.ts';
 
 /** How the clip looks at this moment (approximate preview of the export, ARCHITECTURE §7.3). */
@@ -31,6 +35,8 @@ export interface PreviewLook {
 
 interface Extras {
   look?: PreviewLook;
+  /** V19: how the picture is turned and flipped (CSS), when it is. */
+  turn?: TurnStyle;
   /** V9: the next clip coming in over this one during a transition. */
   incoming?: { frame: PreviewFrame; progress: number; transition: string; xfade: string };
 }
@@ -95,8 +101,10 @@ function lookOf(item: MainItem, offset: Seconds): PreviewLook | undefined {
 function frameOf(state: AppState, index: number, offset: Seconds): PreviewFrame {
   const item = state.history.present.timeline.main[index]!;
   const frame = baseFrame(state, item, offset);
+  if (frame.kind === 'empty') return frame;
   const look = lookOf(item, offset);
-  return look && frame.kind !== 'empty' ? { ...frame, look } : frame;
+  const turn = item.type === 'title' ? null : turnStyle(item, state.history.present.settings);
+  return { ...frame, ...(look ? { look } : {}), ...(turn ? { turn } : {}) };
 }
 
 function baseFrame(state: AppState, item: MainItem, offset: Seconds): PreviewFrame {
@@ -150,7 +158,13 @@ export interface TextLayer {
   y: number;
   /** Zoom entrances and exits: the size, around `anchor` (the middle of the words). */
   scale: number;
+  /** Spins: turned clockwise about `anchor`, in radians. */
+  rotate: number;
   anchor: { x: number; y: number };
+  /** Typing on: only what is left of this x (frame pixels, before moving) is shown; null: all. */
+  clipRight: number | null;
+  /** Typing on: the part shown so far (1 = all). */
+  reveal: number;
   /**
    * Where the preview draws it: a title's words belong to its clip (`main`, or `incoming`
    * during a transition into the next title), so they take part in the transition as in the
@@ -165,21 +179,25 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
   const frame = { width: project.settings.width, height: project.settings.height };
   const layers: TextLayer[] = [];
   const hit = findMainItemAt(project.timeline.main, time);
-  const middle = (text: string, style: TextStyle) => {
+  /** The middle of the words (zooms and spins turn about it) and the edge of typing on. */
+  const place = (effects: TextEffects, text: string, style: TextStyle, reveal: number) => {
     const { box } = layoutText(text, style, frame, measure);
-    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    return {
+      anchor: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      clipRight:
+        reveal < 1 ? revealEdge(reveal, box, frame, motionWindow(effects, box, frame)) : null,
+    };
   };
   const title = (i: number, offset: Seconds, slot: 'main' | 'incoming') => {
     const it = project.timeline.main[i];
     if (it?.type !== 'title' || it.text.trim() === '') return;
     const motion = textMotion(it, offset, it.duration, frame);
-    const anchor = middle(it.text, it.style);
     layers.push({
       id: it.id,
       text: it.text,
       style: it.style,
       mode: 'frame',
-      anchor,
+      ...place(it, it.text, it.style, motion.reveal),
       slot,
       ...motion,
     });
@@ -199,10 +217,80 @@ export function textLayersAt(state: AppState, time: Seconds, measure: Measure): 
         ? { creditsHeight: textImageSize(t.text, t.style, frame, mode, measure).height }
         : undefined;
     const motion = textMotion(t, time - t.start, t.duration, frame, credits);
-    const anchor = middle(t.text, t.style);
-    layers.push({ id: t.id, text: t.text, style: t.style, mode, anchor, slot: 'over', ...motion });
+    layers.push({
+      id: t.id,
+      text: t.text,
+      style: t.style,
+      mode,
+      ...place(t, t.text, t.style, motion.reveal),
+      slot: 'over',
+      ...motion,
+    });
   }
   return layers;
+}
+
+/** V20: a picture or video over the video, where the export puts it (as % of the frame). */
+export interface OverlayLayer {
+  itemId: Id;
+  kind: 'image' | 'video';
+  src: string;
+  left: string;
+  top: string;
+  width: string;
+  height: string;
+  /** With its fades. */
+  opacity: number;
+  /** A video: where in the file, and how loud (0 while its sound is off). */
+  mediaTime?: Seconds;
+  volume?: number;
+}
+
+/**
+ * V20: the pictures and videos over the video at `time`, in the export's places. Like the
+ * export, nothing shows after the video ends; one whose size (or a video whose preview copy) is
+ * not ready yet is left out until it is.
+ */
+export function overlaysAt(state: AppState, time: Seconds): OverlayLayer[] {
+  const project = state.history.present;
+  const frame = { width: project.settings.width, height: project.settings.height };
+  if (time >= mainTrackDuration(project.timeline.main)) return [];
+  const pc = (n: number, of: number) => `${Number(((n / of) * 100).toFixed(4))}%`;
+  return (project.timeline.overlay ?? []).flatMap((item): OverlayLayer[] => {
+    const length = overlayDuration(item);
+    const offset = time - item.start;
+    if (offset < 0 || offset >= length) return [];
+    const status = state.assets[item.assetId];
+    const asset = project.media.find((m) => m.id === item.assetId);
+    if (!status?.size || !asset) return [];
+    const box = overlayBox(frame, status.size, item);
+    const fadeIn = item.fadeIn ?? 0;
+    const fadeOut = item.fadeOut ?? 0;
+    const fade = Math.min(
+      fadeIn > 0 ? offset / fadeIn : 1,
+      fadeOut > 0 ? (length - offset) / fadeOut : 1,
+      1,
+    );
+    const place = {
+      itemId: item.id,
+      left: pc(box.x, frame.width),
+      top: pc(box.y, frame.height),
+      width: pc(box.width, frame.width),
+      height: pc(box.height, frame.height),
+      opacity: Math.max(0, item.opacity * fade),
+    };
+    if (item.type === 'image') return [{ ...place, kind: 'image', src: toMediaUrl(asset.path) }];
+    if (status.state !== 'ready' || !status.proxyPath) return [];
+    return [
+      {
+        ...place,
+        kind: 'video',
+        src: toMediaUrl(status.proxyPath),
+        mediaTime: item.in + offset,
+        volume: item.muted ? 0 : item.volume * fade,
+      },
+    ];
+  });
 }
 
 /** A music or voiceover clip heard at this moment (V13). */
@@ -213,7 +301,7 @@ export interface PreviewSound {
   mediaTime: Seconds;
   /** Playback speed (V13 like V14). */
   rate: number;
-  /** Its volume with fades and lowering under the voiceover, as in the export. */
+  /** Its volume with volume changes, fades and lowering under the voiceover, as in the export. */
   volume: number;
 }
 
@@ -248,7 +336,10 @@ export function soundsAt(state: AppState, time: Seconds): PreviewSound[] {
           src: toMediaUrl(asset.path),
           mediaTime: item.in + offset * (item.speed ?? 1),
           rate: item.speed ?? 1,
-          volume: Math.max(0, item.volume * gain * ducked),
+          volume: Math.max(
+            0,
+            volumeAt(item.volume, item.volumeChanges ?? [], time) * gain * ducked,
+          ),
         },
       ];
     }),

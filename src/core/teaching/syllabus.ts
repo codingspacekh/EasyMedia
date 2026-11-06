@@ -1,12 +1,12 @@
 // Cambridge International AS & A Level IT 9626 (2025–2027), sections 11 and 20.1: every syllabus point in
-// its own words, where it is done in EasyMedia, and the app's tools under it (their `syllabus`
+// its own words, where it is done in OneEditor, and the app's tools under it (their `syllabus`
 // labels). The teacher notes are made from this (scripts/guides.ts).
 
 export interface SyllabusPoint {
   section: '11.1' | '11.2' | '20.1';
   group: string;
   point: string;
-  /** Where in EasyMedia (mode ▸ place). */
+  /** Where in OneEditor (mode ▸ place). */
   where: string;
   /** The `syllabus` labels of the effects and tools that teach it. */
   tools: readonly string[];
@@ -89,7 +89,7 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ]),
   v(
     'adding transitions',
-    'Video ▸ the next clip’s Effects tab ▸ Transition into this clip (33 kinds in five groups)',
+    'Video ▸ the next clip’s Effects tab ▸ Transition into this clip (43 kinds in five groups)',
     ['11.1 adding transitions', '11.1 transitions'],
   ),
   v(
@@ -104,7 +104,7 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ),
   v(
     'inserting a still image',
-    'Video ▸ Import a picture and add it to the timeline; its Duration',
+    'Video ▸ Import a picture and add it to the timeline; its Duration; or put it over the video from the media bin (a logo in a corner)',
     ['11.1 inserting a still image'],
   ),
   v('adding audio to a video clip', 'Video ▸ Add music (music and voiceover tracks)', [
@@ -181,7 +181,7 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ),
   a(
     'trimming an audio clip to remove unwanted material',
-    'Audio ▸ drag a clip’s edges, Delete, or select a part and Trim to selection',
+    'Audio ▸ drag a clip’s edges, Delete, or select a part and Trim to selection; Effect ▸ Remove silences (long pauses shortened)',
     ['11.2 trimming an audio clip'],
   ),
   a(
@@ -189,8 +189,16 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     'Audio ▸ Split, Join, move clips, Cut / Copy / Paste, Align end to end',
     ['11.2 splicing / joining audio clips'],
   ),
-  a('fading in and fading out', 'Audio ▸ Effect ▸ Fade in / Fade out', ['11.2 fading in and out']),
-  a('altering the clip speed', 'Audio ▸ Effect ▸ Change speed', ['11.2 altering clip speed']),
+  a(
+    'fading in and fading out',
+    'Audio ▸ Effect ▸ Fade in / Fade out, Volume change (from one volume to another)',
+    ['11.2 fading in and out'],
+  ),
+  a(
+    'altering the clip speed',
+    'Audio ▸ Effect ▸ Change speed (and pitch), Change tempo (same pitch), Reverse (backwards)',
+    ['11.2 altering clip speed'],
+  ),
   a('changing the pitch', 'Audio ▸ Effect ▸ Change pitch', ['11.2 changing the pitch']),
   a('adding or adjusting delay/echo', 'Audio ▸ Effect ▸ Echo, Delay', ['11.2 delay / echo']),
   a('adding or adjusting reverberation', 'Audio ▸ Effect ▸ Reverb', ['11.2 reverberation']),
@@ -325,12 +333,14 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
   ]),
   an(
     'controlling animations by adjusting frame rates, looping or stopping animations',
-    'Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, and Button (Pause, Continue, Restart, Go to frame) tried with Test',
+    'Animation ▸ the stage chip (frame rate), the timeline’s Loop and Stop, Export ▸ When it ends (loop, or play once and stop) for a GIF or web page, and Button (Pause, Continue, Restart, Go to frame) tried with Test',
     ['20.1 controlling animations by stopping them'],
   ),
-  an('exporting an animation for its application', 'Animation ▸ Export on the toolbar', [
-    '20.1 exporting an animation',
-  ]),
+  an(
+    'exporting an animation for its application',
+    'Animation ▸ Export on the toolbar (MP4, AVI, MOV, animated GIF, web page, PNG sequence, PNG or SVG; a range of frames or another width)',
+    ['20.1 exporting an animation'],
+  ),
   p(
     '20.1',
     ANIM_PRINCIPLES,
@@ -356,7 +366,8 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     '20.1',
     ANIM_PARTS,
     'the primary (main focus, such as main characters), the secondary (sound, background), other components',
-    'Learn ▸ Animation (components and animation variables)',
+    'Learn ▸ Animation (components and animation variables); Animation ▸ the timeline’s Sounds row (Add sound…, Add a sound effect…) for the sound',
+    ['20.1 components of an animation'],
   ),
   p(
     '20.1',

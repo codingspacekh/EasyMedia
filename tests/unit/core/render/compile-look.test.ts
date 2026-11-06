@@ -113,6 +113,19 @@ describe('V9 transitions in the export', () => {
     expect(g).toContain('[v0][v1]concat=n=2:v=1:a=0[c1];[c1]settb=1/30[x1]');
     expect(g).toContain('[x1][v2]xfade=transition=fadeblack:duration=1:offset=5[vout]');
   });
+
+  it('squeeze sideways is made by turning both clips and squeezing, as one build of FFmpeg cannot squeeze sideways (CI, Windows)', () => {
+    const g = graph(
+      project([
+        still('a', 3),
+        { ...still('b', 3), transitionIn: { effectId: 'transition.squeezeside', duration: 1 } },
+      ]),
+    );
+    expect(g).toContain(
+      '[v0]transpose=1[ta1];[v1]transpose=1[tb1];[ta1][tb1]xfade=transition=squeezeh:duration=1:offset=2,transpose=2[vout]',
+    );
+    expect(g).not.toContain('squeezev');
+  });
 });
 
 describe('V10 one frame for a snapshot', () => {
@@ -122,27 +135,65 @@ describe('V10 one frame for a snapshot', () => {
       { ...still('s', 5), effects: [{ effectId: 'video.sepia', params: {} }] },
     ]);
 
+  /** The stretch of the finished video a snapshot keeps: [start, end) in seconds. */
+  const kept = (frameAt: number) => {
+    const args = compileProject(p(), { ...options, frameAt }).args.join(' ');
+    const m = /\[vout\]trim=start=([\d.]+):end=([\d.]+)\[snap\]/.exec(args)!;
+    return [Number(m[1]), Number(m[2])];
+  };
+
   it('renders the frame at the time asked, with no sound and no video encoder', () => {
     const plan = compileProject(p(), { ...options, frameAt: 12.5 });
-    expect(plan.args.slice(-9)).toEqual([
-      '-map',
-      '[vout]',
-      '-ss',
-      '12.5',
-      '-frames:v',
-      '1',
-      '-update',
-      '1',
-      '-an',
-    ]);
+    // A short stretch of the video up to the time is kept and its last frame written.
+    expect(plan.args.slice(-5)).toEqual(['-map', '[snap]', '-update', '1', '-an']);
+    expect(plan.args).not.toContain('-frames:v');
     expect(plan.args).not.toContain('-c:v');
     expect(plan.hasAudio).toBe(false);
     expect(plan.args.join(' ')).toContain('colorchannelmixer'); // the look is in the frame
+  });
+
+  it('the frame written is the first at or after the time, or the last picture there is', () => {
+    // M17 exam trial and 9626/02 M/J/18: a seek to a frame the finished video did not have (its
+    // clips round their own frame counts) left FFmpeg nothing to write. The kept stretch ends one
+    // frame after the time, so its last frame is the one at or after it when there is one, and
+    // the video's last picture when there is not.
+    const [start, end] = kept(14.99);
+    expect(start).toBeCloseTo(14.74, 5);
+    expect(end).toBeCloseTo(14.99 + 1 / 30, 5);
+    expect(kept(12.5)[0]).toBeCloseTo(12.25, 5);
+    expect(kept(0)[0]).toBe(0);
+    expect(kept(0)[1]).toBeCloseTo(1 / 30, 5);
   });
 
   it('explains a time outside the video', () => {
     expect(() => compileProject(p(), { ...options, frameAt: 15 })).toThrow(
       /playhead onto the video/i,
     );
+  });
+});
+
+describe('V19 turning and flipping in the export', () => {
+  it('V19: turns a clip a quarter before fitting it to the frame (its width and height swap)', () => {
+    const g = graph(project([{ ...clip('v', 0, 4), turn: 90 }]));
+    expect(g).toContain('[0:v]setpts=PTS-STARTPTS,transpose=clock,scale=1920:1080');
+  });
+
+  it('V19: flips a picture before fitting it, and keeps its other looks after', () => {
+    const g = graph(
+      project([
+        {
+          ...still('s', 5),
+          turn: 270,
+          flipH: true,
+          effects: [{ effectId: 'video.blackwhite', params: {} }],
+        },
+      ]),
+    );
+    expect(g).toContain('[0:v]transpose=cclock,hflip,scale=1920:1080');
+    expect(g).toContain('[p0]hue=s=0[v0]');
+  });
+
+  it('V19: a clip that is not turned compiles exactly as before', () => {
+    expect(graph(project([clip('v', 0, 4)]))).toContain('[0:v]setpts=PTS-STARTPTS,scale=');
   });
 });

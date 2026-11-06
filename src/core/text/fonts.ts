@@ -35,6 +35,12 @@ export const FONTS: readonly Font[] = [
   f('Abril Fatface', 'Display', 'Magazine headlines'),
   f('Righteous', 'Display', 'Rounded and retro'),
   f('Bangers', 'Display', 'Comic book'),
+  f('Bungee', 'Display', 'Bold street signs: urban, sport'),
+  f('Black Ops One', 'Display', 'Army stencil: action and games'),
+  f('Titan One', 'Display', 'Chunky and fun: children, cartoons'),
+  f('Archivo Black', 'Display', 'Very heavy and plain: punchy captions'),
+  f('Russo One', 'Display', 'Fast and techy: cars, science'),
+  f('Bowlby One', 'Display', 'Fat headline letters: trailers, sales'),
   f('Lobster', 'Handwriting', 'Bold joined-up script'),
   f('Pacifico', 'Handwriting', 'Relaxed brush script: holidays'),
   f('Dancing Script', 'Handwriting', 'Lively joined-up writing'),
@@ -53,6 +59,25 @@ export interface FontFile {
   /** Its name in resources/fonts. */
   file: string;
 }
+
+/** The CSS rule that brings a bundled font into a web page or an SVG, given its file as data. */
+export const fontFaceRule = (face: FontFile, url: string): string =>
+  `@font-face { font-family: '${face.family}'; font-style: ${face.style}; ` +
+  `font-weight: ${face.weight}; src: url('${url}') format('truetype'); }`;
+
+const GENERIC: Record<FontGroup, string> = {
+  'Sans-serif': 'sans-serif',
+  Serif: 'serif',
+  Display: 'sans-serif',
+  Handwriting: 'cursive',
+  'Typewriter & retro': 'monospace',
+};
+
+/** The general family of the same kind (sans-serif, serif, cursive, monospace) for a font. */
+export const genericFamily = (name: string): string => {
+  const font = FONTS.find((f) => f.name === name);
+  return font ? GENERIC[font.group] : 'sans-serif';
+};
 
 const face = (
   family: string,
@@ -95,6 +120,12 @@ export const FONT_FACES: readonly FontFile[] = [
   face('Abril Fatface', 'normal', '400', 'AbrilFatface-Regular.ttf'),
   face('Righteous', 'normal', '400', 'Righteous-Regular.ttf'),
   face('Bangers', 'normal', '400', 'Bangers-Regular.ttf'),
+  face('Bungee', 'normal', '400', 'Bungee-Regular.ttf'),
+  face('Black Ops One', 'normal', '400', 'BlackOpsOne-Regular.ttf'),
+  face('Titan One', 'normal', '400', 'TitanOne-Regular.ttf'),
+  face('Archivo Black', 'normal', '400', 'ArchivoBlack-Regular.ttf'),
+  face('Russo One', 'normal', '400', 'RussoOne-Regular.ttf'),
+  face('Bowlby One', 'normal', '400', 'BowlbyOne-Regular.ttf'),
   face('Lobster', 'normal', '400', 'Lobster-Regular.ttf'),
   face('Pacifico', 'normal', '400', 'Pacifico-Regular.ttf'),
   face('Indie Flower', 'normal', '400', 'IndieFlower-Regular.ttf'),
@@ -136,7 +167,7 @@ const POSITIONS = [
 
 export function validateTextStyle(style: TextStyle): void {
   if (!FONTS.some((f) => f.name === style.font)) {
-    throw new EditError('Choose one of the fonts in the list: they come with EasyMedia.');
+    throw new EditError('Choose one of the fonts in the list: they come with OneEditor.');
   }
   if (!(style.size >= 8 && style.size <= 300))
     throw new EditError('Text size must be between 8 and 300.');

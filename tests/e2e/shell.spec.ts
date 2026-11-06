@@ -9,16 +9,16 @@ import { answerDialogs, launchApp, menu } from './app.ts';
 import { shot } from './audio.ts';
 
 test.describe('M4 app shell', () => {
-  test('opens the EasyMedia window', async () => {
+  test('opens the OneEditor window', async () => {
     const { app, window: page } = await launchApp();
-    await expect(page).toHaveTitle('Untitled — EasyMedia');
-    await expect(page.getByRole('heading', { name: 'EasyMedia' })).toBeVisible();
+    await expect(page).toHaveTitle('Untitled — OneEditor');
+    await expect(page.getByRole('heading', { name: 'OneEditor' })).toBeVisible();
     await app.close();
   });
 
   test('X7 the first launch shows the Welcome once; Help ▸ Licences shows the licences', async () => {
     const first = await launchApp([], { firstLaunch: true });
-    const welcome = first.window.getByRole('dialog', { name: 'Welcome to EasyMedia' });
+    const welcome = first.window.getByRole('dialog', { name: 'Welcome to OneEditor' });
     await expect(welcome).toBeVisible();
     await shot(first.window, 'welcome');
     await welcome.getByRole('button', { name: 'Start' }).click();
@@ -32,8 +32,8 @@ test.describe('M4 app shell', () => {
     await first.app.close();
 
     const again = await launchApp([], { userData: first.userData });
-    await expect(again.window.getByRole('heading', { name: 'EasyMedia' })).toBeVisible();
-    await expect(again.window.getByRole('dialog', { name: 'Welcome to EasyMedia' })).toHaveCount(0);
+    await expect(again.window.getByRole('heading', { name: 'OneEditor' })).toBeVisible();
+    await expect(again.window.getByRole('dialog', { name: 'Welcome to OneEditor' })).toHaveCount(0);
     await menu(again.app, 'Help', 'Licences');
     const licences = again.window.getByRole('dialog', { name: 'Licences' });
     await expect(licences).toContainText('FFmpeg 9.0.2');

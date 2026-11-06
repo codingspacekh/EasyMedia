@@ -1,4 +1,4 @@
-// Channels and mixing (A6, A15).
+// Channels and mixing (A6, A15), and playing a sound backwards (A22).
 import type { Channels } from '../pcm.ts';
 
 /** A15: mixes left and right into one channel (their average). A mono sound is returned as it is. */
@@ -6,6 +6,11 @@ export function stereoToMono(channels: Channels): Channels {
   if (channels.length < 2) return channels;
   const [l, r] = channels as [Float32Array, Float32Array];
   return [l.map((v, i) => (v + r[i]!) / 2)];
+}
+
+/** A22: the sound played backwards, the last sample first. Every channel; the length stays. */
+export function reverse(channels: Channels): Float32Array[] {
+  return channels.map((c) => c.slice().reverse());
 }
 
 export interface MixPart {

@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { EditError, JobCancelledError, MediaError } from '../../src/core/model/errors.ts';
 import { assetFromProbe, createProject, createVideoClip } from '../../src/core/model/factory.ts';
 import { trimVideo } from '../../src/core/model/timeline.ts';
-import { planResizeCrop } from '../../src/core/image/crop.ts';
+import { planCombine } from '../../src/core/image/combine.ts';
+import { planFreeCrop, planResizeCrop } from '../../src/core/image/crop.ts';
 import type { MediaAsset, Project, VideoClip } from '../../src/core/model/types.ts';
 import type { JobEvent, MediaEngine } from '../../src/core/ports.ts';
 import { defaultExport } from '../../src/core/render/formats.ts';
@@ -98,6 +99,90 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
       // That name is taken now, so the next copy is numbered on; the original is kept.
       expect(await engine.resizeCropImage(image, plan)).toBe(image.replace(/\.jpg$/, '2.jpg'));
       expect((await engine.probe(image)).video).toMatchObject(info.video!);
+    });
+
+    it('resizeCropImage and combineImages save under a name the student typed, never overwriting (V11, V18)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const dir = image.slice(0, Math.max(image.lastIndexOf('/'), image.lastIndexOf('\\')) + 1);
+      const crop = planResizeCrop(info.video!, { width: 320, height: 180 }, 'stretch');
+      expect(await engine.resizeCropImage(image, crop, 'contract credits')).toBe(
+        `${dir}contract credits.jpg`,
+      );
+      // Taken now: the next one is numbered on, as snapshots are.
+      expect(await engine.resizeCropImage(image, crop, 'contract credits')).toBe(
+        `${dir}contract credits2.jpg`,
+      );
+      const place = planCombine(info.video!, info.video!, {
+        anchor: 'centre',
+        widthPercent: 10,
+        margin: 0,
+      });
+      expect(await engine.combineImages(image, image, place, 'contract bg')).toBe(
+        `${dir}contract bg.jpg`,
+      );
+    });
+
+    it('resizeCropImage can stretch a picture to an exact size without cropping (V11, M/J/26 Q1)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const plan = planResizeCrop(info.video!, { width: 300, height: 100 }, 'stretch');
+      expect(await engine.probe(await engine.resizeCropImage(image, plan))).toMatchObject({
+        kind: 'image',
+        video: { width: 300, height: 100 },
+      });
+    });
+
+    it('combineImages places a picture on a picture and saves a new one beside it (V18)', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const plan = planCombine(info.video!, info.video!, {
+        anchor: 'bottom-left',
+        widthPercent: 25,
+        margin: 0,
+      });
+      const made = await engine.combineImages(image, image, plan);
+      // A new numbered copy beside it (the number depends on the copies made before).
+      expect(made).toMatch(
+        new RegExp(
+          `^${image.replace(/\.jpg$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d+\\.jpg$`,
+        ),
+      );
+      expect(await engine.probe(made)).toMatchObject({
+        kind: 'image',
+        video: { width: info.video!.width, height: info.video!.height },
+      });
+      await expect(
+        engine.combineImages(image, image, { top: { width: 0, height: 1 }, x: 0, y: 0 }),
+      ).rejects.toThrow(EditError);
+    });
+
+    it('AN5 colourKeyImage makes a see-through PNG beside the picture (a crop of it here), never overwriting', async () => {
+      const { engine, image } = setup();
+      const info = await engine.probe(image);
+      const dir = image.slice(0, Math.max(image.lastIndexOf('/'), image.lastIndexOf('\\')) + 1);
+      // Crop… in Animation mode: any part, at its own size.
+      const part = planFreeCrop(info.video!, { x: 10, y: 20, width: 160, height: 90 });
+      const pearl = await engine.resizeCropImage(image, part, 'contract pearl');
+      expect(pearl).toBe(`${dir}contract pearl.jpg`);
+      expect(await engine.probe(pearl)).toMatchObject({
+        kind: 'image',
+        video: { width: 160, height: 90 },
+      });
+      const key = { colour: '#ffffff', tolerance: 20, soft: true };
+      expect(await engine.colourKeyImage(pearl, key)).toBe(`${dir}contract pearl1.png`);
+      expect(await engine.probe(`${dir}contract pearl1.png`)).toMatchObject({
+        kind: 'image',
+        container: 'png',
+        video: { width: 160, height: 90 },
+      });
+      expect(await engine.colourKeyImage(pearl, key)).toBe(`${dir}contract pearl2.png`);
+      expect(await engine.colourKeyImage(pearl, key, 'contract cut out')).toBe(
+        `${dir}contract cut out.png`,
+      );
+      await expect(engine.colourKeyImage(pearl, { ...key, colour: 'white' })).rejects.toThrow(
+        EditError,
+      );
     });
 
     it('resizeCropImage refuses a crop outside the resized picture', async () => {
@@ -207,6 +292,26 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         expect(info.duration).toBeCloseTo(2, 1);
       });
 
+      it('A16 exports an 8 kHz / 8-bit mono WAV (telephone quality) at its estimated size', async () => {
+        const { engine, out } = setup();
+        const phone = settings({ format: 'wav', sampleRate: 8000, bitDepth: 8, channels: 1 });
+        await engine.encodeAudio(
+          { sampleRate: 44100, channels: tone(2, 44100, 1) },
+          out('phone.wav'),
+          phone,
+        ).done;
+        const info = await engine.probe(out('phone.wav'));
+        expect(info).toMatchObject({
+          kind: 'audio',
+          container: 'wav',
+          audio: { codec: 'pcm_u8', sampleRate: 8000, bitDepth: 8, channels: 1 },
+        });
+        expect(info.duration).toBeCloseTo(2, 1);
+        // One byte a sample: 16 000 bytes of sound, plus the header (FFmpeg's is a little longer).
+        const estimate = estimateAudioSize(phone, 2).bytes;
+        expect(Math.abs(info.sizeBytes - estimate)).toBeLessThan(200);
+      });
+
       it('A17 exports a mono MP3 near its estimated size', async () => {
         const { engine, out } = setup();
         const chosen = settings({ channels: 1 });
@@ -226,6 +331,7 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
         ['mp3', 'mp3', 'mp3'],
         ['m4a', 'm4a', 'aac'],
         ['aac', 'aac', 'aac'],
+        ['ogg', 'ogg', 'vorbis'],
         ['wav', 'wav', 'pcm_s16le'],
         ['flac', 'flac', 'flac'],
       ] as const)('A17 exports %s (container %s, codec %s)', async (format, container, codec) => {
@@ -450,6 +556,25 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
           video: { width: 600, height: 400 },
         });
         expect(info.duration).toBeGreaterThan(2.5);
+        // AN17: it plays again and again unless told to play once.
+        expect(info.loop).toBe(true);
+      });
+
+      it('AN8 AN15 a GIF set to play once has no looping: it stops on its last frame', async () => {
+        const { engine, out, frames } = setup();
+        const folder = await frames(120, 80, 12);
+        await engine.encodeFrames(folder, out('play-once.gif'), {
+          format: 'gif',
+          fps: 12,
+          frames: 12,
+          width: 120,
+          height: 80,
+          once: true,
+        }).done;
+        expect(await engine.probe(out('play-once.gif'))).toMatchObject({
+          container: 'gif',
+          loop: false,
+        });
       });
 
       it('an odd size (601 × 401) is padded to even for MP4', async () => {
@@ -466,6 +591,68 @@ export function mediaEngineContract(name: string, setup: () => ContractSetup): v
           width: 602,
           height: 402,
         });
+      });
+
+      it('AN15 AVI (MPEG-4 Part 2) and MOV (H.264) of the same frames', async () => {
+        const { engine, out, frames } = setup();
+        const options = { fps: 24, frames: 24, width: 600, height: 450 };
+        await engine.encodeFrames(await frames(600, 450, 24), out('anim-c.avi'), {
+          ...options,
+          format: 'avi',
+        }).done;
+        expect(await engine.probe(out('anim-c.avi'))).toMatchObject({
+          kind: 'video',
+          container: 'avi',
+          video: { codec: 'mpeg4', width: 600, height: 450 },
+        });
+        await engine.encodeFrames(await frames(600, 450, 24), out('anim-c.mov'), {
+          ...options,
+          format: 'mov',
+        }).done;
+        const mov = await engine.probe(out('anim-c.mov'));
+        expect(mov).toMatchObject({
+          kind: 'video',
+          container: 'mov',
+          video: { codec: 'h264', width: 600, height: 450 },
+        });
+        expect(mov.duration).toBeCloseTo(1, 1);
+        expect(mov.audio).toBeUndefined();
+      });
+
+      it('AN28 a video with a sound has a sound stream (AAC in MP4, MP3 in AVI); a GIF has none', async () => {
+        const { engine, out, frames, audio } = setup();
+        await engine.probe(audio); // as the app does when a sound is added
+        const sounds = [
+          {
+            path: audio,
+            offset: 0,
+            heard: 1,
+            volume: 1,
+            fadeIn: 0,
+            fadeOut: 0,
+            cut: 0,
+            duration: 1,
+            at: 0.5,
+          },
+        ];
+        const options = { fps: 24, frames: 48, width: 320, height: 240, sounds };
+        await engine.encodeFrames(await frames(320, 240, 48), out('sound-c.mp4'), {
+          ...options,
+          format: 'mp4',
+        }).done;
+        const mp4 = await engine.probe(out('sound-c.mp4'));
+        expect(mp4.audio).toMatchObject({ codec: 'aac' });
+        expect(mp4.duration).toBeCloseTo(2, 1);
+        await engine.encodeFrames(await frames(320, 240, 48), out('sound-c.avi'), {
+          ...options,
+          format: 'avi',
+        }).done;
+        expect((await engine.probe(out('sound-c.avi'))).audio).toMatchObject({ codec: 'mp3' });
+        await engine.encodeFrames(await frames(320, 240, 48), out('sound-c.gif'), {
+          ...options,
+          format: 'gif',
+        }).done;
+        expect((await engine.probe(out('sound-c.gif'))).audio).toBeUndefined();
       });
 
       it('Cancel stops the job and leaves no file', async () => {

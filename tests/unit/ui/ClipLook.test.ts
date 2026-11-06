@@ -47,6 +47,19 @@ describe('fades, filters, pan & zoom and transitions in the inspector (screens 0
     expect(item().effects).toEqual([{ effectId: 'video.blur', params: { radius: 12 } }]);
   });
 
+  it('V15 shows the filters as even tiles, each with a preview of its look; one in use is ticked', async () => {
+    await twoClips();
+    const grid = screen.getByRole('group', { name: 'Add a filter' });
+    const tiles = within(grid).getAllByRole('button');
+    expect(tiles).toHaveLength(7);
+    for (const tile of tiles) expect(tile.querySelector('.swatch')).toBeTruthy();
+    const sepia = within(grid).getByRole('button', { name: 'Add Sepia' });
+    expect(sepia.classList.contains('on')).toBe(false);
+    await fireEvent.click(sepia);
+    expect(sepia.classList.contains('on')).toBe(true);
+    expect(sepia.textContent).toMatch(/✓/);
+  });
+
   it('T5 every tool explains why it is used', async () => {
     await twoClips(1);
     expect(screen.getAllByText('Why use this?').length).toBeGreaterThanOrEqual(4);
@@ -92,6 +105,17 @@ describe('fades, filters, pan & zoom and transitions in the inspector (screens 0
     ).toBe('true');
     await fireEvent.click(within(picker).getByRole('radio', { name: /None \(cut\)/ }));
     expect(item().transitionIn).toBeUndefined();
+  });
+
+  it('V9 a transition into a clip under a second long starts short enough to fit (9626/02 O/N/21: a 0.53 s still)', async () => {
+    const { item } = await twoClips(1); // the photo, 5 s
+    await type('Duration', '0.6');
+    const picker = screen.getByRole('radiogroup', { name: 'Transition' });
+    await fireEvent.click(within(picker).getByRole('radio', { name: /^Dissolve/ }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(item().transitionIn).toEqual({ effectId: 'transition.dissolve', duration: 0.3 });
+    // Its length can then be typed, as for any transition.
+    expect(screen.getByLabelText('Transition length')).toBeTruthy();
   });
 
   it('V9 the transitions are shown in groups: fades, wipes, slides, shapes and fun', async () => {

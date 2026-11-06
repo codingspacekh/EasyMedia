@@ -1,6 +1,6 @@
-# EasyMedia — user guide
+# OneEditor — user guide
 
-EasyMedia edits video, sound and animation for Cambridge International AS & A Level IT (9626),
+OneEditor edits video, sound and animation for Cambridge International AS & A Level IT (9626),
 syllabus sections 11 and 20.1. It has three editors, chosen at the top left: **Video**, **Audio**
 and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 
@@ -28,15 +28,19 @@ and **Animation**. The theory is in the **Learn** menu at the top of the screen.
   empty folder, and copy that whole folder. Open the `.mve` inside it on the other computer
   (Windows or Mac).
 - **Export** makes the finished video or sound file. Export does not save the project: save it too.
-- EasyMedia saves your work in the background. If it closes unexpectedly, it offers to restore your
+- OneEditor saves your work in the background. If it closes unexpectedly, it offers to restore your
   work the next time it opens.
+- **In an exam**, open **File ▸ Candidate Details…** and type your centre number, candidate number
+  and name once. Every Save and Export box then suggests the name the paper asks for, for example
+  `Gas_ZZ999_9999`: change only the first part. Click **Clear** there before someone else uses the
+  computer.
 
 ### Arrange the panels
 
 Drag the edge between a panel and the work area to make the panel wider or narrower (or the
 timeline taller); double-click the edge for its usual size. The small arrow on the edge hides the
 panel, and the thin strip left behind shows it again. **View ▸ Show / Hide Left Panel**, **Right
-Panel** and **Timeline** do the same, and **View ▸ Reset Layout** puts everything back. EasyMedia
+Panel** and **Timeline** do the same, and **View ▸ Reset Layout** puts everything back. OneEditor
 remembers your layout.
 
 ## Video mode
@@ -62,9 +66,10 @@ left. Click **Add** on an item to put it at the end of the timeline.
 | Join two pieces again | Select the first one and click **Join**. |
 | Change the order | Drag a clip to another place on the main track. |
 | Delete a clip | Select it and click **Delete** (or press <kbd>Delete</kbd>). |
-| Make a clip faster or slower | Clip tab ▸ **Speed** (0.25× to 4×). |
+| Make a clip faster or slower | Clip tab ▸ **Speed**: a preset, or type any speed from 0.25× to 4× (such as 1.25). |
 | Show a picture for longer | Select it ▸ **Duration**. |
-| Make a picture fit the video's shape | Media bin ▸ **Resize & crop…** on the picture. |
+| Make a picture fit the video's shape | Media bin ▸ **Resize & crop…** on the picture: **Crop to fit** keeps its shape, **Stretch to fit** changes its shape and cuts nothing off. |
+| Put a picture on another picture | Media bin ▸ **Place a picture on it…** on the background picture: choose the picture to place, its width (% of the background), one of nine places and a margin. It is saved as a new picture. |
 
 **Snap** makes dragged edges jump to the playhead and to other clips, so clips line up exactly.
 
@@ -77,14 +82,15 @@ left. Click **Add** on an item to put it at the end of the timeline.
 
 In the **Text** tab:
 
-- **Font** opens a list of 20 fonts in groups, each written in its own letters. Use the same font
+- **Font** opens a list of 26 fonts in groups, each written in its own letters. Use the same font
   for all the words in a video unless the task says otherwise.
 - **Ready-made looks** (Neon, Gold, Fire, Comic, Highlighter…) change the colours and effects in one
   click. **Readability and effects** has a shadow, an outline, a box, glow, gradient and 3D, and a
   second colour. The note under it says whether the words are easy to read.
 - **Position**: the 3 × 3 grid (for example top right), and left / centre / right lines.
-- **Effects**: fade in and out, an **Entrance** (fly in, rise, drop and bounce, zoom, pop) and an
-  **Exit** (fly out, sink, zoom away).
+- **Effects**: fade in and out, an **Entrance** (fly in, rise, drop and bounce, zoom, pop, slam
+  down and shake, type on, spin in, whip in) and an **Exit** (fly out, sink, zoom away, pop out,
+  spin away, whip off).
 
 ### 5. Effects and transitions
 
@@ -93,7 +99,7 @@ In a clip's **Effects** tab:
 - **Fade** in and out, to black or to white.
 - **Filters & colour**: brightness, contrast, saturation, black and white, sepia, blur and more.
 - **Pan & zoom**: move across or into a still picture.
-- **Transition into this clip**: 33 transitions in five groups. Rest the mouse on a tile to see it
+- **Transition into this clip**: 43 transitions in five groups. Rest the mouse on a tile to see it
   move. Choose how long it lasts underneath.
 
 ### 6. Sound in a video
@@ -103,6 +109,9 @@ In a clip's **Effects** tab:
 - **Add music** puts a sound file on the music track at the playhead. A voiceover goes on the
   second track. Drag sound clips to move them; select one to change its volume, fades and speed.
   Tick **Lower under voiceover** on the music to make the words easier to hear.
+- **Sound FX** opens the built-in sound effects (a whoosh, a ding, a drum roll…): **Play** to hear
+  one, **Add** to put it at the playhead on the **Effects 1** track (or **Effects 2** if that is
+  busy). Move, trim and change its volume like music.
 
 ### 7. Snapshot (a still from the video)
 
@@ -117,7 +126,8 @@ and choose whether to hide the text and put the still on the timeline.
 - **Destination** presets: Internet / YouTube, mobile phone (medium or small), DVD player (PAL or
   NTSC), Blu-ray / HD television — or **Custom**.
 - **Format**: MP4, MOV, AVI, WMV, MPG and more, each with its advantages and disadvantages.
-- **Resolution**, **frame rate** and **quality**, with the **estimated file size**.
+- **Resolution** (also *same as* each video on the timeline, for example 852 × 480, or **Custom size…**),
+  **frame rate** and **quality**, with the **estimated file size**.
 
 ## Audio mode
 
@@ -126,13 +136,16 @@ Audio mode edits sound on **tracks**, like Audacity.
 ### Tracks and clips
 
 - **Import audio** opens a sound file (MP3, WAV, M4A, AAC, FLAC, OGG, or the sound of a video) as a
-  new track. **Tracks ▸ Add new mono / stereo track** adds an empty one.
+  new track. **Tracks ▸ Add new mono / stereo track** adds an empty one. **Tracks ▸ Add a sound
+  effect…** adds a built-in sound effect as a new track at the cursor.
 - Each track holds **clips**. With the **Clip tool** (the arrows button, chosen at the start):
   - click a clip to select it (the playhead goes where you clicked);
   - drag a clip to move it in time;
   - drag a clip's edge to trim it (drag it back out to get the sound back);
   - **Split** cuts the selected clip at the playhead; **Join** puts it back together with the clip
     right after it; **Delete** removes the selected clip and leaves a silent gap.
+  - the side panel shows the selected clip's **Starts at**: type a time (such as 8.25) to move it
+    there exactly.
 - With the **Selection tool** (the I-beam), drag across the sound to select part of it. Then use
   **Cut**, **Copy**, **Paste**, **Trim to selection**, **Insert silence** or an effect on just that
   part. You can also type the **Selection start** and **Selection end** at the bottom.
@@ -159,7 +172,7 @@ after a 3-second count-in, the other tracks play while you speak (overdubbing). 
 
 ### Export
 
-**Export** (or **File ▸ Export Audio…**): MP3, M4A, AAC, WAV or FLAC; sample rate, bit rate, mono
+**Export** (or **File ▸ Export Audio…**): MP3, M4A, AAC, OGG, WAV or FLAC; sample rate, bit rate, mono
 or stereo, and tags. It shows the estimated size next to the same sound as a WAV.
 
 ## Animation mode
@@ -171,8 +184,8 @@ and its pictures into one folder, to hand in or take to another computer.
 ### 1. Set up the stage
 
 Click the chip at the top (for example **3:2 · 600 × 400 · 24 fps**) to set the stage's **width
-and height** in pixels (or an aspect ratio preset: 4:3, 16:9, 16:10, 2.35:1), its **colour**, the
-**frame rate** and the **length**. Only what is on the stage is in the animation; (0, 0) is its
+and height** in pixels (or an aspect ratio preset: 4:3, 16:9, 16:10, 2.35:1), its **colour** (or
+**Transparent**: no background, shown as a checkerboard), the **frame rate** and the **length**. Only what is on the stage is in the animation; (0, 0) is its
 top-left corner.
 
 The tool strip beside the stage has **Rulers** (drag a guide out of a ruler), **Grid** and
@@ -210,7 +223,7 @@ layer to see it work).
 
 Move the playhead (click the timeline's ruler, or type a frame or a time such as `3 s` in **Go
 to…**), then change the object — drag it, or type a new value. That makes a **keyframe** there,
-and EasyMedia works out every frame in between (a **tween**). Click a keyframe dot to choose its
+and OneEditor works out every frame in between (a **tween**). Click a keyframe dot to choose its
 **easing**, **Hold** it, **Repeat** or **Reverse** it.
 
 - **Motion path**: draw a path, then select the object ▸ Properties ▸ **Follow path** (tick
@@ -239,7 +252,9 @@ and EasyMedia works out every frame in between (a **tween**). Click a keyframe d
 
 **Export** (or **File ▸ Export Animation…**): an **MP4 video**, an **animated GIF** (loops), an
 **HTML web animation** (one file that plays in any browser, with its buttons), a **PNG sequence**
-(one picture per frame) or a **PNG picture of this frame**. The dialog shows the size, length and
+(one picture per frame), a **PNG picture of this frame** or an **SVG picture of this frame** (vector
+shapes, sharp at any size). With a transparent stage the PNG, GIF and web page are see-through; an
+MP4 is drawn on white. The dialog shows the size, length and
 advantages of each. **Send to Video mode** puts the exported MP4 on the video timeline.
 
 ## Learn mode
@@ -327,5 +342,9 @@ pictures a second ▸ Choose folder…; Export ▸ MP4.
   another format or a smaller size, and make sure there is free space on the disk.
 - **The microphone does not work**: see "Microphone" in the install guide (`INSTALL.md`), then close
   the recording window and open it again.
+- **Something else went wrong** ("Something went wrong", a frozen window, OneEditor closed by
+  itself): choose **Help ▸ Report a Problem…**, save the report (on the Desktop), write in it what
+  you were doing, and give it to your teacher. It lists the last things OneEditor did and the errors
+  it met; nothing is sent anywhere.
 - **Help ▸ Welcome** shows the first page again. **Help ▸ Licences** lists the free software
-  EasyMedia includes.
+  OneEditor includes.

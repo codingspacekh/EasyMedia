@@ -37,6 +37,18 @@ describe('T5 every editing tool links to why it is used', () => {
     expectWhy(whyTexts(section('Separate sound')), WHY.separateSound);
   });
 
+  it('V19: turn & flip, on a video clip and on a picture', async () => {
+    const t = await videoClip();
+    const main = () => t.app.store.get().history.present.timeline.main;
+    t.app.select(main()[0]!.id);
+    const { unmount } = render(Inspector, { props: { app: t.app } });
+    expectWhy(whyTexts(section('Turn & flip')), WHY.turn);
+    unmount();
+    t.app.select(main()[1]!.id);
+    render(Inspector, { props: { app: t.app } });
+    expectWhy(whyTexts(section('Turn & flip')), WHY.turn);
+  });
+
   it('a still image: its duration', async () => {
     const t = await videoClip();
     t.app.select(t.app.store.get().history.present.timeline.main[1]!.id);

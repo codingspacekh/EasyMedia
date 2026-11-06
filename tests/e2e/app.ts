@@ -1,4 +1,4 @@
-// Launches the built EasyMedia app for end-to-end tests, with its own empty user-data folder.
+// Launches the built OneEditor app for end-to-end tests, with its own empty user-data folder.
 import {
   _electron as electron,
   expect,
@@ -38,7 +38,7 @@ export async function launchApp(
   const app = await electron.launch({
     args: [root, ...switches],
     cwd: root,
-    env: { ...process.env, EASYMEDIA_USER_DATA: userData },
+    env: { ...process.env, ONEEDITOR_USER_DATA: userData },
   });
   const window = await app.firstWindow();
   await window.waitForLoadState('domcontentloaded');
@@ -140,4 +140,15 @@ export async function exportVideo(
   await dialog.getByLabel(/also save the project/i).uncheck();
   await dialog.getByRole('button', { name: 'Export', exact: true }).click();
   await expect(page.getByText(`Saved to ${output}`)).toBeVisible({ timeout });
+}
+
+/** Chooses a colour with the app's own colour picker: open the swatch, type the hex, close it. */
+export async function pickColour(page: Page, label: string, hex: string) {
+  await page.getByRole('button', { name: label, exact: true }).click();
+  const picker = page.getByRole('dialog', { name: label });
+  const box = picker.getByLabel(`${label} hex`);
+  await box.fill(hex);
+  await box.press('Enter');
+  await page.keyboard.press('Escape');
+  await picker.waitFor({ state: 'detached' });
 }

@@ -193,6 +193,7 @@ describe('files at the edges', () => {
         remove: async () => {},
         copy: async () => {},
         saveImage: async () => '',
+        saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
         writeBytes: async () => Promise.reject(new Error('disk full')),
       },
       paths: { proxies: '/c', recovery: '/c/recovery.mve', snapshots: '/c', learn: '/c' },
@@ -204,7 +205,7 @@ describe('files at the edges', () => {
     expect(anim.store.get().path).toBeNull();
     t.dialogs.exportAnimation.mockResolvedValueOnce('/a/x.png');
     await anim.exportPng();
-    expect(anim.store.get().message?.text).toMatch(/needs the EasyMedia app/);
+    expect(anim.store.get().message?.text).toMatch(/needs the OneEditor app/);
     anim.dispose();
   });
 

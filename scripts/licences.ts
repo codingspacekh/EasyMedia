@@ -1,11 +1,17 @@
 // Writes THIRD_PARTY_LICENSES.txt for the installers (README §17), from what the build actually
 // bundled (build-info/, written by `npm run build:app`), the bundled fonts and FFmpeg.
 // Usage: npm run build:app && npm run licences
+import { readFileSync } from 'node:fs';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FONTS } from '../src/core/text/fonts.ts';
-import { thirdPartyLicences } from './lib/licences.ts';
+import {
+  licenceTextOf,
+  packageLists,
+  shippedPackages,
+  thirdPartyLicences,
+} from './lib/licences.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const json = async (path: string) => JSON.parse(await readFile(join(root, path), 'utf8'));
@@ -21,20 +27,31 @@ const infos = (
     throw new Error('Run "npm run build:app" first: it records what goes into the app.');
   })
 ).filter((f) => f.endsWith('.json'));
-const names = [
-  ...new Set((await Promise.all(infos.map((f) => json(`build-info/${f}`)))).flat() as string[]),
-].sort();
+const bundled = packageLists(await Promise.all(infos.map((f) => json(`build-info/${f}`))));
+// M17a: what the installers carry in node_modules (electron-updater and what it uses).
+const readPackage = (dir: string) => {
+  try {
+    return JSON.parse(readFileSync(join(root, dir, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+};
+const shipped = shippedPackages((await json('package.json')).dependencies ?? {}, readPackage);
 const packages = await Promise.all(
-  names.map(async (name) => {
-    const pkg = await json(`node_modules/${name}/package.json`);
+  [
+    ...bundled.map((name) => ({ name, dir: `node_modules/${name}` })),
+    ...shipped.filter((p) => !bundled.includes(p.name)),
+  ].map(async ({ name, dir }) => {
+    const pkg = await json(`${dir}/package.json`);
     return {
       name,
       version: pkg.version,
       licence: pkg.license ?? 'see text',
-      text: await licenceText(`node_modules/${name}`),
+      text: licenceTextOf(pkg, await licenceText(dir)),
     };
   }),
 );
+const names = packages.map((p) => p.name);
 
 const manifest = await json('scripts/ffmpeg-manifest.json');
 const builds = Object.values(manifest.platforms as Record<string, { url: string }[]>)

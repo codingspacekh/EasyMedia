@@ -81,6 +81,7 @@ describe('P2 main-process IPC handlers', () => {
         saveTaskCheck: async (name) => `/t/${name}.mvetask`,
         openAnimation: async () => null,
         openPicture: async () => null,
+        openSound: async () => '/m/alarm.mp3',
         openFrames: async () => ['/shots/1.jpg', '/shots/2.jpg'],
         openExport: async () => ['/e/Task4.html'],
         saveAnimation: async () => null,
@@ -88,6 +89,7 @@ describe('P2 main-process IPC handlers', () => {
       },
     });
     expect(await api.invoke('dialog:openExport')).toEqual({ ok: true, value: ['/e/Task4.html'] });
+    expect(await api.invoke('dialog:openSound')).toEqual({ ok: true, value: '/m/alarm.mp3' });
     expect(await api.invoke('dialog:openFrames')).toEqual({
       ok: true,
       value: ['/shots/1.jpg', '/shots/2.jpg'],
@@ -137,6 +139,7 @@ describe('P2 main-process IPC handlers', () => {
         remove: async () => {},
         copy: async (from, to) => void copied.push(`${from}→${to}`),
         saveImage: async () => '',
+        saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
         writeBytes: async () => {},
       },
     });
@@ -161,6 +164,7 @@ describe('P2 main-process IPC handlers', () => {
           saved.push(`${name}:${png.length}`);
           return `/cache/text/${name}.png`;
         },
+        saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
         writeBytes: async (path, bytes) => {
           saved.push(`${path}:${bytes.length}`);
         },
@@ -178,6 +182,36 @@ describe('P2 main-process IPC handlers', () => {
     expect(saved).toEqual(['text-ab_1:3']);
     const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
     expect(allow.has('/cache/text/text-ab_1.png')).toBe(true);
+  });
+
+  it('X8 saves a sound effect only by a plain name, into the app folder, and lets it be played', async () => {
+    const saved: string[] = [];
+    const { api } = inProcessBridge(createMockMediaEngine(), {
+      files: {
+        read: async () => '',
+        write: async () => {},
+        remove: async () => {},
+        copy: async () => {},
+        saveImage: async () => '',
+        saveSound: async (name, wav) => {
+          saved.push(`${name}:${wav.length}`);
+          return `/cache/sounds/${name}.wav`;
+        },
+        writeBytes: async () => {},
+      },
+    });
+    for (const bad of ['../evil', '/etc/x', 'a b', 'C:\\x', '', 'Pop', 'x'.repeat(60)]) {
+      expect(await api.invoke('project:saveSound', bad, new Uint8Array(3))).toMatchObject({
+        ok: false,
+      });
+    }
+    expect(await api.invoke('project:saveSound', 'tick-tock', new Uint8Array(4))).toEqual({
+      ok: true,
+      value: '/cache/sounds/tick-tock.wav',
+    });
+    expect(saved).toEqual(['tick-tock:4']);
+    const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
+    expect(allow.has('/cache/sounds/tick-tock.wav')).toBe(true);
   });
 
   it('V11 crops only pictures the app has opened, and lets the preview show the new one', async () => {
@@ -204,6 +238,97 @@ describe('P2 main-process IPC handlers', () => {
     });
     const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
     expect(allow.has('/m/p1.jpg')).toBe(true);
+  });
+
+  it('M17a updates: the page asks through updates:* and is told the state (off from the source)', async () => {
+    const { api } = inProcessBridge(createMockMediaEngine({}));
+    expect(await api.invoke('updates:get')).toMatchObject({
+      ok: true,
+      value: { mode: 'off', current: '1.5.0', status: 'idle' },
+    });
+    expect(await api.invoke('updates:check')).toMatchObject({
+      ok: true,
+      value: { status: 'idle' },
+    });
+    expect(await api.invoke('updates:auto', true)).toMatchObject({
+      ok: true,
+      value: { autoDownload: true },
+    });
+  });
+
+  it('N1 the performance report: off unless asked for; on, it is sent each play of the stage', async () => {
+    const off = inProcessBridge(createMockMediaEngine({})).api;
+    expect(await off.invoke('perf:enabled')).toEqual({ ok: true, value: false });
+    const sample = { seconds: 3, fps: 29.7, targetFps: 30, longestGapMs: 18 };
+    expect(await off.invoke('perf:playback', sample)).toEqual({ ok: true, value: null });
+
+    const playback = vi.fn();
+    const { api } = inProcessBridge(createMockMediaEngine({}), { perf: { playback } });
+    expect(await api.invoke('perf:enabled')).toEqual({ ok: true, value: true });
+    expect(await api.invoke('perf:playback', sample)).toEqual({ ok: true, value: null });
+    expect(playback).toHaveBeenCalledWith(sample);
+    // What the page sends is checked.
+    const bad = { ...sample, fps: 'fast' } as unknown as typeof sample;
+    expect(await api.invoke('perf:playback', bad)).toMatchObject({ ok: false });
+    expect(playback).toHaveBeenCalledTimes(1);
+  });
+
+  it('Report a Problem: the page’s unexpected errors and failed requests go to the problem log', async () => {
+    const record = vi.fn();
+    const { api } = inProcessBridge(createMockMediaEngine({}), { problems: { record } });
+    expect(await api.invoke('log:page', 'TypeError: frame is undefined')).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(record).toHaveBeenCalledWith('error', 'page', 'TypeError: frame is undefined');
+    await api.invoke('media:probe', '/m/gone.mp4');
+    expect(record).toHaveBeenLastCalledWith(
+      'error',
+      'request',
+      expect.stringMatching(/^media:probe: MediaError: .*could not be found/),
+    );
+    // A job that fails (the file is gone) is noted with its label.
+    const failed = new Promise((resolve) =>
+      api.on('job:event', (e) => e.type === 'failed' && resolve(e)),
+    );
+    await api.invoke('media:proxy', 'k1', '/m/gone.mp4', '/cache/p.mp4', 10);
+    await failed;
+    expect(record).toHaveBeenLastCalledWith(
+      'error',
+      'job',
+      expect.stringMatching(/: MediaError: /),
+    );
+    // Only text is taken from the page.
+    expect(await api.invoke('log:page', { evil: true } as unknown as string)).toMatchObject({
+      ok: false,
+    });
+    // Without a log (tests, development) nothing breaks.
+    const plain = inProcessBridge(createMockMediaEngine({})).api;
+    expect(await plain.invoke('log:page', 'x')).toEqual({ ok: true, value: null });
+  });
+
+  it('V18 combines only pictures the app opened, and allows the picture it makes', async () => {
+    const photo = {
+      kind: 'image' as const,
+      container: 'png',
+      sizeBytes: 1,
+      video: { codec: 'png', width: 400, height: 300 },
+    };
+    const { api } = inProcessBridge(
+      createMockMediaEngine({ '/m/credits.png': photo, '/m/grid.png': photo, '/etc/x.png': photo }),
+    );
+    const plan = { top: { width: 100, height: 75 }, x: 0, y: 225 };
+    await api.invoke('media:probe', '/m/credits.png');
+    expect(await api.invoke('media:combine', '/m/credits.png', '/etc/x.png', plan)).toMatchObject({
+      ok: false,
+    });
+    await api.invoke('media:probe', '/m/grid.png');
+    expect(await api.invoke('media:combine', '/m/credits.png', '/m/grid.png', plan)).toEqual({
+      ok: true,
+      value: '/m/credits1.png',
+    });
+    const allow = (await import('../../../helpers/ipc-bridge.ts')).lastAllowList();
+    expect(allow.has('/m/credits1.png')).toBe(true);
   });
 
   it('A1 decoded sound reaches the page through a temporary file, never through the main process memory', async () => {
@@ -239,7 +364,7 @@ describe('P2 main-process IPC handlers', () => {
       expect(await api.invoke('media:encodeFrames', 'k1', folder, '/out/a.mp4', options)).toEqual({
         ok: false,
         error: expect.objectContaining({
-          message: 'Only frames drawn by EasyMedia can be exported.',
+          message: 'Only frames drawn by OneEditor can be exported.',
         }),
       });
     const finished = new Promise((resolve) =>
@@ -250,6 +375,49 @@ describe('P2 main-process IPC handlers', () => {
     ).toEqual({ ok: true, value: null });
     await finished;
     expect(allow.has('/out/a.mp4')).toBe(true);
+  });
+
+  it('AN28 puts only sounds the app opened (or made) into a video', async () => {
+    const { api } = inProcessBridge(
+      createMockMediaEngine({
+        '/m/alarm.mp3': {
+          kind: 'audio',
+          container: 'mp3',
+          duration: 2,
+          sizeBytes: 32_000,
+          audio: { codec: 'mp3', sampleRate: 44100, channels: 2 },
+        },
+      }),
+    );
+    const piece = {
+      path: '/m/alarm.mp3',
+      offset: 0,
+      heard: 2,
+      volume: 1,
+      fadeIn: 0,
+      fadeOut: 0,
+      cut: 0,
+      duration: 2,
+      at: 0,
+    };
+    const options = {
+      format: 'mp4' as const,
+      fps: 24,
+      frames: 72,
+      width: 600,
+      height: 400,
+      sounds: [piece],
+    };
+    const folder = '/cache/frames/export-2';
+    expect(await api.invoke('media:encodeFrames', 'k3', folder, '/out/b.mp4', options)).toEqual({
+      ok: false,
+      error: expect.objectContaining({ message: 'Only sounds opened in OneEditor can be used.' }),
+    });
+    await api.invoke('media:probe', '/m/alarm.mp3');
+    expect(await api.invoke('media:encodeFrames', 'k4', folder, '/out/b.mp4', options)).toEqual({
+      ok: true,
+      value: null,
+    });
   });
 
   it('only releases files it made for decoding', async () => {

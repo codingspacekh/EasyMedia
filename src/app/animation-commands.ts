@@ -2,22 +2,28 @@
 // document from the old one without changing it; the rules live in core/animation.
 import { EditError } from '../core/model/errors.ts';
 import {
+  CENTRE_PIVOT,
+  pivotOf,
   resizeFrom,
   rotated,
   setSize,
+  withPivot,
   type Handle,
   type Point,
 } from '../core/animation/geometry.ts';
 import * as layers from '../core/animation/layers.ts';
+import { combineObjects, flipObject, type CombineHow } from '../core/animation/combine.ts';
 import type { MeasureText } from '../core/animation/letters.ts';
 import { validateObject, validateStage } from '../core/animation/rules.ts';
 import { changeFps as changeFpsIn } from '../core/animation/time.ts';
 import { motionFrom, withPaths } from '../core/animation/motion.ts';
 import * as frames from '../core/animation/frames.ts';
 import { applyEffect as withEffect, effectOf } from '../core/animation/effects.ts';
+import { validateSound } from '../core/animation/sound.ts';
 import * as tween from '../core/animation/tween.ts';
 import { BUTTON_LABELS } from '../core/animation/factory.ts';
 import type {
+  AnimSound,
   AnimObject,
   AnimationDoc,
   ButtonAction,
@@ -26,6 +32,7 @@ import type {
   Layer,
   MotionPath,
   Picture,
+  PictureObject,
   Stage,
   Track,
   TweenProperty,
@@ -130,7 +137,10 @@ export function setProperties(
       patch.width !== undefined || patch.height !== undefined
         ? setSize(o, patch.width ?? o.width, patch.height ?? o.height)
         : o;
-    return { ...sized, ...patch, width: sized.width, height: sized.height } as AnimObject;
+    const next = { ...sized, ...patch, width: sized.width, height: sized.height } as AnimObject;
+    // A text's new font size keeps its top-left corner, as in Animate and Hype: the papers and
+    // the workbook give x, y and the size, in any order (WB Task 1.1 keys the size at 193, 73).
+    return next;
   });
 }
 
@@ -150,6 +160,28 @@ export function resizeObject(
 
 export function rotateObject(id: Id, degrees: number, frame = 0): AnimCommand {
   return changeAt([id], frame, 'Rotate', (o) => rotated(o, degrees));
+}
+
+/**
+ * AN27: the point the objects turn about, as fractions of each one's box (only x or only y: the
+ * other is kept; null: the centre again). Each stays where it is shown at the playhead; the point
+ * is the same at every frame (it is not keyframed).
+ */
+export function setPivot(ids: readonly Id[], pivot: Partial<Point> | null, frame = 0): AnimCommand {
+  return command(pivot === null ? 'Turn about the centre' : 'Turn about', (doc) =>
+    ids.reduce(
+      (d, id) =>
+        layers.updateObject(d, id, (o) => {
+          const was = pivotOf(o);
+          const to = pivot === null ? CENTRE_PIVOT : { x: pivot.x ?? was.x, y: pivot.y ?? was.y };
+          const next = withPivot(o, to, tween.objectAt(o, frame));
+          validateObject(next);
+          validateObject(tween.objectAt(next, frame));
+          return next;
+        }),
+      doc,
+    ),
+  );
 }
 
 /** AN4: the text becomes one object per letter; the letters' ids are known once it has run. */
@@ -360,6 +392,30 @@ export function moveObjectsToLayer(ids: readonly Id[], layerId: Id, frame = 0): 
 }
 
 /** The group's id is known once the command has run. */
+/** AN23 Flip the selected objects, each in its own box. */
+export function flipObjects(ids: readonly Id[], axis: 'horizontal' | 'vertical'): AnimCommand {
+  return command(axis === 'horizontal' ? 'Flip horizontal' : 'Flip vertical', (doc) =>
+    ids.reduce((d, id) => {
+      const found = layers.findObject(d, id);
+      return found ? layers.replaceObjects(d, [id], ([o]) => [flipObject(o!, axis)]).doc : d;
+    }, doc),
+  );
+}
+
+/** AN24 Combine the selected shapes into one (or more) new shapes. */
+export function combineSelected(
+  ids: readonly Id[],
+  how: CombineHow,
+  made: (ids: Id[]) => void,
+): AnimCommand {
+  const labels = { union: 'Union', cutOut: 'Cut out', intersect: 'Intersect' };
+  return command(labels[how], (doc) => {
+    const { doc: next, ids: shapes } = combineObjects(doc, ids, how);
+    made(shapes);
+    return next;
+  });
+}
+
 export function groupObjects(ids: readonly Id[], made: (groupId: Id) => void): AnimCommand {
   return command('Group', (doc) => {
     const { doc: next, group } = layers.groupObjects(doc, ids);
@@ -388,24 +444,15 @@ export function duplicateObjects(ids: readonly Id[], made: (ids: Id[]) => void):
 /** Pasted objects go to the front of the layer, offset so they are seen, with new ids. */
 export function pasteObjects(
   layerId: Id,
-  objects: readonly AnimObject[],
+  clipboard: { objects: readonly AnimObject[]; pictures: readonly Picture[] },
   made: (ids: Id[]) => void,
   frame = 0,
 ): AnimCommand {
   return command('Paste', (doc) => {
-    let next = doc;
-    const ids: Id[] = [];
     const layer = doc.layers.find((l) => l.id === layerId);
-    for (const object of objects) {
-      // AN14: on a frame-by-frame layer the copies join the drawing shown.
-      const placed = layer ? frames.placeIn(layer, object, frame) : object;
-      const { doc: d, ids: copies } = layers.duplicateObjects(
-        layers.addObject(next, layerId, { ...placed, id: `${object.id}.paste` }),
-        [`${object.id}.paste`],
-      );
-      next = layers.removeObjects(d, [`${object.id}.paste`]);
-      ids.push(...copies);
-    }
+    // AN14: on a frame-by-frame layer the copies join the drawing shown.
+    const placed = clipboard.objects.map((o) => (layer ? frames.placeIn(layer, o, frame) : o));
+    const { doc: next, ids } = layers.pasteObjects(doc, layerId, placed, clipboard.pictures);
     made(ids);
     return next;
   });
@@ -416,6 +463,18 @@ export function pasteObjects(
 export function setStage(stage: Stage): AnimCommand {
   return command('Stage settings', (doc) => {
     validateStage(stage);
+    return { ...doc, stage };
+  });
+}
+
+/**
+ * AN8, AN15: a GIF and the web page play once and stop on the last frame, or loop. Loop leaves
+ * the field out, so the file is as one made before the choice existed.
+ */
+export function setPlayOnce(once: boolean): AnimCommand {
+  return command(once ? 'Play once' : 'Loop', (doc) => {
+    const stage = { ...doc.stage, playOnce: true };
+    if (!once) delete (stage as Partial<Stage>).playOnce;
     return { ...doc, stage };
   });
 }
@@ -517,6 +576,26 @@ export function addPicture(layerId: Id, picture: Picture, object: AnimObject): A
   });
 }
 
+/**
+ * AN5 Crop… / Make a colour see-through…: a new picture file and the picture object changed to show
+ * it (`change`), one undo step. The old file stays in the list (undo shows it again).
+ */
+export function changePicture(
+  id: Id,
+  picture: Picture,
+  change: (o: PictureObject) => PictureObject,
+  label: string,
+): AnimCommand {
+  return command(label, (doc) =>
+    layers.updateObject({ ...doc, pictures: [...doc.pictures, picture] }, id, (o) => {
+      if (o.kind !== 'picture') throw new EditError('Select a picture.');
+      const next = change(o);
+      validateObject(next);
+      return next;
+    }),
+  );
+}
+
 // ---- stop motion and frame-by-frame (AN14) ----
 
 /**
@@ -602,3 +681,39 @@ export function applyEffect(
     return end > next.stage.length ? { ...next, stage: { ...next.stage, length: end } } : next;
   });
 }
+
+// ---- AN28: sounds ----
+
+const SOUND_GONE = 'That sound is no longer in the animation.';
+
+/** AN28: a sound added to the animation (several may overlap). */
+export const addSound = (sound: AnimSound): AnimCommand =>
+  command(`Add ${sound.name}`, (doc) => {
+    validateSound(sound);
+    return { ...doc, sounds: [...(doc.sounds ?? []), sound] };
+  });
+
+/** AN28: a sound moved, trimmed, made louder or quieter, faded or muted; checked before it is kept. */
+export const changeSound = (
+  id: Id,
+  label: string,
+  change: (sound: AnimSound) => AnimSound,
+): AnimCommand =>
+  command(label, (doc) => {
+    const sounds = doc.sounds ?? [];
+    const at = sounds.findIndex((s) => s.id === id);
+    if (at < 0) throw new EditError(SOUND_GONE);
+    const next = change(sounds[at]!);
+    validateSound(next);
+    return { ...doc, sounds: sounds.map((s, i) => (i === at ? next : s)) };
+  });
+
+/** AN28: a sound deleted; with none left the animation has no `sounds` (older versions open it). */
+export const removeSound = (id: Id): AnimCommand =>
+  command('Delete sound', (doc) => {
+    const sounds = (doc.sounds ?? []).filter((s) => s.id !== id);
+    if (sounds.length === (doc.sounds ?? []).length) throw new EditError(SOUND_GONE);
+    const next: AnimationDoc = { ...doc, sounds };
+    if (!sounds.length) delete next.sounds;
+    return next;
+  });

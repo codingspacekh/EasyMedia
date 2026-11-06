@@ -13,7 +13,10 @@ import { createWebAudioOutput } from '../adapters/webaudio/output.ts';
 import { createMediaStreamRecorder, type AudioFrame } from '../adapters/webaudio/recorder.ts';
 import { unwrap } from '../adapters/electron/media-engine.ts';
 import { createIndexedDbUndoStore } from '../adapters/indexeddb/undo-store.ts';
+import { createElectronUpdates } from '../adapters/electron/updates.ts';
 import { menuActions } from './menu-actions.ts';
+import { watchPlayback } from '../app/animation/paint-watch.ts';
+import { onUnexpected } from '../app/problems.ts';
 import App from './App.svelte';
 import './fonts.css';
 import './theme.css';
@@ -38,9 +41,26 @@ declare const MediaStreamTrackProcessor: new (init: { track: MediaStreamTrack })
 };
 
 if (!window.mve) {
-  target.textContent = 'EasyMedia runs as a desktop app: start it with "npm run app".';
+  target.textContent = 'OneEditor runs as a desktop app: start it with "npm run app".';
 } else {
   const api = window.mve;
+  // Help ▸ Report a Problem…: what went wrong in the page goes to the main process's log.
+  const note = (text: string) => void api.invoke('log:page', text);
+  onUnexpected(note);
+  window.addEventListener('error', (e) =>
+    note(
+      e.error instanceof Error
+        ? `${e.error.name}: ${e.error.message}\n${e.error.stack ?? ''}`
+        : e.message,
+    ),
+  );
+  window.addEventListener('unhandledrejection', (e) =>
+    note(
+      e.reason instanceof Error
+        ? `${e.reason.name}: ${e.reason.message}\n${e.reason.stack ?? ''}`
+        : String(e.reason),
+    ),
+  );
   const app = createApp({
     engine: createElectronMediaEngine(api),
     dialogs: createElectronDialogs(api),
@@ -48,8 +68,10 @@ if (!window.mve) {
     text: createCanvasTextRenderer(),
     stageRenderer: createCanvasStageRenderer(),
     pageAssets: createElectronPageAssets(api, FONT_URLS),
+    updates: createElectronUpdates(api),
     paths: await getAppPaths(api),
     audioOutput: createWebAudioOutput(),
+    animationAudioOutput: createWebAudioOutput(),
     audioUndoStore: createIndexedDbUndoStore(),
     audioRecorder: createMediaStreamRecorder({
       mediaDevices: navigator.mediaDevices,
@@ -64,6 +86,13 @@ if (!window.mve) {
   api.on('app:closeRequested', () => {
     void app.confirmClose().then((close) => api.invoke('app:closeAnswer', close));
   });
+  // N1: with the performance report on, each play of the animation stage is measured for it.
+  if (await unwrap(api.invoke('perf:enabled')))
+    watchPlayback(
+      app.animation.store,
+      (sample) => void api.invoke('perf:playback', sample),
+      (callback) => requestAnimationFrame(callback),
+    );
   mount(App, { target, props: { app } });
   void app.start();
 }

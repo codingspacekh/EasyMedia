@@ -4,7 +4,7 @@
 // other. What the object did before the start is kept; keyframes inside the span are replaced.
 // A new effect is one entry in ANIM_EFFECTS.
 import { EditError } from '../model/errors.ts';
-import { centreOf } from './geometry.ts';
+import { pivotOf, pivotOnStage } from './geometry.ts';
 import { objectAt, setTrack, trackOf } from './tween.ts';
 import type { AnimObject, Easing, Keyframe, KeyValue, Stage, TweenProperty } from './types.ts';
 
@@ -31,19 +31,23 @@ const fromTo = (from: KeyValue, to: KeyValue, easing: Easing = 'linear'): Key[] 
   [1, to],
 ];
 
-/** Moves of the box that keep its centre where it is, from one size to another. */
+/**
+ * Moves of the box that keep the point it turns about (its centre unless chosen, AN27) where it
+ * is, from one size to another: it grows and shrinks about that point.
+ */
 function sizeKeys(
   o: AnimObject,
   sizes: readonly [at: number, scale: number][],
   easing: Easing,
 ): Keys {
-  const c = centreOf(o);
-  const at = (f: (s: number) => number) => sizes.map(([t, s]) => [t, f(s), easing] as Key);
+  const c = pivotOnStage(o);
+  const f = pivotOf(o);
+  const at = (g: (s: number) => number) => sizes.map(([t, s]) => [t, g(s), easing] as Key);
   return {
     width: at((s) => o.width * s),
     height: at((s) => o.height * s),
-    x: at((s) => c.x - (o.width * s) / 2),
-    y: at((s) => c.y - (o.height * s) / 2),
+    x: at((s) => c.x - o.width * s * f.x),
+    y: at((s) => c.y - o.height * s * f.y),
   };
 }
 

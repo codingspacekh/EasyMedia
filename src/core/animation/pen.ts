@@ -17,9 +17,13 @@ const map = (p: PathPoint, f: (q: Point) => Point): PathPoint => ({
 export const anchorsOnStage = (path: PathObject): PathPoint[] =>
   path.points.map((p) => map(p, (q) => toStage(path, q)));
 
-/** The path with these stage anchors; an unturned path's box fits the new outline. */
+/**
+ * The path with these stage anchors; an unturned path's box fits the new outline. A turned,
+ * flipped or skewed one keeps its box (and the point it turns about, AN27): its points are
+ * placed in it where they are shown.
+ */
 function withAnchors(path: PathObject, anchors: PathPoint[]): PathObject {
-  if (path.rotation !== 0)
+  if (path.rotation !== 0 || path.flipX || path.flipY || path.skewX || path.skewY)
     return { ...path, points: anchors.map((p) => map(p, (q) => toLocal(path, q))) };
   const outline = flattenCurves(anchors, path.closed);
   const xs = outline.map((p) => p.x);

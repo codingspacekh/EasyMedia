@@ -153,16 +153,27 @@ export function createJobQueue({
     job.kill = child.kill;
     const { code, stderr } = await child.done;
     if (job.cancelled) {
-      await fs.rm(temp);
+      await fs.rm(temp).catch(() => {});
       emit({ type: 'cancelled', ...base(job) });
       job.reject(new JobCancelledError());
     } else if (code === 0) {
-      await fs.rename(temp, job.spec.output);
+      try {
+        await fs.rename(temp, job.spec.output);
+      } catch {
+        // FFmpeg can end well without writing anything: a snapshot asked for after the clip's
+        // last picture, for example. The job fails with an explanation instead of hanging.
+        const error = new MediaError(
+          'FFmpeg finished but had nothing to save (no picture at that moment). Move the playhead a frame earlier and try again.',
+        );
+        emit({ type: 'error', ...base(job), message: error.message });
+        job.reject(error);
+        return;
+      }
       if (last < 1) progress(1);
       emit({ type: 'done', ...base(job) });
       job.resolve();
     } else {
-      await fs.rm(temp);
+      await fs.rm(temp).catch(() => {}); // a failed run may have written nothing
       const { fallbackArgs } = job.spec;
       if (fallbackArgs && args !== fallbackArgs) return runFfmpeg(job, fallbackArgs);
       const error = explainFfmpegError(stderr);

@@ -75,6 +75,22 @@ describe('V13 audio tracks rendered by FFmpeg', () => {
     expect(await rms(file, 9.9, 10)).toBeLessThan(full / 10); // faded out with the video
   });
 
+  it('V13 volume change: the music is at 30 % between 3 s and 6 s, then back, also under the voiceover', async () => {
+    const quiet = { ...createAudioItem(voice, 7), volume: 0, out: 2 }; // only its ducking is heard
+    const changes = [{ from: 3, to: 6, volume: 0.3 }];
+    const file = await render('volume-change', [
+      [{ ...createAudioItem(music, 0), duck: true, volumeChanges: changes }],
+      [quiet],
+    ]);
+    const full = await rms(file, 0.5, 2.5);
+    const lowered = await rms(file, 3.1, 5.9);
+    expect(full).toBeGreaterThan(0.1);
+    expect(20 * Math.log10(lowered / full)).toBeCloseTo(20 * Math.log10(0.3), 0); // −10.5 dB
+    expect(await rms(file, 6.4, 6.9)).toBeCloseTo(full, 1); // glided back up after 6.25 s
+    const ducked = await rms(file, 7.2, 8.8);
+    expect(20 * Math.log10(ducked / full)).toBeCloseTo(-6, 0); // the lowering still applies
+  });
+
   it('speed: 4 s of music at 2× plays for 2 s, then the rest is silent', async () => {
     const file = await render('fast', [[{ ...createAudioItem(music, 0), out: 4, speed: 2 }], []]);
     expect(await rms(file, 0.1, 1.9)).toBeGreaterThan(0.2);

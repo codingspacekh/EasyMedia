@@ -13,6 +13,10 @@
   import Timeline from './Timeline.svelte';
   import Tooltip from './Tooltip.svelte';
   import Licences from './Licences.svelte';
+  import UpdateNote from './UpdateNote.svelte';
+  import UpdatesDialog from './UpdatesDialog.svelte';
+  import CandidateDialog from './CandidateDialog.svelte';
+  import SoundEffectsDialog from './SoundEffectsDialog.svelte';
   import Welcome from './Welcome.svelte';
   import AudioMode from './audio/AudioMode.svelte';
   import AudioStatusBar from './audio/AudioStatusBar.svelte';
@@ -30,6 +34,8 @@
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const animStore = $derived(app.animation.store);
+  const updatesView = $derived(app.updates.store);
+  const candidateView = $derived(app.candidate.store);
   const MODE_ICONS = {
     Video: 'video',
     Audio: 'audio',
@@ -48,13 +54,13 @@
 
   $effect.pre(() => {
     document.title =
-      ui.mode === 'Animation' ? `${animationTitle($animStore)} — EasyMedia` : projectTitle($store);
+      ui.mode === 'Animation' ? `${animationTitle($animStore)} — OneEditor` : projectTitle($store);
   });
 </script>
 
 <div class="app">
   <header class="toolbar">
-    <h1 class="visually-hidden">EasyMedia</h1>
+    <h1 class="visually-hidden">OneEditor</h1>
     {#if ui.mode === 'Learn'}
       <!-- N15: Learn fills the window; Back returns to the editor it was opened from. -->
       <button type="button" class="back" onclick={leaveLearn}
@@ -119,6 +125,14 @@
           onclick={() => app.addMusic()}
         >
           <Icon name="music" /><span class="long">Add music</span><span class="short">Music</span>
+        </button>
+        <button
+          class="tool"
+          aria-label="Sound effects"
+          title="Built-in sound effects: add one at the playhead"
+          onclick={() => (ui.soundEffects = true)}
+        >
+          <Icon name="sfx" /><span class="long">Sound FX</span><span class="short">Sounds</span>
         </button>
       </div>
       <span class="spacer"></span>
@@ -188,6 +202,7 @@
       <LearnMode {app} />
     </main>
   {/if}
+  <UpdateNote {app} />
   {#if ui.mode === 'Audio'}
     <AudioStatusBar {app} />
   {:else if ui.mode === 'Learn'}
@@ -201,6 +216,11 @@
   {#if snapshotOpen}<SnapshotDialog {app} onclose={() => (snapshotOpen = false)} />{/if}
   {#if exportOpen}<ExportDialog {app} onclose={() => (exportOpen = false)} />{/if}
   {#if ui.glossary}<Glossary onclose={() => (ui.glossary = false)} />{/if}
+  {#if $updatesView.dialog}<UpdatesDialog {app} />{/if}
+  {#if $candidateView.dialog}<CandidateDialog {app} />{/if}
+  {#if ui.soundEffects && (ui.mode === 'Video' || ui.mode === 'Audio' || ui.mode === 'Animation')}
+    <SoundEffectsDialog {app} editor={ui.mode} onclose={() => (ui.soundEffects = false)} />
+  {/if}
   {#if $store.licences !== null}
     <Licences text={$store.licences} onclose={() => app.closeLicences()} />
   {:else if $store.welcome}
@@ -231,7 +251,10 @@
     gap: 10px;
     padding: 0 12px;
     min-width: 0;
-    overflow: hidden;
+    /* Too wide a header is cut off at the side (N10) but not below it: the Tracks and Effect
+       menus open downwards from here (issues/audio-2.png). */
+    overflow-x: clip;
+    overflow-y: visible;
     background: var(--bg-1);
     border-bottom: 1px solid var(--line);
   }

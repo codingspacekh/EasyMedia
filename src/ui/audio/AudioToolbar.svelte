@@ -191,6 +191,11 @@
         >
         <button
           role="menuitem"
+          title="A built-in sound effect (a whoosh, a ding, a drum roll…) as a new track"
+          onclick={() => choose(() => (ui.soundEffects = true))}>Add a sound effect…</button
+        >
+        <button
+          role="menuitem"
           disabled={!audio.canRecord}
           title={withWhy('Record a voiceover into a new track', 'recording')}
           onclick={() => choose(() => audio.openRecorder())}>Record into new track</button
@@ -258,26 +263,38 @@
       >Effect <Icon name="chevron" size={14} /></button
     >
     {#if open === 'effect'}
-      <div class="menu right" role="menu" aria-label="Effect">
+      <!-- Two columns of groups, so the menu fits a 700 px-high window (N10) as effects are added. -->
+      <div class="menu right effects" role="menu" aria-label="Effect">
         <div class="mh">
           {sel.end > sel.start
             ? `Applies to ${sel.start.toFixed(2)} – ${sel.end.toFixed(2)} s`
             : 'Select some sound first'}
         </div>
-        {#each GROUPS as group (group)}
-          {@const effects = AUDIO_EFFECTS.filter((e) => e.group === group)}
-          {#if effects.length || group === 'Repair & channels'}
-            <div class="mh">{group}</div>
-            {#each effects as e (e.id)}
-              <button role="menuitem" onclick={() => effect(e.id)}>{e.label}</button>
-            {/each}
-            {#if group === 'Repair & channels'}
-              <button role="menuitem" onclick={() => choose(() => audio.stereoToMono())}
-                >Stereo to mono</button
-              >
+        <div class="columns">
+          {#each GROUPS as group (group)}
+            {@const effects = AUDIO_EFFECTS.filter((e) => e.group === group)}
+            {#if effects.length || group === 'Repair & channels'}
+              <div class="group">
+                <div class="mh">{group}</div>
+                {#each effects as e (e.id)}
+                  <!-- No settings means no dialog to show "Why use this?", so the tooltip says it. -->
+                  <button
+                    role="menuitem"
+                    title={Object.keys(e.params).length
+                      ? undefined
+                      : `${e.label}: applied to the selection at once\n\nWhy? ${e.why}`}
+                    onclick={() => effect(e.id)}>{e.label}</button
+                  >
+                {/each}
+                {#if group === 'Repair & channels'}
+                  <button role="menuitem" onclick={() => choose(() => audio.stereoToMono())}
+                    >Stereo to mono</button
+                  >
+                {/if}
+              </div>
             {/if}
-          {/if}
-        {/each}
+          {/each}
+        </div>
       </div>
     {/if}
   </div>
@@ -339,6 +356,18 @@
   .menu.right {
     left: auto;
     right: 0;
+  }
+  .menu.effects {
+    width: 480px;
+  }
+  .columns {
+    columns: 2;
+    column-gap: 6px;
+  }
+  .group {
+    display: flex;
+    flex-direction: column;
+    break-inside: avoid;
   }
   .mh {
     padding: 6px 8px 4px;

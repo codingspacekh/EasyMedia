@@ -65,6 +65,7 @@ function setup(
     remove: async (path: string) => void disk.delete(path),
     copy: async (from: string, to: string) => void copies.push(`${from} → ${to}`),
     saveImage: vi.fn(async (name: string) => `/cache/text/${name}.png`),
+    saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
     writeBytes: async () => {},
   };
   // Every text picture is 10 bytes; credits blocks are 300 px tall.
@@ -123,9 +124,11 @@ describe('M4 app use cases', () => {
     it('imports a video: "preparing" with progress until its proxy is ready', async () => {
       const { app, state, project, importFiles } = setup();
       const progress: number[] = [];
+      const sizes: unknown[] = [];
       app.store.subscribe((s) => {
         const a = Object.values(s.assets)[0];
         if (a?.state === 'preparing') progress.push(a.progress);
+        if (a?.state === 'preparing') sizes.push(a.size);
       });
       await importFiles('/m/clip.mp4');
       expect(project().media).toMatchObject([
@@ -140,6 +143,9 @@ describe('M4 app use cases', () => {
         }),
       );
       expect(progress).toContain(0.5);
+      // V17: its size is known while preparing (Export offers it), and stays during progress.
+      expect(sizes.length).toBeGreaterThan(1);
+      expect(sizes.every((z) => JSON.stringify(z) === '{"width":1920,"height":1080}')).toBe(true);
     });
 
     it('a still image or sound file is ready at once, with no proxy', async () => {
@@ -201,6 +207,45 @@ describe('M4 app use cases', () => {
       const { app, state, project, importFiles } = setup();
       await importFiles('/m/clip.mp4', '/m/photo.jpg');
       app.addToTimeline(idOf(state(), '/m/clip.mp4'));
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'));
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['video', 'image']);
+    });
+
+    it('V3: "Insert at the playhead" puts a clip or picture first, between items, or last', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      const clip = idOf(state(), '/m/clip.mp4');
+      const photo = idOf(state(), '/m/photo.jpg');
+      app.addToTimeline(clip); // 0–10 s
+      app.addToTimeline(photo); // 10–15 s
+      const kinds = () => project().timeline.main.map((m) => m.type);
+      // At the start of the video: first.
+      app.setPlayhead(0);
+      app.addToTimeline(photo, 'playhead');
+      expect(kinds()).toEqual(['image', 'video', 'image']);
+      // The playhead moves to the end of the new item, so the next one goes after it.
+      expect(state().playhead).toBe(5);
+      app.addToTimeline(clip, 'playhead');
+      expect(kinds()).toEqual(['image', 'video', 'video', 'image']);
+      expect(state().playhead).toBe(15);
+      // Inside an item: after it. Past the end: at the end.
+      app.setPlayhead(17);
+      app.addToTimeline(photo, 'playhead');
+      expect(kinds()).toEqual(['image', 'video', 'video', 'image', 'image']);
+      app.setPlayhead(99);
+      app.addToTimeline(photo, 'playhead');
+      expect(kinds()).toHaveLength(6);
+    });
+
+    it('V3: inserting at the playhead is one undo step; "Add" still puts the item at the end', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/clip.mp4', '/m/photo.jpg');
+      app.addToTimeline(idOf(state(), '/m/clip.mp4'));
+      app.setPlayhead(0);
+      app.addToTimeline(idOf(state(), '/m/photo.jpg'), 'playhead');
+      app.undo();
+      expect(project().timeline.main.map((m) => m.type)).toEqual(['video']);
+      app.setPlayhead(0);
       app.addToTimeline(idOf(state(), '/m/photo.jpg'));
       expect(project().timeline.main.map((m) => m.type)).toEqual(['video', 'image']);
     });
@@ -337,6 +382,32 @@ describe('M4 app use cases', () => {
       });
       expect(project().media.map((m) => m.path)).toEqual(['/m/photo.jpg', '/m/photo1.jpg']);
       expect(state().message).toEqual({ kind: 'info', text: 'Saved photo1.jpg (1920 × 1080).' });
+    });
+
+    it('F/M/25 Q2: crops any part at its own size, saved under the name typed (grid.jpg)', async () => {
+      const { app, state, project, engine, importFiles } = setup();
+      await importFiles('/m/photo.jpg');
+      const id = await app.resizeCropImage(
+        idOf(state(), '/m/photo.jpg'),
+        { free: { x: 10, y: 20, width: 60, height: 40 } },
+        'grid',
+      );
+      expect(project().media.find((m) => m.id === id)!.path).toBe('/m/grid.jpg');
+      expect((await engine.probe('/m/grid.jpg')).video).toMatchObject({ width: 60, height: 40 });
+      expect(state().message).toEqual({ kind: 'info', text: 'Saved grid.jpg (60 × 40).' });
+    });
+
+    it('places a picture on a picture under the name typed (F/M/25 Q2 credits.png)', async () => {
+      const { app, state, project, importFiles } = setup();
+      await importFiles('/m/photo.jpg', '/m/clip.mp4');
+      const photo = idOf(state(), '/m/photo.jpg');
+      const id = await app.combineImages(
+        photo,
+        photo,
+        { anchor: 'bottom-left', widthPercent: 25, margin: 0 },
+        'credits',
+      );
+      expect(project().media.find((m) => m.id === id)!.path).toBe('/m/credits.jpg');
     });
 
     it('explains when the picture size is not known yet', async () => {
@@ -569,6 +640,24 @@ describe('M4 app use cases', () => {
         expect(s.state().exporting.state).toBe('done');
       });
 
+      it("V7 title presets: the words' middle and box go with each picture (spins and typing on)", async () => {
+        const s = await withClip();
+        const render = vi.spyOn(s.engine, 'renderVideo');
+        const words = {
+          anchor: { x: 960, y: 540 },
+          box: { x: 900, y: 520, width: 120, height: 40 },
+        };
+        s.text.draw.mockImplementation(async (_t, _s, frame) => ({
+          png: new Uint8Array(1),
+          ...frame,
+          ...words,
+        }));
+        s.app.edit(addTextItem(createTextItem('caption', 'The lake', 6, { id: 'cap' })));
+        s.dialogs.exportVideo.mockResolvedValueOnce('/out/x.mp4');
+        await s.app.exportVideo();
+        expect(render.mock.calls[0]![2].textImages!['cap']).toMatchObject(words);
+      });
+
       it('draws scrolling credits as a block of rows, and still credits as a full frame', async () => {
         const s = await withClip();
         s.app.edit(addTextItem(createTextItem('credits', 'Made by', 0, { id: 'c1' })));
@@ -611,7 +700,7 @@ describe('M4 app use cases', () => {
       expect([state().projectPath, isDirty(state()), projectTitle(state())]).toEqual([
         '/m/Task_11b.mve',
         false,
-        'Task_11b.mve — EasyMedia',
+        'Task_11b.mve — OneEditor',
       ]);
     });
 
@@ -633,7 +722,7 @@ describe('M4 app use cases', () => {
       expect([isDirty(state()), disk.size, projectTitle(state())]).toEqual([
         true,
         0,
-        'Untitled • — EasyMedia',
+        'Untitled • — OneEditor',
       ]);
     });
 
@@ -692,7 +781,7 @@ describe('M4 app use cases', () => {
       disk.set('/p/bad.mve', 'not json');
       dialogs.openProject.mockResolvedValueOnce('/p/bad.mve');
       await app.open();
-      expect(state().message?.text).toMatch(/not an EasyMedia project/i);
+      expect(state().message?.text).toMatch(/not a OneEditor project/i);
     });
 
     it('New starts an empty project (after asking, if there is unsaved work)', async () => {
@@ -709,7 +798,7 @@ describe('M4 app use cases', () => {
       const { app, state, disk, dialogs, importAudio } = setup();
       await importAudio('/m/music.mp3');
       expect(isDirty(state())).toBe(true); // audio edits alone are unsaved work
-      expect(projectTitle(state())).toBe('Untitled • — EasyMedia');
+      expect(projectTitle(state())).toBe('Untitled • — OneEditor');
       dialogs.saveProject.mockResolvedValueOnce('/p/Task_11p.mve');
       await app.save();
       const saved = JSON.parse(disk.get('/p/Task_11p.mve')!);

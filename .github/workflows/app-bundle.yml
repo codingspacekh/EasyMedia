@@ -1,6 +1,6 @@
 name: App bundle (Windows, for testing)
 
-# Builds a ready-to-run zip of the current EasyMedia app for a Windows laptop: no installer,
+# Builds a ready-to-run zip of the current OneEditor app for a Windows laptop: no installer,
 # no Node.js. Used for the M4 performance check on a real laptop. (Real installers: M12.)
 # Run it from the Actions tab ("Run workflow") or: gh workflow run app-bundle.yml --ref dev
 on:
@@ -26,7 +26,7 @@ jobs:
       - name: Assemble bundle
         shell: pwsh
         run: |
-          $b = 'EasyMedia-windows'
+          $b = 'OneEditor-windows'
           New-Item -ItemType Directory -Force "$b/app/resources/ffmpeg" | Out-Null
           Copy-Item node_modules/electron/dist "$b/electron" -Recurse
           Copy-Item package.json "$b/app/"
@@ -38,13 +38,13 @@ jobs:
             '@echo off'
             'cd /d "%~dp0"'
             'start "" electron\electron.exe app'
-          ) | Set-Content "$b/EasyMedia.bat" -Encoding ascii
+          ) | Set-Content "$b/OneEditor.bat" -Encoding ascii
 
           @(
             '@echo off'
             'cd /d "%~dp0"'
-            'echo EasyMedia will open. Import a video, play it, export it, then close EasyMedia.'
-            'set EASYMEDIA_PERF_REPORT=%~dp0performance-report.json'
+            'echo OneEditor will open. Import a video, play it, export it, then close OneEditor.'
+            'set ONEEDITOR_PERF_REPORT=%~dp0performance-report.json'
             'electron\electron.exe app'
             'echo.'
             'type performance-report.json'
@@ -54,20 +54,20 @@ jobs:
           ) | Set-Content "$b/Measure performance.bat" -Encoding ascii
 
           @(
-            'EasyMedia - test build (not the final installer)'
+            'OneEditor - test build (not the final installer)'
             ''
-            'Start:  double-click EasyMedia.bat'
+            'Start:  double-click OneEditor.bat'
             'If Windows shows "Windows protected your PC": click "More info", then "Run anyway".'
             ''
             'Performance check (for the teacher):'
             '  1. Close other programs.'
             '  2. Double-click "Measure performance.bat".'
-            '  3. In EasyMedia: Import a video, wait for Ready, Add it, press Play, then Export.'
-            '  4. Close EasyMedia. Give performance-report.json to your teacher.'
+            '  3. In OneEditor: Import a video, wait for Ready, Add it, press Play, then Export.'
+            '  4. Close OneEditor. Give performance-report.json to your teacher.'
           ) | Set-Content "$b/README.txt" -Encoding ascii
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EasyMedia-windows
-          path: EasyMedia-windows
+          name: OneEditor-windows
+          path: OneEditor-windows
           retention-days: 7

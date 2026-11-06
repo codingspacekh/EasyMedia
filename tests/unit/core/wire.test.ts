@@ -11,7 +11,7 @@ describe('errors keep their kind and message across the process boundary', () =>
   it.each([
     new EditError('The end point must be after the start point.'),
     new MediaError('The file could not be found.', 'ffmpeg: No such file'),
-    new ProjectFileError('This file is not an EasyMedia project, or it is damaged.'),
+    new ProjectFileError('This file is not a OneEditor project, or it is damaged.'),
     new JobCancelledError(),
   ])('%s', (error) => {
     const back = fromWire(JSON.parse(JSON.stringify(toWire(error))));

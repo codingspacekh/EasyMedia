@@ -10,6 +10,8 @@ export function menuTemplate(
   developer: boolean,
   /** Opens a guide shipped with the app (a web page) in the browser. */
   openGuide: (guide: Guide) => void = () => {},
+  /** Help ▸ Report a Problem…: made by the main process, so it works when the page does not. */
+  reportProblem: () => void = () => {},
 ): MenuItemConstructorOptions[] {
   const mac = platform === 'darwin';
   const item = (
@@ -39,6 +41,8 @@ export function menuTemplate(
         item('Export Audio…', 'CmdOrCtrl+Shift+E', 'exportAudio'),
         item('Export Animation…', '', 'exportAnimation'),
         item('Package Project…', 'CmdOrCtrl+Shift+P', 'package'),
+        { type: 'separator' },
+        item('Candidate Details…', '', 'candidate'),
         ...(mac ? [] : [{ type: 'separator' } as const, { role: 'quit', label: 'Exit' } as const]),
       ],
     },
@@ -90,10 +94,12 @@ export function menuTemplate(
       label: 'Help',
       role: 'help',
       submenu: [
-        item('Welcome to EasyMedia', '', 'welcome'),
+        item('Welcome to OneEditor', '', 'welcome'),
         { label: 'User guide', click: () => openGuide('user-guide') },
         { label: 'Teacher notes', click: () => openGuide('teacher-notes') },
         { type: 'separator' },
+        item('Check for Updates…', '', 'updates'),
+        { label: 'Report a Problem…', click: () => reportProblem() },
         item('Licences', '', 'licences'),
       ],
     },

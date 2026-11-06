@@ -45,7 +45,8 @@ export const PANELS = {
     editor: 'Video',
     label: 'Timeline',
     edge: 'bottom',
-    size: 300,
+    // V13: tall enough for the two sound effects tracks (a shorter one scrolls)
+    size: 340,
     min: 150,
     max: 600,
   }),

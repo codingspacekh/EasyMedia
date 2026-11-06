@@ -60,6 +60,9 @@ export function presetSize(
 
 const HEX = /^#[0-9a-f]{6}$/i;
 export const isColour = (c: unknown): c is string => typeof c === 'string' && HEX.test(c);
+/** AN21: a stage with no background (transparent PNG, GIF and web page; white in an MP4). */
+export const TRANSPARENT = 'none';
+export const isStageBackground = (c: unknown): c is string => c === TRANSPARENT || isColour(c);
 const colourMessage = (what: string) => `${what} must be a colour such as #F4C8EE.`;
 
 const whole = (n: number, what: string) => {
@@ -82,7 +85,9 @@ export function validateStage(stage: Stage): void {
   if (stage.length < 1) throw new EditError('The animation must be at least 1 frame long.');
   if (stage.length > MAX_FRAMES)
     throw new EditError('The animation must be at most 36 000 frames long.');
-  if (!isColour(stage.background)) throw new EditError(colourMessage('The stage colour'));
+  if (!isStageBackground(stage.background)) throw new EditError(colourMessage('The stage colour'));
+  if (stage.playOnce !== undefined && typeof stage.playOnce !== 'boolean')
+    throw new EditError('Choose whether the animation loops or plays once.');
 }
 
 function validatePaint(paint: Paint, what: string): void {
@@ -95,7 +100,29 @@ function validatePaint(paint: Paint, what: string): void {
     throw new EditError(colourMessage(`Each ${what} colour`));
   if (paint.kind === 'linear' && !Number.isFinite(paint.angle))
     throw new EditError('The gradient angle must be a number of degrees.');
+  // AN6: the colours between, and a radial gradient's centre, are in % of the way or the box.
+  const percent = (n: unknown) => typeof n === 'number' && n >= 0 && n <= 100;
+  for (const stop of paint.stops ?? []) {
+    if (!isColour(stop.colour)) throw new EditError(colourMessage(`Each ${what} colour`));
+    if (!percent(stop.at))
+      throw new EditError('Each colour of a gradient is placed from 0 to 100 %.');
+  }
+  if (
+    paint.kind === 'radial' &&
+    ((paint.cx !== undefined && !percent(paint.cx)) ||
+      (paint.cy !== undefined && !percent(paint.cy)))
+  )
+    throw new EditError('The centre of a radial gradient must be from 0 to 100 % of the box.');
 }
+
+/** AN25: the most an object can be skewed, either way (degrees). */
+export const MAX_SKEW = 80;
+
+/** AN26: the most a text can be bent, either way: the widest line makes a whole circle. */
+export const MAX_CURVE = 100;
+
+/** AN27: how far from its box the point an object turns about may be, in box sizes (1000 %). */
+export const MAX_PIVOT = 10;
 
 const atLeastZero = (n: number, what: string) => {
   if (!Number.isFinite(n) || n < 0) throw new EditError(`${what} must be 0 or more.`);
@@ -108,6 +135,19 @@ export function validateObject(object: AnimObject): void {
   atLeastZero(object.height, 'The height');
   if (!Number.isFinite(object.opacity) || object.opacity < 0 || object.opacity > 100)
     throw new EditError('Opacity must be between 0 and 100 %.');
+  for (const f of [object.flipX, object.flipY])
+    if (f !== undefined && typeof f !== 'boolean') throw new EditError('A flip is on or off.');
+  // AN25: at 90° a box would be a line.
+  for (const k of [object.skewX, object.skewY])
+    if (k !== undefined && !(Number.isFinite(k) && Math.abs(k) <= MAX_SKEW))
+      throw new EditError(`A skew must be between −${MAX_SKEW}° and ${MAX_SKEW}°.`);
+  if (
+    object.pivot !== undefined &&
+    ![object.pivot.x, object.pivot.y].every((f) => Number.isFinite(f) && Math.abs(f) <= MAX_PIVOT)
+  )
+    throw new EditError(
+      `The point it turns about must be between −${MAX_PIVOT * 100} % and ${MAX_PIVOT * 100} % of its box.`,
+    );
   validatePaint(object.fill, 'fill');
   if (object.stroke) {
     atLeastZero(object.stroke.width, 'The outline width');
@@ -132,9 +172,19 @@ export function validateObject(object: AnimObject): void {
         throw new EditError(`${object.font} is not a bundled font. Choose one from the list.`);
       // 0 is allowed: text can grow from nothing (workbook Task 1).
       if (!(object.size >= 0)) throw new EditError('The font size must be 0 px or more.');
+      // AN26: ±100 bends the line into a whole circle.
+      if (
+        object.curve !== undefined &&
+        !(Number.isFinite(object.curve) && Math.abs(object.curve) <= MAX_CURVE)
+      )
+        throw new EditError(`The curve must be between −${MAX_CURVE} and ${MAX_CURVE}.`);
       break;
     case 'path':
       if (object.points.length < 2) throw new EditError('A path needs at least two points.');
+      // AN24: a hole is an outline of three or more real points.
+      for (const hole of object.holes ?? [])
+        if (hole.length < 3 || !hole.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
+          throw new EditError('A hole in a shape needs three or more points.');
       break;
     case 'button':
       if (object.label.trim() === '') throw new EditError('A button needs words on it.');

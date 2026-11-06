@@ -1,9 +1,11 @@
 // Animation mode (M13): the fourth mode button, the tools, drawing on the stage, exact
 // properties, layers, the stage settings, the status bar and the keyboard.
 import { describe, expect, it, vi } from 'vitest';
+import { tick } from 'svelte';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import App from '../../../src/ui/App.svelte';
 import { animUi } from '../../../src/ui/animation/animation-ui.svelte.ts';
+import { objectAt } from '../../../src/core/animation/tween.ts';
 import type { AnimObject, StarObject } from '../../../src/core/animation/types.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -65,7 +67,7 @@ describe('Animation mode layout', () => {
       screen.getByRole('button', { name: /^Stage settings: 16:9 · 1280 × 720 · 24 fps/ }),
     ).toBeTruthy();
     expect(screen.getByRole('application', { name: 'Stage' })).toBeTruthy();
-    expect(document.title).toBe('Untitled animation — EasyMedia');
+    expect(document.title).toBe('Untitled animation — OneEditor');
     expect((screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -92,7 +94,7 @@ describe('drawing (AN3, AN4)', () => {
     expect((screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement).disabled).toBe(
       false,
     );
-    expect(document.title).toBe('Untitled animation • — EasyMedia');
+    expect(document.title).toBe('Untitled animation • — OneEditor');
   });
 
   it('Task 1: a star dragged out, then typed to 135 × 135 at (128, 102) in the Properties panel', async () => {
@@ -131,6 +133,18 @@ describe('drawing (AN3, AN4)', () => {
     expect(s.objects()[0]).toMatchObject({ text: 'Task 1' });
     await typeIn('Size', '64');
     expect(s.objects()[0]).toMatchObject({ size: 64 });
+  });
+
+  it('AN4 AN6 a font size typed in Properties keeps x and y as typed, on a later frame too', async () => {
+    const s = await animationMode();
+    s.anim.addText({ x: 400, y: 300 }, 'OPEN DAY');
+    await tick();
+    await typeIn('Size', '96');
+    expect(s.objects()[0]).toMatchObject({ size: 96, x: 400, y: 300 });
+    s.anim.setFrame(10);
+    await tick();
+    await typeIn('Size', '48');
+    expect(objectAt(s.objects()[0]!, 10)).toMatchObject({ size: 48, x: 400, y: 300 });
   });
 
   it('the fill can become a gradient with two colours, and the outline switched off', async () => {
@@ -217,6 +231,34 @@ describe('stage settings (AN1) and the status bar (AN2)', () => {
     expect(s.doc().stage).toMatchObject({ width: 1024, height: 768, background: '#CBCDF0' });
     expect(screen.queryByRole('dialog', { name: 'Stage settings' })).toBeNull();
     expect(screen.getByRole('button', { name: /^Stage settings: 4:3 · 1024 × 768/ })).toBeTruthy();
+  });
+
+  it('AN8 Apply keeps the Play once choice made in the export dialog', async () => {
+    const s = await animationMode();
+    s.app.animation.setPlayOnce(true);
+    await fireEvent.click(screen.getByRole('button', { name: /^Stage settings/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Stage settings' });
+    await fireEvent.click(within(dialog).getByRole('button', { name: '4:3' }));
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(s.doc().stage).toMatchObject({ width: 1024, playOnce: true });
+  });
+
+  it('AN21 Conveyor (M/J/23): 400 × 100 with a transparent background; the stage shows a checkerboard', async () => {
+    const s = await animationMode();
+    await fireEvent.click(screen.getByRole('button', { name: /^Stage settings/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Stage settings' });
+    await fireEvent.click(within(dialog).getByLabelText(/Transparent/));
+    expect(
+      (within(dialog).getByLabelText('Colour', { exact: true }) as HTMLInputElement).disabled,
+    ).toBe(true);
+    await fireEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    expect(s.doc().stage.background).toBe('none');
+    expect(document.querySelector('.stage-canvas.transparent, canvas.transparent')).toBeTruthy();
+    // Turned off again: the colour it had comes back.
+    await fireEvent.click(screen.getByRole('button', { name: /^Stage settings/ }));
+    await fireEvent.click(screen.getByLabelText(/Transparent/));
+    await fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(s.doc().stage.background).toBe('#ffffff');
   });
 
   it('a bad size is refused inside the dialog', async () => {

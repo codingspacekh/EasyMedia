@@ -64,3 +64,14 @@ export function normalise(
   const g = dbToGain(peakDb) / p;
   return centred.map((c) => each(c, (v) => v * g));
 }
+
+/**
+ * A23: the gain goes in a straight line from `from` at the first sample to `to` at the last
+ * (factors: 1 = as it is, 0.3 = 30 %). Like Audacity's Adjustable Fade, without going to silence.
+ */
+export function volumeRamp(channels: Channels, from: number, to: number): Float32Array[] {
+  return channels.map((c) => {
+    const last = Math.max(1, c.length - 1);
+    return each(c, (v, i) => v * (from + ((to - from) * i) / last));
+  });
+}

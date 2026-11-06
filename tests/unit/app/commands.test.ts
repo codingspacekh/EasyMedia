@@ -22,6 +22,7 @@ import {
   removeItem,
   setClipMuted,
   setClipSpeed,
+  setClipTurn,
   setDuration,
   setProjectSettings,
   splitAtTime,
@@ -103,6 +104,7 @@ describe('P4 every command leaves the original untouched and can be undone exact
     ['addTextItem', addTextItem(createTextItem('subtitle', 'Hi', 1, { id: 's' }))],
     ['addAudioItem', addAudioItem(createAudioItem(voice, 2, { id: 'vo' }), 1)],
     ['setProjectSettings', setProjectSettings({ aspect: '4:3', width: 960, height: 720 })],
+    ['setClipTurn', setClipTurn('v', { turn: 90, flipH: true })],
   ];
 
   it.each(commands)('%s', (name, command) => {
@@ -448,5 +450,32 @@ describe('V8 pan and zoom', () => {
     expect(bad({ from: { zoom: 1, x: 1.5, y: 0.5 } })).toThrow(EditError);
     expect(bad({ start: 30 })).toThrow(/inside the clip/);
     expect(bad({ start: 5, end: 4 })).toThrow(EditError);
+  });
+});
+
+describe('V19 turning and flipping a clip or picture', () => {
+  it('V19: turns a video clip a quarter clockwise and flips it, in one step', () => {
+    const p = run(sample(), setClipTurn('v', { turn: 90, flipH: true }));
+    expect(p.timeline.main[1]).toMatchObject({ turn: 90, flipH: true });
+    expect(p.timeline.main[1]).not.toHaveProperty('flipV');
+  });
+
+  it('V19: turns a picture', () => {
+    const base = run(sample(), addMainItem(createImageClip(photo, { id: 'i' })));
+    const p = run(base, setClipTurn('i', { turn: 270, flipV: true }));
+    expect(p.timeline.main[2]).toMatchObject({ turn: 270, flipV: true });
+  });
+
+  it('V19: back to "as filmed" removes the fields, so the file is as before', () => {
+    let p = run(sample(), setClipTurn('v', { turn: 180, flipH: true, flipV: true }));
+    p = run(p, setClipTurn('v', { turn: 0, flipH: false, flipV: false }));
+    expect(p.timeline.main[1]).toEqual(sample().timeline.main[1]);
+  });
+
+  it('V19: only video clips and pictures can be turned, and only by a quarter, half or three quarters', () => {
+    expect(() => run(sample(), setClipTurn('t', { turn: 90 }))).toThrow(
+      /only video clips and pictures/i,
+    );
+    expect(() => run(sample(), setClipTurn('v', { turn: 45 as 90 }))).toThrow(EditError);
   });
 });

@@ -9,12 +9,16 @@ import {
   removeItem,
 } from './commands.ts';
 import { createAnimationApp } from './animation.ts';
+import { addOverlayItem } from './overlay-commands.ts';
+import { createOverlayItem } from '../core/model/overlay.ts';
 import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
 import { createLearnApp } from './learn.ts';
 import { createHistory, execute, redo, undo, type Command, type History } from './history.ts';
 import { proxyPathFor } from './proxy-path.ts';
 import { createLayoutApp } from './layout.ts';
 import { createPreferences } from './preferences.ts';
+import { createCandidateApp } from './candidate.ts';
+import { UNEXPECTED, unexpected } from './problems.ts';
 import { createStore, type Store } from './store.ts';
 import {
   EditError,
@@ -32,8 +36,25 @@ import {
   createVideoClip,
 } from '../core/model/factory.ts';
 import type { Seconds } from '../core/model/time.ts';
-import { findMainItemAt, mainTrackDuration, setItemDuration } from '../core/model/timeline.ts';
-import type { AudioModeSession, Id, MediaAsset, Project, TextItem } from '../core/model/types.ts';
+import {
+  findMainItemAt,
+  insertIndexAt,
+  layoutMain,
+  mainTrackDuration,
+  MIN_DURATION,
+  setItemDuration,
+} from '../core/model/timeline.ts';
+import type {
+  AudioModeSession,
+  AudioTrackIndex,
+  Id,
+  MediaAsset,
+  Project,
+  TextItem,
+} from '../core/model/types.ts';
+
+/** X8: Video mode's sound effects are saved at the export's sample rate. */
+const SOUND_EFFECT_RATE = 48000;
 import type {
   AppPaths,
   Dialogs,
@@ -45,7 +66,9 @@ import type {
   TextRenderer,
   Recorder,
   UndoStore,
+  UpdatesPort,
 } from '../core/ports.ts';
+import { createAppUpdates } from './updates.ts';
 import { projectHasSound, type TextImage } from '../core/render/compile.ts';
 import { defaultExport, estimateSize, type ExportSettings } from '../core/render/formats.ts';
 import {
@@ -55,8 +78,12 @@ import {
   projectToDisk,
   uniqueFileName,
 } from '../core/project/relocate.ts';
-import { planResizeCrop, type Anchor, type CropRegion } from '../core/image/crop.ts';
+import { cleanFileName } from '../core/project/paths.ts';
+import { planCombine, type Placement } from '../core/image/combine.ts';
+import { planResizeCrop, type Keep } from '../core/image/crop.ts';
 import { deserializeProject, serializeProject } from '../core/project/serialize.ts';
+import { makeSoundEffect, soundEffect } from '../core/audio/sound-effects.ts';
+import { encodeWav } from '../core/audio/wav.ts';
 
 export interface AssetStatus {
   state: 'preparing' | 'ready' | 'failed';
@@ -115,17 +142,20 @@ export interface AppDeps {
   stageRenderer?: StageRenderer;
   /** AN15: what an HTML web animation carries inside it. */
   pageAssets?: PageAssets;
+  /** AN28: speakers of its own for Animation mode's sounds (Web Audio in the app). */
+  animationAudioOutput?: AudioOutput;
+  /** M17a U1–U5: updates from the main process (none in tests or the browser). */
+  updates?: UpdatesPort;
   autosaveMs?: number;
 }
 
 export const isDirty = (s: AppState): boolean => s.history.present !== s.saved || s.audioDirty;
 
 export const projectTitle = (s: AppState): string =>
-  `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — EasyMedia`;
+  `${s.projectPath ? fileNameOf(s.projectPath) : 'Untitled'}${isDirty(s) ? ' •' : ''} — OneEditor`;
 
 const PEAKS_PER_SECOND = 10;
 const DISCARD = 'You have unsaved changes. Discard them and';
-const UNEXPECTED = 'Something went wrong. Please try again.';
 const NEW_TEXT: Record<TextItem['kind'], string> = {
   caption: 'Caption',
   subtitle: 'Subtitle',
@@ -134,7 +164,7 @@ const NEW_TEXT: Record<TextItem['kind'], string> = {
 
 export function createApp({
   engine,
-  dialogs,
+  dialogs: givenDialogs,
   files,
   text,
   paths,
@@ -143,8 +173,14 @@ export function createApp({
   audioRecorder,
   stageRenderer,
   pageAssets,
+  animationAudioOutput,
+  updates,
   autosaveMs = 60_000,
 }: AppDeps) {
+  const preferences = createPreferences(files, paths);
+  /** File ▸ Candidate Details…: every dialog below suggests the papers' file names. */
+  const candidate = createCandidateApp(preferences);
+  const dialogs = candidate.dialogsFor(givenDialogs);
   const fresh = createProject({ name: 'Untitled' });
   const store: Store<AppState> = createStore<AppState>({
     history: createHistory(fresh),
@@ -169,7 +205,9 @@ export function createApp({
       error instanceof EditError ||
       error instanceof MediaError ||
       error instanceof ProjectFileError;
-    patch({ message: { kind: 'error', text: known ? (error as Error).message : UNEXPECTED } });
+    patch({
+      message: { kind: 'error', text: known ? (error as Error).message : unexpected(error) },
+    });
   }
 
   function run(command: Command): void {
@@ -186,7 +224,9 @@ export function createApp({
   const stopListening = engine.onJobEvent((e) => {
     if (e.type !== 'progress') return;
     const assetId = proxyJobs.get(e.jobId);
-    if (assetId) setAsset(assetId, { state: 'preparing', progress: e.ratio });
+    // The facts already known (its size, fps) stay while the preview copy is made.
+    if (assetId)
+      setAsset(assetId, { ...store.get().assets[assetId], state: 'preparing', progress: e.ratio });
     const ex = store.get().exporting;
     if (exportJob?.id === e.jobId && ex.state === 'running')
       patch({ exporting: { ...ex, progress: e.ratio } });
@@ -199,6 +239,10 @@ export function createApp({
       try {
         info = await engine.probe(asset.path);
       } catch (error) {
+        if (asset.soundEffect && soundEffect(asset.soundEffect)) {
+          await remakeSoundEffect(asset);
+          return;
+        }
         setAsset(asset.id, { state: 'failed', progress: 0, message: (error as Error).message });
         return;
       }
@@ -227,7 +271,8 @@ export function createApp({
       return;
     }
     const proxyPath = proxyPathFor(paths.proxies, asset.path, info.sizeBytes);
-    setAsset(asset.id, { state: 'preparing', progress: 0 });
+    // V17: its size is known from the probe, before the preview copy is made.
+    setAsset(asset.id, { state: 'preparing', progress: 0, ...facts });
     try {
       await engine.probe(proxyPath); // made earlier: reuse it
     } catch {
@@ -344,24 +389,55 @@ export function createApp({
   }, autosaveMs);
   (timer as { unref?: () => void }).unref?.();
 
+  /** X8: a built-in sound effect saved as a WAV in the app's folder, as the probe would see it. */
+  async function soundEffectFile(id: string): Promise<{ path: string; info: ProbeInfo }> {
+    const channels = makeSoundEffect(id, SOUND_EFFECT_RATE);
+    const wav = encodeWav(channels, SOUND_EFFECT_RATE);
+    const path = await files.saveSound(id, wav);
+    const duration = channels[0]!.length / SOUND_EFFECT_RATE;
+    return {
+      path,
+      info: {
+        kind: 'audio',
+        container: 'wav',
+        duration,
+        sizeBytes: wav.length,
+        audio: { codec: 'pcm_s16le', sampleRate: SOUND_EFFECT_RATE, channels: channels.length },
+      },
+    };
+  }
+
+  /** X8: a project from another computer: its sound effect is made again here. */
+  async function remakeSoundEffect(asset: MediaAsset): Promise<void> {
+    try {
+      const { path, info } = await soundEffectFile(asset.soundEffect!);
+      const replacement = { ...asset, path };
+      run(relinkMedia(asset.id, replacement));
+      await prepare(replacement, info);
+    } catch (error) {
+      setAsset(asset.id, { state: 'failed', progress: 0, message: (error as Error).message });
+    }
+  }
+
   /** V13: a sound at the playhead on the music track, or the voiceover track if music is there. */
-  function placeSound(asset: MediaAsset): void {
+  function placeSound(
+    asset: MediaAsset,
+    tracks: readonly AudioTrackIndex[] = [0, 1],
+    full = 'There is no free space on the music or voiceover track at the playhead. Move the playhead or delete a sound first.',
+  ): void {
     const item = createAudioItem(asset, store.get().playhead);
-    for (const track of [0, 1] as const) {
+    for (const track of tracks) {
       try {
         store.update((s) => ({ ...s, history: execute(s.history, addAudioItem(item, track)) }));
         patch({ selection: item.id });
         return;
-      } catch {
+      } catch (error) {
+        // An effects track tries the other one itself and says why neither has room (V13).
+        if (track >= 2) return showError(error);
         // busy here: try the other track
       }
     }
-    patch({
-      message: {
-        kind: 'error',
-        text: 'There is no free space on the music or voiceover track at the playhead. Move the playhead or delete a sound first.',
-      },
-    });
+    patch({ message: { kind: 'error', text: full } });
   }
 
   /** One picture per title slide with words and per caption, subtitle or credits item. */
@@ -383,7 +459,7 @@ export function createApp({
     ];
     const images: Record<Id, TextImage> = {};
     for (const item of wanted) {
-      const { png, width, height, anchor } = await text.draw(
+      const { png, width, height, anchor, box } = await text.draw(
         item.text,
         item.style,
         frame,
@@ -394,6 +470,7 @@ export function createApp({
         width,
         height,
         ...(anchor ? { anchor } : {}),
+        ...(box ? { box } : {}),
       };
     }
     return images;
@@ -409,7 +486,6 @@ export function createApp({
   });
   /** Learn mode (T1, T3, T6): never changes the project. */
   const learn = createLearnApp({ engine, dialogs, files, paths });
-  const preferences = createPreferences(files, paths);
   const layout = createLayoutApp(preferences);
   /** Animation mode (AN1–AN18): its own document and file (M13). */
   const animation = createAnimationApp({
@@ -420,6 +496,7 @@ export function createApp({
     autosaveMs,
     ...(stageRenderer ? { renderer: stageRenderer } : {}),
     ...(pageAssets ? { pageAssets } : {}),
+    ...(animationAudioOutput ? { audioOutput: animationAudioOutput } : {}),
   });
 
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
@@ -435,11 +512,15 @@ export function createApp({
     animation,
     /** N16: the panels' sizes and which are shown. */
     layout,
+    candidate,
+    /** M17a U1–U5: updates (the note at the bottom, Help ▸ Check for Updates…). */
+    updates: createAppUpdates(updates),
 
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
       await animation.start();
       await layout.load();
+      await candidate.load();
       // X7: the Welcome, on the first launch only.
       if (paths.preferences && (await preferences.read()).welcomeSeen !== true)
         patch({ welcome: true });
@@ -451,7 +532,7 @@ export function createApp({
       }
       try {
         const lost = readProject(text, paths.recovery);
-        if (await dialogs.confirm('EasyMedia closed before your work was saved. Restore it?')) {
+        if (await dialogs.confirm('OneEditor closed before your work was saved. Restore it?')) {
           load(lost.project, null, createProject({ name: 'Untitled' }));
           await audio.openSession(lost.audioMode, { unsaved: true });
           syncAudioDirty();
@@ -480,7 +561,7 @@ export function createApp({
         patch({
           message: {
             kind: 'error',
-            text: 'The licences could not be found. They are in THIRD_PARTY_LICENSES.txt in the EasyMedia installer.',
+            text: 'The licences could not be found. They are in THIRD_PARTY_LICENSES.txt in the OneEditor installer.',
           },
         });
       }
@@ -538,10 +619,11 @@ export function createApp({
 
     /**
      * V11: resizes a picture to cover the project frame, crops it at `keep` (one of 9 places, or
-     * where the student dragged it) and saves it as a
-     * new file beside the original (Fish_Eagle.jpg → Fish_Eagle1.jpg), which is imported.
+     * where the student dragged it), stretches it, or cuts out any part at its own size, and saves
+     * it as a new file beside the original, named `name` if typed (else Fish_Eagle.jpg →
+     * Fish_Eagle1.jpg), which is imported.
      */
-    async resizeCropImage(assetId: Id, keep: Anchor | CropRegion): Promise<Id | null> {
+    async resizeCropImage(assetId: Id, keep: Keep, name?: string): Promise<Id | null> {
       const asset = present().media.find((m) => m.id === assetId);
       const size = store.get().assets[assetId]?.size;
       if (!asset || asset.kind !== 'image' || !size) {
@@ -553,13 +635,53 @@ export function createApp({
       const { width, height } = present().settings;
       try {
         const plan = planResizeCrop(size, { width, height }, keep);
-        const path = await engine.resizeCropImage(asset.path, plan);
+        const path = await engine.resizeCropImage(asset.path, plan, name);
+        const info = await engine.probe(path);
+        const made = assetFromProbe(path, info);
+        run(importMediaCommand(made));
+        void prepare(made, info);
+        const { width: w, height: h } = plan.crop;
+        patch({ message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${w} × ${h}).` } });
+        return made.id;
+      } catch (error) {
+        showError(error);
+        return null;
+      }
+    },
+
+    /**
+     * V18: saves the picture `baseId` with `topId` placed on it as a new picture beside it
+     * (credits.png → credits1.png) and imports it. F/M/25 Q2: a cropped still on credits.png.
+     */
+    async combineImages(
+      baseId: Id,
+      topId: Id,
+      placement: Placement,
+      name?: string,
+    ): Promise<Id | null> {
+      const assets = store.get().assets;
+      const base = present().media.find((m) => m.id === baseId);
+      const top = present().media.find((m) => m.id === topId);
+      const baseSize = assets[baseId]?.size;
+      const topSize = assets[topId]?.size;
+      if (base?.kind !== 'image' || top?.kind !== 'image' || !baseSize || !topSize) {
+        patch({
+          message: { kind: 'error', text: 'Wait until both pictures are ready, then try again.' },
+        });
+        return null;
+      }
+      try {
+        const plan = planCombine(baseSize, topSize, placement);
+        const path = await engine.combineImages(base.path, top.path, plan, name);
         const info = await engine.probe(path);
         const made = assetFromProbe(path, info);
         run(importMediaCommand(made));
         void prepare(made, info);
         patch({
-          message: { kind: 'info', text: `Saved ${fileNameOf(path)} (${width} × ${height}).` },
+          message: {
+            kind: 'info',
+            text: `Saved ${fileNameOf(path)} (${baseSize.width} × ${baseSize.height}).`,
+          },
         });
         return made.id;
       } catch (error) {
@@ -583,8 +705,7 @@ export function createApp({
       name?: string;
     }): Promise<Id | null> {
       const { time, hideText, addToTimeline, duration, format = 'png' } = options;
-      // Characters no file name may have (on Windows or macOS) become "-".
-      const named = options.name?.trim().replace(/[\\/:*?"<>|]/g, '-');
+      const named = options.name === undefined ? undefined : cleanFileName(options.name);
       const { projectPath } = store.get();
       // Saved straight away: next to a saved project (so it travels with it), else in the app's folder.
       const folder = projectPath ? `${dirOf(projectPath)}/Snapshots` : paths.snapshots;
@@ -637,14 +758,55 @@ export function createApp({
       }
     },
 
-    addToTimeline(assetId: Id): void {
+    /**
+     * Puts a file from the media bin on the timeline: a clip or picture at the end of the main
+     * track, or (V3) at the playhead, between the items there — then the playhead moves to the
+     * end of it, so the next one goes after it. A sound always goes at the playhead (V13).
+     */
+    addToTimeline(assetId: Id, where: 'end' | 'playhead' = 'end'): void {
       const asset = present().media.find((m) => m.id === assetId);
       if (!asset) return;
       if (asset.kind === 'audio') {
         placeSound(asset);
         return;
       }
-      run(addMainItem(asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset)));
+      const item = asset.kind === 'video' ? createVideoClip(asset) : createImageClip(asset);
+      if (where === 'end') {
+        run(addMainItem(item));
+        return;
+      }
+      const { main } = present().timeline;
+      const frame = 1 / present().settings.fps;
+      const index = insertIndexAt(main, store.get().playhead, frame);
+      const before = present();
+      run(addMainItem(item, index));
+      if (present() === before) return;
+      const next = layoutMain(present().timeline.main)[index + 1];
+      patch({ playhead: next?.start ?? mainTrackDuration(present().timeline.main) });
+    },
+
+    /**
+     * V20: a picture or video from the media bin over the video at the playhead, then selected. A
+     * picture (a logo) shows until the video ends (5 s if the playhead is past the end); a video
+     * plays all of it, its own sound off.
+     */
+    addOverTheVideo(assetId: Id): void {
+      const asset = present().media.find((m) => m.id === assetId);
+      if (!asset) return;
+      const start = store.get().playhead;
+      const left = mainTrackDuration(present().timeline.main) - start;
+      try {
+        const item = createOverlayItem(
+          asset,
+          start,
+          left >= MIN_DURATION ? { duration: left } : {},
+        );
+        const before = present();
+        run(addOverlayItem(item));
+        if (present() !== before) patch({ selection: item.id });
+      } catch (error) {
+        showError(error);
+      }
     },
 
     /** V13 "Add music at the current point": choose a sound file; it starts at the playhead. */
@@ -669,13 +831,34 @@ export function createApp({
       }
     },
 
+    /** X8: a built-in sound effect at the playhead, on effects track 1 (or 2 when 1 is busy). */
+    async addSoundEffect(id: string): Promise<void> {
+      if (!soundEffect(id)) {
+        patch({ message: { kind: 'error', text: `There is no sound effect called "${id}".` } });
+        return;
+      }
+      try {
+        let asset = present().media.find((m) => m.soundEffect === id);
+        if (!asset) {
+          const { path, info } = await soundEffectFile(id);
+          const made: MediaAsset = { ...assetFromProbe(path, info), soundEffect: id };
+          run(importMediaCommand(made));
+          void prepare(made, info);
+          asset = made;
+        }
+        placeSound(asset, [2]);
+      } catch (error) {
+        showError(error);
+      }
+    },
+
     /** For inspector fields: applies the edit, or returns why it is not allowed (shown by the field). */
     edit(command: Command): string | null {
       try {
         store.update((s) => ({ ...s, history: execute(s.history, command) }));
         return null;
       } catch (error) {
-        return error instanceof EditError ? error.message : UNEXPECTED;
+        return error instanceof EditError ? error.message : unexpected(error);
       }
     },
 

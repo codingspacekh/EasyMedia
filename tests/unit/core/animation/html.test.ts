@@ -11,6 +11,7 @@ import {
   fontsNeeded,
   PAGE_DATA_ID,
   picturesUsed,
+  type PageData,
   webPage,
   webPageInfo,
 } from '../../../../src/core/animation/html.ts';
@@ -19,6 +20,12 @@ import { addObject } from '../../../../src/core/animation/layers.ts';
 import type { AnimationDoc, Picture } from '../../../../src/core/animation/types.ts';
 
 const PLAYER = 'window.player = true;';
+
+/** The data the player reads from a page. */
+const pageData = (html: string): PageData => {
+  const from = html.indexOf(`id="${PAGE_DATA_ID}">`) + PAGE_DATA_ID.length + 6;
+  return JSON.parse(html.slice(from, html.indexOf('</script>', from))) as PageData;
+};
 
 function task1(): AnimationDoc {
   const doc = createAnimation({ name: 'Task 1' });
@@ -184,8 +191,62 @@ describe('the pictures a web page carries (AN15)', () => {
       video: { codec: 'canvas', width: 600, height: 400, fps: 24 },
       loop: true,
     });
+    // AN8: an animation set to play once and stop: the page does not loop.
+    const once = page({ ...task1(), stage: { ...task1().stage, playOnce: true } });
+    expect(webPageInfo(once)?.loop).toBe(false);
     expect(webPageInfo('<html><body>Hello</body></html>')).toBeNull();
     expect(webPageInfo(html.replace('"fps":24', '"fps":"x"'))).toBeNull();
     expect(webPageInfo(html.replace(/"stage":\{/, '"stage":{]'))).toBeNull();
+  });
+
+  it('AN15 a page at another width: its canvas that size; the task checker reads it', () => {
+    const doc = { ...task1(), stage: { ...task1().stage, width: 1024, height: 768 } };
+    const html = webPage(
+      doc,
+      { player: PLAYER, pictures: {}, fonts: [] },
+      { size: { width: 600, height: 450 } },
+    );
+    expect(html).toContain('<canvas id="stage" width="600" height="450"');
+    expect(html).toContain('min(600px, 100vw, calc(100vh * 600 / 450))');
+    expect(webPageInfo(html)?.video).toMatchObject({ width: 600, height: 450 });
+  });
+
+  it('AN15 a page of a range of frames plays only those; the task checker reads its length', () => {
+    const html = webPage(
+      task1(),
+      { player: PLAYER, pictures: {}, fonts: [] },
+      { range: { first: 24, last: 47 } },
+    );
+    expect(pageData(html).range).toEqual({ first: 24, last: 47 });
+    expect(webPageInfo(html)?.duration).toBe(1);
+  });
+
+  it('AN28 carries each sound inside it, by sound, its path cut to the file name, and a sound note', () => {
+    const doc = {
+      ...task1(),
+      sounds: [
+        {
+          id: 's1',
+          name: 'alarm.mp3',
+          path: '/Users/ana/Task 3/alarm.mp3',
+          duration: 2,
+          start: 24,
+          volume: 100,
+        },
+      ],
+    };
+    const html = webPage(doc, {
+      player: PLAYER,
+      pictures: {},
+      fonts: [],
+      sounds: { s1: 'data:audio/mpeg;base64,AAAA' },
+    });
+    const data = pageData(html);
+    expect(data.sounds).toEqual({ s1: 'data:audio/mpeg;base64,AAAA' });
+    expect(data.doc.sounds![0]!.path).toBe('alarm.mp3');
+    expect(html).not.toContain('/Users/ana');
+    // The button that starts it with sound (a browser plays sound only after a click).
+    expect(html).toContain('#sound-start');
+    expect(page(task1())).not.toContain('#sound-start');
   });
 });

@@ -47,6 +47,23 @@ describe('M5 inspector', () => {
     expect(screen.getByRole('button', { name: '1.5×' }).getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('V14 any speed can be typed, e.g. 1.25× (M/J/26 Q1): 10 s → 8 s', async () => {
+    const { item } = await selected('/m/clip.mp4');
+    await type('Speed', '1.25');
+    expect(item()).toMatchObject({ speed: 1.25 });
+    expect(screen.getByText('8.00 s')).toBeTruthy();
+    expect(field('Speed').value).toBe('1.25');
+  });
+
+  it('V14 a typed speed outside 0.25×–4× is explained and changes nothing', async () => {
+    const { item } = await selected('/m/clip.mp4');
+    await type('Speed', '5');
+    expect(screen.getByRole('alert').textContent).toMatch(/between 0\.25× and 4×/);
+    await type('Speed', 'fast');
+    expect(screen.getByRole('alert').textContent).toMatch(/type a number such as 1\.25/i);
+    expect(item()).toMatchObject({ speed: 1 });
+  });
+
   it('explains a time it cannot read, next to the box, and changes nothing', async () => {
     const { item } = await selected('/m/clip.mp4');
     await type('End point', 'abc');
@@ -92,5 +109,40 @@ describe('M5 inspector', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Set start to playhead' }));
     expect(screen.getByRole('alert').textContent).toMatch(/move the playhead over this clip/i);
     expect(item()).toMatchObject({ in: 0 });
+  });
+});
+
+describe('V19 Turn & flip in the inspector', () => {
+  const pressed = (name: string) =>
+    screen.getByRole('button', { name }).getAttribute('aria-pressed');
+
+  it('V19: a video clip filmed sideways is turned 90° clockwise and flipped, each one undo step', async () => {
+    const { app, item } = await selected('/m/clip.mp4');
+    expect(pressed('Not turned')).toBe('true');
+    expect(screen.getByText('Not turned or flipped')).toBeTruthy();
+    await fireEvent.click(screen.getByRole('button', { name: 'Turn 90° clockwise' }));
+    expect(item()).toMatchObject({ turn: 90 });
+    expect(pressed('Turn 90° clockwise')).toBe('true');
+    await fireEvent.click(screen.getByRole('button', { name: 'Flip horizontally' }));
+    expect(item()).toMatchObject({ turn: 90, flipH: true });
+    expect(pressed('Flip horizontally')).toBe('true');
+    expect(screen.getByText('Turned 90° clockwise · flipped horizontally')).toBeTruthy();
+    app.undo();
+    expect(item()).toMatchObject({ turn: 90 });
+    expect(item()).not.toHaveProperty('flipH');
+  });
+
+  it('V19: a picture can be turned 180°, turned back and flipped upside down', async () => {
+    const { item } = await selected('/m/photo.jpg');
+    await fireEvent.click(screen.getByRole('button', { name: 'Turn 180°' }));
+    expect(item()).toMatchObject({ turn: 180 });
+    await fireEvent.click(screen.getByRole('button', { name: 'Turn 90° anticlockwise' }));
+    expect(item()).toMatchObject({ turn: 270 });
+    await fireEvent.click(screen.getByRole('button', { name: 'Not turned' }));
+    expect(item()).not.toHaveProperty('turn');
+    await fireEvent.click(screen.getByRole('button', { name: 'Flip vertically' }));
+    expect(item()).toMatchObject({ flipV: true });
+    await fireEvent.click(screen.getByRole('button', { name: 'Flip vertically' }));
+    expect(item()).not.toHaveProperty('flipV');
   });
 });

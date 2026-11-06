@@ -3,19 +3,43 @@
 import { setSize } from '../geometry.ts';
 import type { AnimObject, Stage } from '../types.ts';
 import { BACKGROUNDS } from './backgrounds.ts';
+import { BIOLOGY } from './biology.ts';
 import { buildItem, type Category, type LibraryItem } from './build.ts';
 import { CARTOONS } from './cartoons.ts';
+import { COMPUTERS } from './computers.ts';
 import { ICONS } from './icons.ts';
+import { MATHS } from './maths.ts';
+import { SCHOOL_AND_MORE } from './school.ts';
+import { SCIENCE } from './science.ts';
 
 export { buildItem, type Category, type LibraryItem } from './build.ts';
 
 export const LIBRARY_CATEGORIES: readonly { id: Category; label: string }[] = [
   { id: 'cartoons', label: 'Cartoons' },
+  { id: 'school', label: 'School' },
+  { id: 'maths', label: 'Maths' },
+  { id: 'science', label: 'Physics & chemistry' },
+  { id: 'biology', label: 'Biology' },
+  { id: 'computers', label: 'Computers & IT' },
   { id: 'icons', label: 'Icons & symbols' },
   { id: 'backgrounds', label: 'Backgrounds' },
 ];
 
-export const LIBRARY: readonly LibraryItem[] = [...CARTOONS, ...ICONS, ...BACKGROUNDS];
+// Each tab shows its items in this order: the ones first drawn with the school things, then the
+// tab's own file.
+export const LIBRARY: readonly LibraryItem[] = [
+  ...CARTOONS,
+  ...SCHOOL_AND_MORE.filter((i) => i.category === 'school'),
+  ...SCHOOL_AND_MORE.filter((i) => i.category === 'maths'),
+  ...MATHS,
+  ...SCHOOL_AND_MORE.filter((i) => i.category === 'science'),
+  ...SCIENCE,
+  ...SCHOOL_AND_MORE.filter((i) => i.category === 'biology'),
+  ...BIOLOGY,
+  ...COMPUTERS,
+  ...ICONS,
+  ...BACKGROUNDS,
+];
 
 export const itemById = (id: string): LibraryItem | undefined => LIBRARY.find((i) => i.id === id);
 

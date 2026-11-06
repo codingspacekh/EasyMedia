@@ -98,6 +98,7 @@ function session() {
         await writeFile(path, png);
         return path;
       },
+      saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
       writeBytes: async (p, b) => {
         await mkdir(dirname(p), { recursive: true });
         await writeFile(p, b);

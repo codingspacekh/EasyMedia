@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import App from '../../../src/ui/App.svelte';
 import ExportDialog from '../../../src/ui/ExportDialog.svelte';
-import { testApp } from '../../helpers/test-app.ts';
+import { testApp, VIDEO } from '../../helpers/test-app.ts';
 
 async function withClip() {
   const t = testApp();
@@ -17,6 +17,51 @@ async function withClip() {
 const pressed = (name: string | RegExp) =>
   screen.getByRole('button', { name }).getAttribute('aria-pressed');
 const sizeText = () => screen.getByLabelText('Estimated file size').textContent ?? '';
+
+/** F/M/26 Q4: m26desk.mp4 is 852 × 480, in a 16:9 project. */
+async function withDesk() {
+  const t = testApp({
+    '/m/m26desk.mp4': { ...VIDEO, video: { codec: 'h264', width: 852, height: 480, fps: 30 } },
+  });
+  await t.importFiles('/m/m26desk.mp4');
+  t.app.addToTimeline(t.app.store.get().history.present.media[0]!.id);
+  const exportVideo = vi.spyOn(t.app, 'exportVideo').mockResolvedValue();
+  render(ExportDialog, { props: { app: t.app, onclose: vi.fn() } });
+  return { ...t, exportVideo };
+}
+const resolution = () => screen.getByLabelText('Resolution') as HTMLSelectElement;
+const exported = (spy: ReturnType<typeof vi.fn>) =>
+  (spy.mock.calls.at(-1)![0] as { format: { width: number; height: number } }).format;
+
+describe('V17 export at any size', () => {
+  it("offers the source video's own size: 852 × 480 (same as m26desk.mp4)", async () => {
+    const { exportVideo } = await withDesk();
+    const option = within(resolution()).getByRole('option', { name: /852 × 480.*m26desk\.mp4/ });
+    await fireEvent.change(resolution(), {
+      target: { value: (option as HTMLOptionElement).value },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    expect(exported(exportVideo)).toMatchObject({ width: 852, height: 480 });
+  });
+
+  it('a custom width and height can be typed (M/J/25 Q14: 854 × 480)', async () => {
+    const { exportVideo } = await withDesk();
+    await fireEvent.change(resolution(), { target: { value: 'custom' } });
+    await fireEvent.change(screen.getByLabelText('Width'), { target: { value: '854' } });
+    await fireEvent.change(screen.getByLabelText('Height'), { target: { value: '480' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    expect(exported(exportVideo)).toMatchObject({ width: 854, height: 480 });
+  });
+
+  it('explains a size H.264 cannot make, and keeps the last good one', async () => {
+    await withDesk();
+    await fireEvent.change(resolution(), { target: { value: 'custom' } });
+    await fireEvent.change(screen.getByLabelText('Width'), { target: { value: '853' } });
+    expect(screen.getByRole('alert').textContent).toMatch(/even number/i);
+    await fireEvent.change(screen.getByLabelText('Height'), { target: { value: '64' } });
+    expect(screen.getAllByRole('alert').at(-1)!.textContent).toMatch(/between 128 and 3840/);
+  });
+});
 
 describe('export dialog', () => {
   it('opens from the toolbar Export button; with an empty timeline it explains instead', async () => {

@@ -1,4 +1,4 @@
-// M12: an installed EasyMedia checks itself (CI starts each packaged app with EASYMEDIA_SELF_CHECK):
+// M12: an installed OneEditor checks itself (CI starts each packaged app with ONEEDITOR_SELF_CHECK):
 // its FFmpeg runs, its pages and every bundled font are there.
 import { describe, expect, it } from 'vitest';
 import { selfCheck, type SelfCheckDeps } from '../../../src/main/self-check.ts';

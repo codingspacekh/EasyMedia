@@ -121,7 +121,7 @@
   .label {
     color: var(--tx-2);
   }
-  /* Choices get a row of their own: they take the width their longest name needs. */
+  /* Choices get a row of their own. */
   .row {
     grid-column: 1 / -1;
     display: flex;
@@ -131,6 +131,10 @@
   }
   .row button {
     white-space: nowrap;
+  }
+  /* A fixed share of the row: a menu sized by its chosen option would jump when it changes. */
+  .row select {
+    flex: 0 1 60%;
   }
   .bands {
     grid-column: 1 / -1;

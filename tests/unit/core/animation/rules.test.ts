@@ -66,6 +66,10 @@ describe('validateStage (AN1)', () => {
     expect(() => validateStage({ ...stage, length: 0 })).toThrow(/at least 1 frame/);
     expect(() => validateStage({ ...stage, length: 36_001 })).toThrow(/at most 36 000/);
   });
+  it('AN21 a stage can have no background (transparent): "none"', () => {
+    expect(() => validateStage({ ...stage, background: 'none' })).not.toThrow();
+    expect(() => validateStage({ ...stage, background: 'transparent' })).toThrow(/colour/);
+  });
   it('refuses a background that is not a colour', () => {
     expect(() => validateStage({ ...stage, background: 'grey' })).toThrow(/colour such as #F4C8EE/);
     expect(() => validateStage({ ...stage, background: '#F4C8EE' })).not.toThrow();

@@ -15,7 +15,7 @@ import { setItemDuration, trimVideo } from '../../../src/core/model/timeline.ts'
 import type { MainItem, MediaAsset, Project, TitleSlide } from '../../../src/core/model/types.ts';
 import { createNodeMediaEngine } from '../../../src/main/media/engine.ts';
 import { bundledFfmpeg, run } from '../helpers/ffmpeg.ts';
-import { brightness, measure, tinyFrame } from '../helpers/measure.ts';
+import { brightness, grayFrame, measure, tinyFrame } from '../helpers/measure.ts';
 
 const FRAME = 1 / 30;
 const engine = createNodeMediaEngine(bundledFfmpeg());
@@ -169,6 +169,69 @@ describe('looks in the exported video', () => {
     for (let y = 0; y < 9; y++)
       for (let x = 0; x < 16; x++)
         a.at(x, y).forEach((v, i) => expect(Math.abs(v - b.at(x, y)[i]!)).toBeLessThan(10));
+  });
+
+  it('V10 a snapshot with the playhead inside the very last frame (M17 exam trial)', async () => {
+    const p = createProject({ name: 'last' });
+    const main = [still('s', 1), clip('v', 3, 5)];
+    const project: Project = { ...p, media: [hd, halves], timeline: { ...p.timeline, main } };
+    const snap = join(dir, 'last.png');
+    expect(await engine.renderFrame(project, 2.99, snap, { projectDir: dir })).toBe(snap);
+    expect((await engine.probe(snap)).video).toBeTruthy();
+  });
+
+  it('V10 a clip whose pictures end a little before its planned end still gives its last frame and its full length (9626/02 M/J/18 186MCP.wmv)', async () => {
+    // The file says 10.07 s, as 186MCP.wmv says 12.074 s; its pictures end at 10.00 s.
+    const long = { ...hd, id: 'long', duration: 10.07 };
+    const p = createProject({ name: 'short pictures' });
+    const item = trimVideo(createVideoClip(long, { id: 'v' }), { in: 0, out: 10.07 }, long);
+    const project: Project = {
+      ...p,
+      media: [long, halves],
+      timeline: { ...p.timeline, main: [still('s', 1), item] },
+    };
+    const snap = join(dir, 'short-pictures.png');
+    expect(await engine.renderFrame(project, 11.06, snap, { projectDir: dir })).toBe(snap);
+    expect((await engine.probe(snap)).video).toBeTruthy();
+    // The export is as long as the timeline: the last picture is held for the missing moment.
+    const file = join(dir, 'short-pictures.mp4');
+    await engine.renderVideo(project, file, { projectDir: dir }).done;
+    expect(Math.abs((await measure(file)).videoDuration - 11.07)).toBeLessThanOrEqual(
+      FRAME + 0.001,
+    );
+  });
+
+  it('V19 a picture turned a quarter is fitted on its side; flipped, its halves swap', async () => {
+    // The black half (left) goes to the top when turned clockwise; the 1080 × 1920 picture is
+    // fitted in the 1920 × 1080 frame with bars at the sides: 608 × 1080 in the middle.
+    const file = await render(
+      [
+        { ...still('cw', 1), turn: 90 },
+        { ...still('acw', 1), turn: 270 },
+        { ...still('flip', 1), flipH: true },
+      ],
+      'turn.mp4',
+    );
+    const near = (a: number, b: number) => Math.abs(a - b) <= 4;
+    const cw = (await grayFrame(file, 0.5)).brightBox()!;
+    expect([cw.x0, cw.y0, cw.x1, cw.y1].map((v, i) => near(v, [656, 540, 1263, 1079][i]!))).toEqual(
+      [true, true, true, true],
+    );
+    const acw = (await grayFrame(file, 1.5)).brightBox()!;
+    expect(
+      [acw.x0, acw.y0, acw.x1, acw.y1].map((v, i) => near(v, [656, 0, 1263, 539][i]!)),
+    ).toEqual([true, true, true, true]);
+    const flipped = (await grayFrame(file, 2.5)).brightBox()!;
+    expect([flipped.x0, flipped.x1].map((v, i) => near(v, [0, 959][i]!))).toEqual([true, true]);
+  });
+
+  it('V19 a video clip turned a quarter has bars at the sides, as filmed on a phone', async () => {
+    const file = await render([{ ...clip('v', 0, 1), turn: 270 }], 'turn-video.mp4');
+    const frame = await tinyFrame(file, 0.5);
+    expect(frame.columnBrightness(0)).toBeLessThan(8);
+    expect(frame.columnBrightness(15)).toBeLessThan(8);
+    expect(frame.columnBrightness(8)).toBeGreaterThan(30);
+    expect(await measure(file)).toMatchObject({ width: 1920, height: 1080 });
   });
 });
 

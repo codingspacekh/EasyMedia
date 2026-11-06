@@ -3,7 +3,12 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { CHANNELS, type Events, type MveApi } from './api.ts';
 
-const EVENTS: readonly (keyof Events)[] = ['job:event', 'menu:action', 'app:closeRequested'];
+const EVENTS: readonly (keyof Events)[] = [
+  'job:event',
+  'menu:action',
+  'app:closeRequested',
+  'updates:state',
+];
 
 const api: MveApi = {
   platform: process.platform,

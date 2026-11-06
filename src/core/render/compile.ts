@@ -9,16 +9,24 @@ import {
   transitionOverlap,
 } from '../model/timeline.ts';
 import { filtersFor, transitionById } from '../effects/registry.ts';
+import { xfadeStep } from '../effects/transitions/transitions.ts';
+import { turnFilter } from '../effects/turn.ts';
 import type {
   AudioItem,
+  AudioTrackIndex,
+  ClipTurn,
   MainItem,
   MediaAsset,
+  OverlayItem,
   Project,
   ProjectSettings,
   TextEffects,
 } from '../model/types.ts';
-import { ENTRANCE_SECONDS, motionExpressions } from '../text/motion.ts';
+import { motionExpressions } from '../text/motion.ts';
+import { volumeExpression } from '../model/volume-changes.ts';
 import { atempoChain, fitFilter, num } from './filters.ts';
+import { overlayDuration } from '../model/overlay.ts';
+import { overlayPicture, overlayPosition, overlaySound } from './overlay.ts';
 import {
   codecArgs,
   defaultExport,
@@ -50,6 +58,8 @@ export interface TextImage {
   height: number;
   /** The middle of the words in the frame: zooms grow around it (default: the frame's middle). */
   anchor?: { x: number; y: number };
+  /** The words' box in the frame: spins and typing on need it (default: the whole frame). */
+  box?: { x: number; y: number; width: number; height: number };
 }
 
 export interface RenderPlan {
@@ -61,8 +71,23 @@ export interface RenderPlan {
 }
 
 const SAMPLE_RATE = 48000;
+/** Seconds of the last picture a video clip may be padded with (the trim keeps only what it needs). */
+const HOLD = 1;
 const SILENCE = 'anullsrc=r=48000:cl=stereo';
 const AUDIO_FORMAT = 'aformat=sample_rates=48000:channel_layouts=stereo';
+
+/**
+ * V10: the stretch of the finished video a snapshot keeps, [start, end): it ends one frame after
+ * the time, and its last frame is written. That is the first frame at or after the time, as the
+ * preview shows it; past the video's last picture it is that last picture. (A seek to the frame
+ * at or after the time found nothing there: the finished video can have a frame fewer than the
+ * timeline's length suggests, as each clip rounds its own frame count — M17 exam trial,
+ * 9626/02 M/J/18 186MCP.wmv.)
+ */
+const SNAPSHOT_LOOK_BACK = 0.25;
+function snapshotStretch(time: Seconds, fps: number): [Seconds, Seconds] {
+  return [Math.max(0, time - SNAPSHOT_LOOK_BACK), time + 1 / fps];
+}
 
 export function compileProject(project: Project, options: RenderOptions): RenderPlan {
   assertExportable(project);
@@ -85,7 +110,10 @@ export function compileProject(project: Project, options: RenderOptions): Render
   // V13: music and voiceover heard before the video ends (a snapshot has no sound).
   const tracks = frameAt === undefined ? heardAudio(project.timeline.audio, total) : [];
   const hasAudio = frameAt === undefined && projectHasSound(project);
-  const mainAudio = tracks.length ? '[amain]' : '[aout]';
+  // V20: pictures and videos over the video, and the sound of those that have it on.
+  const overlays = shownOverlays(project, total);
+  const overlaySounds = hasAudio ? overlays.filter((o) => overlayHasSound(project, o.item)) : [];
+  const mainAudio = tracks.length || overlaySounds.length ? '[amain]' : '[aout]';
 
   const inputs: string[] = [];
   const filters: string[] = [];
@@ -118,7 +146,12 @@ export function compileProject(project: Project, options: RenderOptions): Render
       );
       const setpts =
         item.speed === 1 ? 'setpts=PTS-STARTPTS' : `setpts=(PTS-STARTPTS)/${num(item.speed)}`;
-      filters.push(`[${k}:v]${setpts},${fitFilter(settings)},trim=duration=${d}${vOut}`);
+      // The last picture is held for any moment the file's pictures stop short of the clip's
+      // length (a file's stated length can run a frame or two past its last picture: 9626/02
+      // M/J/18 186MCP.wmv), so the clip is never shorter than planned and its last frame exists.
+      filters.push(
+        `[${k}:v]${setpts},${turned(item)}${fitFilter(settings)},tpad=stop_mode=clone:stop_duration=${HOLD},trim=duration=${d}${vOut}`,
+      );
       if (hasAudio) {
         if (soundOf(item)) {
           const tempo = atempoChain(item.speed)
@@ -135,7 +168,7 @@ export function compileProject(project: Project, options: RenderOptions): Render
     } else {
       if (item.type === 'image') {
         const k = loopImage(d, options.mediaPath(assetOf(item.assetId)));
-        filters.push(`[${k}:v]${fitFilter(settings)},trim=duration=${d}${vOut}`);
+        filters.push(`[${k}:v]${turned(item)}${fitFilter(settings)},trim=duration=${d}${vOut}`);
       } else {
         // Title slide: background (colour, picture or video), then its words on top.
         const words = item.text.trim() !== '';
@@ -170,7 +203,8 @@ export function compileProject(project: Project, options: RenderOptions): Render
   const n = main.length;
   // Text shown after the video has ended is left out; it must never make the video longer.
   const texts = project.timeline.text.filter((t) => t.start < total - 1e-6);
-  const videoEnd = texts.length ? '[vbase]' : '[vout]';
+  const textBase = texts.length ? '[vbase]' : '[vout]';
+  const videoEnd = overlays.length ? '[vjoin]' : textBase;
   if (main.every((_, i) => transitionOverlap(main, i) === 0)) {
     const segments = main.map((_, i) => `[v${i}]${hasAudio ? `[a${i}]` : ''}`).join('');
     filters.push(
@@ -189,9 +223,9 @@ export function compileProject(project: Project, options: RenderOptions): Render
       if (overlap > 0) {
         const kind = transitionById(main[i]!.transitionIn!.effectId);
         if (!kind)
-          throw new EditError('This transition is not available in this version of EasyMedia.');
+          throw new EditError('This transition is not available in this version of OneEditor.');
         filters.push(
-          `${video}[v${i}]xfade=transition=${kind.xfade}:duration=${num(overlap)}:offset=${num(length - overlap)}${vNext}`,
+          xfadeStep(kind.xfade, video, `[v${i}]`, num(overlap), num(length - overlap), vNext, i),
         );
         if (hasAudio) filters.push(`${audio}[a${i}]acrossfade=d=${num(overlap)}${aNext}`);
       } else {
@@ -209,10 +243,10 @@ export function compileProject(project: Project, options: RenderOptions): Render
     }
   }
 
-  // V13: each music / voiceover clip is read, shaped in its own time, moved to its start
+  // V13: each music / voiceover / sound effect clip is read, shaped in its own time, moved to its start
   // (exact to the sample) and mixed over the clips' sound, which sets the length.
   const voiceover = tracks.filter((t) => t.track === 1);
-  tracks.forEach(({ item, heard }, j) => {
+  tracks.forEach(({ item, track, heard }, j) => {
     const k = inputIndex++;
     const speed = item.speed ?? 1;
     inputs.push(
@@ -226,20 +260,50 @@ export function compileProject(project: Project, options: RenderOptions): Render
     const tempo = atempoChain(speed)
       .map((t) => `,atempo=${num(t)}`)
       .join('');
-    const volume = item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
+    // V13: with volume changes the volume follows their line, in timeline time (after adelay),
+    // worked out every 5 ms so a glide is smooth; it starts and ends at the sound's own volume.
+    const changes = item.volumeChanges?.length ? item.volumeChanges : null;
+    const volume = changes || item.volume === 1 ? '' : `,volume=${num(item.volume)}`;
+    const changing = changes
+      ? `,asetnsamples=n=${SAMPLE_RATE / 200}:p=0,volume=eval=frame:volume='${volumeExpression(item.volume, changes)}'`
+      : '';
     const fadeIn = item.fadeIn > 0 ? `,afade=t=in:st=0:d=${num(item.fadeIn)}` : '';
     const fadeOut =
       item.fadeOut > 0 ? `,afade=t=out:st=${num(heard - item.fadeOut)}:d=${num(item.fadeOut)}` : '';
-    const ducking = item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
+    const ducking = track === 0 && item.duck && voiceover.length ? `,${duckFilter(voiceover)}` : '';
     filters.push(
-      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${tempo}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${ducking}[m${j}]`,
+      `[${k}:a]asetpts=PTS-STARTPTS,${AUDIO_FORMAT}${tempo}${volume}${fadeIn}${fadeOut},adelay=${Math.round(item.start * SAMPLE_RATE)}S:all=1${changing}${ducking}[m${j}]`,
     );
   });
-  if (tracks.length) {
-    const mixed = tracks.map((_, j) => `[m${j}]`).join('');
+  // V20: each picture or video over the video is laid over the joined video between its start
+  // and end, before the text, so text stays on top; a video's sound (when on) is mixed in.
+  const overlaySoundLabels: string[] = [];
+  overlays.forEach(({ item, shown }, j) => {
+    const path = options.mediaPath(assetOf(item.assetId));
+    let k: number;
+    if (item.type === 'image') k = loopImage(num(shown), path);
+    else {
+      k = inputIndex++;
+      inputs.push('-ss', num(item.in), '-t', num(shown), '-i', path);
+    }
+    filters.push(`[${k}:v]${overlayPicture(item, settings)}[ov${j}]`);
+    const from = j === 0 ? '[vjoin]' : `[ol${j - 1}]`;
+    const to = j === overlays.length - 1 ? textBase : `[ol${j}]`;
+    const end = item.start + overlayDuration(item);
     filters.push(
-      `[amain]${mixed}amix=inputs=${tracks.length + 1}:duration=first:normalize=0[aout]`,
+      `${from}[ov${j}]overlay=${overlayPosition(item)}:eof_action=pass:enable='between(t,${num(item.start)},${num(end)})'${to}`,
     );
+    if (overlaySounds.some((o) => o.item.id === item.id)) {
+      const label = `[os${overlaySoundLabels.length}]`;
+      filters.push(`[${k}:a]${overlaySound(item, SAMPLE_RATE, AUDIO_FORMAT)}${label}`);
+      overlaySoundLabels.push(label);
+    }
+  });
+
+  if (tracks.length || overlaySoundLabels.length) {
+    const mixed = tracks.map((_, j) => `[m${j}]`).join('') + overlaySoundLabels.join('');
+    const count = tracks.length + overlaySoundLabels.length;
+    filters.push(`[amain]${mixed}amix=inputs=${count + 1}:duration=first:normalize=0[aout]`);
   }
 
   // Captions, subtitles and credits are laid over the joined video at their own times.
@@ -269,8 +333,11 @@ export function compileProject(project: Project, options: RenderOptions): Render
       args: [
         ...inputs,
         '-filter_complex',
-        filters.join(';'),
-        ...['-map', '[vout]', '-ss', num(frameAt), '-frames:v', '1', '-update', '1', '-an'],
+        [
+          ...filters,
+          `[vout]trim=start=${num(snapshotStretch(frameAt, settings.fps)[0])}:end=${num(snapshotStretch(frameAt, settings.fps)[1])}[snap]`,
+        ].join(';'),
+        ...['-map', '[snap]', '-update', '1', '-an'],
       ],
       duration: total,
       hasAudio: false,
@@ -328,7 +395,28 @@ export function projectHasSound(project: Project): boolean {
       !item.muted &&
       project.media.find((m) => m.id === item.assetId)?.hasAudio === true,
   );
-  return clipSound || heardAudio(audio, mainTrackDuration(main)).length > 0;
+  const total = mainTrackDuration(main);
+  return (
+    clipSound ||
+    heardAudio(audio, total).length > 0 ||
+    shownOverlays(project, total).some((o) => overlayHasSound(project, o.item))
+  );
+}
+
+/** V20: the pictures and videos over the video that start before it ends, and how long each is fed. */
+function shownOverlays(project: Project, total: Seconds): { item: OverlayItem; shown: Seconds }[] {
+  return (project.timeline.overlay ?? [])
+    .map((item) => ({ item, shown: Math.min(overlayDuration(item), total - item.start) }))
+    .filter((o) => o.shown > 1e-6);
+}
+
+/** V20: a video over the video is heard only when its sound is turned on and it has some. */
+function overlayHasSound(project: Project, item: OverlayItem): boolean {
+  return (
+    item.type === 'video' &&
+    !item.muted &&
+    project.media.find((m) => m.id === item.assetId)?.hasAudio === true
+  );
 }
 
 function assertExportable(project: Project): void {
@@ -338,18 +426,18 @@ function assertExportable(project: Project): void {
 
 interface HeardAudio {
   item: AudioItem;
-  track: 0 | 1;
+  track: AudioTrackIndex;
   /** How long it plays on the timeline: its own length, or until the video ends. */
   heard: Seconds;
 }
 
-/** Music and voiceover in mixing order; anything starting after the video ends is left out. */
+/** Music, voiceover and sound effects in mixing order; anything starting after the video ends is left out. */
 function heardAudio(audio: Project['timeline']['audio'], total: Seconds): HeardAudio[] {
   return audio.flatMap((items, track) =>
     items
       .map((item) => ({
         item,
-        track: track as 0 | 1,
+        track: track as AudioTrackIndex,
         heard: Math.min(audioDuration(item), total - item.start),
       }))
       .filter((a) => a.heard > 1e-6),
@@ -379,6 +467,12 @@ function lookChain(item: MainItem, s: ProjectSettings): string {
       parts.push(`fade=t=out:st=${num(length - fade.out)}:d=${num(fade.out)}:${colour}`);
   }
   return parts.join(',');
+}
+
+/** V19: the turn and flips of a clip or picture, before it is fitted to the frame ('' for none). */
+function turned(item: ClipTurn): string {
+  const filter = turnFilter(item);
+  return filter ? `${filter},` : '';
 }
 
 /** The sound fades with the picture (V7). */
@@ -421,18 +515,27 @@ function motion(
   image: TextImage,
 ): { filters: string; position: string } {
   const anchor = image.anchor ?? { x: image.width / 2, y: image.height / 2 };
-  const m = motionExpressions(effects, start, duration, image, anchor);
+  const m = motionExpressions(effects, start, duration, image, anchor, image.box);
   const end = start + duration;
   const extra =
-    (m.fadeIn ? `,fade=t=in:st=${num(start)}:d=${ENTRANCE_SECONDS}:alpha=1` : '') +
-    (m.fadeOut
-      ? `,fade=t=out:st=${num(end - ENTRANCE_SECONDS)}:d=${ENTRANCE_SECONDS}:alpha=1`
-      : '');
+    (m.fadeIn ? `,fade=t=in:st=${num(start)}:d=${num(m.fadeIn)}:alpha=1` : '') +
+    (m.fadeOut ? `,fade=t=out:st=${num(end - m.fadeOut)}:d=${num(m.fadeOut)}:alpha=1` : '');
+  // Spinning words are cut out first; typing on keeps what is left of the edge (padded on the
+  // left by the picture's width, cropped at the edge, so the kept part stays where it was).
+  const w = m.window;
+  const cutW = w?.width ?? image.width;
+  const cutH = w?.height ?? image.height;
+  const cut = w ? `,crop=w=${w.width}:h=${w.height}:x=${w.x}:y=${w.y}` : '';
+  const reveal = m.edge
+    ? `,pad=w=${2 * cutW}:h=${cutH}:x=${cutW}:y=0:color=black@0,` +
+      `crop=w=${cutW}:h=${cutH}:x='${w ? `${m.edge}-${w.x}` : m.edge}':y=0`
+    : '';
+  const turn = m.angle ? `,rotate=a='${m.angle}':ow=${m.size}:oh=${m.size}:c=none` : '';
   const scale = m.scale
     ? `,scale=w='max(1,iw*(${m.scale}))':h='max(1,ih*(${m.scale}))':eval=frame`
     : '';
   return {
-    filters: `${fades(start, end, effects)}${extra}${scale}`,
+    filters: `${fades(start, end, effects)}${extra}${cut}${reveal}${turn}${scale}`,
     position: `x=${m.x}:y=${m.y}`,
   };
 }

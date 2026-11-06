@@ -11,6 +11,14 @@ export interface Size {
 
 /** Which part of the picture to keep: the same 9 places as text positions. */
 export type Anchor = TextPosition;
+/**
+ * What the dialog makes: a part kept (crop), the whole picture stretched (no cropping), or any part
+ * kept at its own size and shape (`free`: F/M/25 Q2 "crop so that only cells A1:E5 are visible").
+ */
+export type Keep = Anchor | CropRegion | 'stretch' | FreeCrop;
+export interface FreeCrop {
+  free: CropRegion;
+}
 /** A part of the original picture with the project's shape, in original pixels (mouse selection). */
 export interface CropRegion {
   x: number;
@@ -50,14 +58,17 @@ export function resizeKeepingRatio(
       };
 }
 
-/** Smallest resize that covers the target without stretching, then the crop at `keep`. */
-export function planResizeCrop(
-  original: Size,
-  target: Size,
-  keep: Anchor | CropRegion,
-): ResizeCropPlan {
+/**
+ * Smallest resize that covers the target without stretching, then the crop at `keep`; or, with
+ * 'stretch', the whole picture resized to exactly the target ("resize without cropping").
+ */
+export function planResizeCrop(original: Size, target: Size, keep: Keep): ResizeCropPlan {
   assertHasSize(original);
-  if (typeof keep === 'object') return planFromRegion(original, target, keep);
+  if (keep === 'stretch') return finish(original, target, { ...target }, 0, 0);
+  if (typeof keep === 'object')
+    return 'free' in keep
+      ? planFreeCrop(original, keep.free)
+      : planFromRegion(original, target, keep);
   const resize =
     original.width / original.height <= target.width / target.height
       ? resizeKeepingRatio(original, { width: target.width })
@@ -83,6 +94,17 @@ export function planFromRegion(original: Size, target: Size, region: CropRegion)
   return finish(original, target, resize, x, y);
 }
 
+/** Any part, cut out at its own size: nothing is resized, so the result is the part's shape. */
+export function planFreeCrop(original: Size, region: CropRegion): ResizeCropPlan {
+  assertHasSize(original);
+  const x = Math.min(original.width - 1, Math.max(0, Math.round(region.x)));
+  const y = Math.min(original.height - 1, Math.max(0, Math.round(region.y)));
+  const right = Math.min(original.width, Math.max(x + 1, Math.round(region.x + region.width)));
+  const bottom = Math.min(original.height, Math.max(y + 1, Math.round(region.y + region.height)));
+  const part = { width: right - x, height: bottom - y };
+  return finish(original, part, { width: original.width, height: original.height }, x, y);
+}
+
 function finish(original: Size, target: Size, resize: Size, x: number, y: number): ResizeCropPlan {
   const crop = { x, y, ...target };
   return {
@@ -94,7 +116,7 @@ function finish(original: Size, target: Size, resize: Size, x: number, y: number
       left: x,
       right: resize.width - target.width - x,
     },
-    enlarged: resize.width > original.width,
+    enlarged: resize.width > original.width || resize.height > original.height,
     filter: resizeCropFilter({ resize, crop }),
   };
 }
@@ -149,6 +171,27 @@ export function regionFromCorners(
     width,
     height,
   };
+}
+
+/**
+ * A part of any shape from a fixed corner to the mouse (Crop to any shape). It stays inside the
+ * picture and is at least 1/20 of its width and of its height.
+ */
+export function freeRegionFromCorners(fixed: Point, pointer: Point, original: Size): CropRegion {
+  const side = (from: number, to: number, whole: number) => {
+    const forward = to >= from;
+    const room = forward ? whole - from : from;
+    const length = Math.min(room, Math.max(whole / 20, Math.abs(to - from)));
+    return { start: forward ? from : from - length, length };
+  };
+  const across = side(fixed.x, Math.min(original.width, Math.max(0, pointer.x)), original.width);
+  const down = side(fixed.y, Math.min(original.height, Math.max(0, pointer.y)), original.height);
+  return { x: across.start, y: down.start, width: across.length, height: down.length };
+}
+
+/** The part is (to the pixel) the whole picture: there is nowhere to move it. */
+export function coversWhole(region: CropRegion, original: Size): boolean {
+  return region.width >= original.width - 1 && region.height >= original.height - 1;
 }
 
 function assertHasSize(original: Size): void {

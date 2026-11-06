@@ -53,6 +53,38 @@ describe('V9 transitions to choose from', () => {
     ]);
   });
 
+  it('V9 punchy transitions added before the pilot (M17a step 13)', () => {
+    const xfadeOf = (id: string) => TRANSITION_LIST.find((t) => t.id === id)?.xfade;
+    expect(
+      Object.fromEntries(
+        [
+          'diagonalbr',
+          'diagonaltl',
+          'softup',
+          'slicesup',
+          'squeezeside',
+          'windup',
+          'coverup',
+          'revealup',
+          'closedoors',
+          'melt',
+        ].map((id) => [id, xfadeOf(`transition.${id}`)]),
+      ),
+    ).toEqual({
+      diagonalbr: 'diagbr',
+      diagonaltl: 'diagtl',
+      softup: 'smoothup',
+      slicesup: 'vuslice',
+      squeezeside: 'squeezev',
+      windup: 'vuwind',
+      coverup: 'coverup',
+      revealup: 'revealup',
+      closedoors: 'vertclose',
+      melt: 'distance',
+    });
+    expect(TRANSITION_LIST.length).toBeGreaterThanOrEqual(43);
+  });
+
   it('every transition says why it is used, in its own words', () => {
     const whys = TRANSITION_LIST.map((t) => t.why);
     for (const why of whys) expect(why.length).toBeGreaterThan(40);
@@ -99,6 +131,29 @@ describe('how the preview shows a transition (approximately, with CSS)', () => {
       to: { opacity: 0.5 },
       behind: '#ffffff',
     });
+  });
+
+  it('V9 the new ones: up from the bottom, from a corner, doors closing (as FFmpeg)', () => {
+    expect(transitionLook('coverup', 0.25)).toEqual({
+      from: {},
+      to: { transform: 'translate(0, 75%)' },
+    });
+    expect(transitionLook('revealup', 0.25)).toEqual({
+      from: { transform: 'translate(0, -25%)' },
+      to: {},
+      above: 'from',
+    });
+    expect(transitionLook('smoothup', 0.5).to.mask).toBe(
+      'linear-gradient(to bottom, transparent 40%, black 60%)',
+    );
+    expect(transitionLook('diagbr', 0.5).to.mask).toMatch(/^linear-gradient\(to bottom right,/);
+    expect(transitionLook('diagtl', 0.5).to.mask).toMatch(/^linear-gradient\(to top left,/);
+    expect(transitionLook('vertclose', 0.5)).toEqual({
+      from: { clipPath: 'inset(0 25%)' },
+      to: {},
+      above: 'from',
+    });
+    expect(transitionLook('squeezev', 0.25).from).toEqual({ transform: 'scale(0.75, 1)' });
   });
 
   it('a circle opens from the middle', () => {

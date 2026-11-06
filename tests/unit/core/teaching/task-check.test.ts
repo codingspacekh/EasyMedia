@@ -109,7 +109,7 @@ describe('T6 task checker', () => {
 
   it('refuses a file that is not a task check, or a task with nothing to check', () => {
     expect(() => parseTaskSpec('{"schemaVersion": 3, "tracks": []}')).toThrow(EditError);
-    expect(() => parseTaskSpec('not json')).toThrow(/not an EasyMedia task/);
+    expect(() => parseTaskSpec('not json')).toThrow(/not a OneEditor task/);
     expect(() => parseTaskSpec(serializeTaskSpec({ name: 'Empty' } as TaskSpec))).toThrow(
       /nothing to check/,
     );

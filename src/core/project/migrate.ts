@@ -25,7 +25,7 @@ export const MIGRATIONS: Record<number, Migration> = {
   },
 };
 
-export const DAMAGED = 'This file is not an EasyMedia project, or it is damaged.';
+export const DAMAGED = 'This file is not a OneEditor project, or it is damaged.';
 
 export function migrate(
   doc: ProjectDocument,
@@ -39,7 +39,7 @@ export function migrate(
   let version: number = declared;
   if (version > current) {
     throw new ProjectFileError(
-      'This project was made with a newer version of EasyMedia. Please update the app to open it.',
+      'This project was made with a newer version of OneEditor. Please update the app to open it.',
     );
   }
   let upgraded = doc;

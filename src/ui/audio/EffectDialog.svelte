@@ -1,5 +1,6 @@
 <script lang="ts">
   import Why from '../Why.svelte';
+  import Dialog from '../Dialog.svelte';
   // An effect's dialog, generated from its parameter schema (P7): the settings, a note or warning,
   // the syllabus point and "Why use this?" (T5), Preview (A18), Cancel and Apply.
   import { untrack } from 'svelte';
@@ -75,52 +76,47 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
-
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label={title}>
-    <h2>{title} <span class="syl">{syllabus}</span></h2>
-    {#if step1}
-      <section class="step" aria-labelledby={`${id}-step1`}>
-        <h3 id={`${id}-step1`}>Step 1 · Get a noise profile</h3>
-        <p>Select a part that has only background noise (hiss, hum, fan), then click the button.</p>
-        <div class="take">
-          <button onclick={onTake}>Get noise profile</button>
-          <span class="hint"
-            >{step1.taken ? `Profile taken from ${step1.taken}` : 'No profile yet'}</span
-          >
-        </div>
-      </section>
-      <section class="step" aria-labelledby={`${id}-step2`}>
-        <h3 id={`${id}-step2`}>Step 2 · Select the sound to clean, then reduce</h3>
-        <EffectParams def={{ id, params: schema }} {params} onchange={change} />
-      </section>
-    {:else}
-      <EffectParams def={{ id, params: schema }} {params} onchange={change} />
-    {/if}
-    {#if levels}
-      <LevelGraph
-        curve={levels.curve(params)}
-        before={levels.before}
-        after={levels.shape(params, levels.before)}
-      />
-    {/if}
-    {#if line}<p class="note">{line}</p>{/if}
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <Why text={why} />
-    <div class="actions">
-      {#if preview}
-        <button onclick={() => (error = preview({ ...params }))}
-          ><Icon name="play" size={12} /> Preview</button
+<Dialog label={title} {syllabus} width={480} {onclose}>
+  {#if step1}
+    <section class="step" aria-labelledby={`${id}-step1`}>
+      <h3 id={`${id}-step1`}>Step 1 · Get a noise profile</h3>
+      <p>Select a part that has only background noise (hiss, hum, fan), then click the button.</p>
+      <div class="take">
+        <button onclick={onTake}>Get noise profile</button>
+        <span class="hint"
+          >{step1.taken ? `Profile taken from ${step1.taken}` : 'No profile yet'}</span
         >
-      {/if}
-      <span class="hint">Applies to {appliesTo}</span>
-      <span class="spacer"></span>
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" onclick={onApply}>Apply</button>
-    </div>
-  </div>
-</div>
+      </div>
+    </section>
+    <section class="step" aria-labelledby={`${id}-step2`}>
+      <h3 id={`${id}-step2`}>Step 2 · Select the sound to clean, then reduce</h3>
+      <EffectParams def={{ id, params: schema }} {params} onchange={change} />
+    </section>
+  {:else}
+    <EffectParams def={{ id, params: schema }} {params} onchange={change} />
+  {/if}
+  {#if levels}
+    <LevelGraph
+      curve={levels.curve(params)}
+      before={levels.before}
+      after={levels.shape(params, levels.before)}
+    />
+  {/if}
+  {#if line}<p class="note">{line}</p>{/if}
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  <Why text={why} />
+  {#snippet buttons()}
+    {#if preview}
+      <button onclick={() => (error = preview({ ...params }))}
+        ><Icon name="play" size={12} /> Preview</button
+      >
+    {/if}
+    <span class="hint">Applies to {appliesTo}</span>
+    <span class="spacer"></span>
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" onclick={onApply}>Apply</button>
+  {/snippet}
+</Dialog>
 
 <style>
   .step {
@@ -143,41 +139,6 @@
     align-items: center;
     gap: 10px;
   }
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 30;
-  }
-  .dialog {
-    width: min(460px, calc(100vw - 40px));
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  }
-  h2 {
-    margin: 0;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .syl {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--tx-3);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 0 4px;
-  }
   .note {
     margin: 0;
     font-size: 12px;
@@ -187,11 +148,6 @@
     margin: 0;
     font-size: 12px;
     color: var(--danger);
-  }
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
   .hint {
     font-size: 11.5px;

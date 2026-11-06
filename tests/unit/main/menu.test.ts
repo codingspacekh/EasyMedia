@@ -26,6 +26,7 @@ describe('X3 native menus', () => {
     ['New Animation', undefined, 'newAnimation'],
     ['Open Animation…', undefined, 'openAnimation'],
     ['Export Animation…', undefined, 'exportAnimation'],
+    ['Candidate Details…', undefined, 'candidate'],
   ])('File ▸ %s (%s) sends "%s" to the page', (label, accelerator, action) => {
     const send = vi.fn<(a: MenuAction) => void>();
     const item = items(find(menuTemplate('darwin', send, false), 'File')).find(
@@ -99,19 +100,23 @@ describe('X3 native menus', () => {
     expect(view(false)).not.toContain('toggleDevTools');
   });
 
-  it('Help: Welcome and Licences go to the page; the guides open as web pages (M12)', () => {
+  it('Help: Welcome, Check for Updates (M17a) and Licences go to the page; the guides open as web pages (M12); Report a Problem is made by the main process (it works when the page does not)', () => {
     const send = vi.fn<(a: MenuAction) => void>();
     const open = vi.fn<(guide: 'user-guide' | 'teacher-notes') => void>();
-    const help = items(find(menuTemplate('win32', send, false, open), 'Help'));
+    const report = vi.fn<() => void>();
+    const help = items(find(menuTemplate('win32', send, false, open, report), 'Help'));
     expect(help.map((i) => i.label)).toEqual([
-      'Welcome to EasyMedia',
+      'Welcome to OneEditor',
       'User guide',
       'Teacher notes',
+      'Check for Updates…',
+      'Report a Problem…',
       'Licences',
     ]);
     for (const i of help) (i.click as () => void)();
-    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'licences']);
+    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'updates', 'licences']);
     expect(open.mock.calls.map(([g]) => g)).toEqual(['user-guide', 'teacher-notes']);
+    expect(report).toHaveBeenCalledTimes(1);
   });
 
   it('N15 the Learn menu, after View, opens each Learn page and the glossary', () => {

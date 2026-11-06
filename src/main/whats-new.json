@@ -1,0 +1,13 @@
+{
+  "1.5.0": [
+    "The app is now called OneEditor, and it updates itself: new versions arrive without reinstalling",
+    "Video: a logo or a second video over the video (picture-in-picture); turn or flip a clip filmed sideways; insert a clip at the playhead; make the project the size of a clip; the music quieter between two times",
+    "Type any speed (such as 1.25×), a clip's start time in Audio mode, and any export size (such as 852 × 480); crop a picture to any shape; stretch a picture without cropping; place a picture on another picture",
+    "Sound effects: 66 built-in sounds (whoosh, ding, drum roll…) and two sound effects tracks in Video mode; six bold new fonts, ten new transitions and new title animations (slam, type on, spin)",
+    "Audio: Change tempo (same pitch), Reverse, Volume change, Remove silences; export 8-bit WAV and OGG",
+    "Animation: sounds; text along a curve; turn about any point; skew; flip; combine shapes (cut one out of another); gradients of three or more colours; crop a picture or make a colour see-through",
+    "Animation export: play once and stop, AVI and MOV, another width, a range of frames, a transparent stage, and the frame as an SVG picture",
+    "File ▸ Candidate Details…: every save and export suggests the exam's file name, such as Gas_ZZ999_9999",
+    "Help ▸ Report a Problem… saves a report to give your teacher when something goes wrong"
+  ]
+}

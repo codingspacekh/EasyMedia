@@ -113,6 +113,36 @@ describe('N12 background job queue', () => {
     expect(calls).toEqual([`rm ${join('/out', 'proxy.partial-job-1.mp4')}`]);
   });
 
+  it('ffmpeg ending well but making no file fails the job with an explanation (regression: a snapshot after the last picture hung the app)', async () => {
+    const runner = fakeRunner();
+    const events: string[] = [];
+    const missing = Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' });
+    const queue = createJobQueue({
+      ffmpeg: 'ffmpeg',
+      run: runner.run,
+      fs: {
+        rename: async () => {
+          throw missing;
+        },
+        rm: async () => {
+          throw missing;
+        },
+      },
+    });
+    queue.onEvent((e) => events.push(e.type));
+    const job = queue.run({ label: 'Snapshot', args: [], output: out });
+    await tick();
+    runner.runs[0]!.finish(0);
+    await expect(job.done).rejects.toThrow(MediaError);
+    await expect(job.done).rejects.toThrow(/nothing to save|no picture/i);
+    expect(events).toEqual(['queued', 'started', 'error']);
+    // The queue carries on with the next job.
+    const next = queue.run({ label: 'Proxy', args: [], output: out });
+    await tick();
+    expect(runner.runs).toHaveLength(2);
+    void next;
+  });
+
   it('a job with fallback arguments tries them once when ffmpeg fails (regression: VideoToolbox at 426 × 240)', async () => {
     const { queue, runs, events, calls } = setup();
     const job = queue.run({

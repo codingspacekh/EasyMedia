@@ -55,21 +55,23 @@
 </div>
 
 <style>
+  /* The look of every dialog (ui/Dialog.svelte); its own layout keeps the search box at the
+     top while the words scroll. */
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(6, 7, 9, 0.72);
+    background: rgba(0, 0, 0, 0.55);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    z-index: 30;
   }
   .dialog {
     width: min(720px, calc(100vw - 48px));
     max-height: calc(100vh - 80px);
     background: var(--bg-1);
     border: 1px solid var(--line-strong);
-    border-radius: 12px;
+    border-radius: var(--radius-l);
     display: flex;
     flex-direction: column;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);

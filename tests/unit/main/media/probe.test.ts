@@ -44,6 +44,20 @@ describe('T1 parseProbe: what is inside a media file', () => {
     });
   });
 
+  it('a video is as long as its pictures, when its sound runs on after them (9626/02 M/J/17 173t2.mp4)', () => {
+    const info = parseProbe({
+      format: fmt('mov,mp4,m4a,3gp,3g2,mj2', { duration: '19.359002' }),
+      streams: [
+        { ...h264, duration: '19.285933' },
+        { ...aac, duration: '19.359002' },
+      ],
+    });
+    expect(info.duration).toBeCloseTo(19.285933, 6);
+    // A sound file keeps the whole length; a video whose stream gives no length keeps the file's.
+    expect(parseProbe({ format: fmt('mp3'), streams: [aac] }).duration).toBe(10);
+    expect(parseProbe({ format: fmt('matroska,webm'), streams: [h264, aac] }).duration).toBe(10);
+  });
+
   it.each([
     ['mov,mp4,m4a,3gp,3g2,mj2', { major_brand: 'qt  ' }, 'mov'],
     ['avi', undefined, 'avi'],
@@ -54,6 +68,30 @@ describe('T1 parseProbe: what is inside a media file', () => {
     expect(parseProbe({ format: fmt(format_name, { tags }), streams: [h264] }).container).toBe(
       container,
     );
+  });
+
+  it('V1, V19: a phone video stored sideways with a turn in its data has the size it is shown at', () => {
+    // FFmpeg turns such a video upright when it reads it, so its size is the turned one.
+    const turned = (rotation: number) =>
+      parseProbe({
+        format: fmt('mov,mp4,m4a,3gp,3g2,mj2'),
+        streams: [
+          {
+            ...h264,
+            display_aspect_ratio: '16:9',
+            side_data_list: [{ side_data_type: 'Display Matrix', rotation }],
+          },
+        ],
+      }).video;
+    expect(turned(-90)).toMatchObject({ width: 1080, height: 1920, displayAspect: '9:16' });
+    expect(turned(90)).toMatchObject({ width: 1080, height: 1920 });
+    expect(turned(180)).toMatchObject({ width: 1920, height: 1080, displayAspect: '16:9' });
+    // Older FFmpeg wrote the turn as a "rotate" tag.
+    const tagged = parseProbe({
+      format: fmt('mov,mp4,m4a,3gp,3g2,mj2'),
+      streams: [{ ...h264, tags: { rotate: '270' } }],
+    }).video;
+    expect(tagged).toMatchObject({ width: 1080, height: 1920 });
   });
 
   it('treats a JPG as a still image, not a 0.04 s video', () => {

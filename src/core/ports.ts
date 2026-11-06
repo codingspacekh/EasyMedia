@@ -4,11 +4,15 @@ import type { Seconds } from './model/time.ts';
 import type { Project, TextStyle } from './model/types.ts';
 import type { AnimationDoc } from './animation/types.ts';
 import type { Pixels } from './animation/trace.ts';
+import type { SoundPiece } from './animation/sound.ts';
 import type { TextImage } from './render/compile.ts';
 import type { Container, ExportSettings } from './render/formats.ts';
 import type { AudioExportSettings, AudioFormat } from './render/audio-formats.ts';
 import type { Size, TextImageMode } from './text/draw.ts';
+import type { CombinePlan } from './image/combine.ts';
+import type { UpdateState } from './updates.ts';
 import type { ResizeCrop } from './image/crop.ts';
+import type { ColourKey } from './image/colour-key.ts';
 
 /** What a media file contains (T1 shows this to students). */
 export interface ProbeInfo {
@@ -96,10 +100,22 @@ export interface MediaEngine {
   /** Saves one frame as an image; the format follows the output's extension (V10). */
   extractFrame(input: string, time: Seconds, output: string): Promise<void>;
   /**
-   * V11: saves a resized and cropped copy beside the picture, as the first free numbered name
-   * (Fish_Eagle.jpg → Fish_Eagle1.jpg, then Fish_Eagle2.jpg…). Never overwrites. Resolves with its path.
+   * V11: saves a resized and cropped copy beside the picture, named `name` if given (taken: name2,
+   * name3…), else the first free numbered name (Fish_Eagle.jpg → Fish_Eagle1.jpg, then
+   * Fish_Eagle2.jpg…). Never overwrites. Resolves with its path (core/project/paths madePicturePath).
    */
-  resizeCropImage(input: string, plan: ResizeCrop): Promise<string>;
+  resizeCropImage(input: string, plan: ResizeCrop, name?: string): Promise<string>;
+  /**
+   * V18: saves `base` with `top` placed on it, beside `base`, named as resizeCropImage does
+   * (credits.png → credits1.png). Never overwrites. Resolves with its path.
+   */
+  combineImages(base: string, top: string, plan: CombinePlan, name?: string): Promise<string>;
+  /**
+   * AN5 Make a colour see-through: saves a PNG of the picture with the colour (and the colours
+   * near it) see-through, beside it, named as resizeCropImage does but ending .png (pearl.jpg →
+   * pearl1.png). Never overwrites. Resolves with its path.
+   */
+  colourKeyImage(input: string, key: ColourKey, name?: string): Promise<string>;
   /** Exports the project in the chosen format (V16, V17). Media paths are resolved against `projectDir` (X1). */
   renderVideo(project: Project, output: string, options: RenderVideoOptions): JobHandle;
   /**
@@ -130,20 +146,25 @@ export interface MediaEngine {
     settings: AudioExportSettings,
   ): JobHandle;
   /**
-   * AN15: makes an MP4 or animated GIF from a folder of PNG frames (frame-00000.png onwards,
-   * drawn by the app). The frames are removed when the job ends, however it ends.
+   * AN15: makes an MP4, AVI, MOV or animated GIF from a folder of PNG frames (frame-00000.png
+   * onwards, drawn by the app), with the animation's sounds in a video (AN28). The frames are
+   * removed when the job ends, however it ends.
    */
   encodeFrames(folder: string, output: string, options: EncodeFramesOptions): JobHandle;
   onJobEvent(listener: (event: JobEvent) => void): () => void;
 }
 
-/** AN15: how the frames become a file; an odd width or height is padded to even for MP4. */
+/** AN15: how the frames become a file; an odd width or height is padded to even for a video. */
 export interface EncodeFramesOptions {
-  format: 'mp4' | 'gif';
+  format: 'mp4' | 'avi' | 'mov' | 'gif';
   fps: number;
   frames: number;
   width: number;
   height: number;
+  /** AN8: a GIF that plays once and stops on its last frame. Absent: it loops for ever. */
+  once?: boolean;
+  /** AN28: the sounds mixed into a video, each placed in its time (none: a silent video). */
+  sounds?: SoundPiece[];
 }
 
 /**
@@ -212,6 +233,8 @@ export interface Dialogs {
   openAnimation(): Promise<string | null>;
   /** AN5: a picture for the stage (PNG, JPG, GIF, BMP or SVG). */
   openPicture(): Promise<string | null>;
+  /** AN28: a sound for the animation (MP3, WAV, M4A, AAC, OGG or FLAC). */
+  openSound(): Promise<string | null>;
   /** AN14: *Import frames…* — a folder of pictures for a stop motion; the pictures in it ([] if none). */
   openFrames(): Promise<string[]>;
   /** AN16: where to save an animation. */
@@ -221,7 +244,8 @@ export interface Dialogs {
 }
 
 /** AN15: the animation export formats (M13: a picture of the stage; M14: mp4, gif, a PNG sequence; M16 html). */
-export type AnimationExportFormat = 'png' | 'mp4' | 'gif' | 'png-sequence' | 'html';
+export type AnimationExportFormat =
+  'png' | 'mp4' | 'avi' | 'mov' | 'gif' | 'png-sequence' | 'html' | 'svg';
 
 /** Reading and writing project (.mve) files. Writes are atomic. */
 export interface ProjectFiles {
@@ -232,6 +256,8 @@ export interface ProjectFiles {
   copy(from: string, to: string): Promise<void>;
   /** Saves a PNG in the app's own folder (not the student's) and returns its path. */
   saveImage(name: string, png: Uint8Array): Promise<string>;
+  /** X8: saves a built-in sound effect's WAV in the app's own folder and returns its path. */
+  saveSound(name: string, wav: Uint8Array): Promise<string>;
   /** Writes a file the student named (an exported picture, AN15). */
   writeBytes(path: string, bytes: Uint8Array): Promise<void>;
 }
@@ -245,6 +271,8 @@ export interface PageAssets {
   playerScript(): Promise<string>;
   /** A picture the app has opened, as a data: URL. */
   pictureDataUrl(path: string): Promise<string>;
+  /** AN28: a sound file the app has opened (or a sound effect it made), as a data: URL. */
+  soundDataUrl(path: string): Promise<string>;
   /** A bundled font file, by its name in resources/fonts (e.g. "Inter.ttf"), as a data: URL. */
   fontDataUrl(file: string): Promise<string>;
   /**
@@ -256,7 +284,24 @@ export interface PageAssets {
 
 /** AN15: draws an animation's stage at a frame as a picture (an OffscreenCanvas in the app). */
 export interface StageRenderer {
-  renderPng(doc: AnimationDoc, frame?: number): Promise<Uint8Array>;
+  /** AN15: drawn at the stage's size, or scaled to `size` (another width, in proportion). */
+  renderPng(
+    doc: AnimationDoc,
+    frame?: number,
+    size?: { width: number; height: number },
+  ): Promise<Uint8Array>;
+  /**
+   * AN22: for each canvas font ('700 48px "Inter"'), how far below the top the stage draws text
+   * from its alphabetic baseline sits, in em, keyed without the size ('700 "Inter"'). An SVG puts
+   * its words on that baseline, so they sit where the stage shows them in every font.
+   */
+  textTops(fonts: string[]): Promise<Record<string, number>>;
+  /**
+   * AN26: how wide words are in a canvas font ('700 48px "Inter"'), in px, as the stage measures
+   * them, once the fonts are loaded. An SVG places curved text's letters with it, where the stage
+   * puts them.
+   */
+  textWidths(fonts: string[]): Promise<(font: string, text: string) => number>;
   /** AN5: a picture's pixels, scaled down to at most `maxSide` px on its longer side. */
   pixels(path: string, maxSide: number): Promise<Pixels>;
 }
@@ -272,6 +317,8 @@ export interface RenderedText {
   height: number;
   /** For a frame image: the middle of the words (zoom entrances and exits grow around it). */
   anchor?: { x: number; y: number };
+  /** For a frame image: the words' box (spinning words are cut out, typing on runs across it). */
+  box?: { x: number; y: number; width: number; height: number };
 }
 
 export interface AppPaths {
@@ -291,4 +338,20 @@ export interface AppPaths {
   animationRecovery?: string;
   /** AN15: the frames of an animation export wait here for FFmpeg; default: in `proxies`. */
   animationFrames?: string;
+}
+
+/**
+ * M17a U1–U5: the main process's updates (electron-updater). Every request answers with the
+ * state as it is then; `onState` hears each change (progress, a version found…).
+ */
+export interface UpdatesPort {
+  get(): Promise<UpdateState>;
+  check(): Promise<UpdateState>;
+  download(): Promise<UpdateState>;
+  install(): Promise<UpdateState>;
+  setAuto(on: boolean): Promise<UpdateState>;
+  seen(): Promise<UpdateState>;
+  showDmg(): Promise<UpdateState>;
+  openDmg(): Promise<UpdateState>;
+  onState(listener: (state: UpdateState) => void): () => void;
 }

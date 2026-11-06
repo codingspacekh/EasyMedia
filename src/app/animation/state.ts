@@ -12,6 +12,7 @@ import type {
   StageRenderer,
 } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
+import type { AudioOutput } from '../audio/state.ts';
 
 export type Tool =
   | 'select'
@@ -78,6 +79,8 @@ export interface AnimationDeps {
   renderer?: StageRenderer;
   /** AN15: what an HTML web animation carries inside it (read by the main process in the app). */
   pageAssets?: PageAssets;
+  /** AN28: the speakers the animation's sounds play on while it plays (none: silent). */
+  audioOutput?: AudioOutput;
   autosaveMs?: number;
 }
 
@@ -96,6 +99,7 @@ export const isAnimationDirty = (s: AnimationState): boolean => {
     a.layers !== b.layers ||
     a.folders !== b.folders ||
     a.pictures !== b.pictures ||
+    a.sounds !== b.sounds ||
     a.guides !== b.guides
   );
 };

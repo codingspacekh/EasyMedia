@@ -1,5 +1,5 @@
 // Teacher notes (M12): every point of the 9626 syllabus, Chapter 11, with where it is done in
-// EasyMedia; every tool and effect sits under a real syllabus point.
+// OneEditor; every tool and effect sits under a real syllabus point.
 import { describe, expect, it } from 'vitest';
 import { AUDIO_EFFECTS, EFFECTS, TRANSITIONS } from '../../../../src/core/effects/registry.ts';
 import { TOOLS } from '../../../../src/core/effects/help.ts';
@@ -7,7 +7,7 @@ import { SYLLABUS, toolsFor } from '../../../../src/core/teaching/syllabus.ts';
 
 const all = [...EFFECTS, ...AUDIO_EFFECTS, ...TRANSITIONS, ...TOOLS];
 
-describe('the syllabus and EasyMedia', () => {
+describe('the syllabus and OneEditor', () => {
   it('lists the syllabus points of 11.1 and 11.2 in the syllabus’s words, each with where to do it', () => {
     expect(SYLLABUS.filter((p) => p.section === '11.1').length).toBeGreaterThanOrEqual(30);
     expect(SYLLABUS.filter((p) => p.section === '11.2').length).toBeGreaterThanOrEqual(30);

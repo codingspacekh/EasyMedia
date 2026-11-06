@@ -206,7 +206,7 @@ describe('T6 task checker', () => {
     s.disk.set('/e/other.html', '<html>not ours</html>');
     s.dialogs.openExport.mockResolvedValueOnce(['/e/other.html']);
     await s.learn.checkExport();
-    expect(s.state().message?.text).toMatch(/not a web animation exported by EasyMedia/);
+    expect(s.state().message?.text).toMatch(/not a web animation exported by OneEditor/);
   });
 
   it('AN17 every picture of a PNG sequence chosen together is checked as one sequence', async () => {
@@ -247,7 +247,7 @@ describe('T6 task checker', () => {
     await s.app.saveAs();
     s.dialogs.openTaskCheck.mockResolvedValueOnce('/t/p.mve');
     await s.learn.openTask();
-    expect(s.state().message?.text).toMatch(/not an EasyMedia task check/);
+    expect(s.state().message?.text).toMatch(/not a OneEditor task check/);
     expect(s.state().task.spec).toEqual(spec);
     expect(serializeTaskSpec(spec)).toContain('easymedia-task-check');
   });

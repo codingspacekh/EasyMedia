@@ -265,7 +265,7 @@
   }
   .folder-pick {
     font-size: 10.5px;
-    max-width: 90px;
+    width: 90px;
     background: var(--bg-2);
     color: var(--tx-2);
     border: 1px solid var(--line);

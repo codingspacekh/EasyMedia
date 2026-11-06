@@ -12,7 +12,7 @@ describe('teacher notes', () => {
     const notes = teacherNotes(SYLLABUS);
     for (const p of SYLLABUS) expect(notes).toContain(p.point);
     expect(notes).toMatch(
-      /\| fading in and fading out \| Audio ▸ Effect ▸ Fade in \/ Fade out \| Fade in, Fade out \|/,
+      /\| fading in and fading out \| Audio ▸ Effect ▸ Fade in \/ Fade out, Volume change \(from one volume to another\) \| Fade in, Fade out, Volume change \|/,
     );
     expect(notes).toMatch(/## 11\.1 Video editing[\s\S]*## 11\.2 Audio editing/);
   });
@@ -26,10 +26,10 @@ describe('teacher notes', () => {
 
 describe('guide pages', () => {
   it('are whole web pages that work offline and print well', () => {
-    const html = guidePage('User guide', '# EasyMedia\n\nHello <world> & *you*.');
+    const html = guidePage('User guide', '# OneEditor\n\nHello <world> & *you*.');
     expect(html).toMatch(/^<!doctype html>/);
-    expect(html).toContain('<title>EasyMedia — User guide</title>');
-    expect(html).toContain('<h1 id="easymedia">EasyMedia</h1>');
+    expect(html).toContain('<title>OneEditor — User guide</title>');
+    expect(html).toContain('<h1 id="oneeditor">OneEditor</h1>');
     expect(html).toContain('<em>you</em>');
     expect(html).not.toMatch(/<script|https?:\/\/(?!github\.com)/); // nothing loaded from the internet
     expect(html).toContain('@media print');

@@ -156,7 +156,7 @@ export function parseTaskSpec(text: string): TaskSpec {
   } catch {
     data = {};
   }
-  if (data?.kind !== KIND) throw new EditError('This file is not an EasyMedia task check.');
+  if (data?.kind !== KIND) throw new EditError('This file is not a OneEditor task check.');
   const positive = (key: keyof TaskSpec) => {
     const v = data[key];
     if (v === undefined) return undefined;

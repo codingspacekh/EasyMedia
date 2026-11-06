@@ -98,9 +98,11 @@
 
 <style>
   .panel {
+    /* In the middle of the window, as the other boxes are (issues/audio-1.png). */
     position: fixed;
-    top: 96px;
-    left: 330px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 340px;
     z-index: 20;
     background: var(--bg-1);
@@ -192,6 +194,19 @@
   .hint {
     color: var(--tx-3);
     font-size: 11.5px;
+  }
+  .foot button {
+    /* "Start recording" on one line (issues/audio-3.png); the hint takes what is left. */
+    flex: none;
+    white-space: nowrap;
+  }
+  .foot .hint {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .foot .spacer {
+    /* The hint takes the free width, so it wraps onto two lines, not six. */
+    flex: 0 0 4px;
   }
   .danger {
     background: var(--danger);

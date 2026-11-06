@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { compress, compressedDb } from '../../../../src/core/audio/dsp/compressor.ts';
 import { delay, echo, echoTimes } from '../../../../src/core/audio/dsp/echo.ts';
 import { EQ_BANDS, graphicEq, highPass, lowPass } from '../../../../src/core/audio/dsp/filters.ts';
-import { changePitch, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
+import { changePitch, changeTempo, timeStretch } from '../../../../src/core/audio/dsp/pitch.ts';
 import { reverb, type ReverbSettings } from '../../../../src/core/audio/dsp/reverb.ts';
 import { changeSpeed } from '../../../../src/core/audio/dsp/speed.ts';
 import {
@@ -17,7 +17,7 @@ import {
   peak,
   removeDcOffset,
 } from '../../../../src/core/audio/dsp/volume.ts';
-import { mixDown, stereoToMono } from '../../../../src/core/audio/dsp/channels.ts';
+import { mixDown, reverse, stereoToMono } from '../../../../src/core/audio/dsp/channels.ts';
 
 const RATE = 44100;
 const sine = (freq: number, seconds: number, amp = 1, offset = 0, rate = RATE) =>
@@ -217,6 +217,68 @@ describe('A9 time stretch (the first half of Change pitch)', () => {
     const [out] = timeStretch([sine(440, 1, 0.5)], RATE, 0.75);
     expect(out!.length).toBe(Math.round(0.75 * RATE));
     expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+  });
+});
+
+describe("A21 change tempo (the length changes, the pitch stays, as Audacity's Change Tempo)", () => {
+  it('×2: a 2 s sine at 440 Hz becomes 1 s, still at 440 Hz', () => {
+    const [out] = changeTempo([sine(440, 2, 0.5)], RATE, 2);
+    expect(out!.length).toBe(RATE);
+    expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+  });
+
+  it('×0.5: a 1 s sine at 440 Hz becomes 2 s, still at 440 Hz, as loud as before', () => {
+    const [out] = changeTempo([sine(440, 1, 0.5)], RATE, 0.5);
+    expect(out!.length).toBe(2 * RATE);
+    expect(Math.abs(frequency(out!) / 440 - 1)).toBeLessThan(0.01);
+    const middle = out!.subarray(Math.round(0.2 * RATE), Math.round(1.8 * RATE));
+    expect(rms(middle) / (0.5 / Math.SQRT2)).toBeGreaterThan(0.9);
+    expect(rms(middle) / (0.5 / Math.SQRT2)).toBeLessThan(1.1);
+  });
+
+  it('×1.4 (as Change speed in Book B Task 11k): 45 s becomes 32.14 s, the same length as Change speed gives', () => {
+    const input = new Float32Array(45 * 100);
+    const [out] = changeTempo([input], 100, 1.4);
+    expect(out!.length).toBe(changeSpeed([input], 1.4)[0]!.length);
+    expect(out!.length / 100).toBeCloseTo(32.14, 2);
+  });
+
+  it('×1 leaves the sound exactly as it was', () => {
+    const input = sine(440, 0.5, 0.5);
+    const [out] = changeTempo([input], RATE, 1);
+    expect(out).toEqual(input);
+    expect(out).not.toBe(input);
+  });
+
+  it('keeps the two sides of a stereo sound in step; a short or empty selection works', () => {
+    const [l, r] = changeTempo([sine(440, 1, 0.5), sine(440, 1, 0.5)], RATE, 1.25);
+    expect(r).toEqual(l);
+    expect(changeTempo([sine(440, 0.01, 0.5)], RATE, 2)[0]!.length).toBe(221);
+    expect(changeTempo([new Float32Array(0)], RATE, 2)).toEqual([new Float32Array(0)]);
+  });
+
+  it('refuses a tempo of zero or less', () => {
+    expect(() => changeTempo([sine(440, 0.1)], RATE, 0)).toThrow(/greater than 0/);
+  });
+});
+
+describe('A22 reverse (played backwards)', () => {
+  it('the last sample comes first; the length stays the same', () => {
+    const input = Float32Array.from([0.1, 0.2, 0.3, -0.4]);
+    expect(reverse([input])).toEqual([Float32Array.from([-0.4, 0.3, 0.2, 0.1])]);
+  });
+
+  it('reverses every channel and leaves the input unchanged', () => {
+    const left = Float32Array.from([1, 2, 3]);
+    const right = Float32Array.from([4, 5, 6]);
+    const out = reverse([left, right]);
+    expect(out).toEqual([Float32Array.from([3, 2, 1]), Float32Array.from([6, 5, 4])]);
+    expect(left).toEqual(Float32Array.from([1, 2, 3]));
+  });
+
+  it('reversing twice gives back the sound exactly', () => {
+    const input = sine(440, 0.1, 0.5);
+    expect(reverse(reverse([input]))).toEqual([input]);
   });
 });
 

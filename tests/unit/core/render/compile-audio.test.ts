@@ -5,8 +5,9 @@ import {
   createProject,
   createVideoClip,
 } from '../../../../src/core/model/factory.ts';
-import type { AudioItem, MainItem, MediaAsset, Project } from '../../../../src/core/model/types.ts';
+import type { MainItem, MediaAsset, Project } from '../../../../src/core/model/types.ts';
 import { compileProject, type RenderOptions } from '../../../../src/core/render/compile.ts';
+import { volumeExpression } from '../../../../src/core/model/volume-changes.ts';
 
 const lake = createMediaAsset({
   id: 'lake',
@@ -30,7 +31,7 @@ const voice = createMediaAsset({
   hasAudio: true,
 });
 const options: RenderOptions = { mediaPath: (a: MediaAsset) => `/media/${a.path}` };
-const project = (main: MainItem[], audio: [AudioItem[], AudioItem[]]): Project => {
+const project = (main: MainItem[], audio: Project['timeline']['audio']): Project => {
   const p = createProject({ name: 'Test' });
   return { ...p, media: [lake, music, voice], timeline: { ...p.timeline, main, audio } };
 };
@@ -115,6 +116,31 @@ describe('V13 music and voiceover tracks in the export', () => {
     expect(m.indexOf('adelay')).toBeLessThan(m.indexOf('volume=-6dB')); // in timeline time
   });
 
+  it('V13 volume change: the music at 30 % between 10 s and 15 s, gliding, in timeline time', () => {
+    const changes = [{ from: 10, to: 15, volume: 0.3 }];
+    const item = { ...createAudioItem(music, 2, { id: 'm' }), volume: 0.8, volumeChanges: changes };
+    const m = chain(compileProject(project([clip()], [[item], []]), options).args, '[m0]');
+    const expression = volumeExpression(0.8, changes);
+    // The level is worked out every 5 ms (240 samples), so a glide is smooth and exact.
+    expect(m).toContain(`asetnsamples=n=240:p=0,volume=eval=frame:volume='${expression}'`);
+    expect(m.indexOf('adelay')).toBeLessThan(m.indexOf('volume=eval=frame'));
+    expect(m).not.toContain('volume=0.8'); // the line starts and ends at the sound's own volume
+  });
+
+  it('V13 a volume change and the music lowered under the voiceover both apply', () => {
+    const changes = [{ from: 5, to: 8, volume: 0.5 }];
+    const p = project(
+      [clip()],
+      [
+        [{ ...createAudioItem(music, 0, { id: 'm' }), duck: true, volumeChanges: changes }],
+        [createAudioItem(voice, 6, { id: 'v1' })],
+      ],
+    );
+    const m = chain(compileProject(p, options).args, '[m0]');
+    expect(m).toContain(`volume=eval=frame:volume='${volumeExpression(1, changes)}'`);
+    expect(m).toContain("volume=-6dB:enable='between(t,6,10)'");
+  });
+
   it('speed: music at 2× from 5 s reads 30 s of the file for the 15 s it is heard, pitch kept', () => {
     const item = { ...createAudioItem(music, 5, { id: 'm' }), speed: 2, fadeOut: 3 };
     const { args } = compileProject(project([clip()], [[item], []]), options);
@@ -138,5 +164,43 @@ describe('V13 music and voiceover tracks in the export', () => {
     const p = project([clip()], [[createAudioItem(music, 0, { id: 'm' })], []]);
     const { args } = compileProject(p, { ...options, frameAt: 1 });
     expect(args).not.toContain('/media/Task_11e_audio.mp3');
+  });
+});
+
+describe('V13 sound effects tracks in the export', () => {
+  it('effects on both effects tracks are mixed in at their times, even under the voiceover', () => {
+    const p = project(
+      [clip()],
+      [
+        [],
+        [createAudioItem(voice, 6, { id: 'v' })],
+        [createAudioItem(voice, 7, { id: 'e1' })],
+        [createAudioItem(voice, 7.5, { id: 'e2' })],
+      ],
+    );
+    const { args, hasAudio } = compileProject(p, options);
+    expect(hasAudio).toBe(true);
+    expect(chain(args, '[m1]')).toContain(`adelay=${7 * 48000}S:all=1`);
+    expect(chain(args, '[m2]')).toContain(`adelay=${7.5 * 48000}S:all=1`);
+    expect(graph(args)).toContain(
+      '[amain][m0][m1][m2]amix=inputs=4:duration=first:normalize=0[aout]',
+    );
+  });
+
+  it('only music is lowered under the voiceover, never a sound effect', () => {
+    const p = project(
+      [clip()],
+      [
+        [],
+        [createAudioItem(voice, 6, { id: 'v' })],
+        [{ ...createAudioItem(voice, 6, { id: 'e' }), duck: true }],
+      ],
+    );
+    expect(chain(compileProject(p, options).args, '[m1]')).not.toContain('volume=-6dB');
+  });
+
+  it('a sound effect alone gives the video a sound track', () => {
+    const p = project([clip({ muted: true })], [[], [], [createAudioItem(voice, 1, { id: 'e' })]]);
+    expect(compileProject(p, options).hasAudio).toBe(true);
   });
 });

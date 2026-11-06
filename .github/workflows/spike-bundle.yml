@@ -27,7 +27,7 @@ jobs:
       - name: Assemble bundle
         shell: pwsh
         run: |
-          $b = 'EasyMedia-M0-spike'
+          $b = 'OneEditor-M0-spike'
           New-Item -ItemType Directory -Force "$b/app/spikes", "$b/app/resources/ffmpeg" | Out-Null
           Copy-Item node_modules/electron/dist "$b/electron" -Recurse
           Copy-Item spikes/m0-electron "$b/app/spikes/m0-electron" -Recurse
@@ -36,7 +36,7 @@ jobs:
           $auto = @(
             '@echo off'
             'cd /d "%~dp0"'
-            'echo EasyMedia M0 performance test. It takes 1-3 minutes. Do not close this window.'
+            'echo OneEditor M0 performance test. It takes 1-3 minutes. Do not close this window.'
             'electron\electron.exe app\spikes\m0-electron\main.cjs --auto app\spikes\m0-electron\out\spike_1080p30_60s.mp4 --report "%~dp0report.json"'
             'echo.'
             'type report.json'
@@ -54,7 +54,7 @@ jobs:
           $manual | Set-Content "$b/2-try-your-own-video.bat" -Encoding ascii
 
           $readme = @(
-            'EasyMedia - M0 performance test (throw-away prototype, not the real app)'
+            'OneEditor - M0 performance test (throw-away prototype, not the real app)'
             ''
             '1. Close other programs (browser, games) so the result is fair.'
             '2. Double-click 1-run-performance-test.bat'
@@ -68,6 +68,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EasyMedia-M0-spike-windows
-          path: EasyMedia-M0-spike
+          name: OneEditor-M0-spike-windows
+          path: OneEditor-M0-spike
           retention-days: 7

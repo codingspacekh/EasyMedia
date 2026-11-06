@@ -9,7 +9,7 @@ const mode = (name: string) =>
 describe('App shell', () => {
   it('shows the app name', () => {
     render(App, { props: { app: testApp().app } });
-    expect(screen.getByRole('heading', { name: 'EasyMedia' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'OneEditor' })).toBeTruthy();
   });
 
   it('starts in Video mode with three editors to choose from (Learn is in the menu bar, N15)', () => {
@@ -41,9 +41,9 @@ describe('App shell', () => {
   it('the window title shows the file name and unsaved work', async () => {
     const { app, importFiles } = testApp();
     render(App, { props: { app } });
-    expect(document.title).toBe('Untitled — EasyMedia');
+    expect(document.title).toBe('Untitled — OneEditor');
     await importFiles('/m/photo.jpg');
-    expect(document.title).toBe('Untitled • — EasyMedia');
+    expect(document.title).toBe('Untitled • — OneEditor');
   });
 
   it('the settings button shows the project format and opens Project settings', async () => {

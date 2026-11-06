@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import Inspector from '../../../src/ui/Inspector.svelte';
 import App from '../../../src/ui/App.svelte';
 import Timeline from '../../../src/ui/Timeline.svelte';
+import { pickColour } from '../../helpers/colour.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
 const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement;
@@ -46,7 +47,7 @@ describe('text inspector (screens 02–04)', () => {
     await change('Text', 'Fish eagle\nat the lake');
     await chooseFont('Courier Prime');
     await change('Size', '48');
-    await fireEvent.change(field('Colour'), { target: { value: '#ffcc00' } });
+    await pickColour('Colour', '#ffcc00');
     await fireEvent.click(field('Bold'));
     await fireEvent.click(field('Italic'));
     expect(item()).toMatchObject({
@@ -117,16 +118,41 @@ describe('text inspector (screens 02–04)', () => {
     );
   });
 
+  it('V5 places the words on a small screen and lines them up by name; the choices show together', async () => {
+    const { item } = withCaption();
+    const screenGroup = screen.getByRole('group', { name: 'Place on the screen' });
+    expect(within(screenGroup).getAllByRole('button')).toHaveLength(9);
+    await fireEvent.click(within(screenGroup).getByRole('button', { name: 'Top right' }));
+    const lines = screen.getByRole('group', { name: 'Line up the lines' });
+    await fireEvent.click(within(lines).getByRole('button', { name: 'Align right' }));
+    expect(within(lines).getByRole('button', { name: 'Align right' }).textContent).toMatch(/Right/);
+    expect(item().style).toMatchObject({ position: 'top-right', align: 'right' });
+    // Each spot draws its lines lined up as the words are.
+    expect(screenGroup.querySelectorAll('.glyph.align-right')).toHaveLength(9);
+  });
+
+  it('V6 each readability choice shows "Aa" with its effect; its colour waits at the end of its row', async () => {
+    withCaption();
+    for (const name of ['Shadow', 'Outline', 'Box', 'Glow', 'Gradient', '3D']) {
+      const row = field(name).closest('.opt')!;
+      expect(row.querySelector('.demo')!.textContent).toBe('Aa');
+    }
+    const outline = screen.getByRole('button', { name: 'Outline colour' }) as HTMLButtonElement;
+    expect(outline.disabled).toBe(true);
+    await fireEvent.click(field('Outline'));
+    expect(outline.disabled).toBe(false);
+  });
+
   it('effects by hand: glow, gradient and 3D with a second colour; outline and box colours', async () => {
     const { item } = withCaption();
     await fireEvent.click(field('Glow'));
     await fireEvent.click(field('Gradient'));
     await fireEvent.click(field('3D'));
-    await fireEvent.change(field('Second colour'), { target: { value: '#ff3b1f' } });
+    await pickColour('Second colour', '#ff3b1f');
     await fireEvent.click(field('Outline'));
-    await fireEvent.change(field('Outline colour'), { target: { value: '#7c3aed' } });
+    await pickColour('Outline colour', '#7c3aed');
     await fireEvent.click(field('Box'));
-    await fireEvent.change(field('Box colour'), { target: { value: '#ffd400' } });
+    await pickColour('Box colour', '#ffd400');
     expect(item().style).toMatchObject({
       glow: true,
       gradient: true,
@@ -172,7 +198,7 @@ describe('title slide inspector (screen 03)', () => {
   it('V6 warns when the words are hard to read on the background colour', async () => {
     const { item } = await withTitle();
     expect(screen.getByText(/easy to read/i)).toBeTruthy();
-    await fireEvent.change(field('Background colour'), { target: { value: '#eeeeee' } });
+    await pickColour('Background colour', '#eeeeee');
     expect(item().background).toEqual({ kind: 'colour', colour: '#eeeeee' });
     expect(screen.getByText(/hard to read/i)).toBeTruthy();
   });

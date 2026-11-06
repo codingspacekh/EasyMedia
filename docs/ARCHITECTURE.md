@@ -1,4 +1,4 @@
-# EasyMedia — System Design
+# OneEditor — System Design
 
 This document describes **how** the app is built. For **what** it must do, see [`../README.md`](../README.md); requirement IDs (V1, A3, T2, X1…) refer to that file.
 
@@ -84,7 +84,7 @@ Security defaults: `contextIsolation: true`, `nodeIntegration: false`, `sandbox:
 ## 4. Folder structure
 
 ```
-EasyMedia/
+OneEditor/
 ├─ README.md                  requirements
 ├─ docs/ARCHITECTURE.md       this file
 ├─ src/
@@ -122,9 +122,13 @@ EasyMedia/
 │  │  │                       cartoons, icons and backgrounds as part lists, AN19)
 │  │  └─ ports.ts             interfaces only
 │  ├─ app/                    app.ts (use cases), history.ts (generic History<T>), commands.ts, store.ts,
-│  │                          preview.ts, proxy-path.ts, audio.ts (Audio mode), learn.ts (Learn mode),
-│  │                          layout.ts (panel sizes, N16), preferences.ts (preferences.json, merged),
-│  │                          animation.ts (composes animation/) + animation-commands.ts
+│  │                          preview.ts, proxy-path.ts, audio.ts (composes audio/), learn.ts (Learn
+│  │                          mode), layout.ts (panel sizes, N16), preferences.ts (preferences.json,
+│  │                          merged), animation.ts (composes animation/) + animation-commands.ts
+│  │  ├─ audio/               Audio mode by area, sharing context.ts (store, tryEdit / run, the
+│  │                          speakers) and undo-steps.ts (undo steps on disk): state.ts, tracks.ts,
+│  │                          clips.ts, selection.ts, session.ts, recording.ts, effects.ts,
+│  │                          playback.ts, exporting.ts
 │  │  └─ animation/           Animation mode by area, sharing context.ts (store, run / edit, player):
 │  │                          state.ts, files.ts, exporting.ts, pictures.ts, drawing.ts, timeline.ts,
 │  │                          document.ts
@@ -180,7 +184,10 @@ interface Project {
   timeline: {
     main: VisualItem[];             // V1 — magnetic, items play one after another
     text: TextItem[];               // T — overlays with absolute start times
-    audio: [AudioItem[], AudioItem[]]; // A1 music, A2 voiceover
+    overlay?: OverlayItem[];        // V20 — pictures / videos over the video (logo, picture-in-picture);
+                                    //   absolute start times, never overlapping; absent when unused
+    audio: [AudioItem[], AudioItem[], ...AudioItem[][]]; // music, voiceover, effects 1 and 2 (V13);
+                                    //   an AudioItem may carry volumeChanges (timeline time)
   };
 }
 
@@ -289,7 +296,7 @@ Ctrl/⌘+Z ─► undo(history) → the previous (immutable) project is restored
 - Plays **proxy** files in at most two `<video>` elements (current + next, for transitions).
 - Effects use their `preview` hint: CSS `filter` (brightness, contrast, saturate, grayscale, sepia, blur), CSS `opacity` for fades, CSS `transform` for pan/zoom.
 - Transitions (33 xfade kinds in five groups) are drawn by `transitionLook(xfade, progress)` in `core/effects/transitions/transitions.ts`: CSS `clip-path`, `mask-image`, `transform`, `opacity` and `filter` for the outgoing and incoming layers, with directions checked against FFmpeg's. The export is exactly xfade.
-- Text items are drawn on canvases with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). A title's words are drawn inside its clip's layer, so a transition takes them along; captions, subtitles and credits on a canvas on top. Fades, entrances (fly, rise, drop, zoom, pop), exits and the credits scroll follow `core/text/motion.ts`: `textMotion` for the preview and `motionExpressions`, the same rules as FFmpeg expressions (a scale filter and the overlay position, zooming around the middle of the words that the TextRenderer reports). A unit test evaluates the expressions and checks they give the preview's numbers.
+- Text items are drawn on canvases with the **same drawing code** (`core/text/draw.ts`) and bundled fonts as the PNGs the export uses, so words land on the same pixels (checked to ≤ 2 px by an E2E test). A title's words are drawn inside its clip's layer, so a transition takes them along; captions, subtitles and credits on a canvas on top. Fades, entrances (fly, rise, drop, zoom, pop, slam, type on, spin, whip), exits (fly, sink, zoom, pop, spin, whip) and the credits scroll follow `core/text/motion.ts`: `textMotion` for the preview and `motionExpressions`, the same rules as FFmpeg expressions (zooming and turning about the middle of the words that the TextRenderer reports, with the words' box). The export chain is: spinning words cut out of the frame picture (`crop`, so the turn is cheap); typing on keeps what is left of a moving edge (`pad` by the picture's width, then `crop` at the edge); `rotate` into a square that fits the diagonal; `scale`; the overlay position worked out so every point lands where the preview's canvas transform puts it. A unit test evaluates the expressions and checks they give the preview's numbers.
 - Text looks (`core/text/looks.ts`: Neon, Gold, Fire, Comic…) only set style fields (colour, glow, gradient, 3D, outline and box colours) that `draw.ts` draws, so they are the same in the preview and the export. 20 bundled OFL fonts (`resources/fonts`, `ui/fonts.css`) in five groups.
 - **"Render preview of selection"** runs the real compiler on a short range for a frame-exact check.
 
@@ -467,6 +474,23 @@ playhead. Progress has two phases (drawing, then FFmpeg) and Cancel stops either
 leaves nothing behind. *Send to Video mode* exports the MP4 beside the `.mvea` file and puts it
 on the video timeline as a clip.
 
+**More export choices and sound (M17a, AN15, AN28).** AVI (MPEG-4 Part 2 + MP3) and MOV (H.264
++ AAC) are made like the MP4 (`main/media/jobs.ts` `animationArgs`). Another width draws the
+frames at that size (`StageRenderer.renderPng(doc, frame, size)` scales the canvas, so vectors
+stay sharp; a video's sides are even, `export.ts` `exportSize`); a range of frames draws only
+those, numbered from 0 for FFmpeg and from 0001 for a PNG sequence. Sounds are
+`AnimationDoc.sounds` (absent when none, so older versions open the file; paths relative, X1): a
+file or a built-in effect (X8, its WAV in the app's folder, made again when missing), a start
+frame, an optional trim, volume, fades and mute. `core/animation/sound.ts` works out everything
+heard: `mixSounds` (the app plays the mix from the playhead on its own Web Audio output while the
+animation plays; a pause stops it, each loop starts it again), `soundPieces` (each sound placed in
+the export's time; FFmpeg reads `-ss -t` of the file, `volume`, `afade`, `atrim`, `adelay`, `amix
+normalize=0`, `apad,atrim` to the video's length; the IPC channel refuses a sound not on the
+allow-list) and `pageSounds` (the web page carries each file as a `data:` URL, `page:sound`; its
+player schedules them with Web Audio from the frame shown, again after Continue, Restart, Go to
+frame and each loop; a browser that blocks sound until a click gets a "Click to play with sound"
+button over the page, while Test's window is allowed to play at once).
+
 **HTML web animation (M16, AN15).** No frames are drawn: the drawing itself goes into one
 self-contained `.html` file (`core/animation/html.ts` `webPage`). It holds the document as JSON
 (every `<` written as `<`, so a student's `</script>` cannot end it; picture paths cut to
@@ -555,7 +579,7 @@ decodeAudio(path, sampleRate?): Promise<DecodedAudio>;                    // A1:
 decodeAudioToFile(path, sampleRate?): Promise<DecodedAudioFile>;        // the same, left in a temp f32 file (used over IPC)
 releaseDecoded(raw): Promise<void>;
 encodeAudio({ sampleRate, channels }, output, AudioExportSettings): JobHandle; // A16, A17
-interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): number }  // app/audio.ts; Web Audio adapter
+interface AudioOutput { play(audio, { loop, onEnded }); stop(); elapsed(): number }  // app/audio/state.ts; Web Audio adapter
 interface UndoStore { save(channels): Promise<key>; load(key): Promise<Float32Array[]>; keepOnly(keys): Promise<void> } // IndexedDB
 interface ProjectRepository { open(path): Promise<Project>; save(path, p): Promise<void>; pack(path, dest): Promise<void>; } // P1–P3
 interface FileDialogs { openMedia(): Promise<string[]>; saveAs(kind, suggested): Promise<string | null>; exportAudio(name, format): Promise<string | null>; }
@@ -578,6 +602,8 @@ IPC as built in M4 (types: `src/preload/api.ts`; main side: `src/main/ipc.ts`; p
 | `media:snapshot` | invoke | V10: one frame of the project through the compiler, saved as PNG/JPG/BMP/TIFF without a dialog (a `Snapshots` folder next to the project, or the app's own folder before the first save); never overwrites; returns the path, which is then allowed for `media://` |
 | `media:decodeAudio` / `media:release` | invoke | A1: decode to a temp f32 file the page may read once through `media://`; then delete it |
 | `media:encodeAudio` | invoke | A16, A17: start an audio export job (samples written to a temp file just before FFmpeg starts) |
+| `media:encodeFrames` | invoke | AN15: an animation's frames (only from the app's frames folder) as MP4, AVI, MOV or GIF; AN28 its sounds (only files on the allow-list) |
+| `page:sound` / `dialog:openSound` | invoke | AN28: a sound the app opened or made, as a `data:` URL for the web page; *Add sound…*'s file dialog |
 | `media:resizeCrop` | invoke | V11: numbers only (resize + crop box); main checks them, builds the filter and writes a numbered copy beside an allowed picture |
 | `job:cancel` | invoke | cancel a job by key |
 | `job:event` | main → page | started, progress, done, failed (with WireError), cancelled |
@@ -641,7 +667,8 @@ Each kind of extension has one place, so later stages add rather than edit:
 | A Learn page | content in `core/teaching/`, a component in `ui/learn/` | a `LearnTab`, a Learn menu item (`main/menu.ts`) and its action (`ui/menu-actions.ts`) |
 | A menu item | `item(label, accelerator, action)` in `main/menu.ts` | the action in `MenuAction` (`preload/api.ts`) and in `ui/menu-actions.ts` |
 | A resizable panel | an entry in `PANELS` (`app/layout.ts`) | wrap the panel in `<PanelSlot id="…">`; its root fills the slot |
-| A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`) | — |
+| A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`), its buttons in `{#snippet buttons()}`; `busy` while it saves or exports (Escape then does nothing) | — (every modal dialog uses it, except the Glossary, whose search stays at the top while the words scroll; Snapshot is a floating panel) |
 | A form control | the plain element (`input`, `select`, `textarea`…): `ui/forms.css` gives it the app's look; the component sets only its layout | — |
 | An Animation mode action | a method in the area's module in `app/animation/` (a command in `animation-commands.ts` if it edits) | — |
+| An Audio mode action | a method in the area's module in `app/audio/` (an edit runs through `ctx.run` or `ctx.tryEdit`, so it is one undo step) | — |
 | A file dialog or main-process service | the port in `core/ports.ts` | `preload/api.ts` (channel), `main/ipc.ts`, `main/services.ts`, `adapters/electron/services.ts`, the test fakes |

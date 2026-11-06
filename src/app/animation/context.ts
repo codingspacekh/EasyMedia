@@ -5,25 +5,31 @@
 import type * as cmd from '../animation-commands.ts';
 import { createHistory, execute } from '../history.ts';
 import { createStore, type Store } from '../store.ts';
-import { createAnimation } from '../../core/animation/factory.ts';
+import { createAnimation, roughTextWidth } from '../../core/animation/factory.ts';
 import { isShown } from '../../core/animation/frames.ts';
 import type { AnimationDoc, Id, Layer } from '../../core/animation/types.ts';
 import { EditError, MediaError, ProjectFileError } from '../../core/model/errors.ts';
 import type { PageAssets, StageRenderer } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
 import type { AnimationDeps, AnimationState } from './state.ts';
+import { unexpected } from '../problems.ts';
 
-export const UNEXPECTED = 'Something went wrong. Please try again.';
+export { UNEXPECTED } from '../problems.ts';
 
 const NO_RENDERER: StageRenderer = {
-  renderPng: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  pixels: () => Promise.reject(new EditError('Tracing needs the EasyMedia app.')),
+  renderPng: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  pixels: () => Promise.reject(new EditError('Tracing needs the OneEditor app.')),
+  textTops: async () => ({}), // the SVG then keeps the font's own top edge
+  // AN26: curved text then has its letters roughly where the stage puts them.
+  textWidths: async () => (font, text) =>
+    roughTextWidth(text, Number(/([\d.]+)px/.exec(font)?.[1] ?? 0)),
 };
 const NO_PAGE_ASSETS: PageAssets = {
-  playerScript: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  pictureDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  fontDataUrl: () => Promise.reject(new EditError('Exporting needs the EasyMedia app.')),
-  openTest: () => Promise.reject(new EditError('Testing needs the EasyMedia app.')),
+  playerScript: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  pictureDataUrl: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  fontDataUrl: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  soundDataUrl: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  openTest: () => Promise.reject(new EditError('Testing needs the OneEditor app.')),
 };
 
 /** The playback clock ticks this often; the frame follows the time, so slow laptops drop frames. */
@@ -61,16 +67,21 @@ export function createAnimationContext(deps: AnimationDeps) {
       error instanceof EditError ||
       error instanceof MediaError ||
       error instanceof ProjectFileError;
-    patch({ message: { kind: 'error', text: known ? (error as Error).message : UNEXPECTED } });
+    patch({
+      message: { kind: 'error', text: known ? (error as Error).message : unexpected(error) },
+    });
   }
 
   // ---- the player (AN8) ----
 
   let player: ReturnType<typeof setInterval> | null = null;
+  /** AN28: plays the sounds from a frame to a frame (not heard) while the animation plays. */
+  let soundtrack: { play(from: number, end: number): void; stop(): void } | null = null;
 
   function pause(): void {
     if (player) clearInterval(player);
     player = null;
+    soundtrack?.stop();
     if (store.get().playing) patch({ playing: false });
   }
 
@@ -92,13 +103,25 @@ export function createAnimationContext(deps: AnimationDeps) {
     let from = store.get().frame;
     if (from < first || from >= last) from = first;
     patch({ playing: true, frame: from });
+    // AN28: the sounds to the end, or to the end of the loop (its last frame is shown).
+    const end = wraps ? last + 1 : last;
+    soundtrack?.play(from, end);
+    let round = 0;
     const started = Date.now();
     const fps = present().stage.fps;
     player = setInterval(() => {
       const n = Math.floor(((Date.now() - started) * fps) / 1000);
       let frame = from + n;
-      if (wraps) frame = first + ((frame - first) % (last - first + 1));
-      else if (frame >= last) {
+      if (wraps) {
+        const span = last - first + 1;
+        // Each time round the loop its sounds play again from its first frame.
+        const now = Math.floor((frame - first) / span);
+        if (now !== round) {
+          round = now;
+          soundtrack?.play(first, end);
+        }
+        frame = first + ((frame - first) % span);
+      } else if (frame >= last) {
         patch({ frame: last });
         pause();
         return;
@@ -129,7 +152,7 @@ export function createAnimationContext(deps: AnimationDeps) {
       store.update((s) => ({ ...s, history: execute(s.history, command) }));
       return null;
     } catch (error) {
-      return error instanceof EditError ? error.message : UNEXPECTED;
+      return error instanceof EditError ? error.message : unexpected(error);
     }
   }
 
@@ -143,6 +166,8 @@ export function createAnimationContext(deps: AnimationDeps) {
     showError,
     play,
     pause,
+    /** AN28: what plays the sounds while the animation plays (the sounds module sets it). */
+    setSoundtrack: (track: typeof soundtrack) => void (soundtrack = track),
     run,
     edit,
     /** The selected objects still there and on the stage at the playhead (AN14: in its drawing). */

@@ -1,4 +1,5 @@
 // A9 Change pitch: higher or lower, the length stays the same (as Audacity's Change Pitch).
+// A21 Change tempo is the time stretch on its own: longer or shorter, the pitch stays the same.
 // Two steps, as SoundTouch does: change the speed (which moves the pitch and the length), and
 // stretch the time back to the old length without changing the pitch (WSOLA: short overlapping
 // windows, each moved a little so its waves line up with the one before). Whichever step makes
@@ -110,6 +111,18 @@ export function timeStretch(channels: Channels, rate: number, stretch: number): 
     for (let i = 0; i < outLength; i++) if (weight[i]! > 1e-3) channel[i]! /= weight[i]!;
   }
   return out;
+}
+
+/**
+ * A21: `tempo` 2 = twice as fast (half as long) at the same pitch; 0.5 = half as fast. The new
+ * length is the one Change speed gives for the same number.
+ */
+export function changeTempo(channels: Channels, rate: number, tempo: number): Float32Array[] {
+  if (!(tempo > 0) || !Number.isFinite(tempo))
+    throw new RangeError('The tempo must be greater than 0.');
+  const n = channels[0]?.length ?? 0;
+  if (tempo === 1 || n === 0) return channels.map((c) => c.slice());
+  return timeStretch(channels, rate, Math.round(n / tempo) / n);
 }
 
 /** Moves the pitch by `semitones` (12 = an octave up); the length stays exactly the same. */

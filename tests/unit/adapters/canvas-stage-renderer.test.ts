@@ -32,10 +32,12 @@ function fakeCanvas(calls: string[]) {
   }) as unknown as StageCanvas;
   return {
     sizes: [] as number[][],
+    options: [] as unknown[],
     make(width: number, height: number) {
       this.sizes.push([width, height]);
+      const options = this.options;
       return {
-        getContext: () => ctx,
+        getContext: (_kind: '2d', o?: unknown) => (options.push(o), ctx),
         convertToBlob: async () =>
           new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }),
       };
@@ -54,6 +56,53 @@ function doc() {
 }
 
 describe('createCanvasStageRenderer', () => {
+  it("AN22 measures how far below the top of its letters each font's baseline sits, as the stage draws them (for SVG text)", async () => {
+    const loaded: string[][] = [];
+    const fonts: string[] = [];
+    // A canvas whose letters reach 80 px above the alphabetic baseline at 100 px; with the
+    // baseline at the top of the em square they reach 12 px above it (Pacifico-like).
+    const ctx = {
+      font: '',
+      textBaseline: 'alphabetic',
+      measureText() {
+        fonts.push(this.font);
+        return { actualBoundingBoxAscent: this.textBaseline === 'top' ? -12 : 80 };
+      },
+    };
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: () => ({
+        getContext: () => ctx as unknown as StageCanvas,
+        convertToBlob: async () => new Blob(),
+      }),
+      loadFonts: async (f) => void loaded.push(f),
+    });
+    const tops = await renderer.textTops(['italic 400 64px "Pacifico"', '700 20px "Inter"']);
+    expect(loaded).toEqual([['italic 400 64px "Pacifico"', '700 20px "Inter"']]);
+    expect(tops).toEqual({ 'italic 400 "Pacifico"': 0.92, '700 "Inter"': 0.92 });
+    expect(fonts).toContain('italic 400 100px "Pacifico"');
+  });
+
+  it('AN26 measures how wide words are in each font, as the stage draws them (curved text in an SVG)', async () => {
+    const loaded: string[][] = [];
+    const ctx = {
+      font: '',
+      measureText(text: string) {
+        return { width: (this.font.includes('700') ? 12 : 10) * text.length };
+      },
+    };
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: () => ({
+        getContext: () => ctx as unknown as StageCanvas,
+        convertToBlob: async () => new Blob(),
+      }),
+      loadFonts: async (f) => void loaded.push(f),
+    });
+    const widthOf = await renderer.textWidths(['700 20px "Inter"']);
+    expect(loaded).toEqual([['700 20px "Inter"']]);
+    expect(widthOf('700 20px "Inter"', 'HUNGRY')).toBe(72);
+    expect(widthOf('400 20px "Inter"', 'HUN')).toBe(30);
+  });
+
   it('draws the stage at its size with the loaded pictures and fonts, and returns PNG bytes', async () => {
     const calls: string[] = [];
     const canvas = fakeCanvas(calls);
@@ -69,6 +118,20 @@ describe('createCanvasStageRenderer', () => {
     expect(calls).toContain('fillRect(0,0,600,400)');
     expect(calls.some((c) => c.startsWith('drawImage(image'))).toBe(true);
     expect(loadFonts).toHaveBeenCalledWith(['400 20px "Inter"']);
+  });
+
+  it('AN15 another size: a canvas of that size, the stage drawn scaled onto it (sharp vectors)', async () => {
+    const calls: string[] = [];
+    const canvas = fakeCanvas(calls);
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage: async (path) => ({ path }),
+      loadFonts: async () => {},
+    });
+    await renderer.renderPng(doc(), 0, { width: 300, height: 200 });
+    expect(canvas.sizes).toEqual([[300, 200]]);
+    expect(calls.indexOf('scale(0.5,0.5)')).toBeGreaterThanOrEqual(0);
+    expect(calls.indexOf('scale(0.5,0.5)')).toBeLessThan(calls.indexOf('fillRect(0,0,600,400)'));
   });
 
   it('a picture that cannot be loaded is drawn as a placeholder; no context is an error', async () => {
@@ -109,6 +172,30 @@ describe('createCanvasStageRenderer', () => {
     await renderer.renderPng(d, 36);
     expect(calls).toContain('translate(248,50)');
     expect(loadImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('N2 frames drawn at once load the pictures once', async () => {
+    const canvas = fakeCanvas([]);
+    const loadImage = vi.fn(async (path: string) => ({ path }));
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage,
+      loadFonts: async () => {},
+    });
+    const d = doc();
+    await Promise.all([0, 1, 2, 3].map((frame) => renderer.renderPng(d, frame)));
+    expect(loadImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('N4 draws in ordinary memory, not on the graphics card, whose caches fill up over an export', async () => {
+    const canvas = fakeCanvas([]);
+    const renderer = createCanvasStageRenderer({
+      makeCanvas: (w, h) => canvas.make(w, h),
+      loadImage: async () => null,
+      loadFonts: async () => {},
+    });
+    await renderer.renderPng(doc(), 0);
+    expect(canvas.options).toEqual([{ willReadFrequently: true }]);
   });
 
   it('the default loaders cope without fetch, bitmaps or document fonts', async () => {

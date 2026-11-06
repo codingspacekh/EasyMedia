@@ -79,7 +79,7 @@ describe('P1 / P11 project files (.mve)', () => {
     ],
   ])('rejects %s with a friendly message', (_name, text) => {
     expect(() => deserializeProject(text)).toThrow(ProjectFileError);
-    expect(() => deserializeProject(text)).toThrow(/not an EasyMedia project, or it is damaged/i);
+    expect(() => deserializeProject(text)).toThrow(/not a OneEditor project, or it is damaged/i);
   });
 
   it('still opens an M1 project saved before "fit" and "hasAudio" existed', () => {
@@ -97,7 +97,7 @@ describe('P1 / P11 project files (.mve)', () => {
   it('rejects a "hasAudio" that is not true or false', () => {
     const p = fullProject();
     const bad = JSON.stringify({ ...p, media: [{ ...p.media[0], hasAudio: 'yes' }] });
-    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+    expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
   });
 
   it('V13: keeps "lower under voiceover" on music and rejects one that is not true or false', () => {
@@ -111,7 +111,36 @@ describe('P1 / P11 project files (.mve)', () => {
       ...p,
       timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, duck: 'yes' }], []] },
     });
-    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+    expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
+  });
+
+  it('V13: keeps sound effects on the two effects tracks; more than four tracks is refused', () => {
+    const p = fullProject();
+    const pop = createMediaAsset({
+      id: 'pop',
+      kind: 'audio',
+      path: 'pop.wav',
+      duration: 0.15,
+      soundEffect: 'pop',
+    });
+    const effects = {
+      ...p,
+      media: [...p.media, pop],
+      timeline: {
+        ...p.timeline,
+        audio: [p.timeline.audio[0], [], [], [createAudioItem(pop, 3, { id: 'e' })]],
+      },
+    } as Project;
+    expect(deserializeProject(serializeProject(effects))).toEqual(effects);
+    const five = JSON.stringify({
+      ...effects,
+      timeline: { ...effects.timeline, audio: [...effects.timeline.audio, []] },
+    });
+    expect(() => deserializeProject(five)).toThrow(/not a OneEditor project/i);
+    const one = JSON.stringify({ ...p, timeline: { ...p.timeline, audio: [[]] } });
+    expect(() => deserializeProject(one)).toThrow(/not a OneEditor project/i);
+    const badId = JSON.stringify({ ...effects, media: [...p.media, { ...pop, soundEffect: 3 }] });
+    expect(() => deserializeProject(badId)).toThrow(/not a OneEditor project/i);
   });
 
   it('V13: keeps the speed of a sound and rejects one that is not a number', () => {
@@ -125,12 +154,36 @@ describe('P1 / P11 project files (.mve)', () => {
       ...p,
       timeline: { ...p.timeline, audio: [[{ ...p.timeline.audio[0][0]!, speed: 'fast' }], []] },
     });
-    expect(() => deserializeProject(bad)).toThrow(/not an EasyMedia project/i);
+    expect(() => deserializeProject(bad)).toThrow(/not a OneEditor project/i);
+  });
+
+  it('V13: keeps the volume changes inside a sound; a project without any saves none', () => {
+    const p = fullProject();
+    expect(serializeProject(p)).not.toContain('volumeChanges');
+    const item = p.timeline.audio[0][0]!;
+    const lowered = {
+      ...p,
+      timeline: {
+        ...p.timeline,
+        audio: [[{ ...item, volumeChanges: [{ from: 10, to: 15, volume: 0.3, ramp: 0.5 }] }], []],
+      },
+    } as Project;
+    expect(deserializeProject(serializeProject(lowered))).toEqual(lowered);
+    for (const bad of [{ from: 10, to: 15 }, 'quieter', [{ from: '10', to: 15, volume: 0.3 }]]) {
+      const text = JSON.stringify({
+        ...p,
+        timeline: {
+          ...p.timeline,
+          audio: [[{ ...item, volumeChanges: Array.isArray(bad) ? bad : [bad] }], []],
+        },
+      });
+      expect(() => deserializeProject(text)).toThrow(/not a OneEditor project/i);
+    }
   });
 
   it('explains when a project comes from a newer version of the app', () => {
     const future = JSON.stringify({ ...fullProject(), schemaVersion: CURRENT_SCHEMA + 1 });
-    expect(() => deserializeProject(future)).toThrow(/newer version of EasyMedia/i);
+    expect(() => deserializeProject(future)).toThrow(/newer version of OneEditor/i);
   });
 });
 
@@ -295,6 +348,40 @@ describe('M7 clip looks in project files', () => {
   ])('refuses a damaged file: %s', (_, look) => {
     const doc = JSON.parse(serializeProject(fullProject()));
     Object.assign(doc.timeline.main[0], look);
+    expect(() => deserializeProject(JSON.stringify(doc))).toThrow(ProjectFileError);
+  });
+});
+
+describe('V19 turned and flipped clips in project files', () => {
+  it('V19: keeps how a video clip and a picture are turned and flipped', () => {
+    const p = fullProject();
+    const main = p.timeline.main.map((m) =>
+      m.type === 'video'
+        ? { ...m, turn: 90 as const }
+        : m.type === 'image'
+          ? { ...m, turn: 180 as const, flipH: true, flipV: true }
+          : m,
+    );
+    const turned = { ...p, timeline: { ...p.timeline, main } };
+    expect(deserializeProject(serializeProject(turned))).toEqual(turned);
+  });
+
+  it('V19: a clip that is not turned saves no turn, so older versions open the project', () => {
+    const doc = JSON.parse(serializeProject(fullProject()));
+    for (const m of doc.timeline.main) {
+      expect(m).not.toHaveProperty('turn');
+      expect(m).not.toHaveProperty('flipH');
+      expect(m).not.toHaveProperty('flipV');
+    }
+  });
+
+  it.each([
+    ['a turn that is not a quarter', { turn: 45 }],
+    ['a turn that is not a number', { turn: 'left' }],
+    ['a flip that is not true or false', { flipH: 'yes' }],
+  ])('V19: refuses a damaged file: %s', (_, turn) => {
+    const doc = JSON.parse(serializeProject(fullProject()));
+    Object.assign(doc.timeline.main[1], turn);
     expect(() => deserializeProject(JSON.stringify(doc))).toThrow(ProjectFileError);
   });
 });

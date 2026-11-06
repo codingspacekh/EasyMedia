@@ -2,6 +2,8 @@
 // made into an MP4 or an animated GIF by FFmpeg, saved as a PNG sequence, or the frame at the
 // playhead as one PNG; with progress and Cancel (N12), and the size shown first (T7).
 import { describe, expect, it } from 'vitest';
+import { drawFrames, FRAMES_AT_ONCE } from '../../../src/app/animation/exporting.ts';
+import type { AnimObject } from '../../../src/core/animation/types.ts';
 import { MediaError } from '../../../src/core/model/errors.ts';
 import { testApp } from '../../helpers/test-app.ts';
 
@@ -21,6 +23,63 @@ const framesIn = (bytes: Map<string, Uint8Array>) =>
   [...bytes.keys()].filter((p) => /animation-frames\/export-[^/]+\/frame-\d{5}\.png$/.test(p));
 
 describe('exporting the animation (AN15)', () => {
+  it('AN21 a transparent stage: PNG frames keep it; an MP4 (no transparency) is drawn on white', async () => {
+    const s = setup();
+    s.anim.setStage({ ...s.anim.store.get().history.present.stage, background: 'none' });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Gas.png');
+    await s.anim.exportAnimation('png');
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)![0].stage.background).toBe('none');
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Gas.gif');
+    await s.anim.exportAnimation('gif');
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)![0].stage.background).toBe('none');
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Gas.mp4');
+    await s.anim.exportAnimation('mp4');
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)![0].stage.background).toBe('#ffffff');
+    expect(s.state().message?.text).toMatch(/white/i);
+    expect(s.anim.store.get().history.present.stage.background).toBe('none');
+  });
+
+  it('AN22 SVG: the frame at the playhead as vector shapes (O/N/25 Apple_ZZ999_9999.svg)', async () => {
+    const s = setup();
+    s.anim.setFrame(72);
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Apple_ZZ999_9999.svg');
+    await s.anim.exportAnimation('svg');
+    expect(s.dialogs.exportAnimation).toHaveBeenCalledWith('Untitled', 'svg');
+    const svg = s.disk.get('/work/Apple_ZZ999_9999.svg')!;
+    expect(svg).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="600" height="400"/);
+    // The circle at frame 72 has moved to x 396: its right edge is at 600.
+    expect(svg).toMatch(/<path d="M600 102A102 102 0 1 1 396 102/);
+    expect(s.stageRenderer.renderPng).not.toHaveBeenCalled();
+    expect(s.state().message?.text).toBe('Saved Apple_ZZ999_9999.svg.');
+  });
+
+  it('AN22 SVG: the fonts of its text are inside it, as in the web page', async () => {
+    const s = setup();
+    s.anim.addText({ x: 20, y: 20 });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Logo.svg');
+    await s.anim.exportAnimation('svg');
+    const svg = s.disk.get('/work/Logo.svg')!;
+    expect(svg).toMatch(
+      /@font-face \{ font-family: 'Inter'; [^}]*src: url\('data:font\/ttf;base64,/,
+    );
+    // Its words sit on the baseline the stage draws them on (measured by the renderer).
+    expect(s.stageRenderer.textTops).toHaveBeenCalledWith(['400 48px "Inter"']);
+    expect(svg).toContain('dominant-baseline="alphabetic"');
+  });
+
+  it('AN26 SVG: curved text has each letter where the stage puts it, measured by the renderer', async () => {
+    const s = setup();
+    s.anim.addText({ x: 20, y: 20 }, 'HUNGRY');
+    s.anim.setProperties({ curve: 50 } as Partial<AnimObject>);
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Hungry.svg');
+    await s.anim.exportAnimation('svg');
+    const svg = s.disk.get('/work/Hungry.svg')!;
+    expect(s.stageRenderer.textWidths).toHaveBeenCalledWith(['400 48px "Inter"']);
+    // One <text> a letter, each turned along the arch.
+    const letters = [...svg.matchAll(/<text [^>]*>(.)<\/text>/g)].map((m) => m[1]);
+    expect(letters).toEqual(['H', 'U', 'N', 'G', 'R', 'Y']);
+  });
+
   it('MP4: frames 0–71 drawn, made into a 600 × 400, 24 fps, 3.00 s H.264 video', async () => {
     const s = setup();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.mp4');
@@ -51,6 +110,32 @@ describe('exporting the animation (AN15)', () => {
       container: 'gif',
       video: { width: 600, height: 400 },
     });
+  });
+
+  it('AN8 AN15 Play once and stop: the GIF plays once, the web page stops; saved, one undo step', async () => {
+    const s = setup();
+    expect(s.anim.store.get().history.present.stage.playOnce).toBeUndefined();
+    s.anim.setPlayOnce(true);
+    expect(s.anim.store.get().history.present.stage.playOnce).toBe(true);
+    expect(s.anim.isDirty()).toBe(true);
+    // The preview plays once too (its own Loop button is turned off).
+    expect(s.state().loop).toEqual({ on: false });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Stop.gif');
+    await s.anim.exportAnimation('gif');
+    expect(await s.engine.probe('/work/Stop.gif')).toMatchObject({ container: 'gif', loop: false });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Stop.html');
+    await s.anim.exportAnimation('html');
+    expect(s.disk.get('/work/Stop.html')).toContain('"playOnce":true');
+    // Back to Loop: the field is left out, as in files made before the choice existed.
+    s.anim.setPlayOnce(false);
+    expect('playOnce' in s.anim.store.get().history.present.stage).toBe(false);
+    expect(s.state().loop).toEqual({ on: true });
+    s.anim.undo();
+    expect(s.anim.store.get().history.present.stage.playOnce).toBe(true);
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Again.gif');
+    s.anim.setPlayOnce(false);
+    await s.anim.exportAnimation('gif');
+    expect(await s.engine.probe('/work/Again.gif')).toMatchObject({ loop: true });
   });
 
   it('an odd-sized stage is padded to even for MP4, and the student is told', async () => {
@@ -162,7 +247,8 @@ describe('exporting the animation (AN15)', () => {
       return new Uint8Array([1]);
     });
     await s.anim.exportAnimation('mp4');
-    expect(s.stageRenderer.renderPng).toHaveBeenCalledTimes(5);
+    // No frame starts after Cancel; the few already being drawn (N2) are thrown away too.
+    expect(s.stageRenderer.renderPng.mock.calls.length).toBeLessThanOrEqual(5 + FRAMES_AT_ONCE - 1);
     expect(framesIn(s.bytes)).toEqual([]);
     await expect(s.engine.probe('/work/Task1.mp4')).rejects.toThrow(MediaError);
     expect(s.state()).toMatchObject({ exporting: null, message: { text: 'Export cancelled.' } });
@@ -197,6 +283,62 @@ describe('exporting the animation (AN15)', () => {
     await s.anim.exportPng();
     expect(s.dialogs.exportAnimation).toHaveBeenCalledWith('Untitled', 'png');
     expect(s.bytes.has('/work/Stage.png')).toBe(true);
+  });
+});
+
+describe('drawFrames (N2)', () => {
+  /** Frames that finish when the test says, to see how many are being drawn at once. */
+  function frames() {
+    const waiting = new Map<number, (fail?: Error) => void>();
+    let most = 0;
+    const draw = (frame: number) =>
+      new Promise<void>((resolve, reject) => {
+        waiting.set(frame, (fail) => (waiting.delete(frame), fail ? reject(fail) : resolve()));
+        most = Math.max(most, waiting.size);
+      });
+    const finish = async (frame: number, fail?: Error) => {
+      waiting.get(frame)!(fail);
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+    };
+    return { draw, finish, waiting, most: () => most };
+  }
+
+  it('N2 draws FRAMES_AT_ONCE frames at once, starting the next as each finishes, and counts them', async () => {
+    const f = frames();
+    const done: number[] = [];
+    const all = drawFrames(10, f.draw, (n) => done.push(n));
+    await Promise.resolve();
+    expect([...f.waiting.keys()]).toEqual([0, 1, 2, 3]);
+    await f.finish(2);
+    expect([...f.waiting.keys()]).toEqual([0, 1, 3, 4]);
+    for (const frame of [0, 1, 3, 4, 5, 6, 7, 8, 9]) await f.finish(frame);
+    await all;
+    expect(done).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(f.most()).toBe(FRAMES_AT_ONCE);
+  });
+
+  it('N2 a short animation draws all its frames at once', async () => {
+    const drawn: number[] = [];
+    await drawFrames(
+      2,
+      async (i) => void drawn.push(i),
+      () => {},
+    );
+    expect(drawn).toEqual([0, 1]);
+  });
+
+  it('N2 after a failure no frame starts, and it rejects only when the frames started have finished', async () => {
+    const f = frames();
+    let settled = false;
+    const all = drawFrames(10, f.draw, () => {}).catch((e: Error) => ((settled = true), e));
+    await Promise.resolve();
+    await f.finish(1, new Error('disk full'));
+    expect([...f.waiting.keys()]).toEqual([0, 2, 3]);
+    await f.finish(0);
+    await f.finish(2);
+    expect(settled).toBe(false); // frame 3 is still being written
+    await f.finish(3, new Error('second'));
+    expect(((await all) as Error).message).toBe('disk full');
   });
 });
 
@@ -251,5 +393,91 @@ describe('Send to Video mode (M14)', () => {
     });
     expect(await s.app.sendAnimationToVideo()).toBe(false);
     expect(clips(s)).toEqual([]);
+  });
+});
+
+describe('more export choices (AN15)', () => {
+  it('AN15 9626/04 J/19, J/20: a PNG of a part 600 px wide from a 1024 × 768 stage (600 × 450)', async () => {
+    const s = setup(1024, 768);
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Part.png');
+    await s.anim.exportAnimation('png', undefined, { width: 600 });
+    expect(s.stageRenderer.renderPng.mock.calls.at(-1)!.slice(1)).toEqual([
+      0,
+      { width: 600, height: 450 },
+    ]);
+    expect(s.state().message?.text).toBe('Saved Part.png (600 × 450).');
+  });
+
+  it('AN15 a range of frames at another width: frames 24–47 drawn 300 × 200, a 1 s MP4', async () => {
+    const s = setup();
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Part.mp4');
+    await s.anim.exportAnimation('mp4', undefined, { width: 300, from: 24, to: 47 });
+    const calls = s.stageRenderer.renderPng.mock.calls;
+    expect(calls.map((c) => c[1])).toEqual(Array.from({ length: 24 }, (_, i) => 24 + i));
+    expect(calls.every((c) => c[2]?.width === 300 && c[2].height === 200)).toBe(true);
+    expect(await s.engine.probe('/work/Part.mp4')).toMatchObject({
+      duration: 1,
+      video: { width: 300, height: 200 },
+    });
+  });
+
+  it('AN15 a PNG sequence of a range is numbered from 0001', async () => {
+    const s = setup();
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Walk.png');
+    await s.anim.exportAnimation('png-sequence', undefined, { from: 10, to: 12 });
+    expect(s.state().message?.text).toBe('Saved 3 pictures, Walk_0001.png to Walk_0003.png.');
+  });
+
+  it('AN15 9626/04 M/19: an AVI (MPEG-4 Part 2) and a MOV (H.264)', async () => {
+    const s = setup();
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.avi');
+    await s.anim.exportAnimation('avi');
+    expect(s.dialogs.exportAnimation).toHaveBeenLastCalledWith('Untitled', 'avi');
+    expect(await s.engine.probe('/work/Task1.avi')).toMatchObject({
+      container: 'avi',
+      video: { codec: 'mpeg4', width: 600, height: 400 },
+    });
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Task1.mov');
+    await s.anim.exportAnimation('mov');
+    expect(await s.engine.probe('/work/Task1.mov')).toMatchObject({
+      container: 'mov',
+      video: { codec: 'h264' },
+    });
+  });
+
+  it('AN15 a web page of a range at another width', async () => {
+    const s = setup();
+    s.dialogs.exportAnimation.mockResolvedValueOnce('/work/Part.html');
+    await s.anim.exportAnimation('html', undefined, { width: 300, from: 24, to: 47 });
+    const html = s.disk.get('/work/Part.html')!;
+    expect(html).toContain('<canvas id="stage" width="300" height="200"');
+    expect(html).toContain('"range":{"first":24,"last":47}');
+  });
+
+  it('AN15 a width or range that cannot be used is explained before the save box', async () => {
+    const s = setup();
+    expect(await s.anim.exportAnimation('mp4', undefined, { width: 2 })).toBeNull();
+    expect(s.state().message?.text).toMatch(/width between 16 and 3840/);
+    expect(await s.anim.exportAnimation('gif', undefined, { from: 40, to: 30 })).toBeNull();
+    expect(s.state().message?.text).toMatch(/first frame must come before/);
+    expect(s.dialogs.exportAnimation).not.toHaveBeenCalled();
+    expect(s.anim.exportSummary('mp4', { from: 0, to: 99 }).error).toMatch(/0 to 71/);
+  });
+
+  it('T7 the summary: the frames, seconds and size of a range at another width', () => {
+    const s = setup(1024, 768);
+    const summary = s.anim.exportSummary('mp4', { width: 600, from: 0, to: 23 });
+    expect(summary).toMatchObject({
+      frames: 24,
+      seconds: 1,
+      size: { width: 600, height: 450, padded: false },
+      sounds: 0,
+      error: null,
+    });
+    // A picture of the frame ignores the range.
+    expect(s.anim.exportSummary('png', { width: 600, from: 50, to: 10 })).toMatchObject({
+      frames: 1,
+      error: null,
+    });
   });
 });

@@ -1,4 +1,4 @@
-# EasyMedia — Milestones & TDD Workflow
+# OneEditor — Milestones & TDD Workflow
 
 How the app is built, **in what order**, and **how each part is proven to work** before the next one starts.
 
@@ -540,8 +540,8 @@ Each milestone lists: **goal · build order (TDD slices) · tests written first 
 3. **First-launch guide (X7)**: `docs/INSTALL.md` (download, install, the Gatekeeper and SmartScreen steps, microphone permission, where projects are saved) and an in-app **Welcome** shown on first launch (the three modes, where to start, *Help ▸ Welcome* to see it again).
 4. **Bali practice paper** (Book B practice questions 1–7) as an automated acceptance test through the app's use cases with stand-in files of the same kind (`EQ11-*` are not in the repo), then end-to-end through the UI with a time budget. Book inconsistencies decided as in earlier tasks and noted: the storyboard's `Bali1.mp3` / `EQ11-Bali2.mp3` are the `.mp4` clips; "Bali2 placed for 7 seconds" at 11.74 s would overlap the clip at 17.74 s with no transition allowed, so it is 6 s (the times win); the sound's times are read after the first 2 s are removed.
 5. **Cross-platform (X1, X2, X6)**: a CI job makes a project and an export on Windows, and the macOS jobs open that project and export it again: same format, size, length and codecs, and the pictures alike (PSNR ≥ 40 dB); the same in the other direction.
-6. **Student user guide and teacher notes** (`docs/guide/`): how to do each coursebook kind of task in EasyMedia; teacher notes mapping every screen and tool to the syllabus points 11.1 / 11.2. Shipped with the app and opened from *Help ▸ User guide* (offline).
-7. **Performance pass on the weakest laptop (N1–N5)** with the teacher: the installed app on an 8 GB Windows laptop measures preview frame rate, export time, effect time, RAM of an exam-sized project and start-up (`EASYMEDIA_PERF_REPORT`); fix what misses its budget (moving the audio DSP to a Web Worker is the planned way out for N3 / N12).
+6. **Student user guide and teacher notes** (`docs/guide/`): how to do each coursebook kind of task in OneEditor; teacher notes mapping every screen and tool to the syllabus points 11.1 / 11.2. Shipped with the app and opened from *Help ▸ User guide* (offline).
+7. **Performance pass on the weakest laptop (N1–N5)** with the teacher: the installed app on an 8 GB Windows laptop measures preview frame rate, export time, effect time, RAM of an exam-sized project and start-up (`ONEEDITOR_PERF_REPORT`); fix what misses its budget (moving the audio DSP to a Web Worker is the planned way out for N3 / N12).
 8. **Full acceptance run** by the teacher on a Windows 11 laptop and a Mac with the installed app: every task in README §14, the Bali paper timed; results in `docs/acceptance/M12.md`.
 
 **Tests first**
@@ -590,7 +590,7 @@ The workbook's numbers are the test data, so every slice is checked against a re
 3. **Layers** (`layers.ts`): add (above the selected one), rename, reorder, lock, hide, remove (with its objects, undoable), folders; add an object to the selected layer; bring forward / send back / to front / to back within a layer; move objects to another layer; group / ungroup; duplicate (offset 10 px); find an object and its layer by id; the drawing order (bottom layer first, bottom object first). A locked layer's objects cannot be selected, moved or edited; a hidden layer is not drawn or exported.
 4. **Snapping** (`snap.ts`): a move or resize snaps X, Y, W or H to the grid, guides, other objects' edges and centres, and whole pixels, within a threshold in stage pixels (so it feels the same at every zoom), each source on or off; the result says what it snapped to (shown in the status bar). Snapping is off while Alt is held.
 5. **Drawing** (`draw.ts`): draws the document at frame 0 (M14: any frame) onto any 2D canvas through a small `StageCanvas` interface (a recording fake in tests): background, then each visible layer, each object with its rotation, opacity, fill (gradients made with the canvas's gradient calls), stroke and dash, text with the bundled fonts, pictures, groups recursively. The preview and the PNG export (M13), the video and GIF exports (M14) and the HTML player (M16) all use this one function.
-6. **Files** (`serialize.ts`, `migrate.ts`): `.mvea` JSON with `schemaVersion: 1`, picture paths relative to the file (`core/project/paths.ts`), a shape check that refuses other files ("This file is not an EasyMedia animation, or it is damaged."), the newer-version message, and the migration table for later versions.
+6. **Files** (`serialize.ts`, `migrate.ts`): `.mvea` JSON with `schemaVersion: 1`, picture paths relative to the file (`core/project/paths.ts`), a shape check that refuses other files ("This file is not a OneEditor animation, or it is damaged."), the newer-version message, and the migration table for later versions.
 7. **Animation app** (`app/animation.ts`, `app/animation-commands.ts`): its own store (history of the document, file path, saved document, selection, tool, zoom, rulers / grid / guides / snap on or off, message) on the generic History; use cases: new, open, save, save as, the P7 close guard together with the video project ("Video, Audio and Animation work that is not saved will be lost"), add a shape / text, set properties (one command per change, labelled for the History), delete, cut / copy / paste / duplicate, nudge, group / ungroup, layer actions, zoom, export the stage as PNG (the canvas's PNG through `ProjectFiles`), autosave (P3) alongside the video project's.
 8. **UI** (`ui/animation/`): `AnimationMode.svelte` (keys: Delete, arrows, Ctrl/Cmd + D duplicate, G group, Space-drag to pan, 1 / 0 zoom), `AnimationToolbar.svelte`, `Stage.svelte` (the canvas, rulers, grid, guides, selection outline and handles, drag to draw a shape with the tool, drag to move, Shift for proportions / 45° steps), `LayersPanel.svelte`, `PropertiesPanel.svelte` (number boxes that apply on Enter or blur, as the time boxes: X, Y, W, H, lock, rotation, opacity, fill and stroke pickers with hex boxes, text boxes for text objects, name), `StageSettings.svelte` (the chip's dialog: presets, size, colour, fps, length), `AnimationStatusBar.svelte`; the native menus act on the mode that is showing (New, Open, Save, Save As, Undo, Redo, Select All, Cut / Copy / Paste); *File ▸ Export Animation…*. The dialogs port gains `openAnimation`, `saveAnimation`, `exportAnimation`.
 
@@ -716,11 +716,72 @@ Added 2026-11-03 at the maintainer's request after M16's check passed (README N1
 
 ---
 
+### M17a — Exam-paper features, OneEditor and the self-updating pilot (v1.5.0)
+
+Asked by the maintainer on 2026-11-04 after doing fifteen real 9626 papers in the app (the gate
+record of M17 lists them). Built on the `m17` branch; released as **v1.5.0, the pilot**, after
+v1.4.0 is tagged. Gate record: [`acceptance/M17a.md`](acceptance/M17a.md).
+
+**Build order** (each test-first, the requirement ID in the test name)
+1. **The name OneEditor** (done 2026-11-04): the app, its installers and its guides; the settings
+   folder from EasyMedia is moved across on the first start; files made before still open.
+2. **V14 typed speed**: a number box beside the speed presets (0.25×–4×, e.g. 1.25×), as README
+   V14 already asks (M/J/26 Q1 Video2: 43 s at 1.25× → 34.4 s).
+3. **A20 typed clip start**: Audio mode's side panel shows the selected clip's *Starts at* as a
+   time box (M/J/23 Q4: move the part after 6.8 s to start at 8.25 s; M/J/24 Q6: start at 10 s).
+4. **A16 OGG**: Export audio offers OGG (Vorbis) with the other formats (M/J/24 Q5, `right_`).
+5. **V17 any export size**: *Same as the source* (each video's own size, e.g. 852 × 480) and a
+   custom width × height in Export video (F/M/26 Q4, M/J/26 Q1, M/J/25 Q14 854 × 480).
+6. **V11 resize without cropping**: Resize & crop can stretch the picture to the project's size
+   instead of cropping (M/J/26 Q1 bg.png).
+7. **V18 picture on a picture**: the picture dialog places another picture on top (size and one
+   of nine places, or dragged) and saves the result as a new picture (F/M/25 Q2: the cropped
+   still bottom-left on credits.png).
+8. **AN21 transparent stage**: the stage background can be *None*: shown as a checkerboard; PNG,
+   PNG sequence and the web page keep the transparency, a GIF keeps it on or off per pixel, an MP4
+   has white (M/J/23 Conveyor GIF; M/J/26 Gas PNG with a 50 % cloud).
+9. **AN22 SVG picture**: Export animation ▸ *SVG picture* saves the frame at the playhead as
+   vector shapes (paths, fills, gradients, outlines, text), one shape per object (O/N/25 Apple:
+   Apple_, Bite1, Bite2, AppleCore, OldCore).
+10. **U1–U5 updates in the app**, as in the ZISPP Gradebook: the installed app looks for a newer
+    version when it opens and every 6 hours; *1.5.1 is out* with what's new and **Download**
+    (only what changed, in the background); it goes in on **Restart and update** or when the app
+    is next quit, never while working; *Download updates by itself* in Settings, off by default;
+    *Updated to 1.5.1* once after an update; no internet: nothing is said. The feed is the
+    public GitHub repo's latest release; each release is made as a draft and published only
+    when every file is up. Macs are signed with the maintainer's own certificate (as the
+    gradebook's), so they update by themselves; a Mac that refuses is offered the .dmg.
+11. **The pilot installers**: the GitHub repo renamed OneEditor (by the maintainer); the three
+    builds with the update feed; `INSTALL.md` for the pilot; one test update (1.5.0 → 1.5.1)
+    seen arriving on a Windows laptop and a Mac before the pilot starts.
+
+12. **Before the pilot** (the maintainer, 2026-11-05): a see-through group is faded as one picture
+    (no darker where its parts overlap: the Gas cloud); **P8** exam file names (File ▸ Candidate
+    Details…); **P9** Help ▸ Report a Problem… with the problem log.
+13. **Built-in extras** (the maintainer, 2026-11-05: "sound effects, punchy fonts, transitions,
+    multi-track"): **V13** two sound effects tracks in Video mode (more audio tracks only: still
+    one video track); **X8** 66 built-in sound effects made by the app's own code, in Video mode
+    (at the playhead, on an effects track) and Audio mode (a new track); **X2** six more bold
+    display fonts (26); **V9** ten more transitions (43); **V7** title presets: slam, type on,
+    spin in, whip in; pop out, spin away, whip off; **AN19** five more Library categories of
+    educational clip-art, listed down the box's left side: School (17), Maths (38), Physics &
+    chemistry (38), Biology (29, with a human skeleton of 94 named bones) and Computers & IT (78,
+    with the six logic gates) and 44 more Backgrounds (50: school and nature scenes, papers,
+    patterns); **V15** the filters are even tiles, each with a preview of its look, ticked when on
+    the clip; **V4–V6** the app's own colour picker everywhere (the system's white colour box is
+    gone), Position as a small screen to click, Readability and effects as rows with a preview.
+
+**Exit gate**
+- Each step's tests green; CI green on all three platforms; the papers' steps above done again
+  in the app by the teacher.
+- A test update arrives by itself on Windows and on a Mac. Tag `v1.5.0`; the release published.
+
 ### M17 — Hardening & v2.0
 
 **Goal:** release quality for the whole app on both platforms, with animation.
 
 **Build order**
+0. **Refactor carried over from M16b** (no behaviour change; the whole suite is the safety net, branch coverage stays ≥ 85 %), done on the `m17` branch and merged into `dev` once v1.4.0 is tagged: `app/audio.ts` split into `app/audio/` modules around one context, as `app/animation/`; the large Stage and Timeline components split into smaller ones; the older dialogs (Export, Crop, Snapshot, Project settings, Stage settings, Animation export, Audio export, Effect) moved onto `ui/Dialog.svelte`.
 1. **Full acceptance run** of README §14 phase 2 by the teacher on a Windows 11 laptop and a Mac with the installed app: the worked example, Tasks 1–9, Practical Activities 19.01–19.07 and exam-style questions 1–3; results in `docs/acceptance/M17.md`.
 2. **Performance (N1–N5)** with an animation open: the stage redraws at ≥ 30 fps with 100 objects on the minimum-spec laptop; a 10 s 1024 × 768 MP4 exports in ≤ 30 s; RAM within N4 with a video project and an animation open together; start-up unchanged.
 3. **Cross-platform (X1, X6)**: a `.mvea` with pictures made on Windows opens on macOS and exports the same MP4 (same size, fps, length; pictures alike at PSNR ≥ 40 dB), and the other way, in the existing CI job.
@@ -782,4 +843,5 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M15 Paths, morphing & masks | ✅ Done ([gate record](acceptance/M15.md)) — motion paths (several per object), morphing, masks, pen path editing; CI green on all three platforms; the teacher's check on Windows and a Mac not done, carried to M16 | 2026-11-01 | `v1.3.0` |
 | M16 Pictures, web export & teaching | ✅ Done ([gate record](acceptance/M16.md)) — pictures, Trace bitmap, the HTML web animation and buttons, stop motion and frame-by-frame with onion skin, Learn ▸ Animation, the task checker for animations, the guides; the teacher's check passed (with M15's) | 2026-11-03 | `v1.4.0` (with M16b) |
 | M16b Workspace, library & effects | ✅ Done ([gate record](acceptance/M16b.md)): the Learn menu, resizable and hideable panels, a readable "Why use this?", the library (cartoons, icons, backgrounds), one-click effects, and the animation app split by area; the teacher's check passed | 2026-11-04 | `v1.4.0` (with M16) |
-| M17 Hardening & v2.0 | ⬜ | | |
+| M17a Exam papers, OneEditor & the pilot | 🔶 On `m17` ([gate record](acceptance/M17a.md)): the name OneEditor, the eight exam-paper features, updates in the app and the update-carrying builds done; version 1.5.0; the teacher's check of the papers, the pilot installers and a test update on Windows and a Mac to do | | `v1.5.0` |
+| M17 Hardening & v2.0 | 🔶 Started on the `m17` branch ([gate record](acceptance/M17.md)): step 0, the refactor carried over from M16b, done — `app/audio/`, the animation Stage and Timeline split, the modal dialogs on `Dialog`; step 2, performance, checked automatically (the stage no longer remakes its canvas each frame, the stage and the export draw in ordinary memory, the export draws four frames at once), the teacher's laptop run to do | | |

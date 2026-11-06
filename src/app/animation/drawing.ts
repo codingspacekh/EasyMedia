@@ -2,6 +2,7 @@
 // properties, moving, resizing and turning, paths and morphs, arranging, grouping, the clipboard,
 // the library and one-click effects. Each change is one undo step.
 import * as cmd from '../animation-commands.ts';
+import type { CombineHow } from '../../core/animation/combine.ts';
 import {
   createButton,
   createEllipse,
@@ -14,15 +15,17 @@ import {
 } from '../../core/animation/factory.ts';
 import { placeIn, objectsShown } from '../../core/animation/frames.ts';
 import type { Handle, Point } from '../../core/animation/geometry.ts';
-import { findObject } from '../../core/animation/layers.ts';
+import { findObject, pictureIdsOf } from '../../core/animation/layers.ts';
 import type { MeasureText } from '../../core/animation/letters.ts';
 import { itemById, placeItem } from '../../core/animation/library/index.ts';
+import { sameColour, type ColourPart } from '../../core/animation/same-colour.ts';
 import { objectAt } from '../../core/animation/tween.ts';
 import type {
   AnimObject,
   ButtonAction,
   Id,
   PathObject,
+  Picture,
   TextObject,
 } from '../../core/animation/types.ts';
 import { EditError } from '../../core/model/errors.ts';
@@ -31,7 +34,17 @@ import type { ShapeKind, Tool } from './state.ts';
 
 export function drawingActions(ctx: AnimationContext) {
   const { store, patch, present, showError, run, edit, pause, liveSelection, currentLayer } = ctx;
-  let clipboard: AnimObject[] = [];
+  /** AN5, AN6: what was copied, with the pictures it shows, to paste here or in another animation. */
+  let clipboard: { objects: AnimObject[]; pictures: Picture[] } = { objects: [], pictures: [] };
+  function clip(ids: readonly Id[]): typeof clipboard {
+    const doc = present();
+    const objects = ids.flatMap((id) => {
+      const found = findObject(doc, id);
+      return found ? [found.object] : [];
+    });
+    const used = new Set(pictureIdsOf(objects));
+    return { objects, pictures: doc.pictures.filter((p) => used.has(p.id)) };
+  }
 
   /** The selected object's layer, so the next shape goes beside it. */
   function followSelection(ids: Id[]): void {
@@ -61,6 +74,33 @@ export function drawingActions(ctx: AnimationContext) {
           ? objectsShown(layer, store.get().frame).map((o) => o.id)
           : [];
       patch({ selection: ids });
+    },
+    /**
+     * AN5: every object on the selected one's layer, as it is at the playhead, with the same fill
+     * or outline colour (after Trace bitmap: all the parts of one colour). Says how many.
+     */
+    selectSameColour(part: ColourPart): void {
+      const [id] = liveSelection();
+      const found = id ? findObject(present(), id) : null;
+      const say = (kind: 'error' | 'info', text: string) => patch({ message: { kind, text } });
+      if (!found) return say('error', 'Select an object first.');
+      const { frame } = store.get();
+      const like = objectAt(found.object, frame);
+      if (like.kind === 'group')
+        return say(
+          'error',
+          'A group has no colour of its own. Ungroup it, then select one of its parts.',
+        );
+      if (like.kind === 'picture')
+        return say('error', 'A picture has no fill. Trace it (Trace bitmap) to make it shapes.');
+      const shown = objectsShown(found.layer, frame).map((o) => objectAt(o, frame));
+      const ids = sameColour(shown, like, part).map((o) => o.id);
+      if (ids.length === 0) return say('error', 'The selected object has no outline.');
+      patch({ selection: ids });
+      say(
+        'info',
+        `Selected ${ids.length} ${ids.length === 1 ? 'object' : 'objects'} with this ${part}.`,
+      );
     },
     setTool: (tool: Tool) => patch({ tool }),
     setZoom: (zoom: number | 'fit') => patch({ zoom }),
@@ -181,6 +221,16 @@ export function drawingActions(ctx: AnimationContext) {
       run(cmd.rotateObject(id, degrees, store.get().frame));
     },
 
+    /**
+     * AN27: the point the selected objects turn about, as fractions of their boxes (null: the
+     * centre), one undo step; they stay where they are. Returns why not, for the field.
+     */
+    setPivot(pivot: Partial<Point> | null, ids: readonly Id[] = liveSelection()): string | null {
+      if (ids.length === 0) return null;
+      pause();
+      return edit(cmd.setPivot(ids, pivot, store.get().frame));
+    },
+
     /** An object as it is shown at the playhead (for the Properties panel and the handles). */
     objectAtPlayhead(id: Id): AnimObject | null {
       const found = findObject(present(), id);
@@ -240,6 +290,20 @@ export function drawingActions(ctx: AnimationContext) {
         patch({ selection: [groupId] });
     },
 
+    /** AN23 Flip the selected objects left to right or top to bottom. */
+    flip(axis: 'horizontal' | 'vertical'): void {
+      const ids = liveSelection();
+      if (ids.length) run(cmd.flipObjects(ids, axis));
+    },
+
+    /** AN24 Combine the selected shapes; returns why it cannot be done, or null. */
+    combine(how: CombineHow): string | null {
+      let made: Id[] = [];
+      const error = edit(cmd.combineSelected(liveSelection(), how, (ids) => (made = ids)));
+      if (!error) patch({ selection: made });
+      return error;
+    },
+
     ungroup(): void {
       const ids = liveSelection();
       if (!ids.length) return;
@@ -255,25 +319,18 @@ export function drawingActions(ctx: AnimationContext) {
     },
 
     copy(): void {
-      const ids = liveSelection();
-      clipboard = ids.flatMap((id) => {
-        const found = findObject(present(), id);
-        return found ? [found.object] : [];
-      });
+      clipboard = clip(liveSelection());
     },
 
     cut(): void {
       const ids = liveSelection();
       if (!ids.length) return;
-      clipboard = ids.flatMap((id) => {
-        const found = findObject(present(), id);
-        return found ? [found.object] : [];
-      });
+      clipboard = clip(ids);
       if (run(cmd.removeObjects(ids))) patch({ selection: [] });
     },
 
     paste(): void {
-      if (clipboard.length === 0) return;
+      if (clipboard.objects.length === 0) return;
       let made: Id[] = [];
       const { layerId, frame } = store.get();
       if (run(cmd.pasteObjects(layerId, clipboard, (ids) => (made = ids), frame)))

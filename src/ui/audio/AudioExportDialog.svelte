@@ -1,5 +1,6 @@
 <script lang="ts">
   import Why from '../Why.svelte';
+  import Dialog from '../Dialog.svelte';
   // Export audio (screen 20; A15–A17, T7): format, sample rate, bit rate (constant / variable),
   // channels (force mono), resolution, tags, the estimated size compared with WAV, and the
   // advantages and disadvantages of the chosen format.
@@ -7,6 +8,7 @@
   import type { App } from '../../app/app.ts';
   import {
     AUDIO_FORMATS,
+    BIT_DEPTHS,
     SAMPLE_RATES,
     audioFormatNotes,
     bitDepthsFor,
@@ -28,7 +30,8 @@
       const doc = app.audio.store.get().history.present;
       return defaultAudioExport({
         rate: doc.rate,
-        channels: doc.tracks.some((t) => t.channelCount === 2) ? 2 : 1,
+        // Stereo when a track is, or when one is panned: then left and right differ.
+        channels: doc.tracks.some((t) => t.channelCount === 2 || t.pan !== 0) ? 2 : 1,
       });
     }),
   );
@@ -37,6 +40,11 @@
   const rates = $derived(sampleRatesFor(settings.format));
   const bitRates = $derived(bitRatesFor(settings.format, settings.sampleRate));
   const depths = $derived(bitDepthsFor(settings.format));
+  const depthHint = $derived(
+    depths.length
+      ? BIT_DEPTHS.find((d) => d.bits === settings.bitDepth)!.hint
+      : 'WAV and FLAC only',
+  );
   const summary = $derived(audio.exportSummary(settings));
   const notes = $derived(audioFormatNotes(settings.format));
   const mb = (bytes: number) => `${(bytes / 1e6).toFixed(2)} MB`;
@@ -69,193 +77,153 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
-
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Export audio">
-    <h2>
-      <Icon name="export" /> Export audio <span class="syl">11.2 exporting · sample rates</span>
-    </h2>
-
-    <h3>Format</h3>
-    <div class="row">
-      <div class="seg" role="group" aria-label="Format">
-        {#each Object.entries(AUDIO_FORMATS) as [id, f] (id)}
-          <button
-            aria-pressed={settings.format === id}
-            onclick={() => change({ format: id as AudioFormat })}>{f.label}</button
-          >
-        {/each}
-      </div>
-      <span class="chip">{info.lossless ? 'Lossless' : 'Lossy'}</span>
-      <span class="hint">{info.description}</span>
-    </div>
-
-    <h3>Sample rate</h3>
-    <div class="rates" role="group" aria-label="Sample rate">
-      {#each SAMPLE_RATES as r (r.rate)}
+<Dialog label="Export audio" syllabus="11.2 exporting · sample rates" width={640} {onclose}>
+  <h3>Format</h3>
+  <div class="row">
+    <div class="seg" role="group" aria-label="Format">
+      {#each Object.entries(AUDIO_FORMATS) as [id, f] (id)}
         <button
-          class="card"
-          aria-pressed={settings.sampleRate === r.rate}
-          disabled={!rates.includes(r.rate)}
-          title={rates.includes(r.rate) ? r.hint : `${info.label} cannot use ${hz(r.rate)}`}
-          onclick={() => change({ sampleRate: r.rate })}
+          aria-pressed={settings.format === id}
+          onclick={() => change({ format: id as AudioFormat })}>{f.label}</button
         >
-          <b>{hz(r.rate)}</b><small>{r.hint}</small>
-        </button>
       {/each}
     </div>
+    <span class="chip">{info.lossless ? 'Lossless' : 'Lossy'}</span>
+    <span class="hint">{info.description}</span>
+  </div>
 
-    <div class="grid">
-      {#if bitRates.length}
-        <span class="lbl">Bit rate</span>
-        <div class="seg small" role="group" aria-label="Bit rate">
-          {#each bitRates as k (k)}
-            <button aria-pressed={settings.bitRate === k} onclick={() => change({ bitRate: k })}
-              >{k} kbps</button
-            >
-          {/each}
-        </div>
-        <span class="lbl">Mode</span>
-        <div class="row">
-          <label
-            ><input
-              type="radio"
-              name="mode"
-              checked={settings.mode === 'cbr'}
-              onchange={() => change({ mode: 'cbr' })}
-            /> Constant</label
+  <h3>Sample rate</h3>
+  <div class="rates" role="group" aria-label="Sample rate">
+    {#each SAMPLE_RATES as r (r.rate)}
+      <button
+        class="card"
+        aria-pressed={settings.sampleRate === r.rate}
+        disabled={!rates.includes(r.rate)}
+        title={rates.includes(r.rate) ? r.hint : `${info.label} cannot use ${hz(r.rate)}`}
+        onclick={() => change({ sampleRate: r.rate })}
+      >
+        <b>{hz(r.rate)}</b><small>{r.hint}</small>
+      </button>
+    {/each}
+  </div>
+
+  <div class="grid">
+    {#if bitRates.length}
+      <span class="lbl">Bit rate</span>
+      <div class="seg small" role="group" aria-label="Bit rate">
+        {#each bitRates as k (k)}
+          <button aria-pressed={settings.bitRate === k} onclick={() => change({ bitRate: k })}
+            >{k} kbps</button
           >
-          <label
-            ><input
-              type="radio"
-              name="mode"
-              checked={settings.mode === 'vbr'}
-              disabled={settings.format !== 'mp3'}
-              onchange={() => change({ mode: 'vbr' })}
-            /> Variable</label
-          >
-          {#if settings.format !== 'mp3'}<span class="hint">Variable: MP3 only</span>{/if}
-        </div>
-      {/if}
-      <span class="lbl">Channels</span>
-      <div class="seg small" role="group" aria-label="Channels">
-        <button aria-pressed={settings.channels === 2} onclick={() => change({ channels: 2 })}
-          >Stereo</button
-        >
-        <button aria-pressed={settings.channels === 1} onclick={() => change({ channels: 1 })}
-          >Mono</button
-        >
-      </div>
-      <span class="lbl">Resolution</span>
-      <div class="row">
-        <div class="seg small" role="group" aria-label="Resolution">
-          {#each [16, 24, 32] as const as bits (bits)}
-            <button
-              aria-pressed={depths.length > 0 && settings.bitDepth === bits}
-              disabled={!depths.includes(bits)}
-              onclick={() => change({ bitDepth: bits })}>{bits}-bit</button
-            >
-          {/each}
-        </div>
-        <span class="hint">WAV and FLAC only</span>
-      </div>
-    </div>
-
-    <div class="estimate">
-      <div>
-        <small>Estimated size · {summary.duration.toFixed(1)} s</small>
-        <b aria-label="Estimated file size"
-          >{summary.upTo ? 'up to ' : '≈ '}{mb(summary.bytes)}{summary.about ? ' (about)' : ''}</b
-        >
-      </div>
-      <p>
-        Same audio as <b>WAV</b> (lossless, 16-bit): <b>{mb(summary.wavBytes)}</b>.
-        {#if !info.lossless && summary.bytes > 0}
-          <br />{info.label} is about {Math.round(summary.wavBytes / summary.bytes)}× smaller.
-        {/if}
-      </p>
-    </div>
-
-    <div class="notes">
-      <b>{notes.title}</b>
-      <ul>
-        {#each notes.pros as pro (pro)}<li class="pro">+ {pro}</li>{/each}
-        {#each notes.cons as con (con)}<li class="con">− {con}</li>{/each}
-      </ul>
-    </div>
-
-    <details class="tags">
-      <summary>Tags (title, artist…)</summary>
-      {#if !info.tags}
-        <p class="hint">AAC files cannot hold tags: choose M4A to keep them.</p>
-      {/if}
-      <div class="grid">
-        {#each TAGS as [key, label] (key)}
-          <label class="lbl" for="tag-{key}">{label}</label>
-          <input
-            id="tag-{key}"
-            type="text"
-            value={settings.tags[key] ?? ''}
-            disabled={!info.tags}
-            oninput={(e) => (settings.tags = { ...settings.tags, [key]: e.currentTarget.value })}
-          />
         {/each}
       </div>
-    </details>
-
-    <Why tool="audioExport" title="Why choose a format, rate and size?" />
-
-    <div class="actions">
-      <span class="spacer"></span>
-      <button onclick={onclose}>Cancel</button>
-      <button class="primary" onclick={exportNow}><Icon name="export" size={14} /> Export</button>
+      <span class="lbl">Mode</span>
+      <div class="row">
+        <label
+          ><input
+            type="radio"
+            name="mode"
+            checked={settings.mode === 'cbr'}
+            onchange={() => change({ mode: 'cbr' })}
+          /> Constant</label
+        >
+        <label
+          ><input
+            type="radio"
+            name="mode"
+            checked={settings.mode === 'vbr'}
+            disabled={settings.format !== 'mp3'}
+            onchange={() => change({ mode: 'vbr' })}
+          /> Variable</label
+        >
+        {#if settings.format !== 'mp3'}<span class="hint">Variable: MP3 only</span>{/if}
+      </div>
+    {/if}
+    <span class="lbl">Channels</span>
+    <div class="seg small" role="group" aria-label="Channels">
+      <button aria-pressed={settings.channels === 2} onclick={() => change({ channels: 2 })}
+        >Stereo</button
+      >
+      <button aria-pressed={settings.channels === 1} onclick={() => change({ channels: 1 })}
+        >Mono</button
+      >
+    </div>
+    <span class="lbl">Resolution</span>
+    <div class="row">
+      <div class="seg small" role="group" aria-label="Resolution">
+        {#each BIT_DEPTHS as d (d.bits)}
+          <button
+            aria-pressed={depths.length > 0 && settings.bitDepth === d.bits}
+            disabled={!depths.includes(d.bits)}
+            title={depths.includes(d.bits)
+              ? d.hint
+              : d.bits === 8
+                ? '8-bit: WAV only'
+                : `${info.label} cannot be ${d.bits}-bit`}
+            onclick={() => change({ bitDepth: d.bits })}>{d.bits}-bit</button
+          >
+        {/each}
+      </div>
+      <span class="hint">{depthHint}</span>
     </div>
   </div>
-</div>
+
+  <div class="estimate">
+    <div>
+      <small>Estimated size · {summary.duration.toFixed(1)} s</small>
+      <b aria-label="Estimated file size"
+        >{summary.upTo ? 'up to ' : '≈ '}{mb(summary.bytes)}{summary.about ? ' (about)' : ''}</b
+      >
+    </div>
+    <p>
+      Same audio as <b>WAV</b> (lossless, 16-bit): <b>{mb(summary.wavBytes)}</b>.
+      {#if !info.lossless && summary.bytes > 0}
+        <br />{info.label} is about {Math.round(summary.wavBytes / summary.bytes)}× smaller.
+      {/if}
+    </p>
+  </div>
+
+  <div class="notes">
+    <b>{notes.title}</b>
+    <ul>
+      {#each notes.pros as pro (pro)}<li class="pro">+ {pro}</li>{/each}
+      {#each notes.cons as con (con)}<li class="con">− {con}</li>{/each}
+    </ul>
+  </div>
+
+  <details class="tags">
+    <summary>Tags (title, artist…)</summary>
+    {#if !info.tags}
+      <p class="hint">AAC files cannot hold tags: choose M4A to keep them.</p>
+    {/if}
+    <div class="grid">
+      {#each TAGS as [key, label] (key)}
+        <label class="lbl" for="tag-{key}">{label}</label>
+        <input
+          id="tag-{key}"
+          type="text"
+          value={settings.tags[key] ?? ''}
+          disabled={!info.tags}
+          oninput={(e) => (settings.tags = { ...settings.tags, [key]: e.currentTarget.value })}
+        />
+      {/each}
+    </div>
+  </details>
+
+  <Why tool="audioExport" title="Why choose a format, rate and size?" />
+
+  {#snippet buttons()}
+    <span class="spacer"></span>
+    <button onclick={onclose}>Cancel</button>
+    <button class="primary" onclick={exportNow}><Icon name="export" size={14} /> Export</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 30;
-  }
-  .dialog {
-    width: min(640px, calc(100vw - 40px));
-    max-height: calc(100vh - 40px);
-    overflow: auto;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  }
-  h2 {
-    margin: 0;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
   h3 {
     margin: 6px 0 0;
     font-size: 12px;
     color: var(--tx-2);
-  }
-  .syl {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--tx-3);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 0 4px;
   }
   .row {
     display: flex;
@@ -346,12 +314,6 @@
     cursor: pointer;
     color: var(--accent);
     font-size: 12px;
-  }
-  .actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 6px;
   }
   .spacer {
     flex: 1;

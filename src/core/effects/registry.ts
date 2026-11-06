@@ -8,7 +8,11 @@ import { graphicEqualiser, highPassFilter, lowPassFilter } from './audio/filters
 import { noiseReduction } from './audio/noise.ts';
 import { pitch } from './audio/pitch.ts';
 import { reverb } from './audio/reverb.ts';
+import { reverse } from './audio/reverse.ts';
+import { silences } from './audio/silences.ts';
 import { speed } from './audio/speed.ts';
+import { tempo } from './audio/tempo.ts';
+import { volumeChange } from './audio/volume-change.ts';
 import { amplify, fadeIn, fadeOut, normalise } from './audio/volume.ts';
 import { TRANSITION_LIST } from './transitions/transitions.ts';
 import type { AudioEffectDef, Described, EffectDef, Params, TransitionDef } from './types.ts';
@@ -26,15 +30,18 @@ export const EFFECTS: readonly EffectDef[] = [
   invert,
 ];
 export const TRANSITIONS: readonly TransitionDef[] = TRANSITION_LIST;
-/** Audio mode's Effect menu (A3, A4, A7–A13, A19), in menu order. */
+/** Audio mode's Effect menu (A3, A4, A7–A13, A19, A21–A24), in menu order. */
 export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   amplify,
   normalise,
   compressor,
   fadeIn,
   fadeOut,
+  volumeChange,
   speed,
+  tempo,
   pitch,
+  reverse,
   echo,
   delay,
   reverb,
@@ -42,6 +49,7 @@ export const AUDIO_EFFECTS: readonly AudioEffectDef[] = [
   highPassFilter,
   lowPassFilter,
   noiseReduction,
+  silences,
 ];
 
 export const effectById = (id: string): EffectDef | undefined => EFFECTS.find((e) => e.id === id);
@@ -71,7 +79,7 @@ export function validateParams(def: Pick<Described, 'params'>, params: Params): 
 
 function requireEffect(id: string): EffectDef {
   const def = effectById(id);
-  if (!def) throw new EditError('This effect is not available in this version of EasyMedia.');
+  if (!def) throw new EditError('This effect is not available in this version of OneEditor.');
   return def;
 }
 

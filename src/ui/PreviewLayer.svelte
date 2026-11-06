@@ -1,6 +1,7 @@
 <script lang="ts">
   // One picture in the preview: a playing proxy, a still or a colour, with its look — filters
   // as a CSS filter, pan & zoom as a CSS transform, a fade as a black or white layer on top.
+  // V19: a turned clip is turned in a box of its turned shape, so it fits as in the export.
   import type { PreviewFrame } from '../app/preview.ts';
 
   let { frame, playing }: { frame: Exclude<PreviewFrame, { kind: 'empty' }>; playing: boolean } =
@@ -8,6 +9,7 @@
   let video: HTMLVideoElement | undefined = $state();
 
   const look = $derived(frame.look);
+  const turn = $derived(frame.turn);
   const view = $derived(look?.view);
   // The point (x, y) of the picture goes to the middle of the screen, then it is enlarged.
   const transform = $derived(
@@ -35,9 +37,24 @@
       <!-- The student's own clip in a live preview: a captions track does not apply here.
            The student's captions and subtitles are drawn on the canvas on top. -->
       <!-- svelte-ignore a11y_media_has_caption -->
-      <video bind:this={video} src={frame.src} preload="auto"></video>
+      <video
+        bind:this={video}
+        src={frame.src}
+        preload="auto"
+        class:turned={turn}
+        style:width={turn?.width}
+        style:height={turn?.height}
+        style:transform={turn?.transform}
+      ></video>
     {:else if frame.kind === 'image'}
-      <img src={frame.src} alt="" />
+      <img
+        src={frame.src}
+        alt=""
+        class:turned={turn}
+        style:width={turn?.width}
+        style:height={turn?.height}
+        style:transform={turn?.transform}
+      />
     {:else if frame.kind === 'colour'}
       <div class="fill" style:background={frame.colour}></div>
     {:else}
@@ -69,5 +86,9 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+  /* A quarter-turned box is larger than the frame one way: it keeps its size, centred. */
+  .turned {
+    flex: none;
   }
 </style>

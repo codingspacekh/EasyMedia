@@ -17,6 +17,7 @@ function setup(disk = new Map<string, string>()) {
       remove: async (p) => void disk.delete(p),
       copy: async () => {},
       saveImage: async (name) => `/cache/${name}.png`,
+      saveSound: async (name: string) => `/cache/sounds/${name}.wav`,
       writeBytes: async () => {},
     },
     text: { draw: async (_t, _s, frame) => ({ png: new Uint8Array(1), ...frame }) },

@@ -26,6 +26,25 @@
   const fade = $derived(item.fade ?? { in: 0, out: 0, colour: 'black' as const });
   const length = $derived(itemDuration(item));
   const QUICK = [0.5, 1, 1.5, 2];
+  /** A new transition lasts 1 s, or half the shorter clip when that is under 2 s, so it fits. */
+  const firstLength = $derived.by(() => {
+    const main = app.store.get().history.present.timeline.main;
+    const before = main[index - 1];
+    if (!before) return 1;
+    const half = Math.min(itemDuration(before), length) / 2;
+    return half >= 1 ? 1 : Math.max(0.1, Math.floor(half * 10) / 10);
+  });
+  const inUse = $derived(new Set((item.effects ?? []).map((e) => e.effectId)));
+  /** What each filter does to a little picture, as a CSS filter: a preview on its button. */
+  const SWATCH: Record<string, string> = {
+    'video.colour': 'saturate(1.8) contrast(1.15)',
+    'video.blackwhite': 'grayscale(1)',
+    'video.sepia': 'sepia(1)',
+    'video.cyan': 'grayscale(1) sepia(1) hue-rotate(150deg) saturate(2.2)',
+    'video.blur': 'blur(1.6px)',
+    'video.sharpen': 'contrast(1.5)',
+    'video.invert': 'invert(1)',
+  };
 
   const edit = (command: Parameters<App['edit']>[0]) => (error = app.edit(command));
 
@@ -91,10 +110,19 @@
 
 <section>
   <h3>Filters &amp; colour <span class="syl">11.1 filters</span></h3>
-  <div class="chips">
+  <div class="filters" role="group" aria-label="Add a filter">
     {#each EFFECTS as def (def.id)}
-      <button aria-label="Add {def.label}" onclick={() => edit(addEffect(item.id, def.id))}>
-        + {def.label}
+      {@const on = inUse.has(def.id)}
+      <button
+        class="filter"
+        class:on
+        aria-label="Add {def.label}"
+        title={on ? `${def.label} is on this clip; its settings are below` : `Add ${def.label}`}
+        onclick={() => edit(addEffect(item.id, def.id))}
+      >
+        <span class="swatch" style:filter={SWATCH[def.id] ?? 'none'} aria-hidden="true"></span>
+        <span class="name">{def.label}</span>
+        <span class="mark" aria-hidden="true">{on ? '✓' : '+'}</span>
       </button>
     {/each}
   </div>
@@ -178,7 +206,10 @@
       value={current?.effectId ?? null}
       onchange={(id) =>
         edit(
-          setTransition(item.id, id ? { effectId: id, duration: current?.duration ?? 1 } : null),
+          setTransition(
+            item.id,
+            id ? { effectId: id, duration: current?.duration ?? firstLength } : null,
+          ),
         )}
     />
     {#if current}
@@ -242,13 +273,56 @@
     background: var(--accent-soft);
     border-color: var(--accent);
   }
+  /* Filters: equal tiles, two to a row, so the names line up whatever their length. */
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 6px;
+  }
+  .filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 5px 8px 5px 5px;
+    font-size: 11.5px;
+    text-align: left;
+  }
+  .filter .swatch {
+    flex: none;
+    width: 30px;
+    height: 20px;
+    border-radius: 3px;
+    /* A tiny landscape: sky, sun and grass, so each filter's look shows. */
+    background:
+      radial-gradient(circle at 72% 34%, #ffd84a 0 18%, transparent 20%),
+      linear-gradient(to bottom, #4aa3ff 0 58%, #3cb44b 58% 100%);
+  }
+  /* A long name takes a second line rather than being cut; the row's tiles stay the same height. */
+  .filter .name {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .filter .mark {
+    flex: none;
+    color: var(--tx-3);
+    font-weight: 600;
+  }
+  .filter.on {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .filter.on .mark {
+    color: var(--accent);
+  }
   .check {
     display: flex;
     gap: 6px;
     align-items: center;
     font-size: 12px;
   }
-  select,
   .effect {
     border: 1px solid var(--line);
     border-radius: 6px;

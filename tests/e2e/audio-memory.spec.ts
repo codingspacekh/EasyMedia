@@ -24,7 +24,7 @@ test('N4 five Amplify steps on 85 s of stereo do not make the page hold more sou
   const app = await electron.launch({
     args: ['--js-flags=--expose-gc', root], // lets the test collect garbage before measuring
     cwd: root,
-    env: { ...process.env, EASYMEDIA_USER_DATA: dir },
+    env: { ...process.env, ONEEDITOR_USER_DATA: dir },
   });
   const page = await app.firstWindow();
   await answerUnsaved(app, 'discard'); // the unsaved edits are thrown away when the test closes

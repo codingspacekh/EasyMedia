@@ -63,6 +63,10 @@ jobs:
         run: npm run test:e2e
       - name: Package the app and let the packaged app check itself (FFmpeg, pages, fonts)
         run: npm run package -- --dir
+      - name: Smoke test of the packaged app (opens an animation, exports an MP4 and a web page)
+        env:
+          PACKAGED_APP: '1'
+        run: npx playwright test tests/e2e/packaged.spec.ts
       - name: Keep Playwright traces of failed end-to-end tests
         if: failure()
         uses: actions/upload-artifact@v4

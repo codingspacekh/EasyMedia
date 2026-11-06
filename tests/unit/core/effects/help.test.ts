@@ -29,6 +29,7 @@ describe('"Why use this?" for every editing tool that is not an effect (T5)', ()
     'credits',
     'resizeCrop',
     'aspectRatio',
+    'turn',
     'cutCopyPaste',
     'trimAudio',
     'addTrack',

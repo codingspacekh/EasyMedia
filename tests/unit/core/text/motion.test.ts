@@ -3,6 +3,8 @@ import {
   ENTRANCES,
   EXITS,
   motionExpressions,
+  motionWindow,
+  revealEdge,
   textMotion,
 } from '../../../../src/core/text/motion.ts';
 import type { TextEffects } from '../../../../src/core/model/types.ts';
@@ -11,7 +13,14 @@ const FRAME = { width: 1920, height: 1080 };
 
 describe('textMotion: how a text layer looks at a moment (same rules as the export)', () => {
   it('is fully shown and in place with no effects', () => {
-    expect(textMotion({}, 1, 4, FRAME)).toEqual({ opacity: 1, x: 0, y: 0, scale: 1 });
+    expect(textMotion({}, 1, 4, FRAME)).toEqual({
+      opacity: 1,
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotate: 0,
+      reveal: 1,
+    });
   });
 
   it('fades in and out linearly', () => {
@@ -81,6 +90,10 @@ describe('textMotion: how a text layer looks at a moment (same rules as the expo
       'drop',
       'zoom',
       'pop',
+      'slam',
+      'type-on',
+      'spin',
+      'whip',
     ]);
     expect(EXITS.map(([id]) => id)).toEqual([
       'none',
@@ -90,57 +103,169 @@ describe('textMotion: how a text layer looks at a moment (same rules as the expo
       'fly-down',
       'sink',
       'zoom',
+      'pop',
+      'spin',
+      'whip',
     ]);
+  });
+
+  it('V7 title presets: slam comes down from 3× size, fading in, then shakes as it lands', () => {
+    const at = (t: number) => textMotion({ entrance: 'slam' }, t, 4, FRAME);
+    expect(at(0)).toMatchObject({ scale: 3, opacity: 0 });
+    expect(at(0.25)).toMatchObject({ scale: 2.5, opacity: 0.5 });
+    expect(at(0.5)).toMatchObject({ scale: 1, opacity: 1, x: 0 });
+    const shake = [0.55, 0.6, 0.65, 0.7, 0.75].map((t) => at(t).x);
+    expect(Math.max(...shake)).toBeGreaterThan(5);
+    expect(Math.min(...shake)).toBeLessThan(-5);
+    expect(Math.max(...shake.map(Math.abs))).toBeLessThanOrEqual(0.02 * 1080);
+    expect(at(1)).toMatchObject({ scale: 1, opacity: 1, x: 0, y: 0 });
+  });
+
+  it('V7 title presets: type on shows the words from the left, a little more each moment', () => {
+    expect(textMotion({ entrance: 'type-on' }, 0, 4, FRAME).reveal).toBe(0);
+    expect(textMotion({ entrance: 'type-on' }, 0.5, 4, FRAME).reveal).toBe(0.5);
+    expect(textMotion({ entrance: 'type-on' }, 1, 4, FRAME).reveal).toBe(1);
+    // The edge runs from just before the words to just after them; at the end nothing is hidden.
+    const words = { x: 500, y: 400, width: 600, height: 100 };
+    const margin = 0.02 * 1920;
+    expect(revealEdge(0, words, FRAME, null)).toBeCloseTo(500 - margin);
+    expect(revealEdge(0.5, words, FRAME, null)).toBeCloseTo(800);
+    expect(revealEdge(1, words, FRAME, null)).toBe(1920);
+  });
+
+  it('V7 title presets: spin turns once while it grows; whip shoots in from the right and overshoots', () => {
+    expect(textMotion({ entrance: 'spin' }, 0, 4, FRAME)).toMatchObject({
+      rotate: -2 * Math.PI,
+      scale: 0.01,
+    });
+    expect(textMotion({ entrance: 'spin' }, 1, 4, FRAME)).toMatchObject({ rotate: 0, scale: 1 });
+    expect(textMotion({ entrance: 'whip' }, 0, 4, FRAME).x).toBeCloseTo(1920, 6);
+    const whip = [0.3, 0.4, 0.5].map((t) => textMotion({ entrance: 'whip' }, t, 4, FRAME).x);
+    expect(Math.min(...whip)).toBeLessThan(-20); // past its place, then back
+    expect(textMotion({ entrance: 'whip' }, 0.6, 4, FRAME).x).toBe(0);
+  });
+
+  it('V7 title presets: exits pop (grow, then shrink to nothing), spin away and whip off', () => {
+    const pop = [3.1, 3.2, 3.3].map((t) => textMotion({ exit: 'pop' }, t, 4, FRAME).scale);
+    expect(Math.max(...pop)).toBeGreaterThan(1.05);
+    expect(textMotion({ exit: 'pop' }, 4, 4, FRAME).scale).toBe(0.01);
+    expect(textMotion({ exit: 'spin' }, 4, 4, FRAME)).toMatchObject({
+      rotate: 2 * Math.PI,
+      scale: 0.01,
+    });
+    expect(textMotion({ exit: 'spin' }, 2.9, 4, FRAME)).toMatchObject({ rotate: 0, scale: 1 });
+    expect(textMotion({ exit: 'whip' }, 3.6, 4, FRAME).x).toBe(-1920);
+    expect(textMotion({ exit: 'whip' }, 3, 4, FRAME).x).toBe(0);
+  });
+
+  it('V7 title presets: only spinning words are cut out of the frame first (a smaller picture to turn)', () => {
+    const words = { x: 500, y: 400, width: 600, height: 100 };
+    expect(motionWindow({ entrance: 'slam' }, words, FRAME)).toBeNull();
+    expect(motionWindow({ entrance: 'spin' }, words, FRAME)).toEqual({
+      x: 500 - 130,
+      y: 400 - 130,
+      width: 600 + 260,
+      height: 100 + 260,
+    });
+    // Never outside the frame.
+    const corner = { x: 10, y: 1000, width: 300, height: 70 };
+    expect(motionWindow({ exit: 'spin' }, corner, FRAME)).toEqual({
+      x: 0,
+      y: 870,
+      width: 440,
+      height: 210,
+    });
   });
 });
 
 /** Evaluates an FFmpeg expression at time `t` (only the functions the export uses). */
-function ffmpegAt(expression: string, t: number, size = { iw: 1920, ih: 1080 }): number {
-  const fns = {
-    if: (c: number, a: number, b = 0) => (c ? a : b),
+function ffmpegAt(expression: string, t: number): number {
+  const fns: Record<string, (...a: number[]) => number> = {
+    iff: (c: number, a: number, b = 0) => (c ? a : b),
     lt: (a: number, b: number) => (a < b ? 1 : 0),
     gte: (a: number, b: number) => (a >= b ? 1 : 0),
     min: Math.min,
     max: Math.max,
     pow: Math.pow,
+    sin: Math.sin,
+    cos: Math.cos,
   };
   const js = expression.replace(/\bif\(/g, 'iff(').replace(/'/g, '');
-  const run = new Function(
-    'iff',
-    'lt',
-    'gte',
-    'min',
-    'max',
-    'pow',
-    't',
-    'iw',
-    'ih',
-    `return ${js};`,
-  );
-  return run(fns.if, fns.lt, fns.gte, fns.min, fns.max, fns.pow, t, size.iw, size.ih) as number;
+  const run = new Function(...Object.keys(fns), 't', 'PI', `return ${js};`);
+  return run(...Object.values(fns), t, Math.PI) as number;
 }
 
 describe('the export moves text exactly as the preview does', () => {
   const ANCHOR = { x: 400, y: 900 };
+  const WORDS = { x: 150, y: 850, width: 500, height: 100 };
   const cases: TextEffects[] = [
     ...ENTRANCES.map(([entrance]) => ({ entrance })),
     ...EXITS.map(([exit]) => ({ exit })),
     { entrance: 'pop', exit: 'zoom' },
     { entrance: 'drop', exit: 'sink' },
+    { entrance: 'type-on', exit: 'spin' },
+    { entrance: 'slam', exit: 'pop' },
+    { entrance: 'spin', exit: 'whip' },
   ];
+
+  /**
+   * Where FFmpeg puts point `p` of the frame image: cut to the window (or, typing on, the part
+   * left of the edge), turned about the cut picture's middle into a D × D picture, scaled from
+   * its corner, laid at the overlay's x and y.
+   */
+  function exported(
+    ex: ReturnType<typeof motionExpressions>,
+    p: { x: number; y: number },
+    t: number,
+  ) {
+    const win = ex.window ?? { x: 0, y: 0, ...FRAME };
+    const cx = ex.edge ? ffmpegAt(ex.edge, t) - win.width : win.x;
+    let q = { x: p.x - cx, y: p.y - win.y };
+    if (ex.angle) {
+      const a = ffmpegAt(ex.angle, t);
+      const d = { x: q.x - win.width / 2, y: q.y - win.height / 2 };
+      q = {
+        x: d.x * Math.cos(a) - d.y * Math.sin(a) + ex.size! / 2,
+        y: d.x * Math.sin(a) + d.y * Math.cos(a) + ex.size! / 2,
+      };
+    }
+    const s = ex.scale ? ffmpegAt(ex.scale, t) : 1;
+    return { x: ffmpegAt(ex.x, t) + s * q.x, y: ffmpegAt(ex.y, t) + s * q.y };
+  }
+
+  /** The preview: moved, then scaled and turned about the middle of the words. */
+  function previewed(m: ReturnType<typeof textMotion>, p: { x: number; y: number }) {
+    const d = { x: p.x - ANCHOR.x, y: p.y - ANCHOR.y };
+    const c = Math.cos(m.rotate);
+    const s = Math.sin(m.rotate);
+    return {
+      x: ANCHOR.x + m.x + m.scale * (d.x * c - d.y * s),
+      y: ANCHOR.y + m.y + m.scale * (d.x * s + d.y * c),
+    };
+  }
 
   it.each(cases.map((c) => [JSON.stringify(c), c] as const))('%s', (_, effects) => {
     const start = 2;
     const duration = 3;
-    const ex = motionExpressions(effects, start, duration, FRAME, ANCHOR);
+    const ex = motionExpressions(effects, start, duration, FRAME, ANCHOR, WORDS);
+    const window = motionWindow(effects, WORDS, FRAME);
+    expect(ex.window).toEqual(window);
     for (let local = 0; local <= duration; local += 0.05) {
       const t = start + local;
       const m = textMotion(effects, local, duration, FRAME);
       const scale = ex.scale ? ffmpegAt(ex.scale, t) : 1;
       expect(scale).toBeCloseTo(m.scale, 6);
-      // Where the scaled full-frame image is laid: the anchor stays put, plus the move.
-      expect(ffmpegAt(ex.x, t)).toBeCloseTo(ANCHOR.x * (1 - m.scale) + m.x, 4);
-      expect(ffmpegAt(ex.y, t)).toBeCloseTo(ANCHOR.y * (1 - m.scale) + m.y, 4);
+      expect(ex.angle ? ffmpegAt(ex.angle, t) : 0).toBeCloseTo(m.rotate, 6);
+      for (const p of [ANCHOR, { x: WORDS.x, y: WORDS.y }, { x: 640, y: 940 }]) {
+        const a = exported(ex, p, t);
+        const b = previewed(m, p);
+        expect(a.x).toBeCloseTo(b.x, 4);
+        expect(a.y).toBeCloseTo(b.y, 4);
+      }
+      // Typing on: the export's edge is the preview's; afterwards the whole picture shows.
+      const edge = ex.edge ? ffmpegAt(ex.edge, t) : null;
+      if (m.reveal < 1) expect(edge).toBeCloseTo(revealEdge(m.reveal, WORDS, FRAME, window), 6);
+      else if (edge !== null) expect(edge).toBe((window?.x ?? 0) + (window?.width ?? FRAME.width));
     }
   });
 
@@ -149,14 +274,28 @@ describe('the export moves text exactly as the preview does', () => {
       x: '0',
       y: '0',
       scale: null,
-      fadeIn: false,
-      fadeOut: false,
+      angle: null,
+      size: null,
+      window: null,
+      edge: null,
+      fadeIn: 0,
+      fadeOut: 0,
     });
   });
 
-  it('rise and sink fade the words with their move', () => {
+  it('rise and sink fade the words with their move over a second; slam fades in over half', () => {
     expect(
       motionExpressions({ entrance: 'rise', exit: 'sink' }, 0, 4, FRAME, ANCHOR),
-    ).toMatchObject({ fadeIn: true, fadeOut: true });
+    ).toMatchObject({ fadeIn: 1, fadeOut: 1 });
+    expect(motionExpressions({ entrance: 'slam' }, 0, 4, FRAME, ANCHOR)).toMatchObject({
+      fadeIn: 0.5,
+      fadeOut: 0,
+    });
+  });
+
+  it('V7 title presets: a spinning picture is turned into a square that fits its diagonal', () => {
+    const ex = motionExpressions({ entrance: 'spin' }, 0, 4, FRAME, ANCHOR, WORDS);
+    const w = ex.window!;
+    expect(ex.size).toBe(Math.ceil(Math.hypot(w.width, w.height)));
   });
 });

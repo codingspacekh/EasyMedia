@@ -6,6 +6,7 @@ import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { PICTURE_EXTENSIONS, picturesIn } from './media/pictures.ts';
+import { SOUND_EXTENSIONS } from '../core/animation/sound.ts';
 
 const MEDIA_EXTENSIONS = [
   'mp4',
@@ -35,10 +36,13 @@ const MEDIA_EXTENSIONS = [
 const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
   png: { label: 'PNG picture', extension: 'png' },
   mp4: { label: 'MP4 video', extension: 'mp4' },
+  avi: { label: 'AVI video', extension: 'avi' },
+  mov: { label: 'MOV video', extension: 'mov' },
   gif: { label: 'Animated GIF', extension: 'gif' },
   // The frames are saved beside the chosen name: Task1_0001.png, Task1_0002.png…
   'png-sequence': { label: 'PNG sequence (one picture per frame)', extension: 'png' },
   html: { label: 'HTML web animation', extension: 'html' },
+  svg: { label: 'SVG picture', extension: 'svg' },
 };
 
 export function electronDialogs(window: () => BrowserWindow | undefined): Dialogs {
@@ -56,7 +60,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showOpenDialog(win(), {
         title: 'Open project',
         properties: ['openFile'],
-        filters: [{ name: 'EasyMedia project', extensions: ['mve'] }],
+        filters: [{ name: 'OneEditor project', extensions: ['mve'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -64,7 +68,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showSaveDialog(win(), {
         title: 'Save project',
         defaultPath: `${name}.mve`,
-        filters: [{ name: 'EasyMedia project', extensions: ['mve'] }],
+        filters: [{ name: 'OneEditor project', extensions: ['mve'] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
@@ -111,7 +115,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showOpenDialog(win(), {
         title: 'Open task check',
         properties: ['openFile'],
-        filters: [{ name: 'EasyMedia task check', extensions: ['mvetask'] }],
+        filters: [{ name: 'OneEditor task check', extensions: ['mvetask'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -119,7 +123,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showSaveDialog(win(), {
         title: 'Save task check',
         defaultPath: `${name}.mvetask`,
-        filters: [{ name: 'EasyMedia task check', extensions: ['mvetask'] }],
+        filters: [{ name: 'OneEditor task check', extensions: ['mvetask'] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
@@ -127,7 +131,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showOpenDialog(win(), {
         title: 'Open animation',
         properties: ['openFile'],
-        filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+        filters: [{ name: 'OneEditor animation', extensions: ['mvea'] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -136,6 +140,14 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         title: 'Add a picture',
         properties: ['openFile'],
         filters: [{ name: 'Pictures', extensions: PICTURE_EXTENSIONS }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async openSound() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Add a sound',
+        properties: ['openFile'],
+        filters: [{ name: 'Sounds', extensions: [...SOUND_EXTENSIONS] }],
       });
       return r.canceled ? null : (r.filePaths[0] ?? null);
     },
@@ -164,7 +176,7 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
       const r = await dialog.showSaveDialog(win(), {
         title: 'Save animation',
         defaultPath: `${name}.mvea`,
-        filters: [{ name: 'EasyMedia animation', extensions: ['mvea'] }],
+        filters: [{ name: 'OneEditor animation', extensions: ['mvea'] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },
@@ -191,7 +203,10 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
  * Project files are written to a temporary file and renamed, so a crash never leaves half a file
  * (ARCHITECTURE §9). Text pictures go into `textFolder`, the app's own folder.
  */
-export const projectFiles = (textFolder: string): ProjectFiles => ({
+export const projectFiles = (
+  textFolder: string,
+  soundFolder = join(dirname(textFolder), 'sounds'),
+): ProjectFiles => ({
   read: (path) => readFile(path, 'utf8'),
   async write(path, text) {
     const temp = `${path}.saving`;
@@ -211,6 +226,12 @@ export const projectFiles = (textFolder: string): ProjectFiles => ({
     await mkdir(textFolder, { recursive: true });
     const path = join(textFolder, `${name}.png`);
     await writeFile(path, png);
+    return path;
+  },
+  async saveSound(name, wav) {
+    await mkdir(soundFolder, { recursive: true });
+    const path = join(soundFolder, `${name}.wav`);
+    await writeFile(path, wav);
     return path;
   },
   async writeBytes(path, bytes) {

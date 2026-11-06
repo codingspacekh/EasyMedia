@@ -1,13 +1,14 @@
 <script lang="ts">
   // A modal dialog: the dimmed backdrop, the box with its title and the syllabus point it teaches,
-  // the content, and the buttons along the bottom. Escape closes it. A new dialog only writes its
-  // own content.
+  // the content, and the buttons along the bottom. Escape closes it, but not while it is busy
+  // (saving, exporting). A new dialog only writes its own content.
   import type { Snippet } from 'svelte';
 
   let {
     label,
     syllabus,
     width = 520,
+    busy = false,
     onclose,
     children,
     buttons,
@@ -17,13 +18,15 @@
     syllabus?: string;
     /** The box's width in px (narrower windows shrink it). */
     width?: number;
+    /** Working (saving, exporting): Escape is ignored, so work is never left half done. */
+    busy?: boolean;
     onclose: () => void;
     children: Snippet;
     buttons?: Snippet;
   } = $props();
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && !busy && onclose()} />
 
 <div class="backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-label={label} style:width="{width}px">
@@ -43,7 +46,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 20;
+    /* Above the panels and their menus (20); tooltips (10000) stay on top. */
+    z-index: 30;
   }
   .dialog {
     max-width: calc(100vw - 32px);
@@ -72,6 +76,7 @@
   .buttons {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 8px;
     margin-top: 6px;
   }

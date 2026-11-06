@@ -28,6 +28,12 @@ describe('the Library dialog (AN19)', () => {
     await fireEvent.click(d.getByRole('tab', { name: 'Icons & symbols' }));
     expect(d.queryByRole('button', { name: 'Add Car' })).toBeNull();
     expect(d.getByRole('button', { name: 'Add Speech bubble' })).toBeTruthy();
+    await fireEvent.click(d.getByRole('tab', { name: 'Physics & chemistry' }));
+    expect(d.getByRole('button', { name: 'Add Atom' })).toBeTruthy();
+    await fireEvent.click(d.getByRole('tab', { name: 'Biology' }));
+    expect(d.getByRole('button', { name: 'Add Human skeleton' })).toBeTruthy();
+    await fireEvent.click(d.getByRole('tab', { name: 'Computers & IT' }));
+    expect(d.getByRole('button', { name: 'Add Laptop' })).toBeTruthy();
     await fireEvent.input(d.getByLabelText('Search the library'), { target: { value: 'weather' } });
     expect(d.getByRole('button', { name: 'Add Lightning' })).toBeTruthy();
     expect(d.getByRole('button', { name: 'Add Smiling sun' })).toBeTruthy(); // all categories

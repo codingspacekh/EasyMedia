@@ -15,6 +15,11 @@ interface FfprobeStream {
   bit_rate?: string;
   display_aspect_ratio?: string;
   disposition?: { attached_pic?: number };
+  duration?: string;
+  /** A phone's turn: FFmpeg turns the picture upright when it reads it (V1, V19). */
+  side_data_list?: { side_data_type?: string; rotation?: number }[];
+  /** Older FFmpeg: the turn as a tag. */
+  tags?: { rotate?: string };
 }
 
 export interface FfprobeJson {
@@ -52,7 +57,7 @@ export function parseProbe(json: FfprobeJson): ProbeInfo {
   // Album art in music files is a "video" stream marked as an attached picture: ignore it.
   const v = json.streams.find((s) => s.codec_type === 'video' && !s.disposition?.attached_pic);
   const a = json.streams.find((s) => s.codec_type === 'audio');
-  if (!v && !a) throw new MediaError('This file has no picture or sound that EasyMedia can use.');
+  if (!v && !a) throw new MediaError('This file has no picture or sound that OneEditor can use.');
 
   const kind = isImage ? 'image' : v ? 'video' : 'audio';
   const info: ProbeInfo = {
@@ -60,20 +65,28 @@ export function parseProbe(json: FfprobeJson): ProbeInfo {
     container: containerName(format, kind, v?.codec_name),
     sizeBytes: Number(format.size ?? 0),
   };
-  const duration = Number(format.duration);
+  // A video is as long as its pictures: phones and cameras often record a little more sound
+  // after the last picture, and "the last frame" must be a picture (9626/02 M/J/17 173t2.mp4).
+  const pictures = kind === 'video' ? Number(v?.duration) : NaN;
+  const whole = Number(format.duration);
+  const duration = pictures > 0 && !(pictures > whole) ? pictures : whole;
   if (kind !== 'image' && Number.isFinite(duration)) info.duration = duration;
   const bitRate = Number(format.bit_rate);
   if (Number.isFinite(bitRate)) info.bitRate = bitRate;
 
   if (v) {
-    info.video = { codec: v.codec_name ?? 'unknown', width: v.width ?? 0, height: v.height ?? 0 };
+    // A video stored on its side with a quarter turn in its data is read upright by FFmpeg, so
+    // its size is the turned one (a phone video filmed upright is 1080 × 1920).
+    const sideways = quarterTurned(v);
+    const [width, height] = sideways ? [v.height, v.width] : [v.width, v.height];
+    info.video = { codec: v.codec_name ?? 'unknown', width: width ?? 0, height: height ?? 0 };
     const fps = frameRate(v.r_frame_rate);
     if (kind === 'video' && fps) info.video.fps = fps;
     const videoRate = Number(v.bit_rate);
     if (kind === 'video' && Number.isFinite(videoRate)) info.video.bitRate = videoRate;
     const shown = v.display_aspect_ratio;
     if (kind === 'video' && shown && /^[1-9]\d*:[1-9]\d*$/.test(shown))
-      info.video.displayAspect = shown;
+      info.video.displayAspect = sideways ? shown.split(':').reverse().join(':') : shown;
   }
   if (a) {
     info.audio = {
@@ -87,6 +100,13 @@ export function parseProbe(json: FfprobeJson): ProbeInfo {
     if (Number.isFinite(audioRate)) info.audio.bitRate = audioRate;
   }
   return info;
+}
+
+/** Whether the stream is turned a quarter (90° or 270°, either way) in its data. */
+function quarterTurned(v: FfprobeStream): boolean {
+  const matrix = v.side_data_list?.find((d) => typeof d.rotation === 'number')?.rotation;
+  const degrees = matrix ?? Number(v.tags?.rotate ?? 0);
+  return Math.abs(Math.round(degrees)) % 180 === 90;
 }
 
 function containerName(

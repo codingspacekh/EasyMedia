@@ -259,6 +259,89 @@ describe('effects on the selection', () => {
     expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(2, 3);
   });
 
+  it('A21 Change tempo 2×: the selection lasts half as long; undo brings it back', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    s.audio.selectAll();
+    expect(s.audio.effectNote('audio.tempo', { tempo: 2, percent: 100 })).toMatch(
+      /4\.00 s → 2\.00 s/,
+    );
+    expect(s.audio.applyEffect('audio.tempo', { tempo: 2, percent: 100 })).toBeNull();
+    expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(2, 3);
+    expect(s.state().history.past.at(-1)!.label).toBe('Change tempo 0.00 – 4.00 s');
+    s.audio.undo();
+    expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(4, 3);
+  });
+
+  it('A22 Reverse plays the selected part backwards in one undo step', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    const before = [...soundOf(s.doc(), 0).channels[0]!];
+    const steps = s.state().history.past.length;
+    s.audio.select({ start: 1, end: 2 });
+    s.audio.applyNow('audio.reverse');
+    const after = soundOf(s.doc(), 0).channels[0]!;
+    expect(after.length).toBe(before.length);
+    expect(after[44100]).toBe(before[2 * 44100 - 1]); // the part's first sample was its last
+    expect(after[0]).toBe(before[0]); // outside the selection nothing changes
+    expect(after[3 * 44100]).toBe(before[3 * 44100]);
+    expect(s.state().history.past).toHaveLength(steps + 1);
+    expect(s.state().history.past.at(-1)!.label).toBe('Reverse 1.00 – 2.00 s');
+    s.audio.undo();
+    expect([...soundOf(s.doc(), 0).channels[0]!]).toEqual(before);
+  });
+
+  it('A23 Volume change 100 % → 30 % across the selection, in one undo step', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3'); // mock tone peak 0.5
+    s.audio.select({ start: 1, end: 3 });
+    const before = [...soundOf(s.doc(), 0).channels[0]!];
+    const params = s.audio.effectSettings('audio.volumechange');
+    expect(params).toEqual({ from: 100, to: 30 });
+    expect(s.audio.effectNote('audio.volumechange', params)).toMatch(/100 % .* 30 % .*2\.00 s/);
+    expect(s.audio.previewEffect('audio.volumechange', params)).toBeNull();
+    expect(s.audio.applyEffect('audio.volumechange', params)).toBeNull();
+    const after = soundOf(s.doc(), 0).channels[0]!;
+    expect(after.length).toBe(before.length);
+    expect(after[0]).toBe(before[0]); // before the selection nothing changes
+    expect(peak([after.subarray(2.9 * 44100, 3 * 44100)])).toBeCloseTo(0.5 * 0.3, 1);
+    expect(peak([after.subarray(3 * 44100 + 10)])).toBeCloseTo(0.5, 2); // nor after it
+    expect(s.state().history.past.at(-1)!.label).toBe('Volume change 1.00 – 3.00 s');
+    s.audio.undo();
+    expect([...soundOf(s.doc(), 0).channels[0]!]).toEqual(before);
+  });
+
+  it('A24 Remove silences shortens a 3 s pause to 0.5 s, shows the saving first, one undo step', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3'); // 4 s
+    s.audio.select({ start: 2, end: 2 });
+    expect(s.audio.insertSilence(3)).toBeNull(); // a 3 s pause in the middle: 7 s
+    expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(7, 3);
+    s.audio.selectAll();
+    const params = s.audio.effectSettings('audio.silences');
+    expect(s.audio.effectNote('audio.silences', params)).toBe(
+      '1 quiet part found: the selection gets 2.50 s shorter (7.00 s → 4.50 s).',
+    );
+    expect(s.audio.previewEffect('audio.silences', params)).toBeNull();
+    const steps = s.state().history.past.length;
+    expect(s.audio.applyEffect('audio.silences', params)).toBeNull();
+    expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(4.5, 3);
+    expect(s.state().history.past).toHaveLength(steps + 1);
+    expect(s.state().history.past.at(-1)!.label).toBe('Remove silences 0.00 – 7.00 s');
+    expect(s.audio.applyEffect('audio.silences', { ...params, keep: 2 })).toMatch(
+      /must not be longer than Lasting at least/,
+    );
+    s.audio.undo();
+    expect(trackDuration(s.doc().tracks[0]!, 44100)).toBeCloseTo(7, 3);
+  });
+
+  it('A22 Reverse with nothing selected asks for a selection, as every effect does', async () => {
+    const s = setup();
+    await s.importFiles('/m/Task_11j_audio_1.mp3');
+    s.audio.select({ start: 1, end: 1 });
+    expect(s.audio.applyEffect('audio.reverse', {})).toMatch(/select/i);
+  });
+
   it('A7 fades need no settings; settings outside the limits are refused', async () => {
     const s = setup();
     await s.importFiles('/m/Task_11j_audio_1.mp3');
@@ -364,6 +447,24 @@ describe('clips, as on the video timeline: click, split, drag, trim, join, delet
       [3, 4],
     ]);
     expect(s.state().clip).toBe(right.id);
+  });
+
+  it('A20 a clip can be given a typed start (M/J/23 Q4: the part after the split starts later)', async () => {
+    const s = await music();
+    s.audio.selectClip(s.doc().tracks[0]!.clips[0]!.id);
+    s.audio.setPosition(2);
+    s.audio.split();
+    const right = s.doc().tracks[0]!.clips.find((c) => c.offset === 2)!;
+    expect(s.audio.setClipStart(right.id, 3.25)).toBeNull();
+    expect(clips(s)).toEqual([
+      [0, 2],
+      [3.25, 4],
+    ]);
+    expect(s.state().history.past.at(-1)!.label).toBe('Clip starts at 3.25 s');
+    expect(s.state().clip).toBe(right.id);
+    // On top of the first part: refused, with the reason; nothing moves.
+    expect(s.audio.setClipStart(right.id, 1)).toMatch(/overlap|on top/i);
+    expect(clips(s)[1]).toEqual([3.25, 4]);
   });
 
   it('Split with no clip selected splits every track under the playhead', async () => {

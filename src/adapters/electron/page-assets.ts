@@ -17,11 +17,12 @@ export function createElectronPageAssets(
   return {
     playerScript: () => unwrap(api.invoke('page:player')),
     pictureDataUrl: (path) => unwrap(api.invoke('page:picture', path)),
+    soundDataUrl: (path) => unwrap(api.invoke('page:sound', path)),
     openTest: async (html, title, width, height) =>
       void (await unwrap(api.invoke('page:test', html, title, width, height))),
     async fontDataUrl(file) {
       const url = fontUrls[file];
-      if (!url) throw new EditError(`${file} is not one of the fonts that come with EasyMedia.`);
+      if (!url) throw new EditError(`${file} is not one of the fonts that come with OneEditor.`);
       // A small file may already be inside the page.
       if (url.startsWith('data:')) return url;
       return unwrap(api.invoke('page:font', assetName(url)));

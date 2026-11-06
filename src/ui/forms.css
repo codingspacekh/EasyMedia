@@ -1,7 +1,7 @@
 /*
- * The app's form controls, one look everywhere (text, number and search boxes, menus, text areas,
- * sliders, colour pickers, checkboxes and radio buttons). The rules use :where(), so they weigh
- * nothing: a component sets only its layout (width, margins) and keeps this look. Focus is shown
+ * The app's form controls, one look everywhere (text, number and search boxes, menus and their
+ * open lists, text areas, sliders, checkboxes, radio buttons, scrollbars; colours have their own
+ * picker, ColourPicker.svelte). The rules use :where(), so they weigh nothing: a component sets only its layout (width, margins) and keeps this look. Focus is shown
  * inside the control's border, so it never covers a unit or the control beside it.
  */
 
@@ -87,21 +87,96 @@
   -webkit-appearance: none;
 }
 
-/* Menus: the app's own arrow. */
+/* Menus: the app's own arrow, and the app's own open list (Chromium's customizable <select>), as
+   the font list: dark, rounded, the chosen option ticked. Still a real <select> (keyboard, screen
+   readers, forms). The list opens on the top layer, in front of every panel, and turns upwards
+   by itself when there is no room below. */
 :where(select) {
-  appearance: none;
-  -webkit-appearance: none;
+  appearance: base-select;
+  display: inline-flex;
+  align-items: center;
   padding-right: 22px;
   cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a9b0bc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 6px center;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
-:where(select) option,
-:where(select) optgroup {
-  background: var(--bg-1);
+:where(select)::picker-icon {
+  display: none; /* the arrow above */
+}
+:where(select):open {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+:where(select)::picker(select) {
+  appearance: base-select;
+  min-width: anchor-size(width);
+  max-height: min(340px, 60vh);
+  margin: 4px 0;
+  padding: 5px;
   color: var(--tx-1);
+  background: var(--bg-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  overscroll-behavior: contain;
+}
+:where(select) option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 10px 0 8px;
+  font-size: 12.5px;
+  color: var(--tx-1);
+  background: transparent;
+  border-radius: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:where(select) option:hover,
+:where(select) option:focus-visible {
+  outline: none;
+  background: var(--bg-3);
+}
+:where(select) option:checked {
+  color: #fff;
+  background: var(--accent-soft);
+}
+:where(select) option:checked:hover,
+:where(select) option:checked:focus-visible {
+  background: rgba(79, 140, 255, 0.28);
+}
+:where(select) option::checkmark {
+  order: 1;
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 700;
+}
+:where(select) option:disabled {
+  color: var(--tx-3);
+  cursor: default;
+}
+/* A group's name, as the font list's headings. */
+:where(select) optgroup {
+  padding-top: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+}
+:where(select) optgroup option {
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+:where(select) hr {
+  margin: 4px 2px;
+  border: 0;
+  border-top: 1px solid var(--line);
 }
 
 /* Text areas: as tall as they need, taller by dragging. */
@@ -167,34 +242,7 @@
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-/* ---- colour pickers: a swatch in a box ---- */
-:where(input[type='color']) {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 28px;
-  height: 28px;
-  padding: 3px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  cursor: pointer;
-}
-:where(input[type='color'])::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-:where(input[type='color'])::-webkit-color-swatch {
-  border: 0;
-  border-radius: 2px;
-}
-:where(input[type='color'])::-moz-color-swatch {
-  border: 0;
-  border-radius: 2px;
-}
-:where(input[type='color']):focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
+/* ---- colour pickers: the app's own (ColourPicker.svelte), not the system's colour box ---- */
 
 /* ---- checkboxes and radio buttons ---- */
 :where(input[type='checkbox'], input[type='radio']) {
@@ -255,4 +303,11 @@
 :where(input[type='range']):where(.vertical)::-moz-range-track {
   width: 4px;
   height: 100%;
+}
+
+/* ---- scrollbars: thin and dark everywhere (the panels, lists, menus, text areas), not the
+   operating system's wide grey ones (Windows) ---- */
+:where(*) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }

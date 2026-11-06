@@ -1,7 +1,8 @@
 <script lang="ts">
-  // X7: what EasyMedia is for and where to start, on the first launch (Help ▸ Welcome again).
+  // X7: what OneEditor is for and where to start, on the first launch (Help ▸ Welcome again).
   import type { App } from '../app/app.ts';
   import Icon from './Icon.svelte';
+  import Dialog from './Dialog.svelte';
 
   let { app }: { app: App } = $props();
 
@@ -35,78 +36,50 @@
   const close = () => void app.closeWelcome();
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && close()} />
-
-<div class="backdrop">
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Welcome to EasyMedia">
-    <h2>Welcome to EasyMedia</h2>
-    <p class="lead">
-      A video, sound and animation editor for Cambridge AS & A Level IT, Chapters 11 and 20. Choose
-      an editor at the top left; the theory is in the <b>Learn</b> menu.
-    </p>
-    <div class="modes">
-      {#each MODES as mode (mode.name)}
-        <section>
-          <h3><Icon name={mode.icon} size={18} />{mode.name}</h3>
-          <p>{mode.text}</p>
-          <span class="syl">{mode.syllabus}</span>
-        </section>
-      {/each}
-    </div>
-    <h4>Where your work is saved</h4>
-    <ul>
-      <li>
-        <b>File ▸ Save</b> makes a project file (<code>.mve</code>) and, for Audio mode, a folder of
-        sound next to it. Your videos, pictures and music stay where they are.
-      </li>
-      <li>
-        To take a project to another computer or a USB stick, use <b>File ▸ Package Project</b>: it
-        copies everything into one folder.
-      </li>
-      <li>EasyMedia saves your work in the background, so it can be restored after a crash.</li>
-    </ul>
-    <p class="hint">
-      Rest the mouse on any button to see what it does. <b>Help ▸ Welcome</b> shows this page again.
-    </p>
-    <div class="actions">
-      <button class="primary" onclick={close}>Start</button>
-    </div>
+<Dialog label="Welcome to OneEditor" width={720} onclose={close}>
+  <p class="lead">
+    A video, sound and animation editor for Cambridge AS & A Level IT, Chapters 11 and 20. Choose an
+    editor at the top left; the theory is in the <b>Learn</b> menu.
+  </p>
+  <div class="modes">
+    {#each MODES as mode (mode.name)}
+      <section>
+        <h3><Icon name={mode.icon} size={18} />{mode.name}</h3>
+        <p>{mode.text}</p>
+        <span class="syl">{mode.syllabus}</span>
+      </section>
+    {/each}
   </div>
-</div>
+  <h4>Where your work is saved</h4>
+  <ul>
+    <li>
+      <b>File ▸ Save</b> makes a project file (<code>.mve</code>) and, for Audio mode, a folder of
+      sound next to it. Your videos, pictures and music stay where they are.
+    </li>
+    <li>
+      To take a project to another computer or a USB stick, use <b>File ▸ Package Project</b>: it
+      copies everything into one folder.
+    </li>
+    <li>OneEditor saves your work in the background, so it can be restored after a crash.</li>
+  </ul>
+  <p class="hint">
+    Rest the mouse on any button to see what it does. <b>Help ▸ Welcome</b> shows this page again.
+  </p>
+  {#snippet buttons()}
+    <button class="primary" onclick={close}>Start</button>
+  {/snippet}
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(6, 7, 9, 0.72);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-  }
-  .dialog {
-    width: 720px;
-    max-width: calc(100vw - 32px);
-    max-height: 90vh;
-    overflow: auto;
-    background: var(--bg-1);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 22px 24px;
-  }
-  h2 {
-    font-size: 20px;
-    margin: 0 0 6px;
-  }
   .lead {
-    margin: 0 0 16px;
+    margin: 0 0 6px;
     color: var(--tx-2);
   }
   .modes {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 6px;
   }
   section {
     position: relative;
@@ -140,22 +113,19 @@
     padding: 0 4px;
   }
   h4 {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 13px;
   }
   ul {
-    margin: 0 0 12px;
+    margin: 0;
     padding-left: 18px;
     font-size: 12.5px;
     color: var(--tx-2);
     line-height: 1.5;
   }
   .hint {
+    margin: 0;
     font-size: 12.5px;
     color: var(--tx-3);
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
   }
 </style>

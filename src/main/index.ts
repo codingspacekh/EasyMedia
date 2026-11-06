@@ -2,8 +2,10 @@
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Menu,
+  net,
   protocol,
   screen,
   shell,
@@ -12,6 +14,7 @@ import {
 import { execFile } from 'node:child_process';
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
+import { cpus, release, totalmem, type } from 'node:os';
 import { join } from 'node:path';
 import { fromMediaUrl } from '../core/media-url.ts';
 import type { Events } from '../preload/api.ts';
@@ -23,10 +26,13 @@ import { createCloseGuard } from './close-guard.ts';
 import { menuTemplate } from './menu.ts';
 import { microphoneAccess } from './microphone.ts';
 import { createNodeMediaEngine } from './media/engine.ts';
-import { recordPerformance } from './perf.ts';
+import { moveOldSettings } from './old-settings.ts';
+import { createPerformanceReport } from './perf.ts';
+import { createProblemLog, saveProblemReport, type ProblemLog } from './problem-log.ts';
 import { createAllowList } from './protocol/allowlist.ts';
 import { serveMediaFile } from './protocol/serve.ts';
 import { selfCheck } from './self-check.ts';
+import { readUpdateConfig, setUpUpdates } from './update-setup.ts';
 import { electronDialogs, projectFiles } from './services.ts';
 
 const APP_ROOT = join(__dirname, '..');
@@ -35,7 +41,9 @@ const RESOURCES = app.isPackaged ? process.resourcesPath : join(APP_ROOT, 'resou
 const DEV_ICON = app.isPackaged ? undefined : join(APP_ROOT, 'build-resources', 'icon.png');
 
 // Tests run with their own empty user-data folder (no real proxies or recovery file).
-if (process.env.EASYMEDIA_USER_DATA) app.setPath('userData', process.env.EASYMEDIA_USER_DATA);
+if (process.env.ONEEDITOR_USER_DATA) app.setPath('userData', process.env.ONEEDITOR_USER_DATA);
+// The settings from when the app was called EasyMedia come along (before anything opens them).
+else moveOldSettings(app.getPath('appData'));
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -51,6 +59,18 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | undefined;
+/** Help ▸ Report a Problem…: errors, failed jobs and menu commands, in the app's data folder. */
+let problems: ProblemLog | undefined;
+const describeError = (error: unknown) =>
+  error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ''}` : String(error);
+process.on('uncaughtExceptionMonitor', (error) =>
+  problems?.record('error', 'main', describeError(error)),
+);
+process.on('unhandledRejection', (reason) => {
+  // Listening stops Node printing it: it is still printed for the developer.
+  console.error('Unhandled rejection:', reason);
+  problems?.record('error', 'main', describeError(reason));
+});
 
 /**
  * AN18: Test — the animation's web page in a window of its own, the stage's size (smaller on a
@@ -72,7 +92,13 @@ async function showTestPage(html: string, title: string, width: number, height: 
     useContentSize: true,
     autoHideMenuBar: true,
     backgroundColor: '#1d2026',
-    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      // AN28: Test plays the animation's sounds at once (a browser waits for a click first).
+      autoplayPolicy: 'no-user-gesture-required',
+    },
   });
   win.on('page-title-updated', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -88,7 +114,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1100,
     minHeight: 700,
     show: false,
-    title: 'EasyMedia',
+    title: 'OneEditor',
     ...(DEV_ICON && { icon: DEV_ICON }),
     backgroundColor: '#101216',
     webPreferences: {
@@ -102,6 +128,10 @@ function createWindow(): BrowserWindow {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   win.once('ready-to-show', () => win.show());
+  win.webContents.on('render-process-gone', (_e, d) =>
+    problems?.record('error', 'main', `The page stopped: ${d.reason} (exit code ${d.exitCode}).`),
+  );
+  win.on('unresponsive', () => problems?.record('error', 'main', 'The page stopped responding.'));
   // P7: unsaved work is not lost by closing the window or quitting; the page asks first.
   closeGuard = createCloseGuard(
     {
@@ -115,7 +145,7 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-/** M12: EASYMEDIA_SELF_CHECK=<file> — check the installed app, write the result there, quit. */
+/** M12: ONEEDITOR_SELF_CHECK=<file> — check the installed app, write the result there, quit. */
 async function runSelfCheck(file: string): Promise<void> {
   const run = promisify(execFile);
   const result = await selfCheck({
@@ -138,14 +168,22 @@ async function runSelfCheck(file: string): Promise<void> {
     (title) => ({ name: 'window', ok: true, detail: title }),
     (error: Error) => ({ name: 'window', ok: false, detail: error.message }),
   );
-  const checks = [...result.checks, loaded];
+  // M17a: electron-updater is in the package, and the update address it was built with.
+  const config = readUpdateConfig(join(RESOURCES, 'updates.json'));
+  const updates = await import('electron-updater').then(
+    () => ({ name: 'updates', ok: true, detail: config.url ?? 'off (no update address)' }),
+    (error: Error) => ({ name: 'updates', ok: false, detail: error.message }),
+  );
+  const checks = [...result.checks, loaded, updates];
   const ok = checks.every((c) => c.ok);
   await writeFile(file, `${JSON.stringify({ ok, version: app.getVersion(), checks }, null, 2)}\n`);
   app.exit(ok ? 0 : 1);
 }
 
 void app.whenReady().then(async () => {
-  if (process.env.EASYMEDIA_SELF_CHECK) return runSelfCheck(process.env.EASYMEDIA_SELF_CHECK);
+  if (process.env.ONEEDITOR_SELF_CHECK) return runSelfCheck(process.env.ONEEDITOR_SELF_CHECK);
+  problems = createProblemLog(join(app.getPath('userData'), 'problems.log'));
+  const log = problems;
   const binaries = binaryPaths(RESOURCES, platformKey(process.platform, process.arch));
   const proxies = join(app.getPath('userData'), 'proxies');
   await mkdir(proxies, { recursive: true });
@@ -166,11 +204,33 @@ void app.whenReady().then(async () => {
 
   const engine = createNodeMediaEngine(binaries, { videoEncoder: videoEncoder(hardware) });
   // Quit asks the page first (P7); once it really quits, every FFmpeg job stops, so no preview
-  // or export keeps running after EasyMedia closes.
+  // or export keeps running after OneEditor closes.
   app.on('before-quit', () => closeGuard?.quitting());
   app.on('will-quit', () => engine.cancelAll());
 
+  // M17a U1–U5: updates, only in the installed app built with an update address.
+  const updates = await setUpUpdates({
+    packaged: app.isPackaged,
+    platform: process.platform,
+    arch: process.arch,
+    version: app.getVersion(),
+    configFile: join(RESOURCES, 'updates.json'),
+    userData: app.getPath('userData'),
+    downloads: app.getPath('downloads'),
+    send: (state) => sendToWindow(mainWindow, 'updates:state', state),
+    fetch: (url) => net.fetch(url),
+    showItem: (path) => shell.showItemInFolder(path),
+    openPath: (path) => shell.openPath(path),
+    quit: () => app.quit(),
+    loadUpdater: async () => (await import('electron-updater')).autoUpdater,
+  });
+
+  const perf = process.env.ONEEDITOR_PERF_REPORT
+    ? createPerformanceReport(process.env.ONEEDITOR_PERF_REPORT)
+    : undefined;
   registerIpc({
+    problems: log,
+    ...(perf ? { perf } : {}),
     ipc: ipcMain,
     send: <E extends keyof Events>(event: E, payload: Events[E]) =>
       sendToWindow(mainWindow, event, payload),
@@ -198,6 +258,7 @@ void app.whenReady().then(async () => {
       read: async (path) => new Uint8Array(await readFile(path)),
       show: showTestPage,
     },
+    updates,
     microphoneAccess: microphoneAccess(
       process.platform,
       systemPreferences,
@@ -209,7 +270,10 @@ void app.whenReady().then(async () => {
     Menu.buildFromTemplate(
       menuTemplate(
         process.platform,
-        (action) => sendToWindow(mainWindow, 'menu:action', action),
+        (action) => {
+          log.record('action', 'menu', action);
+          sendToWindow(mainWindow, 'menu:action', action);
+        },
         !app.isPackaged,
         // Installed: in the resources; in development: made by "npm run guides".
         (guide) =>
@@ -219,14 +283,41 @@ void app.whenReady().then(async () => {
               `${guide}.html`,
             ),
           ),
+        () =>
+          void saveProblemReport({
+            log,
+            computer: {
+              version: app.getVersion(),
+              installed: app.isPackaged,
+              os: `${type()} ${release()}`,
+              arch: process.arch,
+              cpu: cpus()[0]?.model ?? 'unknown processor',
+              ramGB: Math.round(totalmem() / 2 ** 30),
+            },
+            now: () => new Date(),
+            offset: -new Date().getTimezoneOffset(),
+            choose: async (name) => {
+              const options = {
+                title: 'Save the problem report',
+                defaultPath: join(app.getPath('desktop'), name),
+                filters: [{ name: 'Text', extensions: ['txt'] }],
+              };
+              const r = mainWindow
+                ? await dialog.showSaveDialog(mainWindow, options)
+                : await dialog.showSaveDialog(options);
+              return r.canceled || !r.filePath ? null : r.filePath;
+            },
+            write: (path, text) => writeFile(path, text),
+            show: (path) => shell.showItemInFolder(path),
+          }),
       ),
     ),
   );
 
   if (DEV_ICON) app.dock?.setIcon(DEV_ICON);
   mainWindow = createWindow();
-  if (process.env.EASYMEDIA_PERF_REPORT)
-    recordPerformance(process.env.EASYMEDIA_PERF_REPORT, mainWindow);
+  updates.start();
+  perf?.watch(mainWindow);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
   });

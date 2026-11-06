@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUDIO_FORMATS,
+  BIT_DEPTHS,
   SAMPLE_RATES,
   audioCodecArgs,
   audioFormatNotes,
@@ -26,8 +27,9 @@ const mp3: AudioExportSettings = {
 const pair = (args: string[], flag: string) => args[args.indexOf(flag) + 1];
 
 describe('A16 / A17 audio export formats', () => {
-  it('offers MP3, M4A, AAC, WAV and FLAC', () => {
-    expect(Object.keys(AUDIO_FORMATS)).toEqual(['mp3', 'm4a', 'aac', 'wav', 'flac']);
+  it('offers MP3, M4A, AAC, OGG, WAV and FLAC', () => {
+    expect(Object.keys(AUDIO_FORMATS)).toEqual(['mp3', 'm4a', 'aac', 'ogg', 'wav', 'flac']);
+    expect(AUDIO_FORMATS.ogg).toMatchObject({ extension: 'ogg', lossless: false, tags: true });
     expect(AUDIO_FORMATS.flac.lossless && AUDIO_FORMATS.wav.lossless).toBe(true);
     expect(AUDIO_FORMATS.mp3.lossless).toBe(false);
   });
@@ -45,15 +47,26 @@ describe('A16 / A17 audio export formats', () => {
       expect(sampleRatesFor(f)).toContain(96000);
   });
 
-  it('bit depth 16 / 24 / 32-bit for WAV, 16 / 24 for FLAC, none for lossy formats', () => {
-    expect(bitDepthsFor('wav')).toEqual([16, 24, 32]);
+  it('bit depth 8 / 16 / 24 / 32-bit for WAV, 16 / 24 for FLAC, none for lossy formats', () => {
+    expect(bitDepthsFor('wav')).toEqual([8, 16, 24, 32]);
     expect(bitDepthsFor('flac')).toEqual([16, 24]);
     expect(bitDepthsFor('mp3')).toEqual([]);
   });
 
+  it('A16: each resolution says where it is used; 8-bit is telephone quality with a hiss', () => {
+    expect(BIT_DEPTHS.map((d) => d.bits)).toEqual([8, 16, 24, 32]);
+    for (const d of BIT_DEPTHS) expect(d.hint.length, `${d.bits}-bit`).toBeGreaterThan(5);
+    const eight = BIT_DEPTHS.find((d) => d.bits === 8)!.hint;
+    expect(eight).toMatch(/telephone/i);
+    expect(eight).toMatch(/hiss/i);
+    expect(BIT_DEPTHS.find((d) => d.bits === 16)!.hint).toMatch(/CD/);
+  });
+
   it('MP3 bit rates are limited at low sample rates', () => {
-    expect(bitRatesFor('mp3', 44100)).toEqual([32, 64, 96, 128, 192, 320]); // 96: Book B Task 11p
-    expect(bitRatesFor('mp3', 22050)).toEqual([32, 64, 96, 128]);
+    // 96: Book B Task 11p; 160: "medium quality, 128–185 kbps" (9626/02 M/J/21); 256: DoveCall256
+    // (9626/02 M/J/17).
+    expect(bitRatesFor('mp3', 44100)).toEqual([32, 64, 96, 128, 160, 192, 256, 320]);
+    expect(bitRatesFor('mp3', 22050)).toEqual([32, 64, 96, 128, 160]);
     expect(bitRatesFor('mp3', 8000)).toEqual([32, 64]);
     expect(bitRatesFor('wav', 44100)).toEqual([]);
   });
@@ -91,6 +104,17 @@ describe('A16 / A17 audio export formats', () => {
       expect(pair(audioCodecArgs({ ...wav, bitDepth: 32 }), '-c:a')).toBe('pcm_f32le');
     });
 
+    it('A16 WAV 8-bit is unsigned 8-bit PCM (pcm_u8), as WAV stores it', () => {
+      const phone = { ...mp3, format: 'wav' as const, bitDepth: 8 as const, sampleRate: 8000 };
+      const args = audioCodecArgs({ ...phone, channels: 1 });
+      expect(pair(args, '-c:a')).toBe('pcm_u8');
+      expect([pair(args, '-ar'), pair(args, '-ac'), pair(args, '-f')]).toEqual([
+        '8000',
+        '1',
+        'wav',
+      ]);
+    });
+
     it('FLAC 16 and 24-bit', () => {
       const flac = { ...mp3, format: 'flac' as const };
       expect(pair(audioCodecArgs({ ...flac, bitDepth: 16 }), '-sample_fmt')).toBe('s16');
@@ -119,6 +143,23 @@ describe('A16 / A17 audio export formats', () => {
       expect(args.some((a) => a.startsWith('album='))).toBe(false);
     });
 
+    it('A16 OGG is Vorbis at a quality level for the bit rate chosen (M/J/24 Q5), with tags', () => {
+      const ogg = audioCodecArgs({ ...mp3, format: 'ogg', channels: 1, tags: { title: 'right' } });
+      expect([pair(ogg, '-c:a'), pair(ogg, '-f'), pair(ogg, '-ac')]).toEqual([
+        'libvorbis',
+        'ogg',
+        '1',
+      ]);
+      expect(pair(ogg, '-q:a')).toBe('4'); // about 128 kbps
+      expect(ogg).not.toContain('-b:a');
+      expect(ogg).toContain('title=right');
+      expect(pair(audioCodecArgs({ ...mp3, format: 'ogg', bitRate: 320 }), '-q:a')).toBe('9');
+      expect(sampleRatesFor('ogg')).not.toContain(96000);
+      expect(estimateAudioSize({ ...mp3, format: 'ogg' }, 45)).toMatchObject({ about: true });
+      expect(audioFormatNotes('ogg').title).toMatch(/OGG/);
+      expect(() => validateAudioExport({ ...mp3, format: 'ogg' })).not.toThrow();
+    });
+
     it('an AAC stream cannot hold tags, so none are written', () => {
       expect(audioCodecArgs({ ...mp3, format: 'aac', tags: { title: 'x' } })).not.toContain(
         '-metadata',
@@ -130,6 +171,19 @@ describe('A16 / A17 audio export formats', () => {
     it('WAV: sample rate × bit depth × channels × length ÷ 8 (+ 44 byte header)', () => {
       const wav = estimateAudioSize({ ...mp3, format: 'wav' }, 45);
       expect(wav).toEqual({ bytes: (44100 * 16 * 2 * 45) / 8 + 44, upTo: false, about: false });
+    });
+
+    it('A16 WAV 8 kHz, 8-bit, mono (a telephone): 8 000 bytes a second, 0.48 MB a minute', () => {
+      const phone = { ...mp3, format: 'wav' as const, sampleRate: 8000, channels: 1 as const };
+      expect(estimateAudioSize({ ...phone, bitDepth: 8 }, 60)).toEqual({
+        bytes: (8000 * 8 * 1 * 60) / 8 + 44,
+        upTo: false,
+        about: false,
+      });
+      // Half the size of the same sound at 16-bit.
+      expect(estimateAudioSize({ ...phone, bitDepth: 8 }, 60).bytes - 44).toBe(
+        (estimateAudioSize({ ...phone, bitDepth: 16 }, 60).bytes - 44) / 2,
+      );
     });
 
     it('MP3 128 kbps for 45 s ≈ 0.72 MB', () => {
@@ -158,9 +212,10 @@ describe('A16 / A17 audio export formats', () => {
       [{ ...mp3, sampleRate: 8000, bitRate: 128 }, /at most 64 kbps/],
       [
         { ...mp3, bitRate: 100 },
-        /one of the bit rates in the list: 32, 64, 96, 128, 192 or 320 kbps/,
+        /one of the bit rates in the list: 32, 64, 96, 128, 160, 192, 256 or 320 kbps/,
       ],
       [{ ...mp3, format: 'flac' as const, bitDepth: 32 as const }, /16 or 24-bit/],
+      [{ ...mp3, format: 'flac' as const, bitDepth: 8 as const }, /16 or 24-bit/],
       [{ ...mp3, format: 'wav' as const, mode: 'vbr' as const }, /bit rate/i],
       [{ ...mp3, format: 'm4a' as const, mode: 'vbr' as const }, /variable bit rate.*MP3/i],
       [{ ...mp3, channels: 3 as never }, /mono or stereo/i],

@@ -2,7 +2,7 @@
 // are placed by the group's position, turn and size while keeping their own tweens. The whole
 // chain is pure, so a test can ask for frame 36 and read off the numbers.
 import { EditError } from '../model/errors.ts';
-import { centreOf, type Point } from './geometry.ts';
+import { toStage, type Point } from './geometry.ts';
 import { objectsShown } from './frames.ts';
 import { objectAt } from './tween.ts';
 import type { AnimObject, AnimationDoc, Id } from './types.ts';
@@ -28,13 +28,6 @@ export interface Placement {
   rotation: number;
 }
 
-const turn = (p: Point, deg: number): Point => {
-  const a = (deg * Math.PI) / 180;
-  const c = Math.cos(a);
-  const s = Math.sin(a);
-  return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
-};
-
 /** The chain of objects from a top-level object down to the one with the id, or null. */
 function chainTo(objects: readonly AnimObject[], id: Id): AnimObject[] | null {
   for (const o of objects) {
@@ -54,19 +47,12 @@ export function placementOf(doc: AnimationDoc, id: Id, frame: number): Placement
     if (chain) break;
   }
   if (!chain) throw new EditError('That object no longer exists.');
-  // Walk down: each group places its child's centre relative to its own centre, turned.
-  let origin: Point = { x: 0, y: 0 };
-  let rotation = 0;
-  let centre: Point = { x: 0, y: 0 };
-  for (const o of chain) {
-    const local = centreOf(o);
-    const placed = turn({ x: local.x - origin.x, y: local.y - origin.y }, rotation);
-    centre = { x: centre.x + placed.x, y: centre.y + placed.y };
-    rotation += o.rotation;
-    // The children's box has its top-left corner at the group's top-left corner.
-    origin = { x: o.width / 2, y: o.height / 2 };
-  }
+  // Walk up: the centre as drawn in its group's box (turned about its own pivot, AN27), then
+  // placed by each group in turn: the children's box has its top-left corner at the group's.
   const last = chain[chain.length - 1]!;
+  let centre: Point = toStage(last, { x: last.width / 2, y: last.height / 2 });
+  for (const group of chain.slice(0, -1).reverse()) centre = toStage(group, centre);
+  const rotation = chain.reduce((sum, o) => sum + o.rotation, 0);
   return {
     x: centre.x - last.width / 2,
     y: centre.y - last.height / 2,

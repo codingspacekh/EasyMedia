@@ -4,7 +4,12 @@ import { isAbsolute, join, relative } from 'node:path';
 import { EditError, JobCancelledError } from '../core/model/errors.ts';
 import type { AppPaths, Dialogs, JobHandle, MediaEngine, ProjectFiles } from '../core/ports.ts';
 import { toWire } from '../core/wire.ts';
+import { isPlaybackSample, type PlaybackSample } from '../core/animation/paint-meter.ts';
+import { combineFilter } from '../core/image/combine.ts';
+import type { Updates } from './updates.ts';
 import { resizeCropFilter } from '../core/image/crop.ts';
+import { colourKeyFilter } from '../core/image/colour-key.ts';
+import { cleanFileName } from '../core/project/paths.ts';
 import type { Channel, Channels, Events } from '../preload/api.ts';
 import { CHANNELS } from '../preload/api.ts';
 import type { AllowList } from './protocol/allowlist.ts';
@@ -23,6 +28,12 @@ export interface MainServices {
   closeAnswer: (close: boolean) => void;
   /** AN15: the files an HTML web animation carries: the player's script and the built fonts. */
   pageFiles: PageFiles;
+  /** M17a U1–U5: updates (electron-updater in the installed app). */
+  updates: Updates;
+  /** N1: the performance report, when ONEEDITOR_PERF_REPORT asks for one. */
+  perf?: { playback(sample: PlaybackSample): void };
+  /** Help ▸ Report a Problem…: the problem log (main/problem-log.ts). */
+  problems?: { record(kind: 'error', where: 'page' | 'request' | 'job', text: string): void };
 }
 
 export interface PageFiles {
@@ -44,6 +55,20 @@ const PICTURE_TYPES: Record<string, string> = {
   bmp: 'image/bmp',
   svg: 'image/svg+xml',
 };
+
+/** AN28: the sound types an animation carries into its web page, by extension. */
+const SOUND_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+};
+
+/** A typed file name from the page: a string with no folder in it (cleanFileName turns "/" to "-"). */
+const fileNameOnly = (name: unknown): string | undefined =>
+  typeof name === 'string' ? cleanFileName(name) || undefined : undefined;
 
 const dataUrl = (type: string, bytes: Uint8Array) =>
   `data:${type};base64,${Buffer.from(bytes).toString('base64')}`;
@@ -74,13 +99,15 @@ export function registerIpc(s: MainServices): void {
           onDone?.();
           s.send('job:event', { type: 'done', jobId: key, label });
         },
-        (error: unknown) =>
-          s.send(
-            'job:event',
-            error instanceof JobCancelledError
-              ? { type: 'cancelled', jobId: key, label }
-              : { type: 'failed', jobId: key, label, error: toWire(error) },
-          ),
+        (error: unknown) => {
+          if (error instanceof JobCancelledError) {
+            s.send('job:event', { type: 'cancelled', jobId: key, label });
+            return;
+          }
+          const wire = toWire(error);
+          s.problems?.record('error', 'job', `${label}: ${wire.name}: ${wire.message}`);
+          s.send('job:event', { type: 'failed', jobId: key, label, error: wire });
+        },
       )
       .finally(() => {
         jobs.delete(key);
@@ -109,10 +136,26 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(output);
       return null;
     },
-    'media:resizeCrop': async (input, plan) => {
+    'media:resizeCrop': async (input, plan, name) => {
       resizeCropFilter(plan); // explains a bad crop before anything else
-      if (!s.allow.has(input)) throw new Error('Only pictures opened in EasyMedia can be cropped.');
-      const path = await s.engine.resizeCropImage(input, plan);
+      if (!s.allow.has(input)) throw new Error('Only pictures opened in OneEditor can be cropped.');
+      const path = await s.engine.resizeCropImage(input, plan, fileNameOnly(name));
+      s.allow.add(path);
+      return path;
+    },
+    'media:combine': async (base, top, plan, name) => {
+      combineFilter(plan); // explains a bad place before anything else
+      if (!s.allow.has(base) || !s.allow.has(top))
+        throw new Error('Only pictures opened in OneEditor can be combined.');
+      const path = await s.engine.combineImages(base, top, plan, fileNameOnly(name));
+      s.allow.add(path);
+      return path;
+    },
+    'media:colourKey': async (input, key, name) => {
+      colourKeyFilter(key); // explains a colour not picked before anything else
+      if (!s.allow.has(input))
+        throw new Error('Only pictures opened in OneEditor can be made see-through.');
+      const path = await s.engine.colourKeyImage(input, key, fileNameOnly(name));
       s.allow.add(path);
       return path;
     },
@@ -145,7 +188,10 @@ export function registerIpc(s: MainServices): void {
       const base = s.paths.animationFrames;
       const inside = base ? relative(base, folder) : '';
       if (!base || inside === '' || inside.startsWith('..') || isAbsolute(inside))
-        throw new Error('Only frames drawn by EasyMedia can be exported.');
+        throw new Error('Only frames drawn by OneEditor can be exported.');
+      // AN28: and only sounds the app opened or made go into the video.
+      if ((options?.sounds ?? []).some((sound) => !s.allow.has(sound.path)))
+        throw new Error('Only sounds opened in OneEditor can be used.');
       return track(key, 'Export animation', s.engine.encodeFrames(folder, output, options), () =>
         s.allow.add(output),
       );
@@ -166,6 +212,7 @@ export function registerIpc(s: MainServices): void {
     'dialog:saveTaskCheck': (name) => s.dialogs.saveTaskCheck(name),
     'dialog:openAnimation': () => s.dialogs.openAnimation(),
     'dialog:openPicture': () => s.dialogs.openPicture(),
+    'dialog:openSound': () => s.dialogs.openSound(),
     'dialog:openFrames': () => s.dialogs.openFrames(),
     'dialog:openExport': () => s.dialogs.openExport(),
     'dialog:saveAnimation': (name) => s.dialogs.saveAnimation(name),
@@ -186,7 +233,7 @@ export function registerIpc(s: MainServices): void {
       return null;
     },
     'project:copy': async (from, to) => {
-      if (!s.allow.has(from)) throw new Error('Only files opened in EasyMedia can be copied.');
+      if (!s.allow.has(from)) throw new Error('Only files opened in OneEditor can be copied.');
       await s.files.copy(from, to);
       return null;
     },
@@ -196,10 +243,17 @@ export function registerIpc(s: MainServices): void {
     },
     'page:player': async () => new TextDecoder().decode(await s.pageFiles.read(s.pageFiles.player)),
     'page:picture': async (path) => {
-      if (!s.allow.has(path)) throw new EditError('Only pictures opened in EasyMedia can be used.');
+      if (!s.allow.has(path)) throw new EditError('Only pictures opened in OneEditor can be used.');
       const type = PICTURE_TYPES[/\.(\w+)$/.exec(path)?.[1]?.toLowerCase() ?? ''];
       if (!type)
         throw new EditError('Only a picture (PNG, JPG, GIF, BMP or SVG) can go in a web page.');
+      return dataUrl(type, await s.pageFiles.read(path));
+    },
+    'page:sound': async (path) => {
+      if (!s.allow.has(path)) throw new EditError('Only sounds opened in OneEditor can be used.');
+      const type = SOUND_TYPES[/\.(\w+)$/.exec(path)?.[1]?.toLowerCase() ?? ''];
+      if (!type)
+        throw new EditError('Only a sound (MP3, WAV, M4A, AAC, OGG or FLAC) can go in a web page.');
       return dataUrl(type, await s.pageFiles.read(path));
     },
     'page:font': async (name) => {
@@ -207,6 +261,25 @@ export function registerIpc(s: MainServices): void {
       if (!/^[\w-]+(\.[\w-]+)*\.ttf$/.test(name))
         throw new EditError('That is not a bundled font.');
       return dataUrl('font/ttf', await s.pageFiles.read(join(s.pageFiles.assets, name)));
+    },
+    'updates:get': async () => s.updates.get(),
+    'updates:check': () => s.updates.check(),
+    'updates:download': () => s.updates.download(),
+    'updates:install': async () => s.updates.install(),
+    'updates:auto': async (on) => s.updates.setAuto(on === true),
+    'updates:seen': async () => s.updates.seen(),
+    'updates:showDmg': async () => s.updates.showDmg(),
+    'updates:openDmg': () => s.updates.openDmg(),
+    'log:page': async (text) => {
+      if (typeof text !== 'string') throw new Error('Only text can be noted.');
+      s.problems?.record('error', 'page', text);
+      return null;
+    },
+    'perf:enabled': async () => s.perf !== undefined,
+    'perf:playback': async (sample) => {
+      if (!isPlaybackSample(sample)) throw new Error('Not a measurement of the stage.');
+      s.perf?.playback(sample);
+      return null;
     },
     'page:test': async (html, title, width, height) => {
       if (typeof html !== 'string' || !(width > 0) || !(height > 0))
@@ -220,6 +293,13 @@ export function registerIpc(s: MainServices): void {
       s.allow.add(path);
       return path;
     },
+    'project:saveSound': async (name, wav) => {
+      if (!/^[a-z][a-z-]{0,40}$/.test(name) || !(wav instanceof Uint8Array))
+        throw new Error('A sound effect needs a plain name.');
+      const path = await s.files.saveSound(name, wav);
+      s.allow.add(path);
+      return path;
+    },
   };
 
   for (const channel of CHANNELS) {
@@ -228,7 +308,10 @@ export function registerIpc(s: MainServices): void {
       try {
         return { ok: true, value: await handler(...args) };
       } catch (error) {
-        return { ok: false, error: toWire(error) };
+        const wire = toWire(error);
+        if (wire.name !== 'JobCancelledError')
+          s.problems?.record('error', 'request', `${channel}: ${wire.name}: ${wire.message}`);
+        return { ok: false, error: wire };
       }
     });
   }

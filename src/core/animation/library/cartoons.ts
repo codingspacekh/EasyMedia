@@ -1,4 +1,4 @@
-// AN19: cartoon clip-art, drawn for EasyMedia from the app's own shapes. Each is a group whose
+// AN19: cartoon clip-art, drawn for OneEditor from the app's own shapes. Each is a group whose
 // parts are named (Head, Left wheel, Tail…), so a part can be moved or turned on its own: the
 // animation variables of the syllabus (a car's wheels turning as it drives).
 import {
