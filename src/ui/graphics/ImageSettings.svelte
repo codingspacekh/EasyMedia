@@ -64,11 +64,15 @@
     height = preset.height;
   }
 
-  /** Another unit: the same size shown in it. */
+  /**
+   * Another unit: the same size shown in it. The pixels are read once, first: `pixels` follows
+   * `width`, so read after the width changes it is the new width in the old unit.
+   */
   function changeUnits(next: Unit): void {
-    if (!pixels.error) {
-      width = roundIn(fromPx(pixels.width, next, dpi), next);
-      height = roundIn(fromPx(pixels.height, next, dpi), next);
+    const now = pixels;
+    if (!now.error) {
+      width = roundIn(fromPx(now.width, next, dpi), next);
+      height = roundIn(fromPx(now.height, next, dpi), next);
     }
     units = next;
   }

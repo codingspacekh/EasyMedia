@@ -30,7 +30,7 @@
     "build:app": "vite build && vite build -c vite.electron.config.ts --mode main && vite build -c vite.electron.config.ts --mode preload && vite build -c vite.electron.config.ts --mode player",
     "app": "npm run build:app && node scripts/dev-app-name.ts && electron .",
     "test:e2e": "playwright test",
-    "check": "npm run format:check && npm run lint && npm run typecheck && vitest run && npm run build:app && E2E_SIZE=1100x700 playwright test",
+    "check": "npm run format:check && npm run lint && npm run typecheck && vitest run --coverage && npm run build:app && E2E_SIZE=1100x700 playwright test",
     "licences": "node scripts/licences.ts",
     "dist": "npm run build:app && npm run licences && npm run guides && npm run package",
     "package": "node scripts/package.ts",
