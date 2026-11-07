@@ -79,9 +79,14 @@
     {:else}
       <nav class="seg" aria-label="Mode">
         {#each EDITORS as m (m)}
-          <button type="button" aria-pressed={ui.mode === m} onclick={() => (ui.mode = m)}>
+          <button
+            type="button"
+            title={m}
+            aria-pressed={ui.mode === m}
+            onclick={() => (ui.mode = m)}
+          >
             <Icon name={MODE_ICONS[m]} />
-            {m}
+            <span class="mode-name">{m}</span>
           </button>
         {/each}
       </nav>
@@ -331,6 +336,20 @@
     }
     .toolbar {
       gap: 6px;
+    }
+    /* N10: four modes and a full toolbar do not fit at 1100 px (Audio's Export went past the
+       edge on Windows): the modes not chosen show their icon, named by the tooltip and, for
+       screen readers, by their hidden name. */
+    .seg > button[aria-pressed='false'] {
+      padding: 0 8px;
+    }
+    .seg > button[aria-pressed='false'] .mode-name {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
   }
   .workspace {

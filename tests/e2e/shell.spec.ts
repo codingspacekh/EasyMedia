@@ -138,3 +138,32 @@ test('quitting while previews are being made stops FFmpeg and closes at once (re
   }
   await rm(dir, { recursive: true, force: true });
 });
+
+// Regression (CI on Windows, M18): a fourth mode button pushed Audio mode's Export past the
+// window's edge at 1100 × 700. Every mode's header fits, Export inside the window.
+test('N10 at 1100 × 700 every mode’s header fits and its Export button is in the window', async () => {
+  const { app, window: page } = await launchApp();
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]!.setContentSize(1100, 700),
+  );
+  await page.waitForTimeout(300);
+  const modes = page.getByRole('navigation', { name: 'Mode' });
+  for (const mode of ['Video', 'Audio', 'Animation', 'Graphics']) {
+    await modes.getByRole('button', { name: mode }).click();
+    const header = await page.locator('header.toolbar').evaluate((h) => ({
+      scroll: h.scrollWidth,
+      client: h.clientWidth,
+    }));
+    expect(header.scroll, `${mode}: the header is wider than the window`).toBeLessThanOrEqual(
+      header.client,
+    );
+    const exportButton = (await page
+      .locator('header.toolbar')
+      .getByRole('button', { name: 'Export', exact: true })
+      .boundingBox())!;
+    expect(exportButton.x + exportButton.width, `${mode}: Export`).toBeLessThanOrEqual(1100);
+    // The mode chosen keeps its name on screen; the others still have theirs for screen readers.
+    await expect(modes.getByRole('button', { name: mode })).toContainText(mode);
+  }
+  await app.close();
+});
