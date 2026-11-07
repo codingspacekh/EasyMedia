@@ -1,9 +1,9 @@
-// Cambridge International AS & A Level IT 9626 (2025–2027), sections 11 and 20.1: every syllabus point in
+// Cambridge International AS & A Level IT 9626 (2025–2027), sections 11, 19 and 20.1: every syllabus point in
 // its own words, where it is done in OneEditor, and the app's tools under it (their `syllabus`
 // labels). The teacher notes are made from this (scripts/guides.ts).
 
 export interface SyllabusPoint {
-  section: '11.1' | '11.2' | '20.1';
+  section: '11.1' | '11.2' | '19.1' | '19.2' | '20.1';
   group: string;
   point: string;
   /** Where in OneEditor (mode ▸ place). */
@@ -41,6 +41,11 @@ const ANIM_TYPES = 'Different animation types and methods';
 const ANIM_PARTS = 'Components of an animation and animation variables';
 const an = (point: string, where: string, tools?: string[]) =>
   p('20.1', ANIM_TOOLS, point, where, tools);
+// Syllabus 19 grows with phase 3: the points the Graphics tab teaches so far (M18).
+const GRAPHIC_TOOLS = 'Using software tools for the creation and editing of digital graphics';
+const VECTOR_TOOLS = 'Using software tools for the creation and editing of vector graphics';
+const g = (point: string, where: string, tools?: string[]) =>
+  p('19.1', GRAPHIC_TOOLS, point, where, tools);
 
 export const SYLLABUS: readonly SyllabusPoint[] = [
   // ---- 11.1 Video editing ----
@@ -280,6 +285,38 @@ export const SYLLABUS: readonly SyllabusPoint[] = [
     COMPRESS,
     'lossy and lossless',
     'Learn ▸ Media inspector (codecs marked lossy / lossless / uncompressed) and the compression comparison',
+  ),
+  // ---- 19 Graphics (phase 3) ----
+  g(
+    'graphics tools: add, remove and select layers; order; toggle visibility; lock/unlock layers; change opacity/transparency',
+    'Graphics ▸ the Layers panel (add, rename, order, lock, hide, folders) and Properties ▸ opacity',
+    ['19.1 graphics tools: layers'],
+  ),
+  g(
+    'alignment and distribution tools: left, right, top, bottom, centre alignment; vertical and horizontal distribution',
+    'Graphics (and Animation) ▸ Properties ▸ Align: with the selection, the first object chosen or the canvas, and Distribute across or down',
+    ['19.1 alignment and distribution tools'],
+  ),
+  g(
+    'colour systems: RGB, HSL, CMYK',
+    'Graphics ▸ any colour box: the colour picker shows and takes RGB, HSL and CMYK numbers',
+  ),
+  g(
+    'the need for different image resolutions, including the impact of having too low/high resolution for an image on screen or in print',
+    'Graphics ▸ File ▸ New Image… and the canvas chip at the top (size in px, cm, mm or in at a resolution; screen and print presets)',
+    ['19.1 the need for different image resolutions'],
+  ),
+  g(
+    'exporting an image in different file formats',
+    'Graphics ▸ Export on the toolbar (PNG, JPG or SVG at a size, of the selection, or each object in its own file; the resolution is written into the file)',
+    ['19.1 exporting an image in different file formats'],
+  ),
+  p(
+    '19.2',
+    VECTOR_TOOLS,
+    'creating a vector graphic that meets the requirements of its intended application and audience',
+    'Graphics ▸ the drawing tools on the stage, and To Animation on the toolbar to use the graphic in an animation',
+    ['19.2 creating a vector graphic for its application'],
   ),
   // ---- 20.1 Animation (phase 2) ----
   an(

@@ -69,14 +69,15 @@ const whole = (n: number, what: string) => {
   if (!Number.isInteger(n)) throw new EditError(`${what} must be a whole number.`);
 };
 
-export function validateStage(stage: Stage): void {
+/** `max`: the largest side in px (a Graphics mode canvas may be bigger: G1). */
+export function validateStage(stage: Stage, max = MAX_STAGE): void {
   for (const [what, n] of [
     ['The width', stage.width],
     ['The height', stage.height],
   ] as const) {
     whole(n, what);
-    if (n < MIN_STAGE || n > MAX_STAGE)
-      throw new EditError(`${what} must be between ${MIN_STAGE} and ${MAX_STAGE} pixels.`);
+    if (n < MIN_STAGE || n > max)
+      throw new EditError(`${what} must be between ${MIN_STAGE} and ${max} pixels.`);
   }
   whole(stage.fps, 'The frame rate');
   if (stage.fps < MIN_FPS || stage.fps > MAX_FPS)

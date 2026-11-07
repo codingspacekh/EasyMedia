@@ -221,6 +221,11 @@ function isAnimation(doc: ProjectDocument): doc is ProjectDocument & AnimationDo
       (p) => has(p, ['id', 'path'], isString) && has(p, ['width', 'height'], isNumber),
     ) &&
     (doc.sounds === undefined || listOf(doc.sounds, isSound)) &&
+    // G1 (M18): a Graphics mode image's resolution and units.
+    (doc.graphic === undefined ||
+      (isObject(doc.graphic) &&
+        isNumber(doc.graphic.dpi) &&
+        ['px', 'cm', 'mm', 'in', 'pt'].includes(doc.graphic.units as string))) &&
     isObject(guides) &&
     Array.isArray(guides.x) &&
     Array.isArray(guides.y) &&

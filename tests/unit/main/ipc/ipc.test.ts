@@ -86,9 +86,22 @@ describe('P2 main-process IPC handlers', () => {
         openExport: async () => ['/e/Task4.html'],
         saveAnimation: async () => null,
         exportAnimation: async () => null,
+        openGraphic: async () => '/g/Logo.mveg',
+        saveGraphic: async (name) => `/g/${name}.mveg`,
+        exportGraphic: async (name, format) => `/g/${name}.${format}`,
       },
     });
     expect(await api.invoke('dialog:openExport')).toEqual({ ok: true, value: ['/e/Task4.html'] });
+    // G1, G11 (M18): Graphics mode's files.
+    expect(await api.invoke('dialog:openGraphic')).toEqual({ ok: true, value: '/g/Logo.mveg' });
+    expect(await api.invoke('dialog:saveGraphic', 'Logo')).toEqual({
+      ok: true,
+      value: '/g/Logo.mveg',
+    });
+    expect(await api.invoke('dialog:exportGraphic', 'Logo', 'jpg')).toEqual({
+      ok: true,
+      value: '/g/Logo.jpg',
+    });
     expect(await api.invoke('dialog:openSound')).toEqual({ ok: true, value: '/m/alarm.mp3' });
     expect(await api.invoke('dialog:openFrames')).toEqual({
       ok: true,
@@ -305,6 +318,16 @@ describe('P2 main-process IPC handlers', () => {
     // Without a log (tests, development) nothing breaks.
     const plain = inProcessBridge(createMockMediaEngine({})).api;
     expect(await plain.invoke('log:page', 'x')).toEqual({ ok: true, value: null });
+  });
+
+  it('About: the page can open only the website, in the browser', async () => {
+    const open = vi.fn(async () => {});
+    const { api } = inProcessBridge(createMockMediaEngine({}), { website: { open } });
+    expect(await api.invoke('app:website')).toEqual({ ok: true, value: null });
+    expect(open).toHaveBeenCalledTimes(1);
+    // Without it (tests, development) nothing breaks.
+    const plain = inProcessBridge(createMockMediaEngine({})).api;
+    expect(await plain.invoke('app:website')).toEqual({ ok: true, value: null });
   });
 
   it('V18 combines only pictures the app opened, and allows the picture it makes', async () => {

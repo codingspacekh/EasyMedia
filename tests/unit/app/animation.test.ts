@@ -2,6 +2,7 @@
 // drawing shapes and text on the selected layer, exact properties, layers, groups, copies,
 // undo, and exporting the stage as a picture. Every edit is one undo step.
 import { describe, expect, it, vi } from 'vitest';
+import { TINY_PNG } from '../../helpers/tiny-images.ts';
 import { animationTitle } from '../../../src/app/animation.ts';
 import { createAnimation, createRect } from '../../../src/core/animation/factory.ts';
 import { serializeAnimation } from '../../../src/core/animation/serialize.ts';
@@ -395,7 +396,7 @@ describe('files (AN16)', () => {
     s.star();
     s.dialogs.exportAnimation.mockResolvedValueOnce('/a/Chapter07_Task1_1.png');
     await s.anim.exportPng();
-    expect(s.bytes.get('/a/Chapter07_Task1_1.png')).toEqual(new Uint8Array([137, 80, 78, 71]));
+    expect(s.bytes.get('/a/Chapter07_Task1_1.png')).toEqual(TINY_PNG);
     expect(s.state().message).toMatchObject({
       kind: 'info',
       text: expect.stringContaining('Chapter07_Task1_1.png'),

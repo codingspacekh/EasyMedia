@@ -3,14 +3,16 @@
   // (AN3, AN4, AN5) and the rulers / grid / snapping toggles (AN2). Vertical, so the header
   // never grows wider than the window.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import type { Tool } from '../../app/animation.ts';
   import { withWhy } from '../../core/effects/help.ts';
   import Icon, { type IconName } from '../Icon.svelte';
   import { animUi } from './animation-ui.svelte.ts';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const view = $derived($store.history.present.view);
 
   const TOOLS: [Tool, string, IconName, string][] = [
@@ -55,8 +57,14 @@
 </script>
 
 <div class="strip">
-  <div class="tools" role="toolbar" aria-label="Animation tools" aria-orientation="vertical">
-    {#each TOOLS as [tool, label, icon, title] (tool)}
+  <div
+    class="tools"
+    role="toolbar"
+    aria-label={editor.still ? 'Drawing tools' : 'Animation tools'}
+    aria-orientation="vertical"
+  >
+    <!-- M18: a still image has no buttons to click (AN18 is for animations). -->
+    {#each TOOLS.filter(([tool]) => !editor.still || tool !== 'button') as [tool, label, icon, title] (tool)}
       <button
         class="tbtn"
         aria-label={label}
@@ -76,15 +84,17 @@
     )}
     onclick={() => (animUi.dialog = 'library')}><Icon name="sparkles" /></button
   >
-  <button
-    class="tbtn"
-    aria-label="Import frames"
-    title={withWhy(
-      'Import frames: a folder of pictures shown one after another (stop motion)',
-      'animStopMotion',
-    )}
-    onclick={() => (animUi.dialog = 'frames')}><Icon name="import" /></button
-  >
+  {#if !editor.still}
+    <button
+      class="tbtn"
+      aria-label="Import frames"
+      title={withWhy(
+        'Import frames: a folder of pictures shown one after another (stop motion)',
+        'animStopMotion',
+      )}
+      onclick={() => (animUi.dialog = 'frames')}><Icon name="import" /></button
+    >
+  {/if}
   <div class="hsep"></div>
   <div class="tools" role="group" aria-label="Stage helpers">
     <button

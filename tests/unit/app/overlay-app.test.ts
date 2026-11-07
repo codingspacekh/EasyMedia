@@ -123,6 +123,7 @@ function state(overlay: OverlayItem[], assets = ready): AppState {
     message: null,
     welcome: false,
     licences: null,
+    about: false,
   };
 }
 

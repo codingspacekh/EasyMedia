@@ -32,10 +32,14 @@ import { EditError } from '../../core/model/errors.ts';
 import type { AnimationContext } from './context.ts';
 import type { ShapeKind, Tool } from './state.ts';
 
+/**
+ * AN5, AN6: what was copied, with the pictures it shows, to paste here or in another animation —
+ * or in Graphics mode, which shares it (GL3, M18: a logo drawn there is pasted into an animation).
+ */
+let clipboard: { objects: AnimObject[]; pictures: Picture[] } = { objects: [], pictures: [] };
+
 export function drawingActions(ctx: AnimationContext) {
   const { store, patch, present, showError, run, edit, pause, liveSelection, currentLayer } = ctx;
-  /** AN5, AN6: what was copied, with the pictures it shows, to paste here or in another animation. */
-  let clipboard: { objects: AnimObject[]; pictures: Picture[] } = { objects: [], pictures: [] };
   function clip(ids: readonly Id[]): typeof clipboard {
     const doc = present();
     const objects = ids.flatMap((id) => {

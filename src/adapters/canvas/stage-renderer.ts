@@ -17,7 +17,7 @@ export interface StageRendererDeps {
     height: number,
   ) => {
     getContext(kind: '2d', options?: { willReadFrequently?: boolean }): StageCanvas | null;
-    convertToBlob(options: { type: string }): Promise<Blob>;
+    convertToBlob(options: { type: string; quality?: number }): Promise<Blob>;
   };
   /** A picture file as something drawImage accepts; null when it cannot be loaded. */
   loadImage?: (path: string) => Promise<unknown | null>;
@@ -118,6 +118,22 @@ export function createCanvasStageRenderer({
       if (size) stage.scale(size.width / doc.stage.width, size.height / doc.stage.height);
       drawStage(stage, doc, { image: (id) => images.get(id) ?? null, frame });
       const blob = await canvas.convertToBlob({ type: 'image/png' });
+      return new Uint8Array(await blob.arrayBuffer());
+    },
+
+    async renderJpeg(doc, { quality, background, size }): Promise<Uint8Array> {
+      const canvas = makeCanvas(size?.width ?? doc.stage.width, size?.height ?? doc.stage.height);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) throw new Error('No canvas is available to draw the stage.');
+      const images = await imagesOf(doc);
+      await loadFonts(fontsUsed(doc.layers.flatMap((l) => l.objects)));
+      // G11: a JPEG cannot be see-through: what is transparent is drawn on the background.
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, size?.width ?? doc.stage.width, size?.height ?? doc.stage.height);
+      const stage = withLayers(ctx);
+      if (size) stage.scale(size.width / doc.stage.width, size.height / doc.stage.height);
+      drawStage(stage, doc, { image: (id) => images.get(id) ?? null, frame: 0 });
+      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 });
       return new Uint8Array(await blob.arrayBuffer());
     },
 

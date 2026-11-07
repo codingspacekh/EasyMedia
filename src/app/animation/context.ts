@@ -5,19 +5,21 @@
 import type * as cmd from '../animation-commands.ts';
 import { createHistory, execute } from '../history.ts';
 import { createStore, type Store } from '../store.ts';
-import { createAnimation, roughTextWidth } from '../../core/animation/factory.ts';
+import { roughTextWidth } from '../../core/animation/factory.ts';
 import { isShown } from '../../core/animation/frames.ts';
 import type { AnimationDoc, Id, Layer } from '../../core/animation/types.ts';
 import { EditError, MediaError, ProjectFileError } from '../../core/model/errors.ts';
 import type { PageAssets, StageRenderer } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
 import type { AnimationDeps, AnimationState } from './state.ts';
+import { ANIMATION_KIND, withoutExtension } from './kind.ts';
 import { unexpected } from '../problems.ts';
 
 export { UNEXPECTED } from '../problems.ts';
 
 const NO_RENDERER: StageRenderer = {
   renderPng: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
+  renderJpeg: () => Promise.reject(new EditError('Exporting needs the OneEditor app.')),
   pixels: () => Promise.reject(new EditError('Tracing needs the OneEditor app.')),
   textTops: async () => ({}), // the SVG then keeps the font's own top edge
   // AN26: curved text then has its letters roughly where the stage puts them.
@@ -42,7 +44,9 @@ export function createAnimationContext(deps: AnimationDeps) {
     pageAssets: deps.pageAssets ?? NO_PAGE_ASSETS,
     autosaveMs: deps.autosaveMs ?? 60_000,
   };
-  const fresh = createAnimation({ name: 'Untitled' });
+  /** M18: an animation, or Graphics mode's image (one frame, its own file type). */
+  const kind = deps.kind ?? ANIMATION_KIND;
+  const fresh = kind.fresh();
   const store: Store<AnimationState> = createStore<AnimationState>({
     history: createHistory(fresh),
     path: null,
@@ -160,6 +164,7 @@ export function createAnimationContext(deps: AnimationDeps) {
 
   return {
     services,
+    kind,
     store,
     patch,
     present,
@@ -182,7 +187,7 @@ export function createAnimationContext(deps: AnimationDeps) {
     /** The animation's name for files: its file's name, or the document's name if never saved. */
     fileBase: (): string => {
       const { path } = store.get();
-      return path ? fileNameOf(path).replace(/\.mvea$/i, '') : present().name;
+      return path ? withoutExtension(fileNameOf(path), kind) : present().name;
     },
   };
 }

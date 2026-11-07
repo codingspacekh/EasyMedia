@@ -3,6 +3,7 @@
   // fill, stroke, and what its kind adds (corners, points, sides, words and font, what a button
   // does). With several objects selected, a value typed here goes to all of them.
   import { tick } from 'svelte';
+  import { editorOf } from './editor.ts';
   import type { App } from '../../app/app.ts';
   import { BUTTON_ACTIONS } from '../../core/animation/buttons.ts';
   import { DEFAULT_STROKE } from '../../core/animation/factory.ts';
@@ -28,12 +29,16 @@
   import { animUi } from './animation-ui.svelte.ts';
   import ColourField from './ColourField.svelte';
   import EffectsSection from './EffectsSection.svelte';
+  import AlignSection from './AlignSection.svelte';
+  import { graphicOf } from '../../core/graphics/document.ts';
+  import { DECIMALS, fromPx, toPx, UNIT_NAMES } from '../../core/graphics/units.ts';
   import { textBox } from './measure.ts';
   import NumField from './NumField.svelte';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   // M14: what the student sees and edits is the animation at the playhead.
   const doc = $derived(stateAt($store.history.present, $store.frame));
   const found = $derived(
@@ -43,6 +48,12 @@
     }),
   );
   const first = $derived(found[0]?.object ?? null);
+  /** G1, G6 (M18): Graphics mode shows lengths in the image's units (px in Animation mode). */
+  const image = $derived(editor.still ? graphicOf(doc) : { units: 'px' as const, dpi: 96 });
+  const lengthDecimals = $derived(image.units === 'px' ? 2 : DECIMALS[image.units]);
+  const shownLength = (px: number) => fromPx(px, image.units, image.dpi);
+  const typedLength = (v: number) =>
+    image.units === 'px' ? v : Math.round(toPx(v, image.units, image.dpi) * 100) / 100;
   let pathError: string | null = $state(null);
   /** AN24: two or more closed shapes can be combined. */
   const canCombine = $derived(
@@ -92,13 +103,15 @@
     }
   });
 
-  function setWidth(w: number): string | null {
+  function setWidth(typed: number): string | null {
+    const w = typedLength(typed);
     if (!first) return null;
     if (animUi.lockRatio && first.width > 0)
       return set({ width: w, height: Math.round(((w * first.height) / first.width) * 100) / 100 });
     return set({ width: w });
   }
-  function setHeight(h: number): string | null {
+  function setHeight(typed: number): string | null {
+    const h = typedLength(typed);
     if (!first) return null;
     if (animUi.lockRatio && first.height > 0)
       return set({ width: Math.round(((h * first.width) / first.height) * 100) / 100, height: h });
@@ -171,18 +184,57 @@
       <p class="hint">
         Click an object on the stage, or draw one with a tool from the strip on the left.
       </p>
-      <div class="sec">
-        <h4>Stage</h4>
-        <table class="facts">
-          <tbody>
-            <tr><td>Size</td><td>{doc.stage.width} × {doc.stage.height} px</td></tr>
-            <tr><td>Aspect ratio</td><td>{aspectOf(doc.stage.width, doc.stage.height)}</td></tr>
-            <tr><td>Frame rate</td><td>{doc.stage.fps} fps</td></tr>
-            <tr><td>Colour</td><td>{doc.stage.background.toUpperCase()}</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <Why tool="objectProperties" />
+      {#if editor.still}
+        <!-- G1, G10 (M18): the image: its canvas, printed size, resolution and background. -->
+        <div class="sec">
+          <h4>Image <span class="syl">19.1 image resolutions</span></h4>
+          <table class="facts">
+            <tbody>
+              <tr><td>Canvas</td><td>{doc.stage.width} × {doc.stage.height} px</td></tr>
+              {#if image.units !== 'px'}
+                <tr>
+                  <td>Size</td><td
+                    >{Number(shownLength(doc.stage.width).toFixed(DECIMALS[image.units]))} × {Number(
+                      shownLength(doc.stage.height).toFixed(DECIMALS[image.units]),
+                    )}
+                    {image.units}</td
+                  >
+                </tr>
+              {/if}
+              <tr><td>Resolution</td><td>{image.dpi} dpi</td></tr>
+              <tr
+                ><td>Background</td><td
+                  >{doc.stage.background === 'none'
+                    ? 'Transparent'
+                    : doc.stage.background.toUpperCase()}</td
+                ></tr
+              >
+            </tbody>
+          </table>
+          <div class="cells two-up">
+            <button class="sm" onclick={() => (animUi.dialog = 'image')}>Image settings…</button>
+            <button
+              class="sm"
+              title="Make the canvas just big enough for everything drawn"
+              onclick={() => anim.cropCanvas('drawing')}>Fit to drawing</button
+            >
+          </div>
+        </div>
+        <Why tool="graphicImage" />
+      {:else}
+        <div class="sec">
+          <h4>Stage</h4>
+          <table class="facts">
+            <tbody>
+              <tr><td>Size</td><td>{doc.stage.width} × {doc.stage.height} px</td></tr>
+              <tr><td>Aspect ratio</td><td>{aspectOf(doc.stage.width, doc.stage.height)}</td></tr>
+              <tr><td>Frame rate</td><td>{doc.stage.fps} fps</td></tr>
+              <tr><td>Colour</td><td>{doc.stage.background.toUpperCase()}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <Why tool="objectProperties" />
+      {/if}
     {:else}
       <div class="sec">
         <h4>
@@ -204,21 +256,40 @@
         <div class="two">
           <NumField
             label="X"
-            value={first.x}
-            unit="px"
-            decimals={2}
-            commit={(v) => set({ x: v })}
+            value={shownLength(first.x)}
+            unit={image.units}
+            decimals={lengthDecimals}
+            commit={(v) => set({ x: typedLength(v) })}
           />
           <NumField
             label="Y"
-            value={first.y}
-            unit="px"
-            decimals={2}
-            commit={(v) => set({ y: v })}
+            value={shownLength(first.y)}
+            unit={image.units}
+            decimals={lengthDecimals}
+            commit={(v) => set({ y: typedLength(v) })}
           />
-          <NumField label="W" value={first.width} unit="px" decimals={2} commit={setWidth} />
-          <NumField label="H" value={first.height} unit="px" decimals={2} commit={setHeight} />
+          <NumField
+            label="W"
+            value={shownLength(first.width)}
+            unit={image.units}
+            decimals={lengthDecimals}
+            commit={setWidth}
+          />
+          <NumField
+            label="H"
+            value={shownLength(first.height)}
+            unit={image.units}
+            decimals={lengthDecimals}
+            commit={setHeight}
+          />
         </div>
+        {#if image.units !== 'px'}
+          <p class="hint units">
+            In {UNIT_NAMES[image.units]} at {image.dpi} dpi: {Math.round(first.width)} × {Math.round(
+              first.height,
+            )} px.
+          </p>
+        {/if}
         <label class="check">
           <input type="checkbox" bind:checked={animUi.lockRatio} /> Lock proportions
         </label>
@@ -603,7 +674,7 @@
         </div>
       {/if}
 
-      {#if !many}
+      {#if !many && !editor.still}
         {@const paths = first.paths ?? []}
         <div class="sec">
           <h4>Motion path <span class="syl">20.1 setting paths</span></h4>
@@ -723,7 +794,8 @@
         {/if}
       {/if}
 
-      <EffectsSection {app} />
+      {#if !editor.still}<EffectsSection {app} />{/if}
+      <AlignSection {app} count={found.length} />
       <div class="sec arrange">
         <h4>Arrange</h4>
         <div class="line">

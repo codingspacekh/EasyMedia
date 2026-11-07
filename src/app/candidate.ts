@@ -59,6 +59,8 @@ export function createCandidateApp(preferences: PreferencesStore) {
       exportAudio: (name, format) => dialogs.exportAudio(nameFor(name), format),
       saveAnimation: (name) => dialogs.saveAnimation(nameFor(name)),
       exportAnimation: (name, format) => dialogs.exportAnimation(nameFor(name), format),
+      saveGraphic: (name) => dialogs.saveGraphic(nameFor(name)),
+      exportGraphic: (name, format) => dialogs.exportGraphic(nameFor(name), format),
     }),
     openDialog: () => store.update((v) => ({ ...v, dialog: true })),
     closeDialog: () => store.update((v) => ({ ...v, dialog: false })),

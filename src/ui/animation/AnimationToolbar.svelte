@@ -3,6 +3,7 @@
   // Export. The drawing tools are in the tool strip beside the stage (ToolStrip.svelte), so
   // this row fits a 1100 px window without scrolling (N10).
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import { canRedo, canUndo } from '../../app/history.ts';
   import { aspectOf } from '../../core/animation/rules.ts';
   import { withWhy } from '../../core/effects/help.ts';
@@ -10,8 +11,9 @@
   import { animUi, ZOOM_STEPS } from './animation-ui.svelte.ts';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const stage = $derived($store.history.present.stage);
 
   const zoomLabel = $derived($store.zoom === 'fit' ? 'Fit' : `${Math.round($store.zoom * 100)} %`);

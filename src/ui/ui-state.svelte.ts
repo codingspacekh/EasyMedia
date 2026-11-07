@@ -1,13 +1,13 @@
 // Small UI-only state shared by panels (not part of the project, not undoable).
 export type InspectorTab = 'clip' | 'audio' | 'effects' | 'text';
-export type Mode = 'Video' | 'Audio' | 'Learn' | 'Animation';
+export type Mode = 'Video' | 'Audio' | 'Learn' | 'Animation' | 'Graphics';
 /** The editors chosen in the mode switch; Learn is opened from the menu bar (N15). */
 export type Editor = Exclude<Mode, 'Learn'>;
-export const EDITORS: readonly Editor[] = ['Video', 'Audio', 'Animation'];
+export const EDITORS: readonly Editor[] = ['Video', 'Audio', 'Animation', 'Graphics'];
 export type LearnTab = 'inspect' | 'formats' | 'animation' | 'task';
 
 export const ui = $state({
-  /** Video, Audio, Learn or Animation mode (the native menus act on the mode that is showing). */
+  /** Video, Audio, Learn, Animation or Graphics mode (the native menus act on the mode showing). */
   mode: 'Video' as Mode,
   /** Audio mode's export dialog is open (also opened by File ▸ Export Audio…). */
   audioExport: false,

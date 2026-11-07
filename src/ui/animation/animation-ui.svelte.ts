@@ -10,6 +10,9 @@ export type AnimDialog =
   /** AN5: Crop… and Make a colour see-through… for the selected picture. */
   | 'cropPicture'
   | 'seeThrough'
+  /** M18, Graphics mode: a new image, and the image settings (canvas, resolution, background). */
+  | 'newImage'
+  | 'image'
   | null;
 
 export const animUi = $state({
@@ -21,6 +24,8 @@ export const animUi = $state({
   dialog: null as AnimDialog,
   /** AN15: the format last chosen in the export dialog (MP4 at first). */
   exportFormat: 'mp4' as AnimationFormat,
+  /** G11 (M18): the format last chosen in Graphics mode's export dialog (PNG at first). */
+  graphicFormat: 'png' as 'png' | 'jpg' | 'svg',
   /** The Properties panel's W / H lock. */
   lockRatio: false,
   /** A text object was just made: the Properties panel focuses its words. */

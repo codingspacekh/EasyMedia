@@ -2,6 +2,7 @@
   // AN9: the bar for the keyframe picked on the timeline: its easing, hold, the property's
   // repeat, Reverse, and Delete.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import { EASINGS } from '../../core/animation/tween.ts';
   import type { Id, Keyframe, Track, TweenProperty } from '../../core/animation/types.ts';
   import Icon from '../Icon.svelte';
@@ -20,7 +21,8 @@
     track: Track;
     key: Keyframe;
   } = $props();
-  const anim = $derived(app.animation);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
 
   function setRepeat(event: Event): void {
     if (!picked) return;

@@ -5,6 +5,7 @@ import type {
   AnimationExportFormat,
   AppPaths,
   DecodedAudioFile,
+  GraphicExportFormat,
   EncodeFramesOptions,
   JobEvent,
   ProbeInfo,
@@ -96,6 +97,13 @@ export interface Channels {
     args: [suggestedName: string, format: AnimationExportFormat];
     result: string | null;
   };
+  /** G1, G11 (M18): Graphics mode's files and exports. */
+  'dialog:openGraphic': { args: []; result: string | null };
+  'dialog:saveGraphic': { args: [suggestedName: string]; result: string | null };
+  'dialog:exportGraphic': {
+    args: [suggestedName: string, format: GraphicExportFormat];
+    result: string | null;
+  };
   /** P7: the page's answer to app:closeRequested. */
   'app:closeAnswer': { args: [close: boolean]; result: null };
   'project:read': { args: [path: string]; result: string };
@@ -133,6 +141,8 @@ export interface Channels {
   'perf:playback': { args: [sample: PlaybackSample]; result: null };
   /** Help ▸ Report a Problem…: an unexpected error in the page, for the problem log. */
   'log:page': { args: [text: string]; result: null };
+  /** Help ▸ About OneEditor: opens the website (core/about.ts) in the browser. */
+  'app:website': { args: []; result: null };
 }
 
 export type Channel = keyof Channels;
@@ -172,6 +182,9 @@ export const CHANNELS: readonly Channel[] = [
   'dialog:openExport',
   'dialog:saveAnimation',
   'dialog:exportAnimation',
+  'dialog:openGraphic',
+  'dialog:saveGraphic',
+  'dialog:exportGraphic',
   'app:closeAnswer',
   'project:read',
   'project:write',
@@ -196,6 +209,7 @@ export const CHANNELS: readonly Channel[] = [
   'perf:enabled',
   'perf:playback',
   'log:page',
+  'app:website',
 ];
 
 /** Every reply is data: errors cross the boundary as WireError (see core/wire.ts). */
@@ -218,6 +232,9 @@ export type MenuAction =
   | 'newAnimation'
   | 'openAnimation'
   | 'exportAnimation'
+  | 'newImage'
+  | 'openImage'
+  | 'exportImage'
   | 'learnInspect'
   | 'learnFormats'
   | 'learnAnimation'
@@ -228,7 +245,8 @@ export type MenuAction =
   | 'toggleBottom'
   | 'resetLayout'
   | 'updates'
-  | 'candidate';
+  | 'candidate'
+  | 'about';
 
 /** Job events with the renderer's job key as jobId; errors carry the full WireError. */
 export type JobWireEvent =

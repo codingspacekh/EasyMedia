@@ -1,8 +1,9 @@
 # OneEditor — user guide
 
-OneEditor edits video, sound and animation for Cambridge International AS & A Level IT (9626),
-syllabus sections 11 and 20.1. It has three editors, chosen at the top left: **Video**, **Audio**
-and **Animation**. The theory is in the **Learn** menu at the top of the screen.
+OneEditor edits video, sound, animation and graphics for Cambridge International AS & A Level IT
+(9626), syllabus sections 11, 19 and 20.1. It has four editors, chosen at the top left: **Video**,
+**Audio**, **Animation** and **Graphics**. The theory is in the **Learn** menu at the top of the
+screen.
 
 > Rest the mouse on any button to see what it does. Most tools also have a **Why use this?** link:
 > rest the mouse on it (or click it to keep it open) to see the reason the tool is used, in the
@@ -14,10 +15,11 @@ and **Animation**. The theory is in the **Learn** menu at the top of the screen.
 2. [Video mode](#video-mode)
 3. [Audio mode](#audio-mode)
 4. [Animation mode](#animation-mode)
-5. [Learn mode](#learn-mode)
-6. [Keyboard shortcuts](#keyboard-shortcuts)
-7. [Coursebook tasks, step by step](#coursebook-tasks-step-by-step)
-8. [If something goes wrong](#if-something-goes-wrong)
+5. [Graphics mode](#graphics-mode)
+6. [Learn mode](#learn-mode)
+7. [Keyboard shortcuts](#keyboard-shortcuts)
+8. [Coursebook tasks, step by step](#coursebook-tasks-step-by-step)
+9. [If something goes wrong](#if-something-goes-wrong)
 
 ## Saving and moving your work
 
@@ -257,6 +259,45 @@ shapes, sharp at any size). With a transparent stage the PNG, GIF and web page a
 MP4 is drawn on white. The dialog shows the size, length and
 advantages of each. **Send to Video mode** puts the exported MP4 on the video timeline.
 
+## Graphics mode
+
+For logos, icons, diagrams and pictures (syllabus 19). It has the same tools, layers and
+Properties panel as Animation mode, with no timeline: an image is one picture. Its files are
+`.mveg` (**File ▸ New Image…**, **Open Image…**, **Save**).
+
+### 1. A new image of the right size
+
+**New** (or **File ▸ New Image…**): type the width and height in **pixels, centimetres,
+millimetres, inches or points**, and the **resolution** in dots per inch, or click a size the
+papers ask for: **A4** (21 × 29.7 cm at 300 dpi), **10 × 10 cm**, **Logo 200 × 200 px**… The box
+says how many pixels that makes. 300 dpi suits print; a screen needs only 96. Tick
+**Transparent** for a logo that must sit on any colour. The chip at the top (or **Image
+settings…** in Properties when nothing is selected) changes the size, resolution and background
+later; **Fit to drawing** makes the canvas just big enough for what is drawn.
+
+### 2. Draw, colour and arrange
+
+Draw with the tools on the left as in Animation mode (rectangle, ellipse, star, polygon, line,
+pen, brush, text, picture), and type exact numbers in **Properties**: positions and sizes are in
+the image's units (cm on a 10 cm logo), and so are the rulers. A colour can be typed as a hex code
+or, in the colour box, as **RGB**, **HSL** or **CMYK** numbers (a paper's "RGB 180,0,0"). **Align**
+lines up the selected objects' edges or centres (one object: with the canvas), and **Distribute**
+spaces three or more evenly. Group, flip, skew, turn about a point, combine shapes (Union, Cut
+out, Intersect), trace a picture and the Library work as in Animation mode.
+
+### 3. Export
+
+**Export** (or **File ▸ Export Image…**): **SVG** (vector shapes, sharp at any size: logos), **PNG**
+(every pixel kept, transparency kept) or **JPG** (small for photographs, loses a little detail, no
+transparency: see-through parts get a background colour). Choose **the whole image**, **the
+selected objects** (cropped to them) or **each selected object in a file of its own**, named after
+it (Casing, Grid…); and the size: as it is, **a width** or **a height in pixels** (the other side
+in proportion), a percentage, or **a printed width** at a resolution. The resolution is saved
+inside PNG and JPG files, and an SVG of a 10 cm image is 10 cm wide.
+
+**To Animation** puts the drawing (or the selected objects) into Animation mode as shapes to
+animate, on a layer of its own; copy and paste work between the two modes too.
+
 ## Learn mode
 
 Open it from the **Learn** menu in the menu bar. It fills the window; the tabs at the top switch
@@ -347,4 +388,6 @@ pictures a second ▸ Choose folder…; Export ▸ MP4.
   you were doing, and give it to your teacher. It lists the last things OneEditor did and the errors
   it met; nothing is sent anywhere.
 - **Help ▸ Welcome** shows the first page again. **Help ▸ Licences** lists the free software
-  OneEditor includes.
+  OneEditor includes. **Help ▸ About OneEditor** (on a Mac, in the **OneEditor** menu) shows the
+  version, the licence and the website for anyone who would like to contribute,
+  [codingspacekh.dev](https://codingspacekh.dev).

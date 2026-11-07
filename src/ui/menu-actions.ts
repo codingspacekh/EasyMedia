@@ -14,22 +14,41 @@ const inTextBox = () => {
 export function menuActions(app: App): Record<MenuAction, () => unknown> {
   const audio = () => ui.mode === 'Audio';
   const anim = () => ui.mode === 'Animation';
+  /** M18: Graphics mode is Animation mode's app on an image: the same actions on its own file. */
+  const graphics = () => ui.mode === 'Graphics';
   const a = app.animation;
+  const g = app.graphics;
+  /** The Animation-mode app the menus act on: Graphics mode's when it is showing. */
+  const drawing = () => (graphics() ? g : a);
+  const inDrawing = () => anim() || graphics();
   /** N16: the panel on that edge of the editor that is showing (none in Learn). */
   const toggleEdge = (edge: 'left' | 'right' | 'bottom') =>
     ui.mode === 'Learn' ? Promise.resolve() : app.layout.toggleEdge(ui.mode, edge);
   return {
-    new: () => (anim() ? a.newAnimation() : app.newProject()),
-    open: () => (anim() ? a.open() : app.open()),
-    save: () => (anim() ? a.save() : app.save()),
-    saveAs: () => (anim() ? a.saveAs() : app.saveAs()),
+    new: () =>
+      graphics() ? void (animUi.dialog = 'newImage') : anim() ? a.newAnimation() : app.newProject(),
+    open: () => (inDrawing() ? drawing().open() : app.open()),
+    save: () => (inDrawing() ? drawing().save() : app.save()),
+    saveAs: () => (inDrawing() ? drawing().saveAs() : app.saveAs()),
     import: () =>
-      anim()
-        ? a.addPicture({ x: 20, y: 20 })
+      inDrawing()
+        ? drawing().addPicture({ x: 20, y: 20 })
         : audio()
           ? app.audio.importAudio()
           : app.importMedia(),
-    export: () => (anim() ? void (animUi.dialog = 'export') : app.exportVideo()),
+    export: () => (inDrawing() ? void (animUi.dialog = 'export') : app.exportVideo()),
+    newImage: () => {
+      ui.mode = 'Graphics';
+      animUi.dialog = 'newImage';
+    },
+    openImage: () => {
+      ui.mode = 'Graphics';
+      return g.open();
+    },
+    exportImage: () => {
+      ui.mode = 'Graphics';
+      animUi.dialog = 'export';
+    },
     newAnimation: () => {
       ui.mode = 'Animation';
       return a.newAnimation();
@@ -46,9 +65,9 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
       ui.mode = 'Audio';
       ui.audioExport = true;
     },
-    package: () => (anim() ? a.packageAnimation() : app.packageProject()),
-    undo: () => (anim() ? a.undo() : audio() ? app.audio.undo() : app.undo()),
-    redo: () => (anim() ? a.redo() : audio() ? app.audio.redo() : app.redo()),
+    package: () => (inDrawing() ? drawing().packageAnimation() : app.packageProject()),
+    undo: () => (inDrawing() ? drawing().undo() : audio() ? app.audio.undo() : app.undo()),
+    redo: () => (inDrawing() ? drawing().redo() : audio() ? app.audio.redo() : app.redo()),
     learnInspect: () => openLearn('inspect'),
     learnFormats: () => openLearn('formats'),
     learnAnimation: () => openLearn('animation'),
@@ -62,13 +81,14 @@ export function menuActions(app: App): Record<MenuAction, () => unknown> {
     resetLayout: () => app.layout.reset(),
     welcome: app.showWelcome,
     licences: app.showLicences,
+    about: app.showAbout,
     updates: () => app.updates.openDialog(),
     candidate: () => app.candidate.openDialog(),
     selectAll: () => {
       const box = inTextBox();
       if (box) box.select();
       else if (audio()) app.audio.selectAll();
-      else if (anim()) a.selectAll();
+      else if (inDrawing()) drawing().selectAll();
     },
   };
 }

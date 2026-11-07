@@ -2,12 +2,14 @@
   // Trace bitmap (AN5): the selected picture becomes vector shapes. The colours, detail and
   // smoothing are tried on a small copy first, drawn as a preview with the number of shapes.
   import Dialog from '../Dialog.svelte';
+  import { editorOf } from './editor.ts';
   import type { App } from '../../app/app.ts';
   import type { TraceOptions, TracedRegion } from '../../core/animation/trace.ts';
   import Why from '../Why.svelte';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
-  const anim = $derived(app.animation);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
 
   let colours = $state(8);
   let detail = $state(60);

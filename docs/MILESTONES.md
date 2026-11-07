@@ -185,6 +185,8 @@ Rules:
 3. If any job fails, fix it on `dev` (regression test first, R4); the pull request picks up the new run.
 4. While the repository is private on the free plan, GitHub cannot enforce rule 2, so it is followed by process. When the repository becomes public, turn on branch protection for `main` with the three CI jobs as required checks.
 5. Phase 2 (2026-10-27): the animation work is on the **`animation`** branch while `dev` waits to be released as v1.0.0, so a release never carries half a mode. CI is run on it by hand (`gh workflow run ci.yml --ref animation`); it merged into `dev` once `v1.0.0` was tagged (2026-10-27, released as `v1.1.0`), and from then on the work continues on `dev`.
+6. Phase 3 (2026-11-07): the graphics work is on the **`m18`** branch, then a branch per milestone, merged into `dev` when its gate closes.
+7. **Where the checks run** (the maintainer, 2026-11-07): every step is checked on the maintainer's Mac with **`npm run check`** — formatting, lint, types, every Vitest project (unit, UI, integration with the real FFmpeg, and acceptance) and the end-to-end tests at 1100 × 700 (E2E_SIZE), the app's window behind the maintainer's own (it never takes the focus: `ONEEDITOR_BACKGROUND`, set by `tests/e2e/app.ts`). CI on the three platforms (and the Cross-platform job) runs when a milestone closes, before its release, and once in the middle of one only for work that behaves differently on Windows: FFmpeg filters, file paths, fonts and text, file encoders and pixel output. Releases install themselves on the pilot's laptops, so none goes out without CI green.
 
 ## 5. Milestone overview
 
@@ -793,6 +795,54 @@ v1.4.0 is tagged. Gate record: [`acceptance/M17a.md`](acceptance/M17a.md).
 - All phase 2 acceptance tasks pass on both OSes; no open blocker or major bugs; performance budget met.
 - Tag `v2.0.0`, publish GitHub Release.
 
+## Phase 3 — Graphics creation (syllabus 19)
+
+Decided 2026-11-07 (README §7a; analysis, decisions D1–D10 and the estimate in [`GRAPHICS-DESIGN.md`](GRAPHICS-DESIGN.md)): a fifth mode, **Graphics**, built as the others — core first, pure and tested; then the app layer; then the UI. One image holds vector and pixel layers; its vector layers hold Animation mode's own objects, so Graphics mode is Animation mode's app with one frame and its own file (`.mveg`), and a graphic goes on to be animated. The tests are the 23 past-paper graphics tasks (9626/04, 2017–2026, with their source files), the workbook's Tasks 1–9 (Chapter 6, Pixelmator Pro) and the coursebook's practical activities 18.01–18.15 and exam-style questions (Chapter 18, Photoshop). The maintainer's choices: one mode (D1), clone and heal for retouching (D8), a branch per milestone, each released to the pilot through the updater.
+
+```
+v1.5 pilot ─► M18 Graphics core (v1.5.1) ─► M19 Vector toolkit ─► M20 Text
+                                                                    │
+            ┌───────────────────────────────────────────────────────┘
+            ▼
+M21 Bitmap core ─► M22 Retouch & adjust ─► M23 Formats, theory & hardening
+```
+
+### M18 — Graphics core (v1.5.1)
+
+**Goal:** a Graphics tab where a vector logo is drawn as a paper asks — in px or cm at a resolution, lined up, cropped — and exported as SVG, PNG or JPG at the size asked, whole or in parts, or sent to Animation mode.
+
+**Build order**
+1. **Core** (`core/graphics/`): units (px, cm, mm, in, pt at a dpi), the image (`createGraphic`, presets, `setImage`, `cropCanvas`, `drawingBounds`), align and distribute (`alignMoves`, `distributeMoves`), export rules (pixel sizes by width, height, % or printed width; SVG width and height in its units; the chosen objects alone or each in its own image); the resolution written into PNG (pHYs) and JPEG (JFIF) files (`core/image/dpi.ts`); RGB / HSL / CMYK conversions (`core/colour.ts`).
+2. **App**: Animation mode's app made for an image by an `EditorKind` (`app/animation/kind.ts`: its file type, dialogs, recovery file, new document); `app/animation/graphic.ts` (new image, settings, crop, align, distribute, export, what is sent); `App.graphics`, `sendGraphicToAnimation`; one clipboard for both modes; the dialogs `openGraphic`, `saveGraphic`, `exportGraphic`; `StageRenderer.renderJpeg`.
+3. **UI**: the Graphics tab (`ui/graphics/`), Animation mode's panels on its app (`ui/animation/editor.ts`, `EditorScope`) with the timeline-only parts left out; New image and Image settings; Export image; the Image section, positions and rulers in the image's units; Align in Properties (both modes); the colour picker's RGB / HSL / CMYK numbers; File ▸ New Image…, Open Image…, Export Image…; the Welcome.
+4. `npm run check`; the e2e tests run behind the maintainer's windows.
+5. Version 1.5.1 (the pilot's first update), `whats-new.json`, the guides.
+
+**Exit gate**
+- Each step's tests green; `npm run check` green; CI green on the three platforms.
+- Done in the app (gate record `docs/acceptance/M18.md`): 9626/04 M/19 the 7-segment template and digits; J/23 BasicWheel and NewWheel; J/26 Proton, Neutron, Electron, Orbit and CarbonStructure; J/17 the HUNGRY logo (200 × 200 px, for a website); M/22 a 10 cm × 10 cm SVG and a 200 × 200 px PNG of one image.
+- The teacher's check of the Graphics tab on Windows and a Mac (with the 1.5.1 update arriving: M17a step 11).
+
+### M19 — Vector toolkit
+
+GV1–GV8 (arcs, spirals, node types and alignment, convert to curves, step and repeat, envelope and perspective, trace in black and white, SVG opened as shapes, wireframe, template layers), G4 Exclude / Combine / Join, G12 pattern fills, G14 shadow, glow, bevel and blur, PDF export. Gate: J/20 meter, J/21 shield and bolt, O/N/21 cloud and bolt, J/24 cake, O/N/25 apple, M/23 rocket, M/26 chip with ChipLeg.svg, J/19 monitor, O/N/22 plane.
+
+### M20 — Text
+
+GT1–GT5. Gate: M/17 Woodlands, O/N/17 RockICT, J/18 TTS10, M/22 Heron, workbook Task 2, coursebook exam-style 1 and 2.
+
+### M21 — Bitmap core
+
+GB1, GB2, GB4, GB6; pixel layers in G2 (blend modes, merge, flatten, masks, clipping); paint bucket and gradient; a worker and tiled undo (GN1–GN3). Gate: O/N/19 pearl, M/21 world map, O/N/23 three layers, M/25 jigsaw cut of Tier.png, J/22 Balloon1 at 3000 × 2250, workbook Tasks 3.4–3.5 and 4.
+
+### M22 — Retouch and adjust
+
+GB3, GB5 (clone, heal, red-eye, brushes, filters, distort), G14 on pixel layers. Gate: O/N/19 harbour, J/22 Scene2–4, O/N/24 night scene, O/N/21 lens, workbook Tasks 3, 5–9.
+
+### M23 — Formats, theory and hardening
+
+G9, G10, G11 (BMP, GIF, TIFF, colour depth), GC1–GC2, GL1–GL2, GN1–GN4 on the pilot's laptops; all 23 papers and the 9 workbook tasks again on Windows 11 and macOS; release.
+
 ## 7. Coursebook task → milestone map
 
 | Milestone | `sound_video_editing.pdf` (Book A) | `video_audio_editing.pdf` (Book B) |
@@ -845,3 +895,4 @@ Automated acceptance tests live in `tests/acceptance/`, one file per task, e.g. 
 | M16b Workspace, library & effects | ✅ Done ([gate record](acceptance/M16b.md)): the Learn menu, resizable and hideable panels, a readable "Why use this?", the library (cartoons, icons, backgrounds), one-click effects, and the animation app split by area; the teacher's check passed | 2026-11-04 | `v1.4.0` (with M16) |
 | M17a Exam papers, OneEditor & the pilot | 🔶 On `m17` ([gate record](acceptance/M17a.md)): the name OneEditor, the eight exam-paper features, updates in the app and the update-carrying builds done; version 1.5.0; the teacher's check of the papers, the pilot installers and a test update on Windows and a Mac to do | | `v1.5.0` |
 | M17 Hardening & v2.0 | 🔶 Started on the `m17` branch ([gate record](acceptance/M17.md)): step 0, the refactor carried over from M16b, done — `app/audio/`, the animation Stage and Timeline split, the modal dialogs on `Dialog`; step 2, performance, checked automatically (the stage no longer remakes its canvas each frame, the stage and the export draw in ordinary memory, the export draws four frames at once), the teacher's laptop run to do | | |
+| M18 Graphics core | 🔶 On `m18` ([gate record](acceptance/M18.md)): the Graphics tab, images in px / cm / mm / in at a resolution, align and distribute, crop and fit the canvas, SVG / PNG / JPG export at a size and of parts with the resolution inside, Send to Animation; the gate's paper tasks, CI and the teacher's check to do | | `v1.5.1` |

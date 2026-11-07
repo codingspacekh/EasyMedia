@@ -1,4 +1,12 @@
 {
+  "1.5.1": [
+    "Graphics mode (syllabus 19): draw logos, icons and pictures with the shapes, pen, text, gradients and layers of Animation mode, on an image sized in pixels, centimetres, millimetres or inches at a resolution (A4, 10 × 10 cm, 200 × 200 px)",
+    "Line objects up and space them evenly (Align and Distribute, in Animation mode too); crop the canvas to the drawing or the selection; rulers and positions in the image's units",
+    "Export an image as SVG, PNG or JPG: at another width, height or printed size, with its resolution inside the file; the selected objects alone, or each in a file of its own named after it",
+    "Send to Animation: the drawing goes on as shapes to animate; copy and paste between the two modes",
+    "The colour picker shows a colour's RGB, HSL and CMYK numbers, and takes them typed (RGB 180,0,0)",
+    "Help ▸ About OneEditor (on a Mac, in the OneEditor menu): the version, the licence, and the website for contributors, codingspacekh.dev"
+  ],
   "1.5.0": [
     "The app is now called OneEditor, and it updates itself: new versions arrive without reinstalling",
     "Video: a logo or a second video over the video (picture-in-picture); turn or flip a clip filmed sideways; insert a clip at the playhead; make the project the size of a clip; the music quieter between two times",

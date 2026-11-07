@@ -3,6 +3,7 @@
   // volume, its fades, its trim (where in the file it starts and how long it plays), Mute and
   // Delete. Each change is one undo step; a value that cannot be used is explained under the bar.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import type { SoundChange } from '../../app/animation/sounds.ts';
   import { heardSeconds, MAX_VOLUME } from '../../core/animation/sound.ts';
   import { timeLabel } from '../../core/animation/time.ts';
@@ -20,8 +21,9 @@
     sound: AnimSound;
     error: string | null;
   } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const fps = $derived($store.history.present.stage.fps);
 
   const round = (n: number) => Math.round(n * 100) / 100;

@@ -16,6 +16,7 @@ import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { cpus, release, totalmem, type } from 'node:os';
 import { join } from 'node:path';
+import { ABOUT } from '../core/about.ts';
 import { fromMediaUrl } from '../core/media-url.ts';
 import type { Events } from '../preload/api.ts';
 import { detectHardwareEncoder, encoderTester, videoEncoder } from './ffmpeg/hardware.ts';
@@ -39,6 +40,20 @@ const APP_ROOT = join(__dirname, '..');
 const RESOURCES = app.isPackaged ? process.resourcesPath : join(APP_ROOT, 'resources');
 // The installed app has its icon built in; `npm run app` would otherwise show Electron's.
 const DEV_ICON = app.isPackaged ? undefined : join(APP_ROOT, 'build-resources', 'icon.png');
+
+/**
+ * Tests can run behind the maintainer's other windows (ONEEDITOR_BACKGROUND=1, set by the e2e
+ * helper): the window is shown without taking the focus, on macOS the app has no Dock icon and is
+ * never brought to the front, and Chromium keeps drawing and running timers while the window is
+ * covered, so the tests behave as in front.
+ */
+const BACKGROUND = process.env.ONEEDITOR_BACKGROUND === '1';
+if (BACKGROUND) {
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  app.commandLine.appendSwitch('disable-background-timer-throttling');
+  if (process.platform === 'darwin') app.setActivationPolicy('accessory');
+}
 
 // Tests run with their own empty user-data folder (no real proxies or recovery file).
 if (process.env.ONEEDITOR_USER_DATA) app.setPath('userData', process.env.ONEEDITOR_USER_DATA);
@@ -122,12 +137,14 @@ function createWindow(): BrowserWindow {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      // Tests in the background: a covered window keeps its timers and frames.
+      ...(BACKGROUND ? { backgroundThrottling: false } : {}),
     },
   });
   // The app never opens other windows or leaves its own page.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => (BACKGROUND ? win.showInactive() : win.show()));
   win.webContents.on('render-process-gone', (_e, d) =>
     problems?.record('error', 'main', `The page stopped: ${d.reason} (exit code ${d.exitCode}).`),
   );
@@ -259,6 +276,7 @@ void app.whenReady().then(async () => {
       show: showTestPage,
     },
     updates,
+    website: { open: () => shell.openExternal(ABOUT.website) },
     microphoneAccess: microphoneAccess(
       process.platform,
       systemPreferences,

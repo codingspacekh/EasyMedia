@@ -112,6 +112,17 @@ export const WHY = {
     'An effect adds the keyframes of a common motion in one click: a fade or a fly-in brings an object on, a fade or a fly-out takes it away, and a pulse, shake or spin draws the eye to it. The computer works out the frames in between (tweening), and the keyframes can still be changed on the timeline.',
   animExport:
     'Export turns the animation into a file for where it will be seen: an MP4 video for a computer, phone or video site (an AVI for older Windows software, a MOV for Apple’s); an animated GIF or an HTML page for a web page; a PNG sequence or a single PNG for further editing. A part (a range of frames) or a smaller size can be exported when a task asks for one.',
+  // ---- Graphics mode (M18, syllabus 19) ----
+  graphicImage:
+    'The canvas is the picture you draw on: its size in pixels decides how much detail it holds, and its resolution (dots per inch) how big it prints. 300 dpi suits print, so an A4 page is 2480 × 3508 pixels; a screen needs only its own pixels, so a web logo can be 200 × 200 px at 96 dpi. Too low a resolution looks blocky (pixelated) when printed; too high makes big files that are slow to load. A transparent background lets the logo sit on any colour.',
+  graphicLayers:
+    'Layers hold the parts of an image on top of each other, like pieces of paper, so each part can be moved or changed without affecting the others. The top layer is in front. Locking a layer stops accidental changes; hiding it keeps it out of the way. A mask layer shows the layer beneath only through its shapes (a photo inside a circle).',
+  graphicAlign:
+    'Align puts the edges or centres of objects in line, and distribute makes the space between three or more of them the same. A drawing then looks neat without measuring by eye: legs evenly spaced, buttons in a row. Relative to the canvas, one object is centred on it or put against an edge. Moving them by hand is slower and less exact.',
+  graphicExport:
+    'Export makes a file for where the image will be used. SVG keeps the shapes as vectors, so it can be any size without blurring: logos, icons, drawings. PNG keeps every pixel (lossless) and transparency: sharp edges, text, logos on a web page. JPG makes photographs small by losing detail you hardly see (lossy) and has no transparency. A part can be exported on its own, and the size can be a width or height in pixels, or a printed size at a resolution.',
+  graphicSend:
+    'Most graphics are made to be animated next: Send to Animation puts the drawing into Animation mode as editable shapes on a layer of its own, where it was drawn, so each part can still be moved, recoloured and tweened. Copy and Paste work between the two modes too.',
   animSound:
     'Sound is a secondary component of an animation: an alarm ringing, a door slamming or music under the action tells the audience what is happening and when. Each sound starts at a frame, so it is heard in time with the movement; a fade in or out stops it starting or ending suddenly. An MP4, AVI, MOV or web page carries the sounds; a GIF and pictures cannot.',
 } as const;
@@ -193,6 +204,15 @@ export const TOOLS: Tool[] = [
   tool('animEffects', 'Effects', '20.1 frames, key frames and tweening'),
   tool('animExport', 'Export animation', '20.1 exporting an animation'),
   tool('animSound', 'Sound', '20.1 components of an animation'),
+  tool(
+    'graphicImage',
+    'Image size and resolution',
+    '19.1 the need for different image resolutions',
+  ),
+  tool('graphicLayers', 'Layers', '19.1 graphics tools: layers'),
+  tool('graphicAlign', 'Align and distribute', '19.1 alignment and distribution tools'),
+  tool('graphicExport', 'Export image', '19.1 exporting an image in different file formats'),
+  tool('graphicSend', 'Send to Animation', '19.2 creating a vector graphic for its application'),
 ];
 
 export function toolById(id: ToolId): Tool {

@@ -1,6 +1,11 @@
 // Real file dialogs and project-file I/O for the main process.
 import { dialog, type BrowserWindow } from 'electron';
-import type { AnimationExportFormat, Dialogs, ProjectFiles } from '../core/ports.ts';
+import type {
+  AnimationExportFormat,
+  Dialogs,
+  GraphicExportFormat,
+  ProjectFiles,
+} from '../core/ports.ts';
 import { CONTAINERS } from '../core/render/formats.ts';
 import { AUDIO_FORMATS } from '../core/render/audio-formats.ts';
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -33,6 +38,13 @@ const MEDIA_EXTENSIONS = [
 ];
 
 /** AN15: the file types of the animation exports. */
+/** G11 (M18): what each image export is saved as. */
+const GRAPHIC_EXPORTS: Record<GraphicExportFormat, { label: string; extension: string }> = {
+  png: { label: 'PNG picture', extension: 'png' },
+  jpg: { label: 'JPG picture', extension: 'jpg' },
+  svg: { label: 'SVG vector picture', extension: 'svg' },
+};
+
 const ANIMATION_EXPORTS: Record<AnimationExportFormat, { label: string; extension: string }> = {
   png: { label: 'PNG picture', extension: 'png' },
   mp4: { label: 'MP4 video', extension: 'mp4' },
@@ -186,6 +198,31 @@ export function electronDialogs(window: () => BrowserWindow | undefined): Dialog
         title: 'Export animation',
         defaultPath: `${name}.${extension}`,
         filters: [{ name: label, extensions: [extension] }],
+      });
+      return r.canceled ? null : (r.filePath ?? null);
+    },
+    async openGraphic() {
+      const r = await dialog.showOpenDialog(win(), {
+        title: 'Open image',
+        properties: ['openFile'],
+        filters: [{ name: 'OneEditor image', extensions: ['mveg'] }],
+      });
+      return r.canceled ? null : (r.filePaths[0] ?? null);
+    },
+    async saveGraphic(name) {
+      const r = await dialog.showSaveDialog(win(), {
+        title: 'Save image',
+        defaultPath: `${name}.mveg`,
+        filters: [{ name: 'OneEditor image', extensions: ['mveg'] }],
+      });
+      return r.canceled ? null : (r.filePath ?? null);
+    },
+    async exportGraphic(name, format) {
+      const { label, extension } = GRAPHIC_EXPORTS[format];
+      const r = await dialog.showSaveDialog(win(), {
+        title: 'Export image',
+        defaultPath: `${name}.${extension}`,
+        filters: [{ name: label, extensions: extension === 'jpg' ? ['jpg', 'jpeg'] : [extension] }],
       });
       return r.canceled ? null : (r.filePath ?? null);
     },

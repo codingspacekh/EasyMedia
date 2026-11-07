@@ -5,6 +5,7 @@
   // estimated size before exporting; then the progress, with Cancel. AN8: a GIF or web page loops
   // or plays once. AN28: whether the animation's sounds go into the file.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import {
     ANIMATION_FORMATS,
     carriesSound,
@@ -19,8 +20,9 @@
   import { animUi } from './animation-ui.svelte.ts';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const exporting = $derived($store.exporting);
   const stage = $derived($store.history.present.stage);
   /** AN8: saved with the animation; a GIF and the web page stop on the last frame. */

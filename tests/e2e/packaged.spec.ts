@@ -16,7 +16,7 @@ import type { Picture } from '../../src/core/animation/types.ts';
 import { newId } from '../../src/core/model/factory.ts';
 import { createNodeMediaEngine } from '../../src/main/media/engine.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { answerDialogs, menu, root } from './app.ts';
+import { answerDialogs, BACKGROUND_ENV, menu, root } from './app.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -56,7 +56,7 @@ test('the packaged app opens an animation with a picture and text, and exports a
   writeFileSync(join(userData, 'preferences.json'), '{"welcomeSeen":true}\n');
   const app = await electron.launch({
     executablePath: join(root, packagedProgram(process.platform, process.arch)),
-    env: { ...process.env, ONEEDITOR_USER_DATA: userData },
+    env: { ...process.env, ...BACKGROUND_ENV, ONEEDITOR_USER_DATA: userData },
   });
   const page = await app.firstWindow();
   await page

@@ -38,6 +38,8 @@ import type {
   TweenProperty,
 } from '../core/animation/types.ts';
 import type { Command } from './history.ts';
+import * as graphic from '../core/graphics/document.ts';
+import type { Bounds } from '../core/animation/geometry.ts';
 
 export type AnimCommand = Command<AnimationDoc>;
 
@@ -454,6 +456,60 @@ export function pasteObjects(
     const placed = clipboard.objects.map((o) => (layer ? frames.placeIn(layer, o, frame) : o));
     const { doc: next, ids } = layers.pasteObjects(doc, layerId, placed, clipboard.pictures);
     made(ids);
+    return next;
+  });
+}
+
+/**
+ * G5 (M18): align or distribute: each object moved by its own amount, at the playhead (keyed
+ * there in an animation, as any move is), in one undo step.
+ */
+export function moveEach(
+  moves: readonly { id: Id; dx: number; dy: number }[],
+  label: string,
+  frame = 0,
+): AnimCommand {
+  return command(label, (doc) =>
+    moves.reduce(
+      (d, m) =>
+        changeAt([m.id], frame, label, (o) => ({ ...o, x: o.x + m.dx, y: o.y + m.dy })).apply(d),
+      doc,
+    ),
+  );
+}
+
+/** G1, G10 (M18): an image's canvas size, background, resolution or units. */
+export function setImage(change: Parameters<typeof graphic.setImage>[1]): AnimCommand {
+  return command('Image settings', (doc) => graphic.setImage(doc, change));
+}
+
+/** G8 (M18): the canvas cropped to a box (the selection, or the whole drawing). */
+export function cropCanvas(box: Bounds, label: string): AnimCommand {
+  return command(label, (doc) => graphic.cropCanvas(doc, box));
+}
+
+/**
+ * GL3 (M18): objects sent from Graphics mode, as editable objects where they were drawn, on a new
+ * layer of their own at the front (its name from the image's), with the pictures they show.
+ */
+export function receiveObjects(
+  layerName: string,
+  clipboard: { objects: readonly AnimObject[]; pictures: readonly Picture[] },
+  made: (layerId: Id, ids: Id[]) => void,
+): AnimCommand {
+  return command(`Add ${layerName}`, (doc) => {
+    const taken = new Set(doc.layers.map((l) => l.name));
+    let named = layerName;
+    for (let n = 2; taken.has(named); n++) named = `${layerName} ${n}`;
+    const { doc: withLayer, layer } = layers.addLayer(doc, named);
+    const { doc: next, ids } = layers.pasteObjects(
+      withLayer,
+      layer.id,
+      clipboard.objects,
+      clipboard.pictures,
+      0,
+    );
+    made(layer.id, ids);
     return next;
   });
 }

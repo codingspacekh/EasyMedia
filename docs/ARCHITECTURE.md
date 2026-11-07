@@ -557,6 +557,46 @@ panels (N16) ─► layout.ts (pure) + PanelSlot (splitter, hide / show) ─► 
 Why (N17) ─► help.ts explain(text) ─► answer + reasons, the same in the box and in tooltips
 ```
 
+### 7.10 Graphics mode (M18–M23, phase 3)
+
+Syllabus 19 (README §7a; analysis and decisions D1–D10 in `docs/GRAPHICS-DESIGN.md`). A
+Graphics mode image is an `AnimationDoc` with one frame and its `graphic` settings (`dpi`,
+`units`): its vector layers hold Animation mode's own objects, drawn by the same `drawStage` and
+written by the same SVG writer. So the Graphics mode **app is Animation mode's app** made with
+another `EditorKind` (`app/animation/kind.ts`: the `.mveg` file, its dialogs, recovery file and
+new document), and its **UI is Animation mode's panels** on that app:
+
+```
+App.graphics = createAnimationApp({ …, kind: GRAPHIC_KIND, fileName: candidate.nameFor })
+                 ├─ the same modules: files, drawing, pictures, document, exporting …
+                 └─ graphicActions (app/animation/graphic.ts): newImage, setImage, cropCanvas,
+                    align, distribute, exportImage, toSend / receive (GL3)
+
+ui/graphics/GraphicsMode.svelte
+  └─ EditorScope (setContext: { anim: app.graphics, still: true, panels: graphics.* })
+       ├─ LayersPanel · ToolStrip · Stage · PropertiesPanel   (ui/animation/, via editorOf())
+       └─ ImageSettings · GraphicsExportDialog · Trace / Library / Picture dialogs
+```
+
+- `editorOf(() => app)` (`ui/animation/editor.ts`) gives a panel the app it works on: Graphics
+  mode's inside `EditorScope`, else Animation mode's. With `still` set the timeline-only parts
+  are left out: the Button tool, Import frames, motion paths, morphs, one-click effects.
+- **Pure parts** (`core/graphics/`): `units.ts` (px ↔ cm, mm, in, pt at a dpi), `document.ts`
+  (the image, presets, canvas size, crop to a box), `align.ts` (the moves of align and
+  distribute: an edit like any other, keyed at the playhead in Animation mode), `export.ts`
+  (pixel sizes, an SVG's width in its units, the chosen objects as an image of their own).
+  `core/image/dpi.ts` writes the resolution into the PNG (pHYs) and JPEG (JFIF) files the canvas
+  makes; `core/colour.ts` converts RGB, HSL and CMYK.
+- **Exports**: PNG through `StageRenderer.renderPng`, JPG through `renderJpeg` (drawn on a
+  background colour), SVG through `svgDocument` (`app/animation/exporting.ts`, shared with
+  Animation mode's SVG of a frame), each file then given its dpi. BMP, GIF, TIFF and PDF come in
+  M23 (our own small encoders; PDF by `printToPDF` of the SVG).
+- **One clipboard** for both modes (module level in `app/animation/drawing.ts`), and **Send to
+  Animation** puts the objects on a new layer of the animation where they were drawn
+  (`receiveObjects`, `pasteObjects` with offset 0).
+- From M21: pixel layers (tiles of RGBA in `core/graphics/pixels/`, run in a Web Worker, undo
+  keeping only the changed tiles) beside the vector layers in the same layer list.
+
 ## 8. Ports and IPC contract
 
 ```ts
@@ -670,5 +710,7 @@ Each kind of extension has one place, so later stages add rather than edit:
 | A dialog | content inside `<Dialog label syllabus onclose>` (`ui/Dialog.svelte`), its buttons in `{#snippet buttons()}`; `busy` while it saves or exports (Escape then does nothing) | — (every modal dialog uses it, except the Glossary, whose search stays at the top while the words scroll; Snapshot is a floating panel) |
 | A form control | the plain element (`input`, `select`, `textarea`…): `ui/forms.css` gives it the app's look; the component sets only its layout | — |
 | An Animation mode action | a method in the area's module in `app/animation/` (a command in `animation-commands.ts` if it edits) | — |
+| A Graphics mode action | a method in `app/animation/graphic.ts` (or the area's module: Graphics mode is Animation mode's app); a pure rule in `core/graphics/` | a panel or dialog in `ui/graphics/`; a shared panel checks `editorOf(() => app).still` |
+| An image export format | its file rules in `core/graphics/export.ts` (`FORMAT_INFO`, `GraphicFormat`) and, for a new file type, an encoder in `core/image/` | the dialog `exportGraphic` (`main/services.ts` `GRAPHIC_EXPORTS`) |
 | An Audio mode action | a method in the area's module in `app/audio/` (an edit runs through `ctx.run` or `ctx.tryEdit`, so it is one undo step) | — |
 | A file dialog or main-process service | the port in `core/ports.ts` | `preload/api.ts` (channel), `main/ipc.ts`, `main/services.ts`, `adapters/electron/services.ts`, the test fakes |

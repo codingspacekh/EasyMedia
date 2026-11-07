@@ -4,7 +4,7 @@ import { _electron as electron } from '@playwright/test';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { root } from './app.ts';
+import { BACKGROUND_ENV, root } from './app.ts';
 
 test('ONEEDITOR_PERF_REPORT writes start-up time and peak RAM when the app closes', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'mve-perf-'));
@@ -12,7 +12,12 @@ test('ONEEDITOR_PERF_REPORT writes start-up time and peak RAM when the app close
   const app = await electron.launch({
     args: [root],
     cwd: root,
-    env: { ...process.env, ONEEDITOR_USER_DATA: dir, ONEEDITOR_PERF_REPORT: report },
+    env: {
+      ...process.env,
+      ...BACKGROUND_ENV,
+      ONEEDITOR_USER_DATA: dir,
+      ONEEDITOR_PERF_REPORT: report,
+    },
   });
   const window = await app.firstWindow();
   await window.waitForLoadState('domcontentloaded');
@@ -35,7 +40,12 @@ test('N1 the report has the frames the animation stage really showed while it pl
   const app = await electron.launch({
     args: [root],
     cwd: root,
-    env: { ...process.env, ONEEDITOR_USER_DATA: dir, ONEEDITOR_PERF_REPORT: report },
+    env: {
+      ...process.env,
+      ...BACKGROUND_ENV,
+      ONEEDITOR_USER_DATA: dir,
+      ONEEDITOR_PERF_REPORT: report,
+    },
   });
   const window = await app.firstWindow();
   await window

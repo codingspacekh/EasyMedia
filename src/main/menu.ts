@@ -24,7 +24,25 @@ export function menuTemplate(
     click: () => send(action),
   });
   return [
-    ...(mac ? [{ role: 'appMenu' } as MenuItemConstructorOptions] : []),
+    // macOS: the app menu as Mac apps have it, with OneEditor's own About box (the page's).
+    ...(mac
+      ? [
+          {
+            label: 'OneEditor',
+            submenu: [
+              item('About OneEditor', '', 'about'),
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          } as MenuItemConstructorOptions,
+        ]
+      : []),
     {
       label: 'File',
       submenu: [
@@ -35,11 +53,14 @@ export function menuTemplate(
         { type: 'separator' },
         item('New Animation', '', 'newAnimation'),
         item('Open Animation…', '', 'openAnimation'),
+        item('New Image…', '', 'newImage'),
+        item('Open Image…', '', 'openImage'),
         { type: 'separator' },
         item('Import Media…', 'CmdOrCtrl+I', 'import'),
         item('Export Video…', 'CmdOrCtrl+E', 'export'),
         item('Export Audio…', 'CmdOrCtrl+Shift+E', 'exportAudio'),
         item('Export Animation…', '', 'exportAnimation'),
+        item('Export Image…', '', 'exportImage'),
         item('Package Project…', 'CmdOrCtrl+Shift+P', 'package'),
         { type: 'separator' },
         item('Candidate Details…', '', 'candidate'),
@@ -101,6 +122,7 @@ export function menuTemplate(
         item('Check for Updates…', '', 'updates'),
         { label: 'Report a Problem…', click: () => reportProblem() },
         item('Licences', '', 'licences'),
+        ...(mac ? [] : [{ type: 'separator' } as const, item('About OneEditor', '', 'about')]),
       ],
     },
   ];

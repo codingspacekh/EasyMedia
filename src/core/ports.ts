@@ -241,7 +241,16 @@ export interface Dialogs {
   saveAnimation(suggestedName: string): Promise<string | null>;
   /** AN15: where to save an exported animation; the file type follows the format. */
   exportAnimation(suggestedName: string, format: AnimationExportFormat): Promise<string | null>;
+  /** G1 (M18): a Graphics mode image (.mveg) to open. */
+  openGraphic(): Promise<string | null>;
+  /** G1 (M18): where to save an image. */
+  saveGraphic(suggestedName: string): Promise<string | null>;
+  /** G11 (M18): where to save an exported image; the file type follows the format. */
+  exportGraphic(suggestedName: string, format: GraphicExportFormat): Promise<string | null>;
 }
+
+/** G11 (M18): the formats an image is exported in (BMP, GIF, TIFF and PDF come in M23). */
+export type GraphicExportFormat = 'png' | 'jpg' | 'svg';
 
 /** AN15: the animation export formats (M13: a picture of the stage; M14: mp4, gif, a PNG sequence; M16 html). */
 export type AnimationExportFormat =
@@ -302,6 +311,14 @@ export interface StageRenderer {
    * puts them.
    */
   textWidths(fonts: string[]): Promise<(font: string, text: string) => number>;
+  /**
+   * G11 (M18): the stage as a JPEG: see-through parts on `background` (a JPEG has no
+   * transparency), at `quality` 1–100, at the stage's size or `size`.
+   */
+  renderJpeg(
+    doc: AnimationDoc,
+    options: { quality: number; background: string; size?: { width: number; height: number } },
+  ): Promise<Uint8Array>;
   /** AN5: a picture's pixels, scaled down to at most `maxSide` px on its longer side. */
   pixels(path: string, maxSide: number): Promise<Pixels>;
 }
@@ -336,6 +353,8 @@ export interface AppPaths {
   licences?: string;
   /** Where unsaved animation work is autosaved (P3, AN16); default: beside `recovery`. */
   animationRecovery?: string;
+  /** Where an unsaved Graphics mode image is autosaved (P3, M18); default: beside `recovery`. */
+  graphicRecovery?: string;
   /** AN15: the frames of an animation export wait here for FFmpeg; default: in `proxies`. */
   animationFrames?: string;
 }

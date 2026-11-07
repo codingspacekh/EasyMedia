@@ -59,6 +59,47 @@ export async function drawFrames(
   if (failure) throw (failure as { error: unknown }).error;
 }
 
+/**
+ * AN22, G11: the stage at `frame` as an SVG document, with its pictures and fonts inside (a
+ * picture that cannot be read is left out and named in `missing`). `shown`: the width and height
+ * written on it ("10cm"; absent: the stage in px).
+ */
+export async function svgDocument(
+  ctx: AnimationContext,
+  doc: AnimationDoc,
+  frame: number,
+  shown?: { width: string; height: string },
+): Promise<{ svg: string; missing: string[] }> {
+  const { renderer, pageAssets } = ctx.services;
+  const lettering = fontsUsed(doc.layers.flatMap((l) => l.objects));
+  const [read, fonts, tops, widths] = await Promise.all([
+    Promise.all(
+      picturesUsed(doc).map(async (p) => ({
+        picture: p,
+        url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
+      })),
+    ),
+    // The fonts go inside, as in the web page: an SVG shows its words in the right font on any
+    // computer.
+    Promise.all(
+      fontsNeeded(doc).map(async (face) => ({
+        face,
+        url: await pageAssets.fontDataUrl(face.file),
+      })),
+    ),
+    // Where each font's baseline sits, measured as the stage draws it.
+    renderer.textTops(lettering),
+    // AN26: how wide letters are, for curved text.
+    renderer.textWidths(lettering),
+  ]);
+  const pictures: Record<Id, string> = {};
+  for (const { picture, url } of read) if (url) pictures[picture.id] = url;
+  return {
+    svg: stageSvg(doc, frame, pictures, fonts, tops, widths, shown),
+    missing: read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path)),
+  };
+}
+
 export function exportActions(ctx: AnimationContext) {
   const { store, patch, present, showError, pause, services } = ctx;
   const { dialogs, files, paths, engine, renderer, pageAssets } = services;
@@ -120,31 +161,8 @@ export function exportActions(ctx: AnimationContext) {
   async function exportSvg(doc: AnimationDoc, frame: number, output: string) {
     patch({ busy: 'Exporting…' });
     try {
-      const lettering = fontsUsed(doc.layers.flatMap((l) => l.objects));
-      const [read, fonts, tops, widths] = await Promise.all([
-        Promise.all(
-          picturesUsed(doc).map(async (p) => ({
-            picture: p,
-            url: await pageAssets.pictureDataUrl(p.path).catch(() => null),
-          })),
-        ),
-        // The fonts go inside, as in the web page: an SVG shows its words in the right font on
-        // any computer.
-        Promise.all(
-          fontsNeeded(doc).map(async (face) => ({
-            face,
-            url: await pageAssets.fontDataUrl(face.file),
-          })),
-        ),
-        // Where each font's baseline sits, measured as the stage draws it.
-        renderer.textTops(lettering),
-        // AN26: how wide letters are, for curved text.
-        renderer.textWidths(lettering),
-      ]);
-      const pictures: Record<Id, string> = {};
-      for (const { picture, url } of read) if (url) pictures[picture.id] = url;
-      await files.write(output, stageSvg(doc, frame, pictures, fonts, tops, widths));
-      const missing = read.filter((r) => !r.url).map((r) => fileNameOf(r.picture.path));
+      const { svg, missing } = await svgDocument(ctx, doc, frame);
+      await files.write(output, svg);
       patch({
         message: {
           kind: 'info',

@@ -8,6 +8,7 @@ import {
   createElectronDialogs,
   createElectronProjectFiles,
   getAppPaths,
+  openWebsite,
 } from '../adapters/electron/services.ts';
 import { createWebAudioOutput } from '../adapters/webaudio/output.ts';
 import { createMediaStreamRecorder, type AudioFrame } from '../adapters/webaudio/recorder.ts';
@@ -69,6 +70,7 @@ if (!window.mve) {
     stageRenderer: createCanvasStageRenderer(),
     pageAssets: createElectronPageAssets(api, FONT_URLS),
     updates: createElectronUpdates(api),
+    website: openWebsite(api),
     paths: await getAppPaths(api),
     audioOutput: createWebAudioOutput(),
     animationAudioOutput: createWebAudioOutput(),

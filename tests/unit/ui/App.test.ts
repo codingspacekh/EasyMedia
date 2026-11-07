@@ -12,10 +12,15 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'OneEditor' })).toBeTruthy();
   });
 
-  it('starts in Video mode with three editors to choose from (Learn is in the menu bar, N15)', () => {
+  it('starts in Video mode with four editors to choose from (Learn is in the menu bar, N15)', () => {
     render(App, { props: { app: testApp().app } });
     const modes = within(screen.getByRole('navigation', { name: 'Mode' })).getAllByRole('button');
-    expect(modes.map((b) => b.textContent?.trim())).toEqual(['Video', 'Audio', 'Animation']);
+    expect(modes.map((b) => b.textContent?.trim())).toEqual([
+      'Video',
+      'Audio',
+      'Animation',
+      'Graphics',
+    ]);
     expect(mode('Video').getAttribute('aria-pressed')).toBe('true');
   });
 

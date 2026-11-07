@@ -1,6 +1,7 @@
 // The stage's pure geometry (AN1–AN3, AN6), used by Stage.svelte and its parts: the drags the
 // stage knows, what the document looks like during one, what a click or a marquee picks, the
 // rulers' ticks, and the selection box and handles.
+import { toPx, type Unit } from '../../core/graphics/units.ts';
 import {
   createEllipse,
   createLine,
@@ -187,6 +188,27 @@ export function simplifyStroke(points: readonly Point[], min: number): Point[] {
 /** AN2: the rulers' numbered step, so numbers are at least 48 screen pixels apart. */
 export const rulerStep = (zoom: number) =>
   [5, 10, 20, 50, 100, 200, 500, 1000].find((s) => s * zoom >= 48) ?? 1000;
+
+/**
+ * G6 (M18): the rulers in a unit at a resolution (cm, mm, in, pt; px as AN2): the numbered step
+ * in that unit, at least 48 screen pixels apart, and the same step in stage pixels.
+ */
+export function unitRulerStep(
+  zoom: number,
+  unit: Unit,
+  dpi: number,
+): { step: number; stepPx: number } {
+  if (unit === 'px') {
+    const step = rulerStep(zoom);
+    return { step, stepPx: step };
+  }
+  const perUnit = toPx(1, unit, dpi);
+  const step =
+    [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000].find(
+      (s) => s * perUnit * zoom >= 48,
+    ) ?? 2000;
+  return { step, stepPx: step * perUnit };
+}
 
 /** The numbered ticks from 0 to `length`. */
 export const rulerTicks = (length: number, step: number) =>

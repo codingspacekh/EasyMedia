@@ -34,6 +34,8 @@ export interface MainServices {
   perf?: { playback(sample: PlaybackSample): void };
   /** Help ▸ Report a Problem…: the problem log (main/problem-log.ts). */
   problems?: { record(kind: 'error', where: 'page' | 'request' | 'job', text: string): void };
+  /** Help ▸ About OneEditor: opens the website (core/about.ts), and only it, in the browser. */
+  website?: { open(): Promise<void> };
 }
 
 export interface PageFiles {
@@ -217,6 +219,9 @@ export function registerIpc(s: MainServices): void {
     'dialog:openExport': () => s.dialogs.openExport(),
     'dialog:saveAnimation': (name) => s.dialogs.saveAnimation(name),
     'dialog:exportAnimation': (name, format) => s.dialogs.exportAnimation(name, format),
+    'dialog:openGraphic': () => s.dialogs.openGraphic(),
+    'dialog:saveGraphic': (name) => s.dialogs.saveGraphic(name),
+    'dialog:exportGraphic': (name, format) => s.dialogs.exportGraphic(name, format),
     'app:closeAnswer': async (close) => {
       s.closeAnswer(close === true);
       return null;
@@ -273,6 +278,10 @@ export function registerIpc(s: MainServices): void {
     'log:page': async (text) => {
       if (typeof text !== 'string') throw new Error('Only text can be noted.');
       s.problems?.record('error', 'page', text);
+      return null;
+    },
+    'app:website': async () => {
+      await s.website?.open();
       return null;
     },
     'perf:enabled': async () => s.perf !== undefined,

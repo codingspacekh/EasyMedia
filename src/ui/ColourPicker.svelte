@@ -1,12 +1,23 @@
 <script lang="ts">
   // The app's own colour picker (issues/video-2.png): the operating system's colour box is a
   // white window that cannot be styled. A swatch button opens a dark panel beside it: a square
-  // for strength and brightness, a hue bar, the hex code (tasks give colours like #F4C8EE),
-  // ready-made colours, the ones used lately, and a dropper to take a colour off the screen.
+  // for strength and brightness, a hue bar, the hex code (tasks give colours like #F4C8EE), the
+  // colour's numbers in RGB, HSL or CMYK (G7, G9: tasks give RGB 180,0,0), ready-made colours, the ones used lately, and a dropper to take a colour off the screen.
   // The panel lives at the end of the page, so no panel or dialog clips it; Escape closes it
   // first (not the dialog it is in), as does a click elsewhere.
   import { untrack } from 'svelte';
-  import { hexToHsv, hsvToHex, normaliseHex, type Hsv } from '../core/colour.ts';
+  import {
+    cmykToHex,
+    hexToCmyk,
+    hexToHsl,
+    hexToHsv,
+    hexToRgb,
+    hslToHex,
+    hsvToHex,
+    normaliseHex,
+    rgbToHex,
+    type Hsv,
+  } from '../core/colour.ts';
   import { recentColours, rememberColour } from './recent-colours.svelte.ts';
 
   let {
@@ -64,6 +75,50 @@
   let hsv: Hsv = $state(hexToHsv(untrack(() => value)));
   const current = $derived(hsvToHex(hsv));
   const canDrop = typeof window !== 'undefined' && 'EyeDropper' in window;
+  /**
+   * G7, G9 (M18): the colour's numbers in a colour system — RGB 0–255 (as the papers give them:
+   * RGB 180,0,0), HSL (hue °, saturation and lightness %) or CMYK (% of each printer's ink).
+   */
+  type System = 'rgb' | 'hsl' | 'cmyk';
+  let system: System = $state('rgb');
+  const PARTS: Record<System, { key: string; label: string; max: number }[]> = {
+    rgb: [
+      { key: 'r', label: 'R', max: 255 },
+      { key: 'g', label: 'G', max: 255 },
+      { key: 'b', label: 'B', max: 255 },
+    ],
+    hsl: [
+      { key: 'h', label: 'H °', max: 360 },
+      { key: 's', label: 'S %', max: 100 },
+      { key: 'l', label: 'L %', max: 100 },
+    ],
+    cmyk: [
+      { key: 'c', label: 'C %', max: 100 },
+      { key: 'm', label: 'M %', max: 100 },
+      { key: 'y', label: 'Y %', max: 100 },
+      { key: 'k', label: 'K %', max: 100 },
+    ],
+  };
+  const values = $derived<Record<string, number>>(
+    system === 'rgb'
+      ? { ...hexToRgb(current) }
+      : system === 'hsl'
+        ? { ...hexToHsl(current) }
+        : { ...hexToCmyk(current) },
+  );
+  function fromPart(key: string, e: Event): void {
+    const n = Number((e.currentTarget as HTMLInputElement).value);
+    if (!Number.isFinite(n)) return;
+    const next = { ...values, [key]: n };
+    const hex =
+      system === 'rgb'
+        ? rgbToHex(next as { r: number; g: number; b: number })
+        : system === 'hsl'
+          ? hslToHex(next as { h: number; s: number; l: number })
+          : cmykToHex(next as { c: number; m: number; y: number; k: number });
+    hsv = hexToHsv(hex);
+    use(hex);
+  }
 
   // A change made elsewhere (undo, a ready-made look) moves the picker, unless it is the colour
   // the picker shows already (a grey keeps the hue it was given).
@@ -292,6 +347,28 @@
         </button>
       {/if}
     </div>
+    <div class="values">
+      <select aria-label="{label} colour system" bind:value={system}>
+        <option value="rgb">RGB</option>
+        <option value="hsl">HSL</option>
+        <option value="cmyk">CMYK</option>
+      </select>
+      {#each PARTS[system] as part (part.key)}
+        <label class="part">
+          <span>{part.label}</span>
+          <input
+            type="number"
+            min="0"
+            max={part.max}
+            step="1"
+            aria-label="{label} {part.label.split(' ')[0]}"
+            value={values[part.key]}
+            onchange={(e) => fromPart(part.key, e)}
+          />
+        </label>
+      {/each}
+    </div>
+    {#if system === 'cmyk'}<p class="note">For print: the screen shows the RGB colour.</p>{/if}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <div class="swatches" role="group" aria-label="Ready-made colours">
       {#each PALETTE as hex (hex)}
@@ -419,6 +496,35 @@
     display: flex;
     gap: 6px;
     align-items: center;
+  }
+  .values {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+  }
+  .values select {
+    width: 58px;
+    flex: none;
+  }
+  .part {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+    font-size: 10px;
+    color: var(--tx-3);
+  }
+  .part input {
+    width: 100%;
+    min-width: 0;
+    padding-left: 3px;
+    padding-right: 1px;
+  }
+  .note {
+    margin: 0;
+    font-size: 10.5px;
+    color: var(--tx-3);
   }
   .now {
     width: 28px;

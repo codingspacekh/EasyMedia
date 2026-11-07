@@ -9,8 +9,21 @@ const items = (menu: Item | undefined) =>
   (menu?.submenu as Item[]).filter((i) => i.type !== 'separator');
 
 describe('X3 native menus', () => {
-  it('macOS has the app menu first; Windows does not', () => {
-    expect(menuTemplate('darwin', () => {}, false)[0]).toMatchObject({ role: 'appMenu' });
+  it('macOS has the app menu first, its About OneEditor going to the page; Windows does not', () => {
+    const send = vi.fn<(a: MenuAction) => void>();
+    const appMenu = menuTemplate('darwin', send, false)[0]!;
+    expect(appMenu.label).toBe('OneEditor');
+    const entries = items(appMenu);
+    expect(entries[0]!.label).toBe('About OneEditor');
+    (entries[0]!.click as () => void)();
+    expect(send).toHaveBeenCalledWith('about');
+    expect(entries.slice(1).map((i) => i.role)).toEqual([
+      'services',
+      'hide',
+      'hideOthers',
+      'unhide',
+      'quit',
+    ]);
     expect(menuTemplate('win32', () => {}, false)[0]).toMatchObject({ label: 'File' });
   });
 
@@ -100,7 +113,7 @@ describe('X3 native menus', () => {
     expect(view(false)).not.toContain('toggleDevTools');
   });
 
-  it('Help: Welcome, Check for Updates (M17a) and Licences go to the page; the guides open as web pages (M12); Report a Problem is made by the main process (it works when the page does not)', () => {
+  it('Help: Welcome, Check for Updates (M17a), Licences and (on Windows) About go to the page; the guides open as web pages (M12); Report a Problem is made by the main process (it works when the page does not)', () => {
     const send = vi.fn<(a: MenuAction) => void>();
     const open = vi.fn<(guide: 'user-guide' | 'teacher-notes') => void>();
     const report = vi.fn<() => void>();
@@ -112,9 +125,14 @@ describe('X3 native menus', () => {
       'Check for Updates…',
       'Report a Problem…',
       'Licences',
+      'About OneEditor',
     ]);
     for (const i of help) (i.click as () => void)();
-    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'updates', 'licences']);
+    expect(send.mock.calls.map(([a]) => a)).toEqual(['welcome', 'updates', 'licences', 'about']);
+    // On a Mac, About is in the app menu, as Mac apps have it.
+    expect(
+      items(find(menuTemplate('darwin', send, false), 'Help')).map((i) => i.label),
+    ).not.toContain('About OneEditor');
     expect(open.mock.calls.map(([g]) => g)).toEqual(['user-guide', 'teacher-notes']);
     expect(report).toHaveBeenCalledTimes(1);
   });

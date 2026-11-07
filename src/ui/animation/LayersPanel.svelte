@@ -2,13 +2,15 @@
   // Layers (AN7): the top layer is in front. Each layer can be hidden, locked, renamed, moved,
   // coloured and put in a folder; new objects go on the selected layer.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import type { Layer } from '../../core/animation/types.ts';
   import Icon from '../Icon.svelte';
   import Why from '../Why.svelte';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const doc = $derived($store.history.present);
   /** Top first, grouped by folder (a folder's layers under its header). */
   const rows = $derived.by(() => {
@@ -181,7 +183,10 @@
   </ul>
   {#if renameError}<p class="error" role="alert">{renameError}</p>{/if}
   <div class="why">
-    <Why tool="animLayers" title="Why use layers?" /><Why tool="animMask" title="Why use a mask?" />
+    <Why tool={editor.still ? 'graphicLayers' : 'animLayers'} title="Why use layers?" /><Why
+      tool="animMask"
+      title="Why use a mask?"
+    />
   </div>
 </aside>
 

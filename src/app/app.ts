@@ -1,5 +1,6 @@
 // App use cases (ARCHITECTURE §3, P3): what every button and menu item does. The UI only
 // calls these and shows the store. Errors never escape: they become a message for the student.
+import { ABOUT } from '../core/about.ts';
 import {
   addAudioItem,
   addMainItem,
@@ -8,7 +9,7 @@ import {
   relinkMedia,
   removeItem,
 } from './commands.ts';
-import { createAnimationApp } from './animation.ts';
+import { createAnimationApp, GRAPHIC_KIND } from './animation.ts';
 import { addOverlayItem } from './overlay-commands.ts';
 import { createOverlayItem } from '../core/model/overlay.ts';
 import { createAudioApp, SILENT_OUTPUT, type AudioOutput } from './audio.ts';
@@ -124,6 +125,8 @@ export interface AppState {
   welcome: boolean;
   /** Help ▸ Licences: the text of THIRD_PARTY_LICENSES while it is showing. */
   licences: string | null;
+  /** Help ▸ About OneEditor is showing. */
+  about: boolean;
 }
 
 export interface AppDeps {
@@ -146,6 +149,8 @@ export interface AppDeps {
   animationAudioOutput?: AudioOutput;
   /** M17a U1–U5: updates from the main process (none in tests or the browser). */
   updates?: UpdatesPort;
+  /** Help ▸ About OneEditor: opens the website in the browser (none in tests or the browser). */
+  website?: () => Promise<void>;
   autosaveMs?: number;
 }
 
@@ -175,6 +180,7 @@ export function createApp({
   pageAssets,
   animationAudioOutput,
   updates,
+  website = async () => {},
   autosaveMs = 60_000,
 }: AppDeps) {
   const preferences = createPreferences(files, paths);
@@ -194,6 +200,7 @@ export function createApp({
     message: null,
     welcome: false,
     licences: null,
+    about: false,
   });
   const patch = (change: Partial<AppState>) => store.update((s) => ({ ...s, ...change }));
   const present = () => store.get().history.present;
@@ -498,6 +505,22 @@ export function createApp({
     ...(pageAssets ? { pageAssets } : {}),
     ...(animationAudioOutput ? { audioOutput: animationAudioOutput } : {}),
   });
+  /**
+   * Graphics mode (M18, syllabus 19): Animation mode's app with one frame and its own `.mveg`
+   * file (ARCHITECTURE §7.10), so a graphic is drawn with the same tools and can go on to be
+   * animated.
+   */
+  const graphics = createAnimationApp({
+    dialogs,
+    files,
+    paths,
+    engine,
+    autosaveMs,
+    kind: GRAPHIC_KIND,
+    fileName: candidate.nameFor,
+    ...(stageRenderer ? { renderer: stageRenderer } : {}),
+    ...(pageAssets ? { pageAssets } : {}),
+  });
 
   // Every Audio mode edit (or undo back to the saved state) updates "unsaved changes".
   audio.store.subscribe(() => {
@@ -510,6 +533,7 @@ export function createApp({
     audio,
     learn,
     animation,
+    graphics,
     /** N16: the panels' sizes and which are shown. */
     layout,
     candidate,
@@ -519,6 +543,7 @@ export function createApp({
     /** On start-up: offers to restore work that was never saved (P3). */
     async start(): Promise<void> {
       await animation.start();
+      await graphics.start();
       await layout.load();
       await candidate.load();
       // X7: the Welcome, on the first launch only.
@@ -569,11 +594,57 @@ export function createApp({
 
     closeLicences: () => patch({ licences: null }),
 
+    /** Help ▸ About OneEditor: the version, the copyright, the licence and the website. */
+    showAbout: () => patch({ about: true }),
+    closeAbout: () => patch({ about: false }),
+
+    /** About: the website for contributors, in the browser. */
+    async openWebsite(): Promise<void> {
+      try {
+        await website();
+      } catch {
+        patch({
+          message: {
+            kind: 'error',
+            text: `The website could not be opened. It is at ${ABOUT.site}.`,
+          },
+        });
+      }
+    },
+
     /**
      * M14: the animation as an MP4 beside its file (Task1.mvea → Task1.mp4), imported and put on
      * the video timeline; sent again, the same file is updated and its clip kept. An animation
      * never saved is saved first. True when the clip is in Video mode.
      */
+    /**
+     * GL3 (M18): the selected objects of the image (or all of it) into the animation, as editable
+     * objects where they were drawn, on a new layer named after the image. True when they went.
+     */
+    sendGraphicToAnimation(): boolean {
+      const sent = graphics.toSend();
+      if (!sent) {
+        graphics.store.update((s) => ({
+          ...s,
+          message: { kind: 'error', text: 'There is nothing drawn to send to Animation mode.' },
+        }));
+        return false;
+      }
+      const name = graphics.store.get().path
+        ? fileNameOf(graphics.store.get().path!).replace(/\.mveg$/i, '')
+        : graphics.store.get().history.present.name;
+      const count = animation.receive(name, sent);
+      if (count === 0) return false;
+      animation.store.update((s) => ({
+        ...s,
+        message: {
+          kind: 'info',
+          text: `${count === 1 ? 'One object' : `${count} objects`} from ${name} added on the layer ${animation.store.get().history.present.layers.at(-1)!.name}: each can be animated.`,
+        },
+      }));
+      return true;
+    },
+
     async sendAnimationToVideo(): Promise<boolean> {
       if (!animation.store.get().path) await animation.saveAs();
       const path = animation.store.get().path;
@@ -1027,13 +1098,14 @@ export function createApp({
      * true when it may close.
      */
     async confirmClose(): Promise<boolean> {
-      if (!isDirty(store.get()) && !animation.isDirty()) return true;
+      if (!isDirty(store.get()) && !animation.isDirty() && !graphics.isDirty()) return true;
       const answer = await dialogs.unsavedChanges();
       if (answer === 'cancel') return false;
       if (answer === 'discard') return true;
       if (isDirty(store.get())) await save();
       if (animation.isDirty()) await animation.save();
-      return !isDirty(store.get()) && !animation.isDirty();
+      if (graphics.isDirty()) await graphics.save();
+      return !isDirty(store.get()) && !animation.isDirty() && !graphics.isDirty();
     },
 
     dispose(): void {
@@ -1041,6 +1113,7 @@ export function createApp({
       stopListening();
       audio.dispose();
       animation.dispose();
+      graphics.dispose();
     },
   };
 }

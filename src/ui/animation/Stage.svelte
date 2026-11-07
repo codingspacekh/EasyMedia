@@ -3,6 +3,8 @@
   // guides, selection handles and the drawing tools. Every drag shows its result live and is
   // applied as one undo step when the pointer is let go.
   import type { App } from '../../app/app.ts';
+  import { graphicOf } from '../../core/graphics/document.ts';
+  import { editorOf } from './editor.ts';
   import { drawStage, type StageCanvas } from '../../core/animation/draw.ts';
   import { withLayers } from '../../adapters/canvas/layers.ts';
   import { onionSkin } from '../../core/animation/frames.ts';
@@ -51,8 +53,9 @@
   } from './stage-geometry.ts';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   // M14: what the student sees and edits is the animation at the playhead.
   const doc = $derived(stateAt($store.history.present, $store.frame));
   const stage = $derived(doc.stage);
@@ -550,6 +553,8 @@
         {padY}
         size={RULER}
         onguide={(e, axis) => startGuide(e, axis, null)}
+        units={editor.still ? graphicOf($store.history.present).units : 'px'}
+        dpi={graphicOf($store.history.present).dpi}
       />
     {/if}
     <div

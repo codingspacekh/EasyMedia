@@ -1,6 +1,6 @@
 # OneEditor — teacher notes
 
-Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11 and 20, is done in OneEditor, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks' key words.
+Where each point of the Cambridge International AS & A Level IT (9626) syllabus, Chapters 11, 19 and 20, is done in OneEditor, and the tools for it. Every tool also has a "Why use this?" text in the app, and Learn mode has a glossary of the coursebooks' key words.
 
 _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's tools: do not edit by hand._
 
@@ -114,6 +114,26 @@ _Made by `npm run guides` from `src/core/teaching/syllabus.ts` and the app's too
 | how the different compression methods affect the audio quality | Learn ▸ Formats & compression: WAV, FLAC and MP3 at three bit rates, played side by side; Audio ▸ Effect ▸ Compressor (dynamic range) | Compressor |
 | saving in files v containers | Learn ▸ Media inspector ▸ "File vs container" | — |
 | lossy and lossless | Learn ▸ Media inspector (codecs marked lossy / lossless / uncompressed) and the compression comparison | — |
+
+## 19.1 Common graphics skills
+
+### Using software tools for the creation and editing of digital graphics
+
+| Syllabus point | Where in OneEditor | Tools |
+|---|---|---|
+| graphics tools: add, remove and select layers; order; toggle visibility; lock/unlock layers; change opacity/transparency | Graphics ▸ the Layers panel (add, rename, order, lock, hide, folders) and Properties ▸ opacity | Layers |
+| alignment and distribution tools: left, right, top, bottom, centre alignment; vertical and horizontal distribution | Graphics (and Animation) ▸ Properties ▸ Align: with the selection, the first object chosen or the canvas, and Distribute across or down | Align and distribute |
+| colour systems: RGB, HSL, CMYK | Graphics ▸ any colour box: the colour picker shows and takes RGB, HSL and CMYK numbers | — |
+| the need for different image resolutions, including the impact of having too low/high resolution for an image on screen or in print | Graphics ▸ File ▸ New Image… and the canvas chip at the top (size in px, cm, mm or in at a resolution; screen and print presets) | Image size and resolution |
+| exporting an image in different file formats | Graphics ▸ Export on the toolbar (PNG, JPG or SVG at a size, of the selection, or each object in its own file; the resolution is written into the file) | Export image |
+
+## 19.2 Vector graphics
+
+### Using software tools for the creation and editing of vector graphics
+
+| Syllabus point | Where in OneEditor | Tools |
+|---|---|---|
+| creating a vector graphic that meets the requirements of its intended application and audience | Graphics ▸ the drawing tools on the stage, and To Animation on the toolbar to use the graphic in an animation | Send to Animation |
 
 ## 20.1 Animation
 

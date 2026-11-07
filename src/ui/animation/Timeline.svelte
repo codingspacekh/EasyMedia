@@ -8,6 +8,7 @@
   // start for as long as it is heard, with its name, dragged to move it and clicked for its bar
   // (volume, fades, trim, Mute, Delete).
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import { timeLabel } from '../../core/animation/time.ts';
   import type { Id, TweenProperty } from '../../core/animation/types.ts';
   import Icon from '../Icon.svelte';
@@ -26,8 +27,9 @@
   } from './timeline-rows.ts';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const doc = $derived($store.history.present);
   const stage = $derived(doc.stage);
   const frame = $derived($store.frame);

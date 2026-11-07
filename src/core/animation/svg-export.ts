@@ -505,13 +505,18 @@ class SvgCanvas implements StageCanvas {
   }
 
   /** The finished SVG document. */
-  finish(width: number, height: number, styles: readonly string[] = []): string {
+  finish(
+    width: number,
+    height: number,
+    styles: readonly string[] = [],
+    shown: { width: string; height: string } = { width: `${width}`, height: `${height}` },
+  ): string {
     this.flush();
     for (; this.groups > 0; this.groups--) this.body.push('</g>');
     const style = styles.length ? [`<style>${styles.join('\n')}</style>`] : [];
     const defs = [...style, ...this.gradients.map(String), ...this.clips];
     return (
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n` +
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${shown.width}" height="${shown.height}" viewBox="0 0 ${width} ${height}">\n` +
       (defs.length ? `<defs>${defs.join('')}</defs>\n` : '') +
       this.body.join('\n') +
       '\n</svg>\n'
@@ -526,7 +531,8 @@ class SvgCanvas implements StageCanvas {
  * (9626/04 M/J/18 TTS10 in a script font, M/J/21 GlobalLogo in a sans-serif); `textTops` where
  * each font's baseline sits below the top the stage draws text from (StageRenderer.textTops);
  * `measure` how wide words are in a font, as the stage measures them (StageRenderer.textWidths),
- * so curved text (AN26) has its letters where the stage puts them.
+ * so curved text (AN26) has its letters where the stage puts them. `shown`: the width and height
+ * written on the SVG, e.g. "10cm" (G11, M18: an image's printed size); absent: the stage in px.
  */
 export function stageSvg(
   doc: AnimationDoc,
@@ -535,6 +541,7 @@ export function stageSvg(
   fonts: readonly { face: FontFile; url: string }[] = [],
   textTops: Readonly<Record<string, number>> = {},
   measure?: (font: string, text: string) => number,
+  shown?: { width: string; height: string },
 ): string {
   const canvas = new SvgCanvas(textTops, measure);
   drawStage(canvas, doc, {
@@ -545,5 +552,6 @@ export function stageSvg(
     doc.stage.width,
     doc.stage.height,
     fonts.map((f) => fontFaceRule(f.face, f.url)),
+    shown,
   );
 }

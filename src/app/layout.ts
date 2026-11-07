@@ -4,7 +4,7 @@
 import type { PreferencesStore } from './preferences.ts';
 import { createStore, type Store } from './store.ts';
 
-export type Editor = 'Video' | 'Audio' | 'Animation';
+export type Editor = 'Video' | 'Audio' | 'Animation' | 'Graphics';
 
 export interface PanelSpec {
   id: string;
@@ -86,6 +86,25 @@ export const PANELS = {
     size: 152,
     min: 90,
     max: 520,
+  }),
+  // M18: Graphics mode has the Layers and Properties panels of Animation mode, and no timeline.
+  'graphics.layers': spec({
+    id: 'graphics.layers',
+    editor: 'Graphics',
+    label: 'Layers',
+    edge: 'left',
+    size: 230,
+    min: 180,
+    max: 420,
+  }),
+  'graphics.properties': spec({
+    id: 'graphics.properties',
+    editor: 'Graphics',
+    label: 'Properties',
+    edge: 'right',
+    size: 304,
+    min: 260,
+    max: 460,
   }),
 } as const satisfies Record<string, PanelSpec>;
 

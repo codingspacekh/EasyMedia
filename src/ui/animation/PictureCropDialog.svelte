@@ -4,6 +4,7 @@
   // drag to draw it, inside it to move it, a corner to change its size. It is saved as a new
   // picture beside the old one, at its own size, and the selected object shows only that part.
   import { untrack } from 'svelte';
+  import { editorOf } from './editor.ts';
   import type { App } from '../../app/app.ts';
   import {
     freeRegionFromCorners,
@@ -18,7 +19,8 @@
   import Why from '../Why.svelte';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
-  const anim = $derived(app.animation);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
 
   const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
   /** The picture as it was when the dialog opened. */

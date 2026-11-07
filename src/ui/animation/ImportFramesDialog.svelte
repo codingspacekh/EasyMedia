@@ -2,13 +2,15 @@
   // Import frames (AN14, stop motion): the rate is chosen first, then the folder of pictures. The
   // pictures are shown in the order of their names, each held for its frames, on a new layer.
   import Dialog from '../Dialog.svelte';
+  import { editorOf } from './editor.ts';
   import { untrack } from 'svelte';
   import type { App } from '../../app/app.ts';
   import Why from '../Why.svelte';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const fps = $derived($store.history.present.stage.fps);
 
   // 12 pictures a second (the coursebook's usual stop motion rate), or the stage's rate if lower.

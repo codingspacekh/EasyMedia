@@ -3,13 +3,15 @@
   // an emphasis, and how long it lasts. Only keyframes are added, so the timeline shows them and
   // they can be changed there afterwards.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import { ANIM_EFFECTS, effectOf, type EffectGroup } from '../../core/animation/effects.ts';
   import { timeLabel } from '../../core/animation/time.ts';
   import Why from '../Why.svelte';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const stage = $derived($store.history.present.stage);
 
   const GROUPS: { id: EffectGroup; label: string }[] = [

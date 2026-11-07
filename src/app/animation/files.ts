@@ -2,7 +2,6 @@
 // or heard: AN28), save, save as, autosave and crash recovery, and Package Project for an
 // animation.
 import { createHistory } from '../history.ts';
-import { createAnimation } from '../../core/animation/factory.ts';
 import {
   animationFromDisk,
   animationToDisk,
@@ -11,21 +10,16 @@ import {
 } from '../../core/animation/serialize.ts';
 import type { AnimSound, AnimationDoc, Picture } from '../../core/animation/types.ts';
 import { soundEffect } from '../../core/audio/sound-effects.ts';
-import type { AppPaths } from '../../core/ports.ts';
 import { dirOf, fileNameOf, uniqueFileName } from '../../core/project/relocate.ts';
 import type { AnimationContext } from './context.ts';
 import { saveSoundEffect } from './sounds.ts';
 import { isAnimationDirty } from './state.ts';
 
-const DISCARD = 'You have unsaved animation work. Discard it and';
-
-const recoveryPathOf = (paths: AppPaths): string =>
-  paths.animationRecovery ?? paths.recovery.replace(/\.mve$/i, '') + '.mvea';
-
 export function fileActions(ctx: AnimationContext) {
-  const { store, patch, present, showError, pause, services } = ctx;
+  const { store, patch, present, showError, pause, services, kind } = ctx;
   const { dialogs, files, paths, engine } = services;
-  const recovery = recoveryPathOf(paths);
+  const recovery = kind.recovery(paths);
+  const DISCARD = `You have unsaved ${kind.noun} work. Discard it and`;
 
   function load(doc: AnimationDoc, path: string | null, saved: AnimationDoc = doc): void {
     pause();
@@ -47,7 +41,7 @@ export function fileActions(ctx: AnimationContext) {
   const notFound = (names: string[], what: 'picture' | 'sound', effect: string): string =>
     `${names.length === 1 ? `This ${what}` : `These ${what}s`} could not be found, so ${
       names.length === 1 ? 'it is' : 'they are'
-    } not ${effect}: ${names.join(', ')}. Put ${names.length === 1 ? 'it' : 'them'} back beside the animation file and open it again.`;
+    } not ${effect}: ${names.join(', ')}. Put ${names.length === 1 ? 'it' : 'them'} back beside the ${kind.noun} file and open it again.`;
 
   /**
    * AN28: each sound checked (which also lets the page play it); a built-in sound effect whose
@@ -119,7 +113,7 @@ export function fileActions(ctx: AnimationContext) {
   }
 
   async function saveAs(): Promise<void> {
-    const path = await dialogs.saveAnimation(ctx.fileBase());
+    const path = await kind.save(dialogs, ctx.fileBase());
     if (path) await writeTo(path);
   }
 
@@ -155,9 +149,9 @@ export function fileActions(ctx: AnimationContext) {
       try {
         const lost = animationFromDisk(deserializeAnimation(text), dirOf(recovery));
         if (
-          await dialogs.confirm('OneEditor closed before your animation was saved. Restore it?')
+          await dialogs.confirm(`OneEditor closed before your ${kind.noun} was saved. Restore it?`)
         ) {
-          await loadChecked(lost, null, createAnimation({ name: 'Untitled' }));
+          await loadChecked(lost, null, kind.fresh());
           return;
         }
       } catch {
@@ -169,19 +163,30 @@ export function fileActions(ctx: AnimationContext) {
     async newAnimation(): Promise<void> {
       if (
         isAnimationDirty(store.get()) &&
-        !(await dialogs.confirm(`${DISCARD} start a new animation?`))
+        !(await dialogs.confirm(`${DISCARD} start a new ${kind.noun}?`))
       )
         return;
-      load(createAnimation({ name: 'Untitled' }), null);
+      load(kind.fresh(), null);
+    },
+
+    /** G1 (M18): starts on a document made elsewhere (a new image of a chosen size). */
+    async startWith(doc: AnimationDoc): Promise<boolean> {
+      if (
+        isAnimationDirty(store.get()) &&
+        !(await dialogs.confirm(`${DISCARD} start a new ${kind.noun}?`))
+      )
+        return false;
+      load(doc, null);
+      return true;
     },
 
     async open(): Promise<void> {
       if (
         isAnimationDirty(store.get()) &&
-        !(await dialogs.confirm(`${DISCARD} open another animation?`))
+        !(await dialogs.confirm(`${DISCARD} open another ${kind.noun}?`))
       )
         return;
-      const path = await dialogs.openAnimation();
+      const path = await kind.open(dialogs);
       if (!path) return;
       try {
         const doc = animationFromDisk(deserializeAnimation(await files.read(path)), dirOf(path));
@@ -196,7 +201,9 @@ export function fileActions(ctx: AnimationContext) {
 
     /** P2: copies the animation and its pictures into one folder, to hand in or move. */
     async packageAnimation(): Promise<void> {
-      const dir = await dialogs.chooseFolder('Choose an empty folder for the packaged animation');
+      const dir = await dialogs.chooseFolder(
+        `Choose an empty folder for the packaged ${kind.noun}`,
+      );
       if (!dir) return;
       const doc = present();
       const name = ctx.fileBase();
@@ -217,11 +224,14 @@ export function fileActions(ctx: AnimationContext) {
           sounds.push({ ...sound, path: file });
         }
         const packed = { ...doc, pictures, ...(doc.sounds ? { sounds } : {}) };
-        await files.write(`${dir}/${name}.mvea`, serializeAnimation(animationToDisk(packed, dir)));
+        await files.write(
+          `${dir}/${name}.${kind.extension}`,
+          serializeAnimation(animationToDisk(packed, dir)),
+        );
         patch({
           message: {
             kind: 'info',
-            text: `Packaged into ${dir}. Open ${name}.mvea there on any computer.`,
+            text: `Packaged into ${dir}. Open ${name}.${kind.extension} there on any computer.`,
           },
         });
       } catch (error) {

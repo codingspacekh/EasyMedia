@@ -8,6 +8,7 @@ import { documentActions } from './animation/document.ts';
 import { drawingActions } from './animation/drawing.ts';
 import { exportActions } from './animation/exporting.ts';
 import { fileActions } from './animation/files.ts';
+import { graphicActions } from './animation/graphic.ts';
 import { pictureActions } from './animation/pictures.ts';
 import { soundActions } from './animation/sounds.ts';
 import type { AnimationDeps } from './animation/state.ts';
@@ -24,6 +25,7 @@ export {
   type Tool,
 } from './animation/state.ts';
 export { TRACE_MAX_SIDE, TRACE_PREVIEW_SIDE } from './animation/pictures.ts';
+export { ANIMATION_KIND, GRAPHIC_KIND, type EditorKind } from './animation/kind.ts';
 
 export function createAnimationApp(deps: AnimationDeps) {
   const ctx = createAnimationContext(deps);
@@ -37,6 +39,9 @@ export function createAnimationApp(deps: AnimationDeps) {
     ...drawingActions(ctx),
     ...timelineActions(ctx),
     ...documentActions(ctx),
+    ...graphicActions(ctx, files.startWith),
+    /** M18: an animation's app, or Graphics mode's. */
+    kind: ctx.kind,
     dispose(): void {
       ctx.pause();
       stopAutosave();

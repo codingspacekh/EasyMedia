@@ -1,5 +1,6 @@
 // An App wired to the mock engine and in-memory dialogs / files, for UI tests.
 import { fakeDialogs } from './fake-dialogs.ts';
+import { TINY_JPEG, TINY_PNG } from './tiny-images.ts';
 import { vi } from 'vitest';
 import { createApp } from '../../src/app/app.ts';
 import { createMockMediaEngine } from '../../src/adapters/mock/media-engine.ts';
@@ -30,8 +31,15 @@ export const IMAGE: ProbeInfo = {
 
 export function testApp(
   media: Record<string, ProbeInfo> = { '/m/clip.mp4': VIDEO, '/m/photo.jpg': IMAGE },
-  /** Where preferences.json is (N16, X7); none by default. M17a: the updates port, if any. */
-  { preferences, updates }: { preferences?: string; updates?: UpdatesPort } = {},
+  /**
+   * Where preferences.json is (N16, X7); none by default. M17a: the updates port, if any. About:
+   * what opens the website.
+   */
+  {
+    preferences,
+    updates,
+    website = vi.fn(async () => {}),
+  }: { preferences?: string; updates?: UpdatesPort; website?: () => Promise<void> } = {},
 ) {
   const engine = createMockMediaEngine(media);
   const dialogs = fakeDialogs();
@@ -43,7 +51,8 @@ export function testApp(
   /** X8: sound effects saved in the app's folder. */
   const saveSound = vi.fn<ProjectFiles['saveSound']>(async (name) => `/cache/sounds/${name}.wav`);
   const stageRenderer = {
-    renderPng: vi.fn<StageRenderer['renderPng']>(async () => new Uint8Array([137, 80, 78, 71])),
+    renderPng: vi.fn<StageRenderer['renderPng']>(async () => TINY_PNG.slice()),
+    renderJpeg: vi.fn<StageRenderer['renderJpeg']>(async () => TINY_JPEG.slice()),
     textTops: vi.fn<StageRenderer['textTops']>(async (fonts) =>
       Object.fromEntries(fonts.map((f) => [f.replace(/ [\d.]+px /, ' '), 0.9])),
     ),
@@ -110,6 +119,7 @@ export function testApp(
     },
     audioRecorder: recorder,
     ...(updates ? { updates } : {}),
+    website,
   });
   const importFiles = async (...paths: string[]) => {
     dialogs.openMedia.mockResolvedValueOnce(paths);

@@ -3,7 +3,8 @@
   // guide is dragged out of them.
   import type { Stage } from '../../core/animation/types.ts';
   import { animUi } from './animation-ui.svelte.ts';
-  import { rulerStep, rulerTicks } from './stage-geometry.ts';
+  import type { Unit } from '../../core/graphics/units.ts';
+  import { unitRulerStep } from './stage-geometry.ts';
 
   let {
     stage,
@@ -12,6 +13,8 @@
     padY,
     size,
     onguide,
+    units = 'px',
+    dpi = 96,
   }: {
     stage: Stage;
     zoom: number;
@@ -22,10 +25,21 @@
     size: number;
     /** A guide dragged out: from the top ruler a horizontal one (y), from the left a vertical one (x). */
     onguide: (e: PointerEvent, axis: 'x' | 'y') => void;
+    /** G6 (M18): Graphics mode's rulers are in the image's units at its resolution. */
+    units?: Unit;
+    dpi?: number;
   } = $props();
 
-  const step = $derived(rulerStep(zoom));
-  const minor = $derived(step / 5);
+  const ruler = $derived(unitRulerStep(zoom, units, dpi));
+  const minor = $derived(ruler.stepPx / 5);
+  /** Each numbered tick: where it is (stage px) and what it says (in the unit). */
+  function ticks(length: number): { at: number; label: string }[] {
+    const n = Math.floor(length / ruler.stepPx + 1e-9) + 1;
+    return Array.from({ length: n }, (_, i) => ({
+      at: i * ruler.stepPx,
+      label: `${Math.round(i * ruler.step * 10) / 10}`,
+    }));
+  }
 </script>
 
 <div class="corner" style:width="{size}px" style:height="{size}px"></div>
@@ -38,9 +52,9 @@
   aria-label="Horizontal ruler"
   onpointerdown={(e) => onguide(e, 'y')}
 >
-  {#each rulerTicks(stage.width, step) as t (t)}
+  {#each ticks(stage.width) as { at: t, label } (t)}
     <line x1={padX + t * zoom} y1={size - 8} x2={padX + t * zoom} y2={size} />
-    <text x={padX + t * zoom + 2} y={9}>{t}</text>
+    <text x={padX + t * zoom + 2} y={9}>{label}</text>
     {#if minor * zoom >= 5}
       {#each [1, 2, 3, 4] as m (m)}
         <line
@@ -71,9 +85,9 @@
   aria-label="Vertical ruler"
   onpointerdown={(e) => onguide(e, 'x')}
 >
-  {#each rulerTicks(stage.height, step) as t (t)}
+  {#each ticks(stage.height) as { at: t, label } (t)}
     <line x1={size - 8} y1={padY + t * zoom} x2={size} y2={padY + t * zoom} />
-    <text x={-(padY + t * zoom) - 2} y={9} transform="rotate(-90)" text-anchor="end">{t}</text>
+    <text x={-(padY + t * zoom) - 2} y={9} transform="rotate(-90)" text-anchor="end">{label}</text>
     {#if minor * zoom >= 5}
       {#each [1, 2, 3, 4] as m (m)}
         <line

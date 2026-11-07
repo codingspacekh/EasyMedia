@@ -2,18 +2,26 @@
   // Animation mode's status bar: the pointer's coordinates (AN2), what the last move snapped
   // to, the zoom, messages, and whether the animation is saved.
   import { isAnimationDirty } from '../../app/animation.ts';
+  import { editorOf } from './editor.ts';
   import type { App } from '../../app/app.ts';
   import Icon from '../Icon.svelte';
+  import { graphicOf } from '../../core/graphics/document.ts';
+  import { formatLength } from '../../core/graphics/units.ts';
   import { animUi } from './animation-ui.svelte.ts';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
+  /** G6 (M18): Graphics mode gives the pointer in the image's units ("3.5 cm"). */
+  const image = $derived(editor.still ? graphicOf($store.history.present) : null);
+  const coord = (px: number): string =>
+    !image || image.units === 'px' ? `${px}` : formatLength(px, image.units, image.dpi);
 </script>
 
 <footer class="status">
   <span class="coords" aria-label="Pointer position">
-    {#if animUi.pointer}x {animUi.pointer.x}, y {animUi.pointer.y}{:else}x –, y –{/if}
+    {#if animUi.pointer}x {coord(animUi.pointer.x)}, y {coord(animUi.pointer.y)}{:else}x –, y –{/if}
   </span>
   {#if animUi.snapped}<span class="snap"
       ><Icon name="snap" size={13} /> Snapped to {animUi.snapped}</span

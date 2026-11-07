@@ -13,6 +13,7 @@
   import Timeline from './Timeline.svelte';
   import Tooltip from './Tooltip.svelte';
   import Licences from './Licences.svelte';
+  import About from './About.svelte';
   import UpdateNote from './UpdateNote.svelte';
   import UpdatesDialog from './UpdatesDialog.svelte';
   import CandidateDialog from './CandidateDialog.svelte';
@@ -26,7 +27,10 @@
   import AnimationMode from './animation/AnimationMode.svelte';
   import AnimationStatusBar from './animation/AnimationStatusBar.svelte';
   import AnimationToolbar from './animation/AnimationToolbar.svelte';
-  import { animationTitle } from '../app/animation.ts';
+  import { animationTitle, GRAPHIC_KIND } from '../app/animation.ts';
+  import GraphicsMode from './graphics/GraphicsMode.svelte';
+  import GraphicsToolbar from './graphics/GraphicsToolbar.svelte';
+  import EditorScope from './graphics/EditorScope.svelte';
   import { EDITORS, leaveLearn, type LearnTab } from './ui-state.svelte.ts';
   import Glossary from './learn/Glossary.svelte';
   import PanelSlot from './PanelSlot.svelte';
@@ -34,12 +38,14 @@
   let { app }: { app: App } = $props();
   const store = $derived(app.store);
   const animStore = $derived(app.animation.store);
+  const graphicStore = $derived(app.graphics.store);
   const updatesView = $derived(app.updates.store);
   const candidateView = $derived(app.candidate.store);
   const MODE_ICONS = {
     Video: 'video',
     Audio: 'audio',
     Animation: 'animation',
+    Graphics: 'graphics',
   } as const;
   const LEARN_TABS: [LearnTab, string][] = [
     ['inspect', 'Inspector & sampling'],
@@ -54,7 +60,11 @@
 
   $effect.pre(() => {
     document.title =
-      ui.mode === 'Animation' ? `${animationTitle($animStore)} — OneEditor` : projectTitle($store);
+      ui.mode === 'Animation'
+        ? `${animationTitle($animStore)} — OneEditor`
+        : ui.mode === 'Graphics'
+          ? `${animationTitle($graphicStore, GRAPHIC_KIND)} — OneEditor`
+          : projectTitle($store);
   });
 </script>
 
@@ -81,6 +91,8 @@
       <AudioToolbar {app} />
     {:else if ui.mode === 'Animation'}
       <AnimationToolbar {app} />
+    {:else if ui.mode === 'Graphics'}
+      <GraphicsToolbar {app} />
     {:else if ui.mode === 'Learn'}
       <div class="seg small" role="tablist" aria-label="Learn">
         {#each LEARN_TABS as [tab, label] (tab)}
@@ -197,6 +209,10 @@
     <main class="workspace">
       <AnimationMode {app} />
     </main>
+  {:else if ui.mode === 'Graphics'}
+    <main class="workspace">
+      <GraphicsMode {app} />
+    </main>
   {:else}
     <main class="workspace">
       <LearnMode {app} />
@@ -209,6 +225,8 @@
     <LearnStatusBar learn={app.learn} />
   {:else if ui.mode === 'Animation'}
     <AnimationStatusBar {app} />
+  {:else if ui.mode === 'Graphics'}
+    <EditorScope {app}><AnimationStatusBar {app} /></EditorScope>
   {:else}
     <StatusBar {app} />
   {/if}
@@ -223,6 +241,8 @@
   {/if}
   {#if $store.licences !== null}
     <Licences text={$store.licences} onclose={() => app.closeLicences()} />
+  {:else if $store.about}
+    <About {app} />
   {:else if $store.welcome}
     <Welcome {app} />
   {/if}

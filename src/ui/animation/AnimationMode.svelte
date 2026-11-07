@@ -6,6 +6,7 @@
   // removes it), Ctrl/Cmd + D duplicates, G groups, Shift + G ungroups, 0 fits, + / −
   // zoom; the Edit menu's cut, copy and paste work on the selected objects (N10).
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import type { Tool } from '../../app/animation.ts';
   import { shortcutAllowed } from '../keys.ts';
   import { animUi, ZOOM_STEPS } from './animation-ui.svelte.ts';
@@ -24,8 +25,9 @@
   import ToolStrip from './ToolStrip.svelte';
 
   let { app }: { app: App } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
 
   const TOOL_KEYS: Record<string, Tool> = {
     v: 'select',

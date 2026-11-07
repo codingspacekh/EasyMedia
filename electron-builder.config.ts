@@ -43,7 +43,7 @@ export function configFor(
   return {
     appId: 'io.github.codingspacekh.oneeditor',
     productName: 'OneEditor',
-    copyright: 'OneEditor contributors · GPL-3.0',
+    copyright: 'Copyright © 2026 CodingSpaceKH · GPL-3.0',
     directories: { output: 'release', buildResources: 'build-resources' },
     // The pages, main process and preload are bundled by Vite; the one runtime package,
     // electron-updater (M17a), is added from node_modules by electron-builder.

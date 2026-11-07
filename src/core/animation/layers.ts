@@ -392,6 +392,8 @@ export function pasteObjects(
   layerId: Id,
   objects: readonly AnimObject[],
   pictures: readonly Picture[],
+  /** How far copies land from where they were (GL3: 0 when a graphic is sent to Animation mode). */
+  offset = 10,
 ): { doc: AnimationDoc; ids: Id[] } {
   let next = doc;
   const map = new Map<Id, Id>();
@@ -405,7 +407,7 @@ export function pasteObjects(
   }
   const ids: Id[] = [];
   for (const object of objects) {
-    const copy = withPictureIds(moved(withNewIds(object), 10, 10), map);
+    const copy = withPictureIds(moved(withNewIds(object), offset, offset), map);
     ids.push(copy.id);
     next = addObject(next, layerId, copy);
   }

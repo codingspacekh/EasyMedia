@@ -523,7 +523,9 @@ describe('the Properties panel in detail', () => {
     expect(s.objects()[1]).toMatchObject({ sides: 8 });
     s.anim.addText({ x: 0, y: 0 }, 'Hi');
     await tick();
-    await fireEvent.change(screen.getByLabelText('Align'), { target: { value: 'centre' } });
+    await fireEvent.change(screen.getByRole('combobox', { name: 'Align' }), {
+      target: { value: 'centre' },
+    });
     await fireEvent.click(screen.getByRole('button', { name: /Bold/ }));
     await fireEvent.click(screen.getByRole('button', { name: /Italic/ }));
     const t = s.objects()[2] as TextObject;

@@ -13,6 +13,7 @@ import type {
 } from '../../core/ports.ts';
 import { fileNameOf } from '../../core/project/relocate.ts';
 import type { AudioOutput } from '../audio/state.ts';
+import { ANIMATION_KIND, withoutExtension, type EditorKind } from './kind.ts';
 
 export type Tool =
   | 'select'
@@ -82,6 +83,10 @@ export interface AnimationDeps {
   /** AN28: the speakers the animation's sounds play on while it plays (none: silent). */
   audioOutput?: AudioOutput;
   autosaveMs?: number;
+  /** M18: an animation (the default) or Graphics mode's image. */
+  kind?: EditorKind;
+  /** P8: a file name in the papers' form ("Casing" → "Casing_ZZ999_9999"), for files named here. */
+  fileName?: (base: string) => string;
 }
 
 /**
@@ -96,6 +101,7 @@ export const isAnimationDirty = (s: AnimationState): boolean => {
   return (
     a.name !== b.name ||
     a.stage !== b.stage ||
+    a.graphic !== b.graphic ||
     a.layers !== b.layers ||
     a.folders !== b.folders ||
     a.pictures !== b.pictures ||
@@ -104,8 +110,8 @@ export const isAnimationDirty = (s: AnimationState): boolean => {
   );
 };
 
-/** For the window title: "Chapter07_Task1_1 •" or "Untitled animation". */
-export const animationTitle = (s: AnimationState): string =>
-  `${s.path ? fileNameOf(s.path).replace(/\.mvea$/i, '') : 'Untitled animation'}${
+/** For the window title: "Chapter07_Task1_1 •" or "Untitled animation" ("Untitled image"). */
+export const animationTitle = (s: AnimationState, kind: EditorKind = ANIMATION_KIND): string =>
+  `${s.path ? withoutExtension(fileNameOf(s.path), kind) : kind.untitled}${
     isAnimationDirty(s) ? ' •' : ''
   }`;

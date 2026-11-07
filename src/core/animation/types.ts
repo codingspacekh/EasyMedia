@@ -347,6 +347,19 @@ export interface ViewSettings {
   snap: { grid: boolean; guides: boolean; objects: boolean; pixels: boolean };
 }
 
+/** G1, G6 (Graphics mode, M18): the units sizes are typed and shown in. */
+export type Unit = 'px' | 'cm' | 'mm' | 'in' | 'pt';
+
+/**
+ * G1, G10 (Graphics mode, M18): what makes a document a still image (a `.mveg`): its resolution
+ * in dots per inch, which turns pixels into a printed size (A4, 10 cm), and the units its rulers
+ * and sizes are shown in. The stage is the canvas; its one frame is the picture.
+ */
+export interface GraphicSettings {
+  dpi: number;
+  units: Unit;
+}
+
 export interface AnimationDoc {
   /**
    * 2 since M14 (keyframes), 3 since M15 (paths, morphs, masks), 4 since M16 (buttons, stop
@@ -355,6 +368,8 @@ export interface AnimationDoc {
   schemaVersion: 4;
   name: string;
   stage: Stage;
+  /** G1 (M18): present in a Graphics mode image, absent in an animation. */
+  graphic?: GraphicSettings;
   layers: Layer[];
   folders: LayerFolder[];
   pictures: Picture[];

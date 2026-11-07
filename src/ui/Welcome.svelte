@@ -26,6 +26,12 @@
       syllabus: '20.1',
     },
     {
+      name: 'Graphics',
+      icon: 'graphics',
+      text: 'Draw logos, icons and pictures with shapes, pens, text and gradients on layers, sized in pixels or centimetres; line them up, then export an SVG, PNG or JPG, or send them to Animation.',
+      syllabus: '19',
+    },
+    {
       name: 'Learn',
       icon: 'learn',
       text: 'From the Learn menu at the top: see inside a media file, work out file sizes, how sampling works, compare compressions, the theory of animation, the glossary, and check an export against a task.',
@@ -38,8 +44,8 @@
 
 <Dialog label="Welcome to OneEditor" width={720} onclose={close}>
   <p class="lead">
-    A video, sound and animation editor for Cambridge AS & A Level IT, Chapters 11 and 20. Choose an
-    editor at the top left; the theory is in the <b>Learn</b> menu.
+    A video, sound, animation and graphics editor for Cambridge AS & A Level IT, Chapters 11, 19 and
+    20. Choose an editor at the top left; the theory is in the <b>Learn</b> menu.
   </p>
   <div class="modes">
     {#each MODES as mode (mode.name)}

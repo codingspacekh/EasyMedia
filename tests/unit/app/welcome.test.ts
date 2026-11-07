@@ -1,10 +1,14 @@
-// X7: a Welcome on the first launch (once), Help ▸ Welcome again; Help ▸ Licences (README §17).
+// X7: a Welcome on the first launch (once), Help ▸ Welcome again; Help ▸ Licences (README §17);
+// Help ▸ About OneEditor.
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../../src/app/app.ts';
 import { createMockMediaEngine } from '../../../src/adapters/mock/media-engine.ts';
 import type { Dialogs } from '../../../src/core/ports.ts';
 
-function setup(disk = new Map<string, string>()) {
+function setup(
+  disk = new Map<string, string>(),
+  website: () => Promise<void> = vi.fn(async () => {}),
+) {
   const dialogs = {
     confirm: vi.fn<Dialogs['confirm']>(async () => false),
   } as unknown as Dialogs;
@@ -29,6 +33,7 @@ function setup(disk = new Map<string, string>()) {
       preferences: '/user/preferences.json',
       licences: '/app/THIRD_PARTY_LICENSES.txt',
     },
+    website,
   });
   return { app, disk, state: () => app.store.get() };
 }
@@ -77,6 +82,32 @@ describe('Help ▸ Licences', () => {
     expect(s.state().message).toEqual({
       kind: 'error',
       text: expect.stringMatching(/licences could not be found/i),
+    });
+  });
+});
+
+describe('Help ▸ About OneEditor', () => {
+  it('shows who makes OneEditor, its licence and the website for contributors', async () => {
+    const s = setup();
+    expect(s.state().about).toBe(false);
+    s.app.showAbout();
+    expect(s.state().about).toBe(true);
+    s.app.closeAbout();
+    expect(s.state().about).toBe(false);
+  });
+
+  it('opens the website in the browser, and says where it is if that fails', async () => {
+    const website = vi.fn(async () => {});
+    await setup(new Map(), website).app.openWebsite();
+    expect(website).toHaveBeenCalledTimes(1);
+    const broken = setup(
+      new Map(),
+      vi.fn(async () => Promise.reject(new Error('no browser'))),
+    );
+    await broken.app.openWebsite();
+    expect(broken.state().message).toEqual({
+      kind: 'error',
+      text: expect.stringMatching(/could not be opened.*codingspacekh\.dev/),
     });
   });
 });

@@ -3,6 +3,7 @@
   // animation or typed frames), the time and Go to; on a frame-by-frame layer its keyframe
   // buttons and onion skin (else Frame-by-frame); Keyframe; and the frame zoom.
   import type { App } from '../../app/app.ts';
+  import { editorOf } from './editor.ts';
   import { parseFrame, timeLabel } from '../../core/animation/time.ts';
   import { withWhy } from '../../core/effects/help.ts';
   import Icon from '../Icon.svelte';
@@ -19,8 +20,9 @@
     /** Why the last action was refused (shown under the bar by the timeline). */
     error: string | null;
   } = $props();
-  const anim = $derived(app.animation);
-  const store = $derived(app.animation.store);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
+  const store = $derived(editor.anim.store);
   const doc = $derived($store.history.present);
   const stage = $derived(doc.stage);
   const frame = $derived($store.frame);

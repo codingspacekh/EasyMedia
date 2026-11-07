@@ -22,6 +22,9 @@ export function createElectronDialogs(api: MveApi): Dialogs {
     openExport: () => unwrap(api.invoke('dialog:openExport')),
     saveAnimation: (name) => unwrap(api.invoke('dialog:saveAnimation', name)),
     exportAnimation: (name, format) => unwrap(api.invoke('dialog:exportAnimation', name, format)),
+    openGraphic: () => unwrap(api.invoke('dialog:openGraphic')),
+    saveGraphic: (name) => unwrap(api.invoke('dialog:saveGraphic', name)),
+    exportGraphic: (name, format) => unwrap(api.invoke('dialog:exportGraphic', name, format)),
   };
 }
 
@@ -39,3 +42,7 @@ export function createElectronProjectFiles(api: MveApi): ProjectFiles {
 }
 
 export const getAppPaths = (api: MveApi): Promise<AppPaths> => unwrap(api.invoke('app:paths'));
+
+/** Help ▸ About OneEditor: the main process opens the website in the browser. */
+export const openWebsite = (api: MveApi) => (): Promise<void> =>
+  unwrap(api.invoke('app:website')).then(() => {});

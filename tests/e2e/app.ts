@@ -24,6 +24,14 @@ export const FAKE_MICROPHONE = [
  * Starts the app. Its Welcome (X7) counts as seen, unless `firstLaunch`; `userData` starts it
  * again with the user-data folder of an earlier launch.
  */
+/**
+ * The app runs behind the maintainer's windows without taking the focus (main/index.ts);
+ * E2E_FOREGROUND=1 brings it to the front, to watch a test.
+ */
+export const BACKGROUND_ENV: Record<string, string> = process.env.E2E_FOREGROUND
+  ? {}
+  : { ONEEDITOR_BACKGROUND: '1' };
+
 export async function launchApp(
   switches: readonly string[] = [],
   { firstLaunch = false, userData: reuse }: { firstLaunch?: boolean; userData?: string } = {},
@@ -38,7 +46,13 @@ export async function launchApp(
   const app = await electron.launch({
     args: [root, ...switches],
     cwd: root,
-    env: { ...process.env, ONEEDITOR_USER_DATA: userData },
+    // The window opens behind the maintainer's own windows without taking the focus
+    // (E2E_FOREGROUND=1 brings it to the front, to watch a test).
+    env: {
+      ...process.env,
+      ONEEDITOR_USER_DATA: userData,
+      ...BACKGROUND_ENV,
+    },
   });
   const window = await app.firstWindow();
   await window.waitForLoadState('domcontentloaded');

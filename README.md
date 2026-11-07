@@ -1,10 +1,10 @@
 # OneEditor — System Requirements
 
-A lightweight, offline desktop video and audio editor built for teaching **Cambridge International AS & A Level Information Technology (9626), Chapter 11: Video and audio editing** and, in phase 2, **Chapter 20: Animation** (syllabus 2025–2027).
+A lightweight, offline desktop video and audio editor built for teaching **Cambridge International AS & A Level Information Technology (9626), Chapter 11: Video and audio editing**, in phase 2 **Chapter 20: Animation** and, in phase 3, **Chapter 19: Graphics creation** (syllabus 2025–2027).
 
 It covers every practical skill the syllabus asks for and leaves out professional features that the exam never needs, so it runs smoothly on ordinary student laptops (Windows 11 and macOS) that struggle with Adobe Premiere, DaVinci Resolve or Adobe Animate.
 
-**Status:** v1.0 (Chapter 11) done; phase 2 (Chapter 20 Animation) in progress · **Maintainer:** subject teacher · **Licence:** open source (GPL-3.0), for study use · **Platforms:** Windows 11, macOS
+**Status:** Chapters 11 and 20 done (v1.5, the pilot); phase 3 (Chapter 19 Graphics) in progress · **Maintainer:** subject teacher · **Licence:** open source (GPL-3.0), for study use · **Platforms:** Windows 11, macOS
 
 ---
 
@@ -17,6 +17,7 @@ It covers every practical skill the syllabus asks for and leaves out professiona
 5. [Functional requirements — Video editor (11.1)](#5-functional-requirements--video-editor-syllabus-111)
 6. [Functional requirements — Audio editor (11.2)](#6-functional-requirements--audio-editor-syllabus-112)
 7. [Functional requirements — Animation editor (20.1)](#7-functional-requirements--animation-editor-syllabus-201)
+   - 7a. [Functional requirements — Graphics editor (19)](#7a-functional-requirements--graphics-editor-syllabus-19)
 8. [Functional requirements — Teaching features](#8-functional-requirements--teaching-features)
 9. [Functional requirements — Project and file handling](#9-functional-requirements--project-and-file-handling)
 10. [Non-functional requirements](#10-non-functional-requirements)
@@ -55,13 +56,22 @@ Problems with the current options:
 - Students end up switching between **up to five programs** to finish one chapter.
 - For animation, **Adobe Animate** needs a paid subscription and a strong laptop, and **Tumult Hype** runs only on a Mac; free alternatives (Synfig, Pencil2D) are either hard to learn or lack tweens, paths and masks together.
 
+Phase 3 (from 2026-11-07) adds Chapter 19, Graphics creation:
+
+| Source file | What it is | Software it uses |
+|---|---|---|
+| `Graphics_Creation_Syllabus.pdf` | Syllabus sections 19.1–19.5 — the authoritative list | — |
+| `Graphics Creation.pdf` | Coursebook Chapter 18 *Graphics creation*: practical activities 18.01–18.15, worked examples 18.01–18.07, exam-style questions 1–2 | Adobe Photoshop |
+| `Grahics_Creation_Workbook.pdf` | Practical Skills Workbook Chapter 6 *Graphics creation*: a worked example and Tasks 1–9 | Pixelmator Pro (macOS only) |
+| 9626/04 past papers, 2017–2026 | 23 graphics tasks with their source files | any |
+
 **This project:** one small application that does everything in syllabus 11.1, 11.2 and 20.1, with menus and wording close enough to Movie Maker, Audacity and the animation coursebook that the books can still be followed.
 
 ## 2. Goals and non-goals
 
 ### Goals
 
-- Cover **100% of syllabus 11.1 and 11.2** practical skills in one application — and, in phase 2, **100% of syllabus 20.1** (animation) in the same application (§7).
+- Cover **100% of syllabus 11.1 and 11.2** practical skills in one application — and, in phase 2, **100% of syllabus 20.1** (animation, §7) and, in phase 3, **100% of syllabus 19** (graphics, §7a) in the same application.
 - Run smoothly and **offline** on ordinary student laptops — **Windows 11 and macOS** — from one codebase.
 - Support **precise numeric entry** (times to 0.01 s), as exam tasks require exact values.
 - Help students understand the **theory** (compression, containers, codecs, sampling) as well as the practical skills.
@@ -250,6 +260,96 @@ Every format but SVG can be exported at another width; MP4, AVI, MOV, GIF, PNG s
 
 Not supported: SWF (Flash; the coursebook notes it is being phased out) and 3D (a non-goal).
 
+## 7a. Functional requirements — Graphics editor (syllabus 19)
+
+Phase 3 (decided 2026-11-07): a fifth mode, **Graphics**, for syllabus Chapter 19 (19.1 common graphics skills, 19.2 vector graphics, 19.3 bitmap images, 19.4 compression, 19.5 text). The coursebook (Chapter 18) teaches it with Adobe Photoshop, the workbook (Chapter 6) with Pixelmator Pro (Mac only); the syllabus names no software, so the mode follows the syllabus's words and the numbers the 23 past-paper graphics tasks give (px, cm, mm, pt, dpi, hex and RGB colours). One image holds **vector and pixel layers** together, as most papers mix them; its vector layers hold Animation mode's own objects, so a graphic is drawn with the same tools and can go on to be animated (**Send to Animation**). The analysis of the sources, the design decisions D1–D10 and the milestones' gates are in [`docs/GRAPHICS-DESIGN.md`](docs/GRAPHICS-DESIGN.md); the milestones in [`docs/MILESTONES.md`](docs/MILESTONES.md) (Phase 3, M18–M23).
+
+**Built in M18 (v1.5.1):** G1, G3 (no envelope or perspective yet), G4 (as AN24), G5, G6, G7, G8 (crop and fit the canvas; a picture's crop as AN5), G10 (the resolution inside PNG and JPG files), G11 (SVG, PNG, JPG), G12 and G13 (as AN6), GL3, and the vector layers of G2. The rest comes in M19–M23 as listed in §13.
+
+IDs: **G** common skills (19.1), **GV** vector (19.2), **GB** bitmap (19.3), **GC** compression
+(19.4), **GT** text (19.5), **GL** teaching, **GN** non-functional. "Reuse" names what comes from
+Animation mode.
+
+### 19.1 Common graphics skills
+
+| ID | Syllabus item | Requirement | Reuse / new |
+|---|---|---|---|
+| **G1** | (document) | **New image**: width × height in px, cm, mm, in; resolution (dpi, default 96 for screen, 300 for print); background white, a colour or **transparent**. Presets: A4 / A5 portrait and landscape, 10 × 10 cm, 200 × 200 px, 250 × 250 px, 1920 × 1080, web banner. Opening a picture makes an image of its size and dpi. Save / open `.mveg` (D9); autosave and recovery (P3); undo / redo. | New; P3 reused |
+| **G2** | add, remove, select active, order, toggle visibility, lock/unlock, opacity, blend / flatten / merge layers | **Layers panel** with vector and pixel layers (D1): add either kind, delete, rename, click to make active, drag to reorder plus raise / lower / to front / to back, eye, lock, **opacity %**, **blend mode** (normal, multiply, screen, overlay, darken, lighten, colour, luminosity, difference), duplicate, **merge down, merge visible, flatten** (a vector layer merged into a pixel one is drawn into it, with a note that it is no longer editable), **clipping mask** (a layer shows only inside the one below: the photo inside a circle). Folders. | AN7 extended |
+| **G3** | resize, skew, reflect, rotate, move, scale, shear, envelope and perspective | **Transform** the selected objects, a pixel layer or a pixel selection: move (typed X / Y of any of the 9 reference points: "bottom edge at Y = 1900"), scale / resize (px, %, cm; keep proportions), rotate (typed °, about a chosen point), reflect (flip), skew / shear. **Envelope** (§GV4) and **perspective** (drag the four corners) for vectors and pixels. Pixels are resampled bicubic; nearest for pixel art. | AN23, AN25, AN27 reused; envelope, perspective and pixel transforms new |
+| **G4** | group, ungroup, combine/join, add/subtract, intersect | Group / ungroup; **Combine** (shapes become one compound path, holes even-odd) and **Join** (two open paths' nearest ends meet); **Union, Subtract, Intersect, Exclude**; results are pen paths. | AN24 + Exclude, Combine, Join |
+| **G5** | left, right, top, bottom, centre, distribute, order, raise, lower, front, back | **Align** left / centre / right / top / middle / bottom **relative to** the selection, the first selected (key object) or the canvas; **distribute** centres or equal gaps, horizontally or vertically (also for nodes, GV3); arrange raise / lower / front / back. | AN7 extended |
+| **G6** | rulers, grids, guidelines, snapping | Rulers in **px, cm, mm, in or pt** (click to change), grid with spacing and subdivisions in those units ("1 cm grid"), guides dragged out or **typed** ("vertical guide at 3.5 in"), snap to grid, guides, objects, nodes and pixels, each on or off. Never exported. | AN2 + units |
+| **G7** | colour picker; select a colour or colour range within an image or from other sources | The colour picker shows **RGB 0–255, hex, HSL, HSB and CMYK %** together (D7); **eyedropper** from the image (one pixel or a 3 × 3 / 5 × 5 average), from **anywhere on screen** (Chromium's EyeDropper) or from another open picture; document swatches and recent colours. Colour **range** selection is GB2. | V4 picker extended |
+| **G8** | crop / clip to objects | **Crop tool** (drag, a ratio or typed size, rotate the crop), **crop to selection**, **trim** transparent or plain edges ("exclude as much white space as possible"), **canvas to the drawing**; **clip to object**: a picture or layer shown only inside a vector shape (G2 clipping mask, or "Clip to shape" on objects: the photo in the ellipse, the jigsaw pieces). | AN5 crop extended |
+| **G9** | RGB, HSL, CMYK, CMS: how each produces colour, properties, purpose, uses | Learn ▸ Graphics ▸ **Colour systems**: interactive mixers (additive RGB light, subtractive CMYK ink, HSL wheel), the same colour in each system, why print uses CMYK, what a colour matching system does (the eyedropper as the coursebook's example). The picker's CMYK fields say "for print; the screen shows RGB". | New (Learn) |
+| **G10** | image resolutions: too low / too high on screen or in print | **Image size** (GB6) shows px, the print size at the dpi and the file size; a warning below 150 dpi at the print size, and above 4× the screen size for web use. Exports write the dpi (PNG pHYs, JPEG JFIF, TIFF, BMP, PDF page size). Learn: a zoom that pixelates a bitmap beside the same vector. | New |
+| **G11** | bitmap and vector formats, suitability; export SVG, BMP, JPG, PNG, GIF, TIF, PDF | **Export** as SVG, PDF (vector), PNG, JPG, GIF, BMP, TIFF (D5) with each format's options: JPG quality, colour depth (1 / 4 / 8 / 24 / 32 bit), palette and dithering, transparency or a background colour, TIFF compression. **Size**: the canvas, or another width or height in px (height in proportion: 600 px wide, 500 px high), or cm at a dpi. **What**: the whole image, the selected objects (each group in its own file in one go: Casing, MetalInsert, Grid; Surround, Scale, Needle), or each layer (CastleLayer, OceanLayer, SkyLayer). Candidate file names (P8). The dialog shows each format's pros and cons (T7), lossy / lossless, transparency and the estimated size; **an SVG with bitmap parts is flagged** ("must not contain bitmap elements"). | AN15 / AN22 extended; encoders new |
+| **G12** | changing solid and gradient fills | Fills on objects as in Animation (solid; linear and radial gradients of many stops, angle, centre) plus **pattern** fills (built-in: weave, checks, stripes, dots, hatching, bricks; or a picture tiled) and **fill and outline opacity apart from the object's**. On pixel layers: **paint bucket** and **gradient tool** (GB3). | AN6 + pattern, fill opacity |
+| **G13** | change opacity of all or part of an image | Layer opacity, object opacity, fill opacity; a **part** of a pixel layer: select it, *Edit ▸ Fade selection to …%* or erase with a soft brush at an opacity; layer masks (GB2). | New |
+| **G14** | (needed by papers and the workbook: depth, 3-D, blooms, halo) | **Effects** on objects and layers: **drop shadow** (colour, offset, blur, opacity), **inner shadow**, **outer glow** (the halo), **bevel / emboss** (raised lettering, "3-D" buttons, the metallic plaque), **blur** (a soft-edged circle). Shown on the canvas; in SVG as filters; in bitmaps drawn in. | New |
+
+### 19.2 Vector graphics
+
+| ID | Syllabus item | Requirement | Reuse / new |
+|---|---|---|---|
+| **GV1** | freehand, Bézier curves, straight lines, rectangles, ellipses, circles, arcs, stars, polygons, spirals | Tools as Animation's plus **arc** (start and end angle; open arc, pie or chord) and **spiral** (turns, inner radius, growth), and a **polyline** (click, click, double-click). Shift keeps circles, squares and 15° steps. | AN3 + arc, spiral, polyline |
+| **GV2** | selection tools: convert to curves, replication, transformation tools | Select, node select, select same fill / outline / kind, select all on the layer. **Convert to curves** (any shape or text → pen path, keeping its look). **Replication**: duplicate (Ctrl+D repeats the last move: "duplicate twice and arrange"), paste in place, **step and repeat** (n copies, each moved by X / Y and / or turned by ° about a point: the wheel's spokes, the chip's evenly spaced legs, 6 protons), **mirror copy**. | AN5 select reused; convert and replicate new |
+| **GV3** | add, move, delete nodes; Bézier handles; symmetrical, asymmetrical, cusp, smooth nodes; align and distribute nodes | Node tool: add (click a segment), move (drag, arrows, typed X / Y), delete (simplifies), drag handles; **node type** buttons — **cusp** (handles independent), **smooth** (in line, own lengths), **symmetrical** (in line, equal), and asymmetrical as smooth with unequal lengths; segment to line / curve; select many nodes; **align and distribute nodes**; **simplify** a path (tolerance); break at a node, join two nodes, close / open, reverse. | AN3 pen edit extended |
+| **GV4** | application of envelopes and perspectives | **Envelope**: presets arch, arc, bulge, flag, wave, rise, squeeze, with a bend %, or an editable envelope whose four sides are Bézier curves; **Perspective**: drag four corners. Kept as a live effect (text stays editable, GT5) until *Apply*, which converts to plain paths. Curves are subdivided before mapping so the result stays smooth. | New |
+| **GV5** | converting bitmap images into editable vector shapes (trace); advantages and disadvantages | **Trace bitmap** as in Animation (colours, detail, smoothing), plus **black and white** (a threshold: silhouettes) and **only the selection**; the picture is kept underneath (hidden) to compare. The dialog lists the pros (scales without blur, small files for flat art, editable parts) and cons (detail lost, photos become many shapes and large, time). | AN5 extended |
+| **GV6** | (open given vector files) | **Open / import SVG as editable objects**: rect, circle, ellipse, line, polyline, polygon, path (all commands, arcs too), groups, transforms, fill, stroke, opacity, linear and radial gradients, text. Our own SVG exports open back the same. Anything unsupported becomes a picture, and a note says what. | New (`svg.ts` reads only sizes today) |
+| **GV7** | (wireframe: O/N/25 Apple) | **View ▸ Outline (wireframe)**: every shape as a thin line, no fills, to check and select overlapping parts. | New, small |
+| **GV8** | creating a vector graphic for its intended application and audience | **Template layer**: a picture placed faded, locked and never exported, to draw over (Chip.png, Balloon1_, Plane.jpg). The built-in Library (AN19) is shared with Animation. | AN19 reused; template new, small |
+
+### 19.3 Bitmap images
+
+| ID | Syllabus item | Requirement | Reuse / new |
+|---|---|---|---|
+| **GB1** | creating and editing bitmap images | Open JPG, PNG, GIF, BMP, TIFF, WebP as an image or **as a new layer**; new empty pixel layer; paste a picture as a layer. Zoom to 3200 %, pixel grid at high zoom, pan with Space. | New |
+| **GB2** | lasso, magic wand, colour select, cut-out, crop, masking tools | Selections: **rectangle, ellipse, lasso, polygonal lasso, magnetic lasso** (follows edges), **magic wand** (tolerance, contiguous or not, this layer or all), **colour select** (every pixel near a picked colour, with fuzziness: land, sea, sky between leaves), **from a shape or text** (the jigsaw template); add, subtract, intersect (Shift, Alt); invert, feather, grow / shrink, smooth, select all / none. **Cut-out**: copy or cut the selection to a new layer, delete to transparent, *Remove background* (select it and delete). **Masks**: a layer mask from the selection, painted black to hide and white to show; clipping masks (G2). | New |
+| **GB3** | solid and gradient fills; black and white, greyscale; brightness, contrast, colour balance, shadows and highlights | Paint bucket (tolerance, contiguous) and gradient tool (drag; linear, radial; many stops). **Adjustments** on the layer or inside the selection, with a live preview: greyscale, **black and white** (threshold), brightness / contrast, **colour balance** (shadows, midtones, highlights), **shadows / highlights**, levels, exposure, **hue / saturation / lightness** and *colourise* (recolour the Moon, the neutron), **temperature / tint**, **replace colour** (pick a colour range, give the new hue), invert. One undo step each. | New |
+| **GB4** | brush, pencil and pen tools: pre-set and customised options | **Brush** (soft), **pencil** (hard, pixel-exact), **eraser**, **airbrush**; size, hardness, opacity, flow, spacing, shape (round, square, star, scatter: the stars and lights in the night scene); pen-tablet pressure; built-in presets and **saved custom presets**. Shift draws a straight line. | New |
+| **GB5** | distort, clone, erase, blur, smudge, sharpen, red eye removal | **Clone stamp** (Alt-click the source, aligned or not), **heal** (clones, then matches the colour and light around: removes the bin, wires, cables), **blur / sharpen / smudge brushes**, **red-eye** (click or drag a box over the eye), erase (GB4). Filters on a layer or selection: **Gaussian blur**, **motion blur**, **zoom and twirl blur** (the workbook's swirl), **sharpen** (unsharp mask), **distort**: warp (a mesh), perspective, **bulge** (the lens's magnified circle). | New |
+| **GB6** | resizing the image / canvas; changing colour depth; changing resolution | **Image size**: px, %, cm, in at a dpi, keep proportions, resample bicubic / bilinear / nearest or **change only the dpi**; **canvas size** with a 9-point anchor and the new area transparent or a colour; **colour depth** preview on export or *Image ▸ Reduce colours* (2, 16, 256 colours, greyscale; dithering on or off) with the file size before and after. | New |
+
+### 19.4 Compression
+
+| ID | Syllabus item | Requirement | Reuse / new |
+|---|---|---|---|
+| **GC1** | what compression is; lossless and lossy; effects on images | Learn ▸ Graphics ▸ **Compression**, on the student's own image: a JPEG quality slider with the file size and a zoomed **difference view** (where data was lost); the same image as PNG, GIF, BMP, TIFF and JPG side by side with sizes; reducing the colour depth and the resolution (the coursebook's two lossy examples) with their sizes; why re-saving a JPEG loses more each time; a file-size calculator (width × height × bits ÷ 8). | T3 compression comparison and file-size calculator extended |
+| **GC2** | (choosing compression on export) | The export dialog labels each format lossless / lossy and shows the estimated size; exporting never overwrites the opened original (the coursebook's tip). | AN15 pattern |
+
+### 19.5 Text
+
+| ID | Syllabus item | Requirement | Reuse / new |
+|---|---|---|---|
+| **GT1** | font face, size, kerning, letter spacing, line spacing | Text with the bundled fonts (and system fonts), size in px or pt, bold, italic, colour, outline, alignment, **letter spacing** (whole text), **kerning** (between the two letters at the cursor, Alt+← / →), **line spacing**. | AN4 + spacing, kerning |
+| **GT2** | fitting text to path or shape: along a line or around a shape | **Text on a path**: put text on any open or closed path or shape outline (ellipse, circle, arc, pen path); start position, **side** (outside, inside, centred on the outline: "each letter halfway through the outline"), flip; the path can be hidden ("do not show the path"). Animation's arc curve (AN26) stays as the quick option. | New (AN26 reused) |
+| **GT3** | setting text in a shape | **Text in a shape**: lines wrap inside any closed shape (ellipse, rectangle, polygon, pen path), aligned, with padding. | New |
+| **GT4** | converting text to curves: fonts into editable vector shapes | **Convert to curves**: each letter becomes a pen path (grouped) from the font's own outlines (D10), then nodes are editable (the stretched letters). | New |
+| **GT5** | use and manipulation of text in graphics software | **Warp text** with the envelopes of GV4 (arch, bulge, wave…), still editable; text effects of G14 (shadow, glow, bevel). | New |
+
+### Teaching and links to the other modes
+
+| ID | Requirement |
+|---|---|
+| **GL1** | Learn ▸ **Graphics**: bitmap vs vector (zoom demo, uses, pros and cons), resolution and print size, colour systems (G9), file formats (the seven, with suitability for scenarios: web, print, logo, photo, transparency, animation), compression (GC1), bitmap to vector (GV5), image editing and society (airbrushing, memes, politics, consent, copyright). Glossary entries; *Why use this?* on every tool (T5). |
+| **GL2** | **Task checker** for images (T6): a PNG, JPG, GIF, BMP, TIFF, SVG or PDF: pixel size, size in cm at its dpi, dpi, format, colour depth, any transparent pixels, JPEG quality estimate, whether an SVG holds bitmaps, its units and viewBox; the file name's candidate details (P8); checked against the numbers a task gives. |
+| **GL3** | **Send to Animation**: the selected objects or the whole image go to Animation mode as editable objects (D2), pixel layers as pictures; copy and paste between the two modes. A graphic exported as PNG / SVG can be placed in Video mode as a picture (V18). |
+
+### Non-functional (checked like N1–N5)
+
+| ID | Requirement |
+|---|---|
+| **GN1** | A 4128 × 2322 photo (the largest source, Ocean.jpg) with 6 layers and 50 undo steps stays under **1 GB** for the whole app; undo keeps only changed tiles and moves old steps to a temporary file past a limit. |
+| **GN2** | A brush stroke follows the pointer at **≥ 30 fps** on that photo on the weakest pilot laptop; a filter's preview shows in **≤ 0.5 s** (on a reduced copy), and is applied in **≤ 3 s** for 12 megapixels. |
+| **GN3** | Opening a 12-megapixel JPEG takes **≤ 2 s**; an `.mveg` of that size **≤ 3 s**. |
+| **GN4** | The same document exports the same pixels on Windows and macOS (cross-platform job, as X6; text checked apart as for animations). |
+
+**Non-goals**: CMYK documents and ICC colour management, RAW photos, 16-bit editing (D6),
+animated SVG, AI / generative fill, 3-D.
+
 ## 8. Functional requirements — Teaching features
 
 These cover the **theory** parts of the syllabus that ordinary editors don't teach.
@@ -380,7 +480,7 @@ Because the UI is written in web technologies, it can later be reused for a brow
 
 ## 13. Development phases
 
-Development follows **Test-Driven Development** in 18 milestones over two phases, each closed by a test gate before the next one starts. Full plan, TDD rules and coursebook-task mapping: [`docs/MILESTONES.md`](docs/MILESTONES.md).
+Development follows **Test-Driven Development** in milestones over three phases, each closed by a test gate before the next one starts. Full plan, TDD rules and coursebook-task mapping: [`docs/MILESTONES.md`](docs/MILESTONES.md).
 
 | Milestone | Scope | Outcome |
 |---|---|---|
@@ -395,6 +495,12 @@ Development follows **Test-Driven Development** in 18 milestones over two phases
 | **M15** | AN10–AN12: motion paths, morphing, masks | All tweening tools of 20.1 |
 | **M16** | AN5, AN14, AN15 (HTML), AN17, AN18: pictures and tracing, stop motion, web export, buttons, Learn | All of syllabus 20.1 |
 | **M17** | §14 acceptance of the animation tasks on Windows 11 and macOS | Release v2.0 on GitHub Releases |
+| **M18** | G1, G3–G8, G10–G13 (SVG, PNG, JPG), GL3: the Graphics tab on Animation mode's tools, images in px / cm / mm / in at a resolution, align and distribute, crop and fit the canvas, export at a size and of parts, Send to Animation | Graphics mode: vector logos as the papers ask (phase 3, v1.5.1) |
+| **M19** | GV1–GV8, G3 envelope and perspective, G4 Exclude / Combine / Join, G12 pattern, G14 effects, PDF | All vector work of 19.2 |
+| **M20** | GT1–GT5: spacing and kerning, text on any path, text in a shape, text to curves, warped text | All of 19.5 |
+| **M21** | GB1, GB2, GB4, GB6, pixel layers (blend, merge, flatten, masks) | Photos, selections, brushes: the bitmap core of 19.3 |
+| **M22** | GB3, GB5: adjustments, clone and heal, red-eye, filters, distort | All of 19.3 |
+| **M23** | G9, G10, G11 (BMP, GIF, TIFF, colour depth), GC1–GC2, GL1–GL2, GN1–GN4; acceptance of the 23 papers and the workbook | All of syllabus 19 |
 
 ## 14. Acceptance testing
 

@@ -60,6 +60,7 @@ function state(assets: Record<string, AssetStatus>): AppState {
     message: null,
     welcome: false,
     licences: null,
+    about: false,
   };
 }
 const ready: Record<string, AssetStatus> = {

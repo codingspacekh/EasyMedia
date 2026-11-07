@@ -49,6 +49,23 @@
       '<path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/>',
     locate: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
     screen: '<rect x="2" y="6" width="20" height="12" rx="2"/>',
+    // M18: Graphics mode, and G5 align and distribute (a line and the boxes lined up on it).
+    graphics:
+      '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>',
+    alignLeft:
+      '<path d="M4 3v18"/><rect x="7" y="6" width="12" height="4" rx="1"/><rect x="7" y="14" width="7" height="4" rx="1"/>',
+    alignCentre:
+      '<path d="M12 3v18"/><rect x="5" y="6" width="14" height="4" rx="1"/><rect x="8" y="14" width="8" height="4" rx="1"/>',
+    alignRight:
+      '<path d="M20 3v18"/><rect x="5" y="6" width="12" height="4" rx="1"/><rect x="10" y="14" width="7" height="4" rx="1"/>',
+    alignTop:
+      '<path d="M3 4h18"/><rect x="6" y="7" width="4" height="12" rx="1"/><rect x="14" y="7" width="4" height="7" rx="1"/>',
+    alignMiddle:
+      '<path d="M3 12h18"/><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="8" width="4" height="8" rx="1"/>',
+    alignBottom:
+      '<path d="M3 20h18"/><rect x="6" y="5" width="4" height="12" rx="1"/><rect x="14" y="10" width="4" height="7" rx="1"/>',
+    distributeH: '<path d="M3 3v18M21 3v18"/><rect x="9" y="7" width="6" height="10" rx="1"/>',
+    distributeV: '<path d="M3 3h18M3 21h18"/><rect x="7" y="9" width="10" height="6" rx="1"/>',
     chevron: '<path d="m6 9 6 6 6-6"/>',
     fade: '<path d="M3 20 21 4v16z"/>',
     filter: '<circle cx="9" cy="9" r="6"/><circle cx="15" cy="15" r="6"/>',

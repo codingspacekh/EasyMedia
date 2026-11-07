@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIXTURES, generateFixtures, selectFixtures } from '../../scripts/lib/fixtures.ts';
 import { bundledFfmpeg } from '../integration/helpers/ffmpeg.ts';
-import { answerDialogs, answerUnsaved, root } from './app.ts';
+import { answerDialogs, answerUnsaved, BACKGROUND_ENV, root } from './app.ts';
 
 const SONG = 'song_dc_offset_90s.mp3';
 
@@ -24,7 +24,7 @@ test('N4 five Amplify steps on 85 s of stereo do not make the page hold more sou
   const app = await electron.launch({
     args: ['--js-flags=--expose-gc', root], // lets the test collect garbage before measuring
     cwd: root,
-    env: { ...process.env, ONEEDITOR_USER_DATA: dir },
+    env: { ...process.env, ...BACKGROUND_ENV, ONEEDITOR_USER_DATA: dir },
   });
   const page = await app.firstWindow();
   await answerUnsaved(app, 'discard'); // the unsaved edits are thrown away when the test closes

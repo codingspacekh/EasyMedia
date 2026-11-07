@@ -4,6 +4,7 @@
   // a category, click one to place it (a background goes on a layer of its own at the bottom).
   // Each thumbnail is drawn by the same code as the stage.
   import Dialog from '../Dialog.svelte';
+  import { editorOf } from './editor.ts';
   import type { App } from '../../app/app.ts';
   import { drawObject, type StageCanvas } from '../../core/animation/draw.ts';
   import { withLayers } from '../../adapters/canvas/layers.ts';
@@ -17,7 +18,8 @@
   import Why from '../Why.svelte';
 
   let { app, onclose }: { app: App; onclose: () => void } = $props();
-  const anim = $derived(app.animation);
+  const editor = editorOf(() => app);
+  const anim = $derived(editor.anim);
 
   let query = $state('');
   let category = $state<Category>('cartoons');
